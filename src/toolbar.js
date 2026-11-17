@@ -1,5 +1,7 @@
 export function createToolbar(deps = {}) {
   const {zoom, editor, figures, status} = deps;
+  /* export (100) is built after toolbar (90) and is only reached from a click. */
+  const exporter = deps.late("export");
 
   const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
@@ -182,7 +184,7 @@ export function createToolbar(deps = {}) {
     clone.querySelector("#progress-dialog")?.removeAttribute("open");
 
     // Runtime frames out, and the store pruned to the figures still present.
-    if (window.Figures) figures.prepareClone(clone);
+    figures.prepareClone(clone);
 
     const size = document.querySelector("[data-fontsize]")?.value || "11pt";
     const theme = clone.querySelector("#user-theme");
@@ -478,7 +480,7 @@ export function createToolbar(deps = {}) {
     if (fontBtn) {editor.setFontSize(fontBtn.dataset.font); return;}
     if (figureBtn) {figures.pick(figureBtn.dataset.figurePick); return;}
     if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
-    if (exportBtn) {globalThis.Export.begin(exportBtn.dataset.export); return;}
+    if (exportBtn) {exporter().begin(exportBtn.dataset.export); return;}
     if (saveBtn) {save(); return;}
     if (shortcutBtn) {showShortcuts(); return;}
 

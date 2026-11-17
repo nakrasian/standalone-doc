@@ -2,6 +2,15 @@ export function createStatus(deps = {}) {
   const {signals, pagination} = deps;
   const content = document.getElementById("content");
   const storeEl = document.getElementById("figure-store");
+  /* The exact figure-store size is figures' business, and figures is built after
+     status (order 80 vs 60). It registers an estimator once it exists; until then
+     count the raw store text, which is readable during construction and cannot
+     throw. A deps.late("figures") edge would throw instead: refresh() runs at the
+     bottom of this factory, while figures is still unbuilt. */
+  let storeBytes = () => (storeEl ? storeEl.textContent.length : 0);
+  function setStoreEstimator(fn) {
+    if (typeof fn === "function") storeBytes = fn;
+  }
   const baseBytes = document.documentElement.outerHTML.length
     - content.outerHTML.length
     - (storeEl ? storeEl.textContent.length : 0);
@@ -44,12 +53,10 @@ export function createStatus(deps = {}) {
     const words = wordCount(content);
     const pages = pagination.pageCount();
     const html = contentHtml();
-    const storeBytes = window.Figures && Figures.savedStoreBytes
-      ? Figures.savedStoreBytes()
-      : (storeEl ? storeEl.textContent.length : 0);
+    const bytes = storeBytes();
     // Approximation, not a serialize: the app chrome + styles + store +
     // current canonical content. Cheap enough to run on the status debounce.
-    const estimated = baseBytes + html.length + storeBytes + 13;
+    const estimated = baseBytes + html.length + bytes + 13;
     const dirty = forced || html !== baseline;
     const shown = !dirty && lastSavedBytes != null ? lastSavedBytes : estimated;
     const exact = !dirty && lastSavedBytes != null;
@@ -91,5 +98,5 @@ export function createStatus(deps = {}) {
 
   refresh();
 
-  return {refresh, save, markDirty};
+  return {refresh, save, markDirty, setStoreEstimator};
 }

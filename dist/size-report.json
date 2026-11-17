@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 226150
+    "bytes": 227223
   },
   "assets": [
     {
@@ -52,22 +52,22 @@
     {
       "id": "status",
       "kind": "js",
-      "bytes": 3936
+      "bytes": 4419
     },
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 18022
+      "bytes": 18141
     },
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 45899
+      "bytes": 46202
     },
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 25062
+      "bytes": 25174
     },
     {
       "id": "export",
@@ -81,10 +81,10 @@
     }
   ],
   "flavors": {
-    "index.html": 226150,
-    "asset-bodies": 196851,
-    "markup-and-runtime": 29299,
-    "dist/slim.html": 57305
+    "index.html": 227223,
+    "asset-bodies": 197868,
+    "markup-and-runtime": 29355,
+    "dist/slim.html": 57361
   },
   "notes": [
     "dist/cdn/ is intentionally absent until Phase 2: the published module shape",

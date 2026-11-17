@@ -1084,6 +1084,10 @@ export function createFigures(deps = {}) {
       return;
     }
     store = readStore();
+    /* Give status the exact store size from now on. Before this point it counts
+       the raw store text; status cannot depend on figures (it is built first and
+       refreshes during construction), so the estimator travels this way. */
+    status.setStoreEstimator(savedStoreBytes);
     syncStore();
 
     if ("IntersectionObserver" in window) {

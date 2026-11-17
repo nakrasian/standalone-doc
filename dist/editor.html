@@ -1770,7 +1770,7 @@
     </div>
   </dialog>
 
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":9497},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"global":"Signals","factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"global":"Zoom","factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"global":"Pagination","factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"global":"ProgressDialog","factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3343,"deps":["signals","pagination"],"global":"Status","factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":15972,"deps":["signals","status","pagination"],"global":"Editor","factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":41785,"deps":["signals","status","editor"],"global":"Figures","factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22733,"deps":["zoom","editor","figures","status"],"global":"Toolbar","factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"global":"Export","factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":9497},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"global":"Signals","factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"global":"Zoom","factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"global":"Pagination","factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"global":"ProgressDialog","factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3789,"deps":["signals","pagination"],"late":["figures"],"global":"Status","factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"global":"Editor","factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":42072,"deps":["signals","status","editor"],"global":"Figures","factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22829,"deps":["zoom","editor","figures","status"],"late":["export"],"global":"Toolbar","factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"global":"Export","factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -2855,6 +2855,15 @@
       const {signals, pagination} = deps;
       const content = document.getElementById("content");
       const storeEl = document.getElementById("figure-store");
+      /* The exact figure-store size is figures' business, and figures is built after
+         status (order 80 vs 60). It registers an estimator once it exists; until then
+         count the raw store text, which is readable during construction and cannot
+         throw. A deps.late("figures") edge would throw instead: refresh() runs at the
+         bottom of this factory, while figures is still unbuilt. */
+      let storeBytes = () => (storeEl ? storeEl.textContent.length : 0);
+      function setStoreEstimator(fn) {
+        if (typeof fn === "function") storeBytes = fn;
+      }
       const baseBytes = document.documentElement.outerHTML.length
         - content.outerHTML.length
         - (storeEl ? storeEl.textContent.length : 0);
@@ -2897,12 +2906,10 @@
         const words = wordCount(content);
         const pages = pagination.pageCount();
         const html = contentHtml();
-        const storeBytes = window.Figures && Figures.savedStoreBytes
-          ? Figures.savedStoreBytes()
-          : (storeEl ? storeEl.textContent.length : 0);
+        const bytes = storeBytes();
         // Approximation, not a serialize: the app chrome + styles + store +
         // current canonical content. Cheap enough to run on the status debounce.
-        const estimated = baseBytes + html.length + storeBytes + 13;
+        const estimated = baseBytes + html.length + bytes + 13;
         const dirty = forced || html !== baseline;
         const shown = !dirty && lastSavedBytes != null ? lastSavedBytes : estimated;
         const exact = !dirty && lastSavedBytes != null;
@@ -2944,9 +2951,9 @@
 
       refresh();
 
-      return {refresh, save, markDirty};
+      return {refresh, save, markDirty, setStoreEstimator};
     }
-    StandaloneDoc.register("status", createStatus, {"order":60,"deps":["signals","pagination"],"late":[],"global":"Status"});
+    StandaloneDoc.register("status", createStatus, {"order":60,"deps":["signals","pagination"],"late":["figures"],"global":"Status"});
     })();
   </script>
 <!-- /@asset -->
@@ -2959,6 +2966,9 @@
     "use strict";
     function createEditor(deps = {}) {
       const {signals, status, pagination} = deps;
+      /* A back-edge: figures (80) is built after editor (70). Only restore() reads
+         it, and restore() is reachable from undo/redo, never from construction. */
+      const figures = deps.late("figures");
       const content = document.getElementById("content");
       const STATE = ["bold", "italic", "underline", "strikeThrough",
         "superscript", "subscript", "insertUnorderedList", "insertOrderedList"];
@@ -3278,14 +3288,14 @@
         }
 
         function restore(snap) {
-          if (window.Figures && window.Figures.unmountAll) window.Figures.unmountAll();
+          figures().unmountAll();
           signals.mute(() => {content.innerHTML = snap.html;});
           applySelection(snap.sel);
           remember();
           syncToolbar();
           status.refresh();
           pagination.schedule();
-          if (window.Figures && window.Figures.scan) window.Figures.scan();
+          figures().scan();
         }
 
         function undo() {
@@ -3450,7 +3460,7 @@
       init();
       return api;
     }
-    StandaloneDoc.register("editor", createEditor, {"order":70,"deps":["signals","status","pagination"],"late":[],"global":"Editor"});
+    StandaloneDoc.register("editor", createEditor, {"order":70,"deps":["signals","status","pagination"],"late":["figures"],"global":"Editor"});
     })();
   </script>
 <!-- /@asset -->
@@ -4549,6 +4559,10 @@
           return;
         }
         store = readStore();
+        /* Give status the exact store size from now on. Before this point it counts
+           the raw store text; status cannot depend on figures (it is built first and
+           refreshes during construction), so the estimator travels this way. */
+        status.setStoreEstimator(savedStoreBytes);
         syncStore();
 
         if ("IntersectionObserver" in window) {
@@ -4661,6 +4675,8 @@
     "use strict";
     function createToolbar(deps = {}) {
       const {zoom, editor, figures, status} = deps;
+      /* export (100) is built after toolbar (90) and is only reached from a click. */
+      const exporter = deps.late("export");
 
       const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
@@ -4843,7 +4859,7 @@
         clone.querySelector("#progress-dialog")?.removeAttribute("open");
 
         // Runtime frames out, and the store pruned to the figures still present.
-        if (window.Figures) figures.prepareClone(clone);
+        figures.prepareClone(clone);
 
         const size = document.querySelector("[data-fontsize]")?.value || "11pt";
         const theme = clone.querySelector("#user-theme");
@@ -5139,7 +5155,7 @@
         if (fontBtn) {editor.setFontSize(fontBtn.dataset.font); return;}
         if (figureBtn) {figures.pick(figureBtn.dataset.figurePick); return;}
         if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
-        if (exportBtn) {globalThis.Export.begin(exportBtn.dataset.export); return;}
+        if (exportBtn) {exporter().begin(exportBtn.dataset.export); return;}
         if (saveBtn) {save(); return;}
         if (shortcutBtn) {showShortcuts(); return;}
 
@@ -5240,7 +5256,7 @@
 
       return {save, serialize, validate};
     }
-    StandaloneDoc.register("toolbar", createToolbar, {"order":90,"deps":["zoom","editor","figures","status"],"late":[],"global":"Toolbar"});
+    StandaloneDoc.register("toolbar", createToolbar, {"order":90,"deps":["zoom","editor","figures","status"],"late":["export"],"global":"Toolbar"});
     })();
   </script>
 <!-- /@asset -->

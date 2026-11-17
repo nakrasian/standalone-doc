@@ -12,10 +12,10 @@ edit by hand; `npm run check` fails if this file is stale.
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | * |
 | pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `refresh` | * |
-| status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty` | edit |
-| editor | 70 | signals, status, pagination | — | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
+| status | 60 | signals, pagination | figures | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
+| editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, status, editor | — | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
-| toolbar | 90 | zoom, editor, figures, status | — | `save`, `serialize`, `validate` | edit, comment |
+| toolbar | 90 | zoom, editor, figures, status | export | `save`, `serialize`, `validate` | edit, comment |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
 | bootstrap | 120 | — | — | _infrastructure_ | * |
 ```
@@ -26,9 +26,11 @@ graph LR
   zoom --> pagination
   signals --> status
   pagination --> status
+  figures -.->|late| status
   signals --> editor
   status --> editor
   pagination --> editor
+  figures -.->|late| editor
   signals --> figures
   status --> figures
   editor --> figures
@@ -36,6 +38,7 @@ graph LR
   editor --> toolbar
   figures --> toolbar
   status --> toolbar
+  export -.->|late| toolbar
   figures --> export
   toolbar --> export
   progress --> export
@@ -43,6 +46,4 @@ graph LR
 
 ## Implicit edges
 
-- **status** reaches `figures` through a global (becomes `deps.late()` in Phase 3).
-- **editor** reaches `figures` through a global (becomes `deps.late()` in Phase 3).
-- **toolbar** reaches `export` through a global (becomes `deps.late()` in Phase 3).
+- None: every cross-module reference is declared.

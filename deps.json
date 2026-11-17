@@ -107,11 +107,14 @@
         "signals",
         "pagination"
       ],
-      "late": [],
+      "late": [
+        "figures"
+      ],
       "provides": [
         "refresh",
         "save",
-        "markDirty"
+        "markDirty",
+        "setStoreEstimator"
       ]
     },
     {
@@ -126,7 +129,9 @@
         "status",
         "pagination"
       ],
-      "late": [],
+      "late": [
+        "figures"
+      ],
       "provides": [
         "init",
         "exec",
@@ -197,7 +202,9 @@
         "figures",
         "status"
       ],
-      "late": [],
+      "late": [
+        "export"
+      ],
       "provides": [
         "save",
         "serialize",

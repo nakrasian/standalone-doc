@@ -204,8 +204,8 @@
       "order": 60,
       "tag": "script",
       "file": "src/status.js",
-      "bytes": 3343,
-      "sha384": "sha384-qcDpHAikxzXD249tUyiB2oY8th5s7e8Aecw7tQE2dufZ8jg3Vb78c7Cg4RIBCPve",
+      "bytes": 3789,
+      "sha384": "sha384-9XC5V9JRCxHGgRJH8rFLUUtmp78PVItMr2tZmkMORUcLSSyFYNIHcjiCyb+DtvvA",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -218,16 +218,16 @@
         "signals",
         "pagination"
       ],
-      "late": [],
+      "late": [
+        "figures"
+      ],
       "provides": [
         "refresh",
         "save",
-        "markDirty"
+        "markDirty",
+        "setStoreEstimator"
       ],
-      "global": "Status",
-      "implicit": [
-        "figures"
-      ]
+      "global": "Status"
     },
     {
       "id": "editor",
@@ -235,8 +235,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 15972,
-      "sha384": "sha384-Iq8SgBNSOqcXVwp9dCntaaEZ0utsNYgGiyrtsgjZJ1y4S6QCjr4I1MR37bSPDmCW",
+      "bytes": 16070,
+      "sha384": "sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -250,7 +250,9 @@
         "status",
         "pagination"
       ],
-      "late": [],
+      "late": [
+        "figures"
+      ],
       "provides": [
         "init",
         "exec",
@@ -266,10 +268,7 @@
         "blockAtCaret",
         "insertBlock"
       ],
-      "global": "Editor",
-      "implicit": [
-        "figures"
-      ]
+      "global": "Editor"
     },
     {
       "id": "figures",
@@ -277,8 +276,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 41785,
-      "sha384": "sha384-rb7W/a6lBND9mrD/phhvkBW65gRvgMcIJaWLOQWTTaMBYGcYuwsVIlIYVbZGP+WZ",
+      "bytes": 42072,
+      "sha384": "sha384-8HzdMXFNAJS+9IyvoybkYIsw96QH2Vx50qLMyqD2w2ntJzhWC7pf4ZxPfJwSWH3+",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -327,8 +326,8 @@
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 22733,
-      "sha384": "sha384-tBL1EGB95dAfqwFHE1LG+xIlmH4Srr2SC0ORsZv1sjVS+kwUivANlLpnhh/hUJqo",
+      "bytes": 22829,
+      "sha384": "sha384-CuRcNbr4zOqsrg6h5jH2Ay2sBCidi+Gw8wKH9p8itXF7UfVkE830kAzzVWW7K/KH",
       "mode": "inline",
       "requiredBy": [
         "edit",
@@ -344,16 +343,15 @@
         "figures",
         "status"
       ],
-      "late": [],
+      "late": [
+        "export"
+      ],
       "provides": [
         "save",
         "serialize",
         "validate"
       ],
-      "global": "Toolbar",
-      "implicit": [
-        "export"
-      ]
+      "global": "Toolbar"
     },
     {
       "id": "export",

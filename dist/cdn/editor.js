@@ -1,5 +1,8 @@
 export function createEditor(deps = {}) {
   const {signals, status, pagination} = deps;
+  /* A back-edge: figures (80) is built after editor (70). Only restore() reads
+     it, and restore() is reachable from undo/redo, never from construction. */
+  const figures = deps.late("figures");
   const content = document.getElementById("content");
   const STATE = ["bold", "italic", "underline", "strikeThrough",
     "superscript", "subscript", "insertUnorderedList", "insertOrderedList"];
@@ -319,14 +322,14 @@ export function createEditor(deps = {}) {
     }
 
     function restore(snap) {
-      if (window.Figures && window.Figures.unmountAll) window.Figures.unmountAll();
+      figures().unmountAll();
       signals.mute(() => {content.innerHTML = snap.html;});
       applySelection(snap.sel);
       remember();
       syncToolbar();
       status.refresh();
       pagination.schedule();
-      if (window.Figures && window.Figures.scan) window.Figures.scan();
+      figures().scan();
     }
 
     function undo() {
