@@ -908,7 +908,13 @@ async function cmdCheck() {
       depWarnings.push("no release tags in this clone — dist/runtime.json was not verified");
     } else {
       const indexPath = `${DIST}/runtime.json`;
-      if (!exists(indexPath) || read(indexPath) !== JSON.stringify(index, null, 2) + "\n") {
+      let current = null;
+      try {
+        current = exists(indexPath) ? JSON.parse(read(indexPath)) : null;
+      } catch {
+        current = null;
+      }
+      if (!current || !sameIndex(current, index)) {
         all.push(`${indexPath} is stale — run: node build.mjs catalog`);
       }
       const known = new Set(releases.map(([tag]) => `${tag}.json`));
@@ -1263,6 +1269,20 @@ function writeCatalog() {
   for (const [tag, entry] of releases) write(`${RUNTIME}/${tag}.json`, JSON.stringify(entry, null, 2) + "\n");
   write(`${DIST}/runtime.json`, JSON.stringify(index, null, 2) + "\n");
   return { latest: index.latest, count: releases.length };
+}
+
+/**
+ * Two indexes describe the same history when they agree on everything but `date`: a
+ * release commit's pending entry cannot know its own tag date (the tag does not exist
+ * yet), and comparing it byte-for-byte would make every tag fail its own check the
+ * moment it is created. `date` is display-only, so it stays out of the comparison.
+ */
+function sameIndex(a, b) {
+  const strip = (index) => JSON.stringify({
+    ...index,
+    releases: (index.releases || []).map(({ date, ...release }) => release),
+  });
+  return strip(a) === strip(b);
 }
 
 function cmdCatalog() {
