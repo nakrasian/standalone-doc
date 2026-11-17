@@ -109,6 +109,21 @@ const write = (p, s) => {
 const exists = (p) => fs.existsSync(abs(p));
 const sha384 = (s) => "sha384-" + createHash("sha384").update(s, "utf8").digest("base64");
 const nbytes = (s) => Buffer.byteLength(s, "utf8");
+/* A `bin` asset is bytes, not text: its file is binary, its inline body is base64, and
+   every size and hash is over the *decoded* bytes so the two forms are one asset. */
+const readBytes = (p) => fs.readFileSync(abs(p));
+const writeBytes = (p, buffer) => {
+  fs.mkdirSync(path.dirname(abs(p)), { recursive: true });
+  fs.writeFileSync(abs(p), buffer);
+};
+const sha384Buffer = (buffer) => "sha384-" + createHash("sha384").update(buffer).digest("base64");
+const base64Of = (buffer) => buffer.toString("base64");
+const bytesOfBase64 = (text) => Buffer.from(String(text).replace(/\s+/g, ""), "base64");
+/** Canonical: no wrapping, no padding oddities — decode then re-encode must be a no-op. */
+const isCanonicalBase64 = (text) => {
+  const clean = String(text).trim();
+  return clean.length > 0 && base64Of(bytesOfBase64(clean)) === clean;
+};
 const kb = (n) => (n / 1024).toFixed(1);
 const rel = (p) => path.relative(ROOT, p);
 
@@ -176,6 +191,15 @@ function parseSource(html) {
     }
 
     const bodyStart = elementStart + firstNL + 1;
+    if ((attrs.kind || "") === "bin") {
+      /* One line, unwrapped base64. A wrapped body would still decode, but then
+         combine() could not reproduce it byte for byte, and verify() is a byte
+         comparison of bodies. */
+      const candidate = body.trim();
+      if (!isCanonicalBase64(candidate)) {
+        throw new Error(`asset "${id}": a bin body must be one line of unwrapped base64`);
+      }
+    }
     const { text: fileText, indent } = dedent(body);
     /* Only trust dedent if it is exactly reversible. */
     const reversible = reindent(fileText, indent) === body;
@@ -204,6 +228,8 @@ function parseSource(html) {
 function extensionFor(kind) {
   if (kind === "css") return "css";
   if (kind === "html") return "html";
+  /* wasm is the only binary this repository publishes, so the kind implies it. */
+  if (kind === "bin") return "wasm";
   return "js";
 }
 
@@ -261,7 +287,8 @@ function buildManifest(assets, previous) {
   let preserved = 0;
   const entries = assets.map((a) => {
     if (!exists(a.file)) throw new Error(`${a.file} is missing — run "npm run split"`);
-    const text = read(a.file);
+    const binary = a.kind === "bin" ? readBytes(a.file) : null;
+    const text = binary ? null : read(a.file);
     const before = keep.get(a.id);
     const meta = REGIONS.find((r) => r.id === a.id) || {};
     const mode = before?.mode ?? meta.mode ?? "inline";
@@ -274,8 +301,8 @@ function buildManifest(assets, previous) {
       order: a.order,
       tag: a.tag,
       file: a.file,
-      bytes: nbytes(text),
-      sha384: sha384(text),
+      bytes: binary ? binary.length : nbytes(text),
+      sha384: binary ? sha384Buffer(binary) : sha384(text),
       mode,
       requiredBy,
     };
@@ -298,7 +325,7 @@ function buildManifest(assets, previous) {
       }
     }
     if (a.kind === "html") entry.open = a.open;
-    if (isConverted(a.id)) {
+    if (isConverted(a.id) && text != null) {
       const contract = extractContract(text, { globals: LEGACY_GLOBAL_TO_ID });
       entry.deps = contract.deps;
       if (contract.late.length) entry.late = contract.late;
@@ -528,6 +555,8 @@ function sourceTextFor(a) {
  * itself, so this must NOT be pre-indented.
  */
 function readBodyFor(a, source) {
+  /* For a bin asset the file is the truth, not the (text) source: encode it. */
+  if (a.kind === "bin") return base64Of(readBytes(a.file));
   return isConverted(a.id) ? compileBody(a.id, source).body : source.replace(/\n$/, "");
 }
 
@@ -553,7 +582,8 @@ function cmdSplit() {
   for (const a of assets) {
     if (seen.has(a.id)) throw new Error(`split: duplicate asset id "${a.id}"`);
     seen.add(a.id);
-    write(a.file, sourceTextFor(a));
+    if (a.kind === "bin") writeBytes(a.file, bytesOfBase64(a.fileText));
+    else write(a.file, sourceTextFor(a));
   }
 
   const { manifest, preserved } = buildManifest(assets, previous);
@@ -632,8 +662,11 @@ function verify({ quiet = false } = {}) {
     }
     if (!a.reversible) problems.push(`${a.id}: indentation is not reversible; keeping the body verbatim`);
     const disk = read(a.file);
-    if (nbytes(disk) !== entry.bytes) problems.push(`${a.id}: ${a.file} is ${nbytes(disk)} bytes, manifest says ${entry.bytes}`);
-    if (sha384(disk) !== entry.sha384) problems.push(`${a.id}: ${a.file} hash does not match manifest (re-run split)`);
+    const diskBytes = a.kind === "bin" ? readBytes(a.file) : null;
+    const diskSize = diskBytes ? diskBytes.length : nbytes(disk);
+    const diskHash = diskBytes ? sha384Buffer(diskBytes) : sha384(disk);
+    if (diskSize !== entry.bytes) problems.push(`${a.id}: ${a.file} is ${diskSize} bytes, manifest says ${entry.bytes}`);
+    if (diskHash !== entry.sha384) problems.push(`${a.id}: ${a.file} hash does not match manifest (re-run split)`);
     let reproduced = null;
     try {
       reproduced = bodyFor(a, disk);
@@ -798,8 +831,9 @@ async function cmdCheck() {
          job, against the url its own manifest names. */
       if (!String(docEntry?.url || "").startsWith(`${String(m.cdnBase || "").replace(/\/$/, "")}/`)) continue;
       const published = `${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`;
+      /* Bytes, not text: the published copy of a bin asset is binary. */
       if (!exists(published)) all.push(`${published} is missing — run: node build.mjs build`);
-      else if (sha384(read(published)) !== asset.sha384) all.push(`${published} does not match the manifest hash — run: node build.mjs build`);
+      else if (sha384Buffer(readBytes(published)) !== asset.sha384) all.push(`${published} does not match the manifest hash — run: node build.mjs build`);
     }
     /* A plugin is a bundle, and the two halves of the claim have to agree in both
        directions: require() builds from the index, policy.usage() prices from the
@@ -856,7 +890,7 @@ async function cmdCheck() {
     const m = readManifest();
     if (m.schema !== 1) all.push(`manifest.json schema is ${m.schema}, expected 1`);
     for (const a of m.assets) {
-      if (!["css", "js", "html"].includes(a.kind)) all.push(`${a.id}: unknown kind "${a.kind}"`);
+      if (!["css", "js", "html", "bin"].includes(a.kind)) all.push(`${a.id}: unknown kind "${a.kind}"`);
       if (a.category != null && a.category !== "plugin") all.push(`${a.id}: unknown category "${a.category}"`);
       if (!["inline", "online", "disabled"].includes(a.mode)) all.push(`${a.id}: unknown mode "${a.mode}"`);
       if (!Array.isArray(a.requiredBy) || !a.requiredBy.length) all.push(`${a.id}: requiredBy must be a non-empty array`);
@@ -953,7 +987,8 @@ function cmdBuild() {
   const manifest = readManifest();
   for (const asset of manifest.assets) {
     if (asset.role === "infra") continue;
-    write(`${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`, read(asset.file));
+    if (asset.kind === "bin") writeBytes(`${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`, readBytes(asset.file));
+    else write(`${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`, read(asset.file));
   }
 
   write(`${DIST}/slim.html`, buildSlim(html, manifest));

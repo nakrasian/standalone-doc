@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -119,4 +120,81 @@ test("a modified src file is caught before combine", () => {
     fs.writeFileSync(file, original);
   }
   assert.match(run(["verify"]), /verify: ok/);
+});
+
+/* A `bin` asset is bytes in a text file: the document carries base64, the repository
+   carries the binary, and verify is a byte comparison of bodies. So the encoding has to
+   be canonical and the round trip has to decode on the way in and encode on the way out. */
+const WASM_ADD = Buffer.from([
+  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+  0x01, 0x07, 0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f,
+  0x03, 0x02, 0x01, 0x00,
+  0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00,
+  0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b,
+]);
+
+/* figures.js builds island documents as strings and contains a literal `</body>`, so the
+   probe block has to go before the *last* one. */
+function appendToBody(html, block) {
+  const at = html.lastIndexOf("</body>");
+  assert.ok(at > 0, "no closing body");
+  return html.slice(0, at) + block + html.slice(at);
+}
+
+test("a bin asset round-trips: base64 in the document, bytes in src/, hashes over bytes", () => {
+  const htmlFile = path.join(ROOT, "index.html");
+  const manifestFile = path.join(ROOT, "manifest.json");
+  const wasmFile = path.join(ROOT, "src/__probe_bin.wasm");
+  const htmlOriginal = fs.readFileSync(htmlFile, "utf8");
+  const manifestOriginal = fs.readFileSync(manifestFile, "utf8");
+  try {
+    const block = '<!-- @asset id="__probe_bin" kind="bin" order="999" -->\n'
+      + `<script type="application/wasm" id="__probe_bin">\n${WASM_ADD.toString("base64")}\n</script>\n`
+      + "<!-- /@asset -->\n\n";
+    fs.writeFileSync(htmlFile, appendToBody(htmlOriginal, block));
+
+    run(["split"]);
+    const written = fs.readFileSync(wasmFile);
+    assert.deepEqual(written, WASM_ADD, "src/ holds the decoded bytes, not the base64");
+    const entry = JSON.parse(fs.readFileSync(manifestFile, "utf8")).assets.find((a) => a.id === "__probe_bin");
+    assert.equal(entry.kind, "bin");
+    assert.equal(entry.bytes, WASM_ADD.length, "bytes are counted on the decoded file");
+    assert.equal(
+      entry.sha384,
+      "sha384-" + createHash("sha384").update(WASM_ADD).digest("base64"),
+      "the hash is over the decoded bytes",
+    );
+
+    /* Editing the binary must reach the document, re-encoded canonically. */
+    const edited = Buffer.concat([WASM_ADD, Buffer.from([0])]);
+    fs.writeFileSync(wasmFile, edited);
+    run(["combine"]);
+    const html = fs.readFileSync(htmlFile, "utf8");
+    assert.ok(html.includes(edited.toString("base64")), "combine splices the new base64 body");
+    assert.ok(!html.includes(WASM_ADD.toString("base64")), "the old body is gone");
+    assert.match(run(["verify"]), /verify: ok/);
+  } finally {
+    fs.writeFileSync(htmlFile, htmlOriginal);
+    fs.writeFileSync(manifestFile, manifestOriginal);
+    fs.rmSync(wasmFile, { force: true });
+    run(["split"]);
+  }
+});
+
+test("a wrapped base64 body is refused, because it could not round-trip", () => {
+  const htmlFile = path.join(ROOT, "index.html");
+  const htmlOriginal = fs.readFileSync(htmlFile, "utf8");
+  try {
+    const wrapped = WASM_ADD.toString("base64").replace(/(.{16})/g, "$1\n");
+    const block = '<!-- @asset id="__probe_bin" kind="bin" order="999" -->\n'
+      + `<script type="application/wasm" id="__probe_bin">\n${wrapped}\n</script>\n`
+      + "<!-- /@asset -->\n\n";
+    fs.writeFileSync(htmlFile, appendToBody(htmlOriginal, block));
+    const output = runFailing(["split"]);
+    assert.ok(output, "split should have failed");
+    assert.match(output, /one line of unwrapped base64/);
+  } finally {
+    fs.writeFileSync(htmlFile, htmlOriginal);
+    run(["split"]);
+  }
 });

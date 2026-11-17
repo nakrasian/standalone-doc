@@ -24,6 +24,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   const listeners = Object.create(null);
   const injected = [];
   const sources = Object.create(null);
+  /* Decoded bytes per asset id: an inline bin block is decoded once, a fetched one is
+     kept from the verification pass. */
+  const binaries = Object.create(null);
   let state = "declared";
   let parsed = null;
   let settingsParsed = null;
@@ -307,7 +310,16 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       /** Text of one of its *own* assets; another plugin's bytes are not readable. */
       async text(assetId) {
         if (!own.has(assetId)) throw failure("forbidden", assetId, `is not part of plugin "${id}"`);
+        const asset = assetById(assetId);
+        if (asset && asset.kind === "bin") {
+          throw failure("missing", assetId, "is binary — use host.bytes() for it");
+        }
         return assetText(assetId);
+      },
+      /** Bytes of one of its own assets (wasm, or any other binary it pinned). */
+      async bytes(assetId) {
+        if (!own.has(assetId)) throw failure("forbidden", assetId, `is not part of plugin "${id}"`);
+        return bytesOf(assetId);
       },
       /** A capability this document built (figures, editor, toolbar), or a refusal. */
       use: (name) => capability(name),
@@ -387,14 +399,20 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       });
     }
 
-    return { text: new TextDecoder().decode(bytes) };
+    /* Both: a module is evaluated from text, a binary asset is handed over as bytes, and
+       the hash is over the bytes either way. */
+    return { text: new TextDecoder().decode(bytes), bytes };
   }
 
   /* Evaluate verified bytes. Side effects stay here, never in the fetch, so the
      load phase can run in parallel without reordering anything. */
-  async function evaluate(asset, text) {
+  async function evaluate(asset, fetched) {
+    const text = typeof fetched === "string" ? fetched : fetched.text;
     if (asset.kind === "css") return { css: text };
     if (asset.kind === "html") return { html: text };
+    /* A binary asset is bytes handed to whoever asked. It is never evaluated here: the
+       runtime that instantiates it belongs to the plugin, not to the loader. */
+    if (asset.kind === "bin") return { binary: fetched.bytes || new ArrayBuffer(0) };
     const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
     let namespace;
     try {
@@ -418,8 +436,36 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     if (asset.mode !== "online") {
       throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
     }
-    const { text } = await fetchVerified(asset);
-    return evaluate(asset, text);
+    const fetched = await fetchVerified(asset);
+    return evaluate(asset, fetched);
+  }
+
+  /**
+   * Decoded bytes for one asset: the binary sibling of `source(id)`.
+   *
+   * Inline bytes are base64 in the document (the only text-safe way to carry them);
+   * by-reference bytes come from the same verified fetch that a module would. Cached,
+   * because a wasm module of any size must not be transferred twice.
+   */
+  async function bytesOf(id) {
+    if (binaries[id] instanceof ArrayBuffer) return binaries[id];
+    const asset = assetById(id);
+    if (!asset) throw failure("missing", id, "is not in the manifest");
+    let bytes;
+    if (asset.mode === "inline") {
+      const el = document.querySelector(`script[id="${id}"]`);
+      if (!el) throw failure("missing", id, "is inline but its block is not in this document");
+      const base64 = (el.textContent || "").replace(/\s+/g, "");
+      const binary = atob(base64);
+      const view = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
+      bytes = view.buffer;
+    } else {
+      const fetched = await fetchVerified(asset);
+      bytes = fetched.bytes;
+    }
+    binaries[id] = bytes;
+    return bytes;
   }
 
   /**
@@ -460,9 +506,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     if (asset.mode === "inline") {
       throw failure("missing", id, "is inline, so its text is the block in this document, not a CDN file");
     }
-    const { text } = await fetchVerified(asset);
-    sources[id] = text;
-    return text;
+    const fetched = await fetchVerified(asset);
+    sources[id] = fetched.text;
+    binaries[id] = fetched.bytes;
+    return fetched.text;
   }
 
   /**
@@ -523,6 +570,11 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     if (asset.kind === "css") {
       const result = loaded?.get(asset.id);
       if (result?.css != null) injectStyle(asset, result.css);
+      return "skipped";
+    }
+    if (asset.kind === "bin") {
+      /* Nothing to construct: decode (inline) or keep (fetched), then hand it over. */
+      await bytesOf(asset.id);
       return "skipped";
     }
     if (asset.role === "infra" && asset.kind === "js") return "skipped"; /* already running */
@@ -755,6 +807,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     for (const id of Object.keys(modules)) delete modules[id];
     for (const node of injected.splice(0)) node.remove();
     for (const id of Object.keys(sources)) delete sources[id];
+    for (const id of Object.keys(binaries)) delete binaries[id];
     for (const name of Object.keys(providers)) delete providers[name];
     pending.clear();
     errors.length = 0;
@@ -769,6 +822,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     settings,
     optional,
     source,
+    bytes: bytesOf,
     prefetch,
     reloadManifest,
     require: requirePlugin,

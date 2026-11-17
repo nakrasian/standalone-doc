@@ -111,8 +111,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 31952,
-      "sha384": "sha384-N94RlFqsVDJdbNMnBeSmewuq09zYw4lf2ckHnJkbFrwwk5/qUY34IyHteRIVw3vi",
+      "bytes": 34492,
+      "sha384": "sha384-q/MX4VK3ZvNvKEinuvR8grLVttaqlGl8qslBoKKRQ8f984vRmQ2Wb/LgcoH46G/3",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -377,8 +377,8 @@
       "order": 85,
       "tag": "script",
       "file": "src/policy.js",
-      "bytes": 16085,
-      "sha384": "sha384-81coNdgkc0vo94crhOHlJjQNl0J9XLu8hVeM6x/iBaONAiwiUsuLZ+6Tp3MJbHe3",
+      "bytes": 17205,
+      "sha384": "sha384-YIyJDvR38Z1+jA7a1xDlbWKZv1HR5cov9bPLfRi+57szs3QloXzTUHAAt7hJOUUw",
       "mode": "inline",
       "requiredBy": [
         "edit"

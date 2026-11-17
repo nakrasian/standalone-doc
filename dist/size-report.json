@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 364335
+    "bytes": 368307
   },
   "assets": [
     {
@@ -37,7 +37,7 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 34847
+      "bytes": 37599
     },
     {
       "id": "boot-ui",
@@ -87,7 +87,7 @@
     {
       "id": "policy",
       "kind": "js",
-      "bytes": 17708
+      "bytes": 18928
     },
     {
       "id": "toolbar",
@@ -116,9 +116,9 @@
     }
   ],
   "flavors": {
-    "index.html": 364335,
-    "asset-bodies": 350749,
+    "index.html": 368307,
+    "asset-bodies": 354721,
     "markup-and-runtime": 13586,
-    "dist/slim.html": 63457
+    "dist/slim.html": 66209
   }
 }

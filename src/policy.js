@@ -115,6 +115,18 @@ export function createPolicy(deps = {}) {
     return {assets};
   }
 
+  /* Bytes → base64, in chunks: `String.fromCharCode(...bigArray)` overflows the stack
+     for anything but a toy module. */
+  function base64Of(buffer) {
+    const view = new Uint8Array(buffer);
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < view.length; i += CHUNK) {
+      binary += String.fromCharCode(...view.subarray(i, i + CHUNK));
+    }
+    return btoa(binary);
+  }
+
   /* ---------------------------------------------------------------- DOM work */
 
   const docOf = (root) => root.ownerDocument || root;
@@ -196,7 +208,8 @@ export function createPolicy(deps = {}) {
     const doc = docOf(root);
     const isCss = kind === "css";
     const isHtml = kind === "html";
-    const body = isCss || isHtml
+    const isBin = kind === "bin";
+    const body = isCss || isHtml || isBin
       ? text.replace(/\n$/, "")
       : `${text.replace(/\n$/, "")}\nStandaloneDoc.register(${JSON.stringify(id)}, ${factory});`;
     /* Two spaces for the element, two more for its body — the same shape the build
@@ -207,7 +220,7 @@ export function createPolicy(deps = {}) {
       .join("\n");
 
     const fragment = doc.createDocumentFragment();
-    const markerKind = isCss ? "css" : isHtml ? "html" : "js";
+    const markerKind = isCss ? "css" : isHtml ? "html" : isBin ? "bin" : "js";
     fragment.append(
       doc.createTextNode("\n"),
       doc.createComment(` @asset id="${id}" kind="${markerKind}" order="${order}" `),
@@ -215,7 +228,15 @@ export function createPolicy(deps = {}) {
     );
 
     let el;
-    if (isHtml) {
+    if (isBin) {
+      /* Base64 in a script element: the only text-safe way to carry bytes in a document,
+         and the loader decodes it back to exactly what was verified. */
+      el = doc.createElement("script");
+      el.type = "application/wasm";
+      el.id = id;
+      el.textContent = `\n${indented}\n  `;
+      fragment.append(el);
+    } else if (isHtml) {
       /* A fragment is an element, not a script: rebuild it from the open tag the
          manifest recorded, so the saved block is shaped like the original. */
       const holder = doc.createElement("template");
@@ -294,7 +315,12 @@ export function createPolicy(deps = {}) {
             continue;
           }
           try {
-            const text = await registry.source(decision.id);
+            /* A binary has no text to fetch: it is decoded from the verified bytes and
+               re-encoded, which is why the base64 body and the published .wasm hash to
+               the same thing. */
+            const text = entry.kind === "bin"
+              ? base64Of(await registry.bytes(decision.id))
+              : await registry.source(decision.id);
             insertBlock(root, {
               id: decision.id,
               order: entry.order,
