@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test test/unit/*.test.js
+      - run: node --test --test-concurrency=1 test/unit/*.test.js
 
   # Phase 2+ adds:
   #   browser: Playwright on chromium / webkit / firefox (blocking on chromium first)

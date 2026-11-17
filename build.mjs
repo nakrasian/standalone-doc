@@ -76,6 +76,21 @@ const nbytes = (s) => Buffer.byteLength(s, "utf8");
 const kb = (n) => (n / 1024).toFixed(1);
 const rel = (p) => path.relative(ROOT, p);
 
+/** Every file under a directory, as repo-relative POSIX paths. */
+function listFiles(dir) {
+  const out = [];
+  const walk = (d) => {
+    if (!fs.existsSync(d)) return;
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else out.push(path.relative(ROOT, p).split(path.sep).join("/"));
+    }
+  };
+  walk(abs(dir));
+  return out.sort();
+}
+
 function parseAttrs(text) {
   const attrs = {};
   for (const m of text.matchAll(/([a-zA-Z-]+)\s*=\s*"([^"]*)"/g)) attrs[m[1]] = m[2];
@@ -230,6 +245,19 @@ function cmdSplit() {
     write(a.file, a.fileText + "\n");
   }
 
+  /* manifest.json is rewritten wholesale, so anything hand-edited inside it would
+     be lost. mode and requiredBy are *configuration*, not structure: carry them
+     over from the previous manifest whenever the asset id survives. */
+  const previous = (() => {
+    try {
+      return JSON.parse(read(MANIFEST));
+    } catch {
+      return null;
+    }
+  })();
+  const keep = new Map((previous?.assets || []).map((a) => [a.id, a]));
+  let preserved = 0;
+
   const manifest = {
     schema: 1,
     generated: "node build.mjs split — edit mode/requiredBy freely, ids and files come from index.html",
@@ -237,6 +265,12 @@ function cmdSplit() {
     assets: assets.map((a) => {
       const body = a.fileText + "\n";
       const meta = REGIONS.find((r) => r.id === a.id) || {};
+      const before = keep.get(a.id);
+      const mode = before?.mode ?? meta.mode ?? "inline";
+      const requiredBy = before?.requiredBy ?? meta.requiredBy ?? ["*"];
+      if (before && (before.mode !== (meta.mode ?? "inline") || String(before.requiredBy) !== String(meta.requiredBy ?? ["*"]))) {
+        preserved++;
+      }
       return {
         id: a.id,
         kind: a.kind,
@@ -245,8 +279,8 @@ function cmdSplit() {
         file: a.file,
         bytes: nbytes(body),
         sha384: sha384(body),
-        mode: meta.mode || "inline",
-        requiredBy: meta.requiredBy || ["*"],
+        mode,
+        requiredBy,
       };
     }),
   };
@@ -254,6 +288,7 @@ function cmdSplit() {
 
   const total = manifest.assets.reduce((n, a) => n + a.bytes, 0);
   console.log(`split: ${assets.length} assets -> ${SRC}/  (${kb(total)} KB)`);
+  if (preserved) console.log(`split: preserved mode/requiredBy for ${preserved} asset(s) from the previous manifest`);
   if (inserted) console.log(`split: inserted ${inserted} marker pairs into ${SOURCE}`);
   for (const a of manifest.assets) {
     const note = a.kind === "css" ? "" : "";
@@ -347,7 +382,16 @@ function verify({ quiet = false } = {}) {
   }
   for (const id of dupes) problems.push(`asset "${id}" is marked more than once`);
 
-  /* 6. dist/editor.html, when present, must equal index.html */
+  /* 6. no orphan files in src/. Anything there is published from the CDN, so it
+     must be registered: an unregistered file is code nobody will ever load. */
+  const registered = new Set(manifest.assets.map((a) => a.file));
+  for (const file of listFiles(SRC)) {
+    if (!registered.has(file)) {
+      problems.push(`${file} is not referenced by manifest.json (orphan: add an @asset marker or delete the file)`);
+    }
+  }
+
+  /* 7. dist/editor.html, when present, must equal index.html */
   if (exists(`${DIST}/editor.html`) && read(`${DIST}/editor.html`) !== html) {
     problems.push(`${DIST}/editor.html is stale — run: node build.mjs build`);
   }
