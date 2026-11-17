@@ -52,7 +52,7 @@ figure store entries, and `#plugin-catalog`. `#doc-settings` is unchanged.
 
 ### Size
 
-index.html 293 → 372 KB (+27 %), slim 44 → 66 KB (+50 %). The plugin contract is
+index.html 293 → 372 KB (+27 %), slim 44 → 65 KB (+48 %). The plugin contract is
 infrastructure: every document carries the loader that can run one.
 
 ## v0.2.0 — 2025-11-17
