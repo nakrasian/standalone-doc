@@ -62,7 +62,7 @@ test("a plugin's authored fields survive split, and reach the document on combin
       demo: {
         label: "Demo",
         version: "1.0.0",
-        isolation: "sealed",
+        island: "sealed",
         enabled: true,
         entry: "signals",
         assets: ["signals"],

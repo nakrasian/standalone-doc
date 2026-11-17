@@ -53,7 +53,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return Boolean(asset && (asset.category === "plugin" || asset.plugin));
   }
 
-  /** The `plugins` index: identity, label, isolation, and the asset list. */
+  /** The `plugins` index: identity, label, its default island profile, assets. */
   function plugins() {
     return manifest().plugins || {};
   }
@@ -282,7 +282,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
         id,
         label: entry.label || id,
         version: entry.version || null,
-        isolation: entry.isolation || "sealed",
+        /* The island a contribution's *content* mounts into. Not the plugin's own
+           reach: plugin code always runs in this document, like the editor does. */
+        island: entry.island || "sealed",
       },
       /** Text of one of its *own* assets; another plugin's bytes are not readable. */
       async text(assetId) {

@@ -63,7 +63,7 @@ export async function createHarness() {
         api: host.api,
         id: host.plugin.id,
         label: host.plugin.label,
-        isolation: host.plugin.isolation,
+        island: host.plugin.island,
         own: own.includes("createHarness"),
         borrowed,
         demo,
@@ -162,7 +162,7 @@ function makeDoc(options = {}) {
       whiteboard: {
         label: "Whiteboard",
         version: "1.0.0",
-        isolation: "sealed",
+        island: "sealed",
         enabled,
         entry: "whiteboard",
         assets: ["whiteboard-styles", "whiteboard"],
@@ -269,10 +269,10 @@ test("activate() receives a host scoped to its own bundle", async ({ page }) => 
   });
   expect(host.api).toBe(1);
   expect(host.id).toBe("whiteboard");
-  /* The label and isolation come from the manifest — that is where the document's
+  /* The label and island profile come from the manifest — that is where the document's
      own description of the plugin lives. */
   expect(host.label).toBe("Whiteboard");
-  expect(host.isolation).toBe("sealed");
+  expect(host.island).toBe("sealed");
   /* It can read its own bytes… */
   expect(host.own).toBe(true);
   /* …cannot read another plugin's, and cannot reach a capability this document has
@@ -512,7 +512,7 @@ function makeFileDoc({ inline }) {
     whiteboard: {
       label: "Whiteboard",
       version: "1.0.0",
-      isolation: "sealed",
+      island: "sealed",
       enabled: true,
       entry: "whiteboard",
       assets: ["whiteboard"],

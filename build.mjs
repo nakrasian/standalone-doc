@@ -317,7 +317,7 @@ function buildManifest(assets, previous) {
     assets: entries,
   };
   /* The plugin index is authored, like `settings`: the build cannot derive a label,
-     an isolation profile or a contribution list. It travels verbatim. */
+     a default island profile or a contribution list. It travels verbatim. */
   if (previous?.plugins) manifest.plugins = previous.plugins;
   return { manifest, preserved };
 }
@@ -804,8 +804,10 @@ async function cmdCheck() {
     const doc = docManifest(m);
     const groups = doc.plugins || {};
     for (const [id, entry] of Object.entries(groups)) {
-      const isolation = entry.isolation || "sealed";
-      if (!["sealed", "sandboxed", "trusted"].includes(isolation)) all.push(`plugin "${id}": unknown isolation "${entry.isolation}"`);
+      /* `island` names the frame a contribution's content mounts into — sealed,
+         sandboxed or trusted — never the plugin's own reach. */
+      const island = entry.island || "sealed";
+      if (!["sealed", "sandboxed", "trusted"].includes(island)) all.push(`plugin "${id}": unknown island "${entry.island}"`);
       if (!Array.isArray(entry.assets) || !entry.assets.length) {
         all.push(`plugin "${id}": assets must be a non-empty array (require() has nothing to build)`);
       } else {

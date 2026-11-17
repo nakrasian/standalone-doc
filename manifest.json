@@ -105,8 +105,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 29336,
-      "sha384": "sha384-VOK3UIK/hthE4wKVU+pAFCFJlwBzOXl1XRB/C227F5qCnkqnMZz6H241BmVyQADL",
+      "bytes": 29503,
+      "sha384": "sha384-yUinO0qhoj2/K2woQVCxqJkwvsel0RqblW/2Nd/bMFf+k8rWb0IQC2tuJ2mmypTR",
       "mode": "inline",
       "requiredBy": [
         "*"

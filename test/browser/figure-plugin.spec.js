@@ -68,7 +68,7 @@ function makeDoc({ pinned = true, tampered = false } = {}) {
       whiteboard: {
         label: "Whiteboard",
         version: "1.0.0",
-        isolation: "sealed",
+        island: "sealed",
         enabled: true,
         entry: "whiteboard",
         assets: ["whiteboard"],
