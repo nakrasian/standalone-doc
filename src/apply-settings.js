@@ -9,6 +9,9 @@ export function createApplySettings(deps = {}) {
   function apply() {
     const root = document.documentElement;
     root.dataset.mode = settings.mode;
+    /* Which chrome the file was saved in. Presentation, applied before anything
+       paints, so a minimal file never flashes its ribbon. */
+    if (settings.ui) document.body.dataset.ui = settings.ui;
     /* Chrome visibility is a setting of its own, not a consequence of the mode: a
        read-only copy may still want the toolbar for print or zoom. */
     root.dataset.toolbar = settings.toolbar ? "on" : "off";

@@ -321,13 +321,34 @@ export function createPolicy(deps = {}) {
 
     /* Record the choice in the file, so reopening and saving again is stable. */
     const stored = readJSON(root, "doc-settings") || {};
-    const fragment = persist(planned);
-    const next = {...stored, ...fragment, mode: planned.mode};
-    if (next.policy === null || next.policy === undefined) delete next.policy;
-    if (!fragment.assets) delete next.assets;
-    writeJSON(root, "doc-settings", next);
+    writeJSON(root, "doc-settings", settingsFragment(planned, stored));
 
     return {problems, changed};
+  }
+
+  /**
+   * The settings block this plan implies, layered onto whatever is already stored.
+   *
+   * A document that never made a choice behaves as `inline` without storing anything,
+   * so a default plan must not start writing `policy: "inline"` — that would turn
+   * "opened the sheet and pressed Done" into a change.
+   */
+  function settingsFragment(planned, stored = {}) {
+    const next = {...stored};
+    const choice = persist(planned);
+    const hadChoice = "policy" in stored || "assets" in stored;
+    if (choice.policy === "inline" && !hadChoice) {
+      delete next.policy;
+      delete next.assets;
+    } else if (choice.policy) {
+      next.policy = choice.policy;
+      delete next.assets;
+    } else {
+      next.assets = choice.assets;
+      delete next.policy;
+    }
+    next.mode = planned.mode;
+    return next;
   }
 
   /** The document's stored choice: an explicit map wins over a preset. */
@@ -373,5 +394,5 @@ export function createPolicy(deps = {}) {
     });
   }
 
-  return {plan, apply, persist, presetFor, resolve, planned, target, usage, blockOf, PRESETS};
+  return {plan, apply, persist, presetFor, resolve, planned, target, usage, blockOf, settingsFragment, PRESETS};
 }

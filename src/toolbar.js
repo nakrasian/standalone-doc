@@ -5,6 +5,30 @@ export function createToolbar(deps = {}) {
 
   const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
+  /** Toggle buttons describe the *other* state, so a saved minimal file reads right. */
+  function syncChromeButtons(name) {
+    document.querySelectorAll("[data-chrome-toggle]").forEach((btn) => {
+      const compact = name === "minimal";
+      btn.setAttribute("aria-label", compact ? "Full toolbar" : "Compact chrome");
+      btn.setAttribute("title", compact ? "Full toolbar" : "Compact chrome");
+      btn.setAttribute("aria-pressed", String(compact));
+    });
+  }
+
+  /* Which chrome you are looking at is a preference, not a change to the document:
+     it is written to settings so the next save carries it, and deliberately does not
+     mark the file dirty — the dot means "content or settings changed". */
+  function rememberUi(name) {
+    const block = document.getElementById("doc-settings");
+    if (!block) return;
+    try {
+      const settings = JSON.parse(block.textContent || "{}");
+      if (settings.ui === name) return;
+      settings.ui = name;
+      block.textContent = JSON.stringify(settings);
+    } catch { /* a corrupt settings block is boot's problem, not the toggle's */ }
+  }
+
   function switchUI(name) {
     if (name !== "ribbon" && name !== "minimal") return;
 
@@ -15,14 +39,8 @@ export function createToolbar(deps = {}) {
 
     setTimeout(() => chromeEl.classList.remove("is-resizing"), 260);
 
-    document.querySelectorAll("[data-chrome-toggle]").forEach((btn) => {
-      const compact = name === "minimal";
-      btn.setAttribute("aria-label", compact ? "Full toolbar" : "Compact chrome");
-      btn.setAttribute("title", compact ? "Full toolbar" : "Compact chrome");
-      btn.setAttribute("aria-pressed", String(compact));
-    });
-
-    status.markDirty();
+    syncChromeButtons(name);
+    rememberUi(name);
   }
 
   function toggleChrome() {
@@ -304,7 +322,6 @@ export function createToolbar(deps = {}) {
       timeoutMs: settings.timeoutMs,
       never: Number(settings.thresholdDeclined) > 0,
       planned: policy.planned({}),
-      dirty: false,
     };
     paintDocSettings();
     if (!dialog.open) dialog.showModal();
@@ -322,7 +339,6 @@ export function createToolbar(deps = {}) {
   /** Re-price the draft from its rows, and re-derive which preset (if any) it is. */
   function repriceDraft(planned) {
     settingsDraft.planned = planned;
-    settingsDraft.dirty = true;
     paintDocSettings();
   }
 
@@ -412,15 +428,17 @@ export function createToolbar(deps = {}) {
       `Stored inline: ${saveKilobytes(inline)} · reader ${offloads ? "fetches what is offloaded, after verifying it" : "opens offline"}`;
 
     const pending = dialog.querySelector("[data-ds-pending]");
-    pending.hidden = !draft.dirty;
+    pending.hidden = sameBlock(readSettingsBlock(), settingsPatch());
     pending.textContent = "Unsaved";
   }
 
-  /** Apply the draft to the live settings block. Saving is what makes it travel. */
-  function commitDocSettings() {
-    if (!settingsDraft) return;
+  /** The settings block the draft would produce. Pure: comparing it is how we know
+   *  whether the author actually changed anything. */
+  function settingsPatch() {
     const draft = settingsDraft;
-    const next = {...readSettingsBlock()};
+    const current = readSettingsBlock();
+    /* Storage keys come from the policy, so "the default plan" writes nothing. */
+    const next = policy.settingsFragment(draft.planned, current);
     next.mode = draft.mode;
     /* A setting can restrict a mode, never contradict it — the loader clamps too. */
     next.editable = draft.mode === "edit" ? draft.editable : false;
@@ -436,18 +454,20 @@ export function createToolbar(deps = {}) {
       delete next.thresholdDeclined;
     }
 
-    const choice = policy.persist(draft.planned);
-    if (choice.policy) {
-      next.policy = choice.policy;
-      delete next.assets;
-    } else {
-      next.assets = choice.assets;
-      delete next.policy;
-    }
+    return next;
+  }
 
+  const sameBlock = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  /** Apply the draft. Opening the sheet and pressing Done is not a change. */
+  function commitDocSettings() {
+    if (!settingsDraft) return;
+    const current = readSettingsBlock();
+    const next = settingsPatch();
+    closeDocSettings();
+    if (sameBlock(current, next)) return;
     writeSettingsBlock(next);
     status.markDirty();
-    closeDocSettings();
   }
 
   /** `settings()` is the registry's normalised view; used only for the decline size. */
@@ -460,33 +480,26 @@ export function createToolbar(deps = {}) {
 
     dialog.querySelector("[data-ds='mode']").addEventListener("change", (event) => {
       settingsDraft.mode = event.target.value;
-      settingsDraft.dirty = true;
       paintDocSettings();
     });
     dialog.querySelector("[data-ds='editable']").addEventListener("change", (event) => {
       settingsDraft.editable = event.target.checked;
-      settingsDraft.dirty = true;
     });
     dialog.querySelector("[data-ds='toolbar']").addEventListener("change", (event) => {
       settingsDraft.toolbar = event.target.checked;
-      settingsDraft.dirty = true;
     });
     dialog.querySelector("[data-ds='threshold']").addEventListener("change", (event) => {
       settingsDraft.thresholdMb = Number(event.target.value) || 0;
-      settingsDraft.dirty = true;
     });
     dialog.querySelector("[data-ds='timeout']").addEventListener("change", (event) => {
       settingsDraft.timeoutMs = Math.round(Number(event.target.value) || 0);
-      settingsDraft.dirty = true;
     });
     dialog.querySelector("[data-ds='never']").addEventListener("change", (event) => {
       settingsDraft.never = event.target.checked;
-      settingsDraft.dirty = true;
       paintDocSettings();
     });
     dialog.querySelector("[data-ds='arm']").addEventListener("click", () => {
       settingsDraft.never = false;
-      settingsDraft.dirty = true;
       paintDocSettings();
     });
     dialog.querySelectorAll("[data-preset]").forEach((chip) => {
@@ -1069,5 +1082,6 @@ export function createToolbar(deps = {}) {
   zoom.syncUI();
 
   wireDocSettings();
+  syncChromeButtons(document.body.dataset.ui || "ribbon");
   return {save, serialize, validate, settings: openDocSettings};
 }

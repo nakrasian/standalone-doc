@@ -184,6 +184,93 @@ test("the load timeout is a setting, not a manifest field", async ({ page }) => 
   expect(after).toEqual({block: 1500, live: 1500});
 });
 
+test("toggling the chrome is a preference: no dirty dot, but it is saved", async ({ page }) => {
+  const problems = await load(page);
+  expect(problems).toEqual([]);
+
+  const before = await page.evaluate(() => ({
+    dirty: !document.querySelector("[data-dirty]").hidden,
+    ui: document.body.dataset.ui,
+  }));
+  expect(before).toEqual({dirty: false, ui: "ribbon"});
+
+  await page.click("[data-chrome-toggle]:visible");
+  const after = await page.evaluate(() => ({
+    dirty: !document.querySelector("[data-dirty]").hidden,
+    ui: document.body.dataset.ui,
+    stored: JSON.parse(document.getElementById("doc-settings").textContent).ui,
+    /* the toggle now describes the other state; `:visible` is not a DOM selector */
+    label: [...document.querySelectorAll("[data-chrome-toggle]")].find((btn) => btn.offsetParent)?.getAttribute("aria-label"),
+  }));
+  expect(after).toEqual({dirty: false, ui: "minimal", stored: "minimal", label: "Full toolbar"});
+
+  /* …and the next save carries it, without the dot ever appearing. */
+  const download = page.waitForEvent("download", { timeout: 20_000 });
+  await page.click("[data-save]:visible");
+  const saved = path.join(`${process.env.TMPDIR || "/tmp"}`, `standalone-doc-ui-${process.pid}.html`);
+  await (await download).saveAs(saved);
+  const fs = await import("node:fs");
+  const html = fs.readFileSync(saved, "utf8");
+  expect(JSON.parse(/<script id="doc-settings"[^>]*>([\s\S]*?)<\/script>/.exec(html)[1]).ui).toBe("minimal");
+  expect(await page.evaluate(() => !document.querySelector("[data-dirty]").hidden)).toBe(false);
+  fs.rmSync(saved, { force: true });
+});
+
+test("a saved minimal document opens minimal", async ({ page }) => {
+  const fs = await import("node:fs");
+  const SOURCE = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const html = SOURCE.replace(
+    /(<script id="doc-settings" type="application\/json">)([\s\S]*?)(<\/script>)/,
+    (match, open, json, close) => open + JSON.stringify({...JSON.parse(json), ui: "minimal"}) + close,
+  );
+  const file = path.join(`${process.env.TMPDIR || "/tmp"}`, `standalone-doc-minimal-${process.pid}.html`);
+  fs.writeFileSync(file, html);
+  await page.goto("file://" + file);
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, { timeout: 15_000 });
+
+  const state = await page.evaluate(() => ({
+    ui: document.body.dataset.ui,
+    ribbonVisible: getComputedStyle(document.getElementById("ui-ribbon")).display !== "none",
+    minimalVisible: getComputedStyle(document.getElementById("ui-minimal")).display !== "none",
+    toggleLabel: [...document.querySelectorAll("[data-chrome-toggle]")].find((btn) => btn.offsetParent)?.getAttribute("aria-label"),
+  }));
+  expect(state).toEqual({ui: "minimal", ribbonVisible: false, minimalVisible: true, toggleLabel: "Full toolbar"});
+  fs.rmSync(file, { force: true });
+});
+
+test("opening the sheet and pressing Done is not a change", async ({ page }) => {
+  await load(page);
+  const before = await page.evaluate(() => ({
+    settings: document.getElementById("doc-settings").textContent,
+    dirty: !document.querySelector("[data-dirty]").hidden,
+  }));
+
+  await openSheet(page);
+  const pending = await page.evaluate(() => document.querySelector("[data-ds-pending]").hidden);
+  expect(pending).toBe(true);
+  await page.click("[data-ds-done]");
+
+  const after = await page.evaluate(() => ({
+    settings: document.getElementById("doc-settings").textContent,
+    dirty: !document.querySelector("[data-dirty]").hidden,
+  }));
+  expect(after).toEqual(before);
+});
+
+test("a plain save does not invent a policy key", async ({ page }) => {
+  await load(page);
+  const settings = await page.evaluate(async () => {
+    const {html} = await StandaloneDoc.modules.toolbar.serialize({});
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return JSON.parse(doc.getElementById("doc-settings").textContent);
+  });
+  /* No choice stored means "inline": writing it out would turn every plain save into a
+     settings change. */
+  expect("policy" in settings).toBe(false);
+  expect("assets" in settings).toBe(false);
+  expect(settings.ui).toBe("ribbon");
+});
+
 test("the size readout opens the sheet at Size & loading", async ({ page }) => {
   await load(page);
   /* The second door: the number that asks "why is this file big?" answers it. */

@@ -55,7 +55,7 @@ const DOC_MANIFEST_ID = "asset-manifest";
 const DOC_SETTINGS_ID = "doc-settings";
 /* Authoring defaults for the document's own behaviour. manifest.json is the place a
    human edits these; build materialises them into #doc-settings. */
-const DEFAULT_SETTINGS = { mode: "edit", editable: true, toolbar: true, saveThresholdBytes: 2097152 };
+const DEFAULT_SETTINGS = { mode: "edit", ui: "ribbon", editable: true, toolbar: true, saveThresholdBytes: 2097152 };
 /* The only assets that are part of the loader itself. Everything else — CSS
    included — is content that can be inlined or fetched. */
 const INFRA = new Set(["registry", "boot-ui", "boot-ui-styles", "bootstrap"]);
@@ -366,6 +366,7 @@ function docSettings(manifest, { mode } = {}) {
   return {
     schema: 1,
     mode: docMode,
+    ui: authored.ui === "minimal" ? "minimal" : "ribbon",
     /* A setting may restrict edit mode further (a locked document); it cannot
        contradict the mode. View and comment are read-only by definition. */
     editable: docMode === "edit" && (authored.editable ?? true),

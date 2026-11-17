@@ -233,6 +233,7 @@
         "target",
         "usage",
         "blockOf",
+        "settingsFragment",
         "PRESETS"
       ]
     },

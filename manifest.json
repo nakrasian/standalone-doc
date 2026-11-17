@@ -6,6 +6,7 @@
   "timeoutMs": 8000,
   "settings": {
     "mode": "edit",
+    "ui": "ribbon",
     "editable": true,
     "toolbar": true,
     "saveThresholdBytes": 2097152
@@ -104,8 +105,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 15174,
-      "sha384": "sha384-RcM3QN83Bo/c2jGW0POmI1cM164SMsDiamwBdJAoYXs3ULgeuLAJYs9odmxYLl93",
+      "bytes": 15235,
+      "sha384": "sha384-TCDkPbZK3J+8FpwlB6zYwdmNAOaq/BE4oQ9GlafDSLDMFgb+VbRZkVwx/w+TujvO",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -132,8 +133,8 @@
       "order": 7,
       "tag": "script",
       "file": "src/apply-settings.js",
-      "bytes": 1121,
-      "sha384": "sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3",
+      "bytes": 1325,
+      "sha384": "sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -355,8 +356,8 @@
       "order": 85,
       "tag": "script",
       "file": "src/policy.js",
-      "bytes": 14712,
-      "sha384": "sha384-/wnucm7EAFPoWBSR7VcH4Tq59vk6mMT7ZP3ceZtkVEk1HE5x/4HZRkPBJDn8oQv8",
+      "bytes": 15373,
+      "sha384": "sha384-2kA8kpxfT0d7l882tXd1eB7zhglvEofxdIxiRA14BgAZ/LCWdiFN+wPHkM8tzDIJ",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -375,6 +376,7 @@
         "target",
         "usage",
         "blockOf",
+        "settingsFragment",
         "PRESETS"
       ],
       "env": true,
@@ -386,8 +388,8 @@
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 44014,
-      "sha384": "sha384-sFmHRx7wtpKO55fddImzKrcy6X3dv2c6bgtiAuCRMtpEjyp+nnGePmoVRuj4yEiU",
+      "bytes": 44916,
+      "sha384": "sha384-K6rVanfur2gFwfapcT2K98uqANL2aSElZgfKlocw9UEFjL8fvMXZgDrkayaA0O4Q",
       "mode": "inline",
       "requiredBy": [
         "edit"

@@ -62,6 +62,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     const mode = authored?.mode ?? manifest().mode ?? "edit";
     settingsParsed = {
       mode,
+      ui: authored?.ui === "minimal" ? "minimal" : "ribbon",
       editable: mode === "edit" && (authored?.editable ?? true),
       toolbar: mode !== "view" && (authored?.toolbar ?? true),
       saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,

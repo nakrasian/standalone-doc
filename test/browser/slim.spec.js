@@ -155,7 +155,12 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
       fragmentMarkers: (html.match(/@asset id=\"(sprite|toolbar-markup|figure-tools|dialogs)\"/g) || []).length,
       injectedStylesLeft: parsed.querySelectorAll("style[data-asset]").length,
       stillOnline: /"mode":"online"/.test(html),
-      policy: /"policy":"inline"/.test(html),
+      /* inline is the default, so materialising it stores no policy key. Parsed, not
+         text-matched: "assets" also names the manifest's array. */
+      storesPolicy: (() => {
+        const settings = JSON.parse(parsed.getElementById("doc-settings").textContent);
+        return "policy" in settings || "assets" in settings;
+      })(),
       validate: toolbar.validate(html),
     };
   });
@@ -166,7 +171,7 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
   /* Injected <style data-asset> is session state; it must not be saved twice. */
   expect(result.injectedStylesLeft).toBe(0);
   expect(result.stillOnline).toBe(false);
-  expect(result.policy).toBe(true);
+  expect(result.storesPolicy).toBe(false);
   /* The chrome came back as markup, from the verified fragment plus its open tag. */
   expect(result.toolbar).toBe(true);
   expect(result.symbols).toBe(24);

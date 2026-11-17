@@ -238,7 +238,9 @@ test("keep inline is sticky and does not ask again until the file doubles", asyn
   await first.saveAs(target);
 
   const settings = readSettings(fs.readFileSync(target, "utf8"));
-  expect(settings.policy).toBe("inline");
+  /* "Keep inline" is the default, so it stores nothing: only the decline is recorded. */
+  expect("policy" in settings).toBe(false);
+  expect("assets" in settings).toBe(false);
   expect(settings.thresholdDeclined).toBeGreaterThan(1000);
 
   /* Same session, same size: no second prompt. */
