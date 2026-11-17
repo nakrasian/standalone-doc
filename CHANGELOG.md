@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.2.0 — 2025-11-17
+
+The document gains a settings sheet, and its own behaviour becomes editable without
+hand-editing JSON.
+
+### Added
+
+- **Document settings** (gear in the toolbar, `Mod+,`): mode, content lock, toolbar,
+  the size threshold, the storage preset and per-capability rows (inline / CDN /
+  absent), and the load timeout. Behaviour applies on next open; storage applies
+  when you save. Clicking the size readout opens the same sheet at Size & loading.
+- **Chrome preference** is part of the file: `settings.ui` remembers ribbon vs
+  minimal, restored at boot before first paint.
+- The gear menu replaces the standalone keyboard-shortcuts button; it carries
+  *Document settings…* and *Keyboard shortcuts*, and no Save.
+
+### Changed
+
+- **`timeoutMs` moved from `#asset-manifest` to `#doc-settings`.** A timeout is
+  behaviour, not an asset. Documents saved before this keep their timeout: the loader
+  falls back to the manifest's copy, then to 8000 ms.
+- **The keyboard-shortcuts button folded into the gear menu**, in both bars.
+- **The dirty dot is honest**: toggling the chrome no longer marks the file dirty, and
+  neither does opening the settings sheet and pressing Done without changes. A plain
+  save no longer invents `policy: "inline"` — a document that never chose a policy
+  stores nothing, because inline is the default.
+
+### Format
+
+`schema: 1`, still preliminary. Two additive fields (`settings.ui`, `settings.timeoutMs`)
+and one subtraction: `policy` is only written when it differs from the default.
+
 ## v0.1.0 — 2025-11-17
 
 The first published runtime. `manifest.json.cdnBase` points at

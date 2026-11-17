@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,6 +8,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const fileUrl = (name = "index.html") => "file://" + path.join(ROOT, name);
+/* The pin is whatever the build published at, so the spec never needs a version bump. */
+const PIN = /@([^/]+)/.exec(JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8")).cdnBase)[1];
 
 async function load(page) {
   const problems = [];
@@ -99,7 +102,7 @@ test("the sheet shows behaviour, storage and the pin", async ({ page }) => {
   /* An edit-mode document: the base view and the editor, both inline by default. */
   expect(shown.rows).toEqual([{key: "view", stored: "inline"}, {key: "editor", stored: "inline"}]);
   expect(shown.presets).toEqual(["inline"]);
-  expect(shown.pin).toBe("@v0.1.0");
+  expect(shown.pin).toBe(`@${PIN}`);
   expect(shown.threshold).toBe("2");
 });
 
