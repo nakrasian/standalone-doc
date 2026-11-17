@@ -1115,6 +1115,66 @@
         }
       }
     }
+
+    /* ---- save policy dialog ----
+       Rows are capabilities, not assets: content, the base view, each used plugin and
+       the editor. The author is choosing what travels with the file, so every row
+       states its own size and the footer states the resulting total. */
+    #save-policy-dialog {
+      width: min(560px, calc(100vw - 32px));
+      max-height: min(84dvh, 720px);
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+      color: var(--ink);
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    #save-policy-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+    #save-policy-dialog:focus,
+    #save-policy-dialog:focus-visible { outline: none; }
+
+    #save-policy-dialog .sp-body { padding: 18px 20px 6px; overflow-y: auto; max-height: 62dvh; }
+    #save-policy-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    #save-policy-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
+
+    .sp-row {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 10px 0; border-top: 1px solid var(--line);
+    }
+    .sp-row:first-of-type { border-top: 0; }
+    .sp-row .sp-text { flex: 1; min-width: 0; }
+    .sp-row .sp-label { font-weight: 600; }
+    .sp-row .sp-size { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 400; margin-left: 6px; }
+    .sp-row .sp-why { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .sp-row select {
+      flex: 0 0 auto; height: 28px; padding: 0 6px; font: inherit;
+      border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink);
+    }
+    .sp-row[data-fixed="1"] .sp-fixed {
+      flex: 0 0 auto; color: var(--muted); font-size: 12px; padding: 5px 0;
+    }
+
+    #save-policy-dialog .sp-note {
+      margin: 12px 0 4px; padding: 9px 11px; border-radius: 8px;
+      background: var(--chrome, #f6f7f9); border: 1px solid var(--line);
+      color: var(--muted); font-size: 12px;
+    }
+
+    #save-policy-dialog .dialog-actions {
+      display: flex; gap: 8px; align-items: center;
+      padding: 12px 20px; border-top: 1px solid var(--line); background: var(--chrome, #f6f7f9);
+    }
+    #save-policy-dialog .dialog-actions .spacer { flex: 1; }
+    #save-policy-dialog .dialog-actions button {
+      height: 30px; padding: 0 14px; font: inherit;
+      border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer;
+    }
+    #save-policy-dialog .dialog-actions button.primary {
+      border-color: var(--accent); background: var(--accent); color: #fff;
+    }
   </style>
 <!-- /@asset -->
 <!-- @asset id="boot-ui-styles" kind="css" order="25" -->
@@ -1776,7 +1836,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","editable":true,"toolbar":true,"saveThresholdBytes":2097152}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":13167,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-I/TUuGL/wUQHwZcomarMW/T+JTyDg2GcGfB/yz4382KOtxDhSdAnXGigeKNvD6pA"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":12616},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":13003,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/policy.js","integrity":"sha384-0xuB56NiBly/bGakDhABU8iU9FPSIrsLo0tL0YBFq+7+doObALnV/cohAKFSvpL9"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":24160,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-5inPFCSbovJBpnSBVCeHGvb1WK3fJFHDDZlEjopp8cjpO/0CJNgpUobze96fFXvO"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":15610,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":12996},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":13036,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/policy.js","integrity":"sha384-q2W4gqccXuJx63OmuDZUCkEvODqI/CNBu7DqK3g9K0Epc9c3EQ0Nfh3jkJwAz24l"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":32618,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-sKP2Rx9xcBea7hqw9RjnQ3R6ZXgV14i3oOOKuZai6pfMT9pI6HdxsdQlGqrfgeJt"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -1794,6 +1854,7 @@
       let state = "declared";
       let parsed = null;
       let settingsParsed = null;
+      let settingsText = null;
 
       /* The shell gates the app on this attribute, so it must be set wherever state
          changes — never by the UI, which only observes. */
@@ -1827,9 +1888,13 @@
          read as a fallback for documents saved before the block existed (one release
          of compatibility, not a permanent second source of truth). */
       function settings() {
-        if (settingsParsed) return settingsParsed;
-        let authored = null;
         const el = document.getElementById("doc-settings");
+        const text = el ? el.textContent : "";
+        /* Keyed on the block's text: the save path writes `thresholdDeclined` into it, and
+           a cached parse would make the sticky choice invisible until the next open. */
+        if (settingsParsed && text === settingsText) return settingsParsed;
+        settingsText = text;
+        let authored = null;
         try {
           authored = el ? JSON.parse(el.textContent) : null;
         } catch (error) {
@@ -1838,13 +1903,14 @@
         const mode = authored?.mode ?? manifest().mode ?? "edit";
         settingsParsed = {
           mode,
-          editable: authored?.editable ?? mode === "edit",
-          toolbar: authored?.toolbar ?? mode !== "view",
+          editable: mode === "edit" && (authored?.editable ?? true),
+          toolbar: mode !== "view" && (authored?.toolbar ?? true),
           saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
           /* The save choice travels unnormalised: a preset name, or the explicit
              per-asset map that replaces it once anything is overridden. */
           policy: authored?.policy ?? null,
           assets: authored?.assets ?? null,
+          thresholdDeclined: Number(authored?.thresholdDeclined) || 0,
         };
         return settingsParsed;
       }
@@ -5097,7 +5163,7 @@
         const registry = env.StandaloneDoc;
         const manifest = registry && registry.manifest ? registry.manifest() : {assets: []};
         const stored = resolve(settings);
-        const chosen = policy ? {policy, overrides: overrides || {}} : stored;
+        const chosen = policy || overrides ? {policy: policy || "inline", overrides: overrides || {}} : stored;
         return plan(manifest, {
           policy: chosen.policy || "inline",
           mode: mode || settings.mode,
@@ -5318,7 +5384,7 @@
 
         /* Assets last: the policy decides what travels, and it rewrites both JSON
            blocks in the clone. A failure here is a failed save, not a partial file. */
-        const planned = policy.planned({policy: options.policy});
+        const planned = policy.planned({policy: options.policy, overrides: options.overrides});
         const {problems} = await policy.apply(clone, planned);
         if (problems.length) throw new Error(`save policy: ${problems.join("; ")}`);
 
@@ -5372,15 +5438,215 @@
         return problems;
       }
 
+      /* ------------------------------------------------------------ save policy UI */
+
+      /* Rows are capabilities, not assets: content, the base view, each used plugin, the
+         editor. That is the decision an author can actually make ("this copy is for
+         reading"), and the useful saving is usually a plugin rather than the runtime. */
+      const saveKilobytes = (bytes) =>
+        bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+      function rowsFor(planned) {
+        const base = [];
+        const editor = [];
+        const plugins = [];
+        for (const decision of planned.decisions) {
+          if (decision.role === "infra") continue;
+          if (decision.category === "plugin") {
+            plugins.push({
+              key: decision.id,
+              label: `Plugin · ${decision.id}`,
+              ids: [decision.id],
+              bytes: decision.bytes,
+              choices: ["inline", "online", "absent"],
+              choice: decision.to,
+            });
+          } else if ((decision.requiredBy || ["*"]).includes("*")) base.push(decision);
+          else editor.push(decision);
+        }
+        const shared = (decisions) => {
+          const first = decisions[0].to;
+          return decisions.every((decision) => decision.to === first) ? first : "mixed";
+        };
+        const rows = [];
+        if (base.length) {
+          rows.push({key: "view", label: "Base view", ids: base.map((d) => d.id), bytes: base.reduce((n, d) => n + d.bytes, 0), choices: ["inline", "online"], choice: shared(base)});
+        }
+        rows.push(...plugins);
+        if (editor.length) {
+          rows.push({key: "editor", label: "Editor", ids: editor.map((d) => d.id), bytes: editor.reduce((n, d) => n + d.bytes, 0), choices: ["inline", "online", "absent"], choice: shared(editor)});
+        }
+        return rows;
+      }
+
+      function overridesFrom(rows) {
+        const overrides = {};
+        for (const row of rows) {
+          if (row.choice === "mixed" || !row.choices) continue;
+          for (const id of row.ids) overrides[id] = row.choice;
+        }
+        return overrides;
+      }
+
+      /**
+       * Ask what should travel. Resolves `{overrides, declined}`, or null when the author
+       * cancels — a cancelled save writes nothing.
+       */
+      function askSavePolicy({planned, bytes, blocks, threshold}) {
+        const dialog = document.getElementById("save-policy-dialog");
+        if (!dialog) return Promise.resolve(null);
+
+        const rows = rowsFor(planned);
+
+        /* Price a row choice from the file as it stands: removing a block saves what that
+           block actually weighs, and re-adding one costs what the CDN copy weighs. Using
+           the manifest's src/ byte counts here would overstate the saving by the size of
+           the compiled envelope. */
+        const totalFor = (decisions) => {
+          let total = bytes;
+          for (const decision of decisions) {
+            const present = blocks[decision.id] != null;
+            if (present && decision.to !== "inline") total -= blocks[decision.id];
+            if (!present && decision.to === "inline") total += (decision.bytes || 0) + 80;
+          }
+          return Math.max(0, total);
+        };
+
+        return new Promise((resolve) => {
+          const finish = (value) => {
+            dialog.removeEventListener("close", onClose);
+            if (dialog.open) dialog.close();
+            resolve(value);
+          };
+          const onClose = () => resolve(null);
+          dialog.addEventListener("close", onClose, {once: true});
+
+          const paint = () => {
+            const next = policy.planned({policy: "inline", overrides: overridesFrom(rows)});
+            const total = totalFor(next.decisions);
+            const offloads = rows.some((row) => row.choices && row.choice === "online");
+            const drops = rows.some((row) => row.choices && row.choice === "absent");
+            dialog.querySelector("[data-save-title]").textContent = `This document is ${saveKilobytes(total)}`;
+            /* Say what this particular mix means: "absent" and "CDN" are not the same
+               promise to the reader, so they must not share a sentence. */
+            dialog.querySelector("[data-save-note]").textContent = offloads
+              ? "Anything marked CDN is fetched and hash-checked when the file is opened, so editing it needs a connection. Everything else opens offline."
+              : drops
+                ? "Opens offline, with nothing to fetch. What you set to absent is not in this copy at all — the original still has it."
+                : "Opens offline, with nothing to fetch.";
+            dialog.querySelector("[data-save-confirm]").textContent = `Save · ${saveKilobytes(total)}`;
+            return total;
+          };
+
+          const body = dialog.querySelector("[data-save-rows]");
+          body.replaceChildren();
+          for (const row of rows) {
+            const wrap = document.createElement("div");
+            wrap.className = "sp-row";
+            wrap.dataset.row = row.key;
+            const text = document.createElement("div");
+            text.className = "sp-text";
+            const label = document.createElement("span");
+            label.className = "sp-label";
+            label.textContent = row.label;
+            const size = document.createElement("span");
+            size.className = "sp-size";
+            size.textContent = saveKilobytes(row.bytes);
+            text.append(label, size);
+            if (row.why) {
+              const why = document.createElement("div");
+              why.className = "sp-why";
+              why.textContent = row.why;
+              text.append(why);
+            }
+            if (row.choices) {
+              const select = document.createElement("select");
+              for (const choice of row.choices) {
+                const option = document.createElement("option");
+                option.value = choice;
+                option.textContent = choice === "online" ? "CDN" : choice;
+                select.append(option);
+              }
+              if (row.choice === "mixed") {
+                const option = document.createElement("option");
+                option.value = "mixed";
+                option.textContent = "mixed";
+                select.append(option);
+              }
+              select.value = row.choice;
+              select.addEventListener("change", () => {
+                row.choice = select.value;
+                paint();
+              });
+              wrap.append(text, select);
+            } else {
+              const fixed = document.createElement("span");
+              fixed.className = "sp-fixed";
+              fixed.textContent = "inline";
+              wrap.append(text, fixed);
+            }
+            body.append(wrap);
+          }
+
+          dialog.querySelector("[data-save-cancel]").onclick = () => finish(null);
+          dialog.querySelector("[data-save-confirm]").onclick = () =>
+            finish({
+              overrides: overridesFrom(rows),
+              declined: !rows.some((row) => row.choices && row.choice !== "inline") && paint() > threshold,
+            });
+
+          paint();
+          dialog.showModal();
+          dialog.querySelector("select")?.focus();
+        });
+      }
+
+      /** Remember "keep inline" so the prompt does not return until the file doubles. */
+      function rememberDecline(bytes) {
+        const block = document.getElementById("doc-settings");
+        if (!block) return;
+        try {
+          const settings = JSON.parse(block.textContent || "{}");
+          settings.thresholdDeclined = bytes;
+          block.textContent = JSON.stringify(settings);
+        } catch { /* a corrupt settings block is boot's problem, not the save path's */ }
+      }
+
       async function save(options = {}) {
         let serialized;
-        try {
-          serialized = await serialize(options);
-        } catch (error) {
-          console.error("Save aborted:", error && error.message ? error.message : error);
-          status.markDirty();
-          return;
+        const attempt = async (opts) => {
+          try {
+            return await serialize(opts);
+          } catch (error) {
+            console.error("Save aborted:", error && error.message ? error.message : error);
+            status.markDirty();
+            return null;
+          }
+        };
+
+        serialized = await attempt(options);
+        if (!serialized) return;
+
+        /* Over the document's own threshold: ask once, with real numbers. The dialog is
+           a decision, never an automatic offload. */
+        const registry = globalThis.StandaloneDoc;
+        const settings = registry && registry.settings ? registry.settings() : {};
+        const threshold = Number(settings.saveThresholdBytes) || 0;
+        const bytes = serialized.html.length;
+        const declined = Number(settings.thresholdDeclined) || 0;
+        if (!options.policy && !options.overrides && threshold > 0 && bytes > threshold && !(declined && bytes < declined * 2)) {
+          const blocks = {};
+          for (const decision of serialized.planned.decisions) {
+            const block = document.getElementById(decision.id);
+            if (block) blocks[decision.id] = block.outerHTML.length + 80; /* markers + newlines */
+          }
+          const choice = await askSavePolicy({planned: serialized.planned, bytes, blocks, threshold});
+          if (!choice) return;
+          if (choice.declined) rememberDecline(bytes);
+          serialized = await attempt({overrides: choice.overrides});
+          if (!serialized) return;
         }
+
         const {title, html} = serialized;
         const problems = validate(html);
         if (problems.length) {
@@ -6103,6 +6369,20 @@
     <p data-progress-text aria-live="polite">Starting…</p>
     <div class="dialog-actions">
       <button type="button" data-progress-cancel>Cancel</button>
+    </div>
+  </dialog>
+
+  <dialog id="save-policy-dialog" aria-labelledby="save-policy-title">
+    <div class="sp-body">
+      <h2 id="save-policy-title" data-save-title>This document is large</h2>
+      <p class="sp-sub" data-save-sub>Choose what travels inside the file. Nothing is written until you save.</p>
+      <div data-save-rows></div>
+      <p class="sp-note" data-save-note></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" data-save-cancel>Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" class="primary" data-save-confirm>Save</button>
     </div>
   </dialog>
 

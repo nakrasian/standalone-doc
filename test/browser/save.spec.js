@@ -16,6 +16,23 @@ const fileUrl = (name = "index.html") => "file://" + path.join(ROOT, name);
 const TMP = path.join(ROOT, ".test-tmp");
 const CDN = "http://127.0.0.1:8080/dist/cdn";
 const PUBLISHED = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8")).cdnBase;
+const SOURCE = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+
+/** A document whose own threshold is low enough to trigger the dialog. */
+function fixtureWithThreshold(bytes) {
+  const html = SOURCE.replace(
+    /(<script id="doc-settings" type="application\/json">)([\s\S]*?)(<\/script>)/,
+    (match, open, json, close) => open + JSON.stringify({...JSON.parse(json), saveThresholdBytes: bytes}) + close,
+  );
+  const file = path.join(os.tmpdir(), `standalone-doc-test-${process.pid}-threshold.html`);
+  fs.writeFileSync(file, html);
+  return file;
+}
+
+const readSettings = (html) => {
+  const found = /<script id="doc-settings"[^>]*>([\s\S]*?)<\/script>/.exec(html);
+  return found ? JSON.parse(found[1]) : {};
+};
 
 async function saveTo(page, name) {
   const target = path.join(os.tmpdir(), `standalone-doc-test-${process.pid}-${name}.html`);
@@ -143,6 +160,84 @@ test("a slim save reopens and boots from the CDN with nothing inline", async ({ 
   expect(state.built).toContain("editor");
   expect(state.mode).toBe("edit");
   expect(state.stats).toMatch(/\d+ words?/);
+});
+
+test("over the threshold, the dialog asks per capability and the choice reaches the file", async ({ page }) => {
+  const problems = await load(page, "file://" + fixtureWithThreshold(1000));
+  expect(problems).toEqual([]);
+
+  const download = page.waitForEvent("download", { timeout: 20_000 });
+  await page.locator("[data-save]:visible").first().click();
+
+  const dialog = page.locator("#save-policy-dialog");
+  await expect(dialog).toBeVisible();
+
+  /* Rows are capabilities: a base view and an editor for an edit-mode document. */
+  const rows = await page.evaluate(() =>
+    [...document.querySelectorAll("#save-policy-dialog .sp-row")].map((row) => ({
+      key: row.dataset.row,
+      choices: [...row.querySelectorAll("option")].map((option) => option.value),
+    })),
+  );
+  expect(rows.map((row) => row.key)).toEqual(["view", "editor"]);
+  expect(rows[0].choices).toEqual(["inline", "online"]);
+  expect(rows[1].choices).toEqual(["inline", "online", "absent"]);
+
+  /* Absent, not offloaded: this copy is for reading. */
+  await page.selectOption('#save-policy-dialog .sp-row[data-row="editor"] select', "absent");
+  const totalChanged = await page.textContent("#save-policy-dialog [data-save-confirm]");
+  expect(totalChanged).toMatch(/^Save · \d+ KB$/);
+
+  await page.click("#save-policy-dialog [data-save-confirm]");
+  const saved = await download;
+  const target = path.join(os.tmpdir(), `standalone-doc-test-${process.pid}-policy.html`);
+  await saved.saveAs(target);
+
+  const html = fs.readFileSync(target, "utf8");
+  /* The dialog's total is an estimate that must be honest: within a few percent of
+     what actually lands on disk, or it is just a number. */
+  const predictedKb = Number(/(\d+) KB/.exec(totalChanged)[1]);
+  expect(Math.abs(predictedKb - html.length / 1024) / (html.length / 1024)).toBeLessThan(0.03);
+  const settings = readSettings(html);
+  const manifest = JSON.parse(/<script id="asset-manifest"[^>]*>([\s\S]*?)<\/script>/.exec(html)[1]);
+  const byId = Object.fromEntries(manifest.assets.map((asset) => [asset.id, asset]));
+
+  /* The editor left the file entirely; the base view stayed. */
+  expect(html).not.toContain('<script type="module" id="editor">');
+  expect(html).toContain('<script type="module" id="signals">');
+  expect(byId.editor.mode).toBe("absent");
+  expect(byId.signals.mode).toBe("inline");
+  /* Deviating from every preset is stored as a map, with no preset name. */
+  expect(settings.assets.editor).toBe("absent");
+  expect(settings.assets.signals).toBe("inline");
+  expect("policy" in settings).toBe(false);
+  /* A document is still a document: it passes its own save validator. */
+  expect(await page.evaluate((saved) => StandaloneDoc.modules.toolbar.validate(saved), html)).toEqual([]);
+  fs.rmSync(target, { force: true });
+});
+
+test("keep inline is sticky and does not ask again until the file doubles", async ({ page }) => {
+  await load(page, "file://" + fixtureWithThreshold(1000));
+
+  const download = page.waitForEvent("download", { timeout: 20_000 });
+  await page.locator("[data-save]:visible").first().click();
+  await expect(page.locator("#save-policy-dialog")).toBeVisible();
+  /* Everything stays inline: that is the "continue without offloading" answer. */
+  await page.click("#save-policy-dialog [data-save-confirm]");
+  const first = await download;
+  const target = path.join(os.tmpdir(), `standalone-doc-test-${process.pid}-sticky.html`);
+  await first.saveAs(target);
+
+  const settings = readSettings(fs.readFileSync(target, "utf8"));
+  expect(settings.policy).toBe("inline");
+  expect(settings.thresholdDeclined).toBeGreaterThan(1000);
+
+  /* Same session, same size: no second prompt. */
+  const second = page.waitForEvent("download", { timeout: 20_000 });
+  await page.locator("[data-save]:visible").first().click();
+  await second;
+  await expect(page.locator("#save-policy-dialog")).toBeHidden();
+  fs.rmSync(target, { force: true });
 });
 
 test("saving twice produces byte-identical files", async ({ page }) => {

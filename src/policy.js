@@ -324,7 +324,7 @@ export function createPolicy(deps = {}) {
     const registry = env.StandaloneDoc;
     const manifest = registry && registry.manifest ? registry.manifest() : {assets: []};
     const stored = resolve(settings);
-    const chosen = policy ? {policy, overrides: overrides || {}} : stored;
+    const chosen = policy || overrides ? {policy: policy || "inline", overrides: overrides || {}} : stored;
     return plan(manifest, {
       policy: chosen.policy || "inline",
       mode: mode || settings.mode,

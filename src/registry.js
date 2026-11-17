@@ -13,6 +13,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   let state = "declared";
   let parsed = null;
   let settingsParsed = null;
+  let settingsText = null;
 
   /* The shell gates the app on this attribute, so it must be set wherever state
      changes — never by the UI, which only observes. */
@@ -46,9 +47,13 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
      read as a fallback for documents saved before the block existed (one release
      of compatibility, not a permanent second source of truth). */
   function settings() {
-    if (settingsParsed) return settingsParsed;
-    let authored = null;
     const el = document.getElementById("doc-settings");
+    const text = el ? el.textContent : "";
+    /* Keyed on the block's text: the save path writes `thresholdDeclined` into it, and
+       a cached parse would make the sticky choice invisible until the next open. */
+    if (settingsParsed && text === settingsText) return settingsParsed;
+    settingsText = text;
+    let authored = null;
     try {
       authored = el ? JSON.parse(el.textContent) : null;
     } catch (error) {
@@ -57,13 +62,14 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     const mode = authored?.mode ?? manifest().mode ?? "edit";
     settingsParsed = {
       mode,
-      editable: authored?.editable ?? mode === "edit",
-      toolbar: authored?.toolbar ?? mode !== "view",
+      editable: mode === "edit" && (authored?.editable ?? true),
+      toolbar: mode !== "view" && (authored?.toolbar ?? true),
       saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
       /* The save choice travels unnormalised: a preset name, or the explicit
          per-asset map that replaces it once anything is overridden. */
       policy: authored?.policy ?? null,
       assets: authored?.assets ?? null,
+      thresholdDeclined: Number(authored?.thresholdDeclined) || 0,
     };
     return settingsParsed;
   }

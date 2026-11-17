@@ -747,3 +747,63 @@ dialog#shortcuts-dialog::backdrop {
     }
   }
 }
+
+/* ---- save policy dialog ----
+   Rows are capabilities, not assets: content, the base view, each used plugin and
+   the editor. The author is choosing what travels with the file, so every row
+   states its own size and the footer states the resulting total. */
+#save-policy-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(84dvh, 720px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+#save-policy-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+#save-policy-dialog:focus,
+#save-policy-dialog:focus-visible { outline: none; }
+
+#save-policy-dialog .sp-body { padding: 18px 20px 6px; overflow-y: auto; max-height: 62dvh; }
+#save-policy-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+#save-policy-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
+
+.sp-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 10px 0; border-top: 1px solid var(--line);
+}
+.sp-row:first-of-type { border-top: 0; }
+.sp-row .sp-text { flex: 1; min-width: 0; }
+.sp-row .sp-label { font-weight: 600; }
+.sp-row .sp-size { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 400; margin-left: 6px; }
+.sp-row .sp-why { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.sp-row select {
+  flex: 0 0 auto; height: 28px; padding: 0 6px; font: inherit;
+  border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink);
+}
+.sp-row[data-fixed="1"] .sp-fixed {
+  flex: 0 0 auto; color: var(--muted); font-size: 12px; padding: 5px 0;
+}
+
+#save-policy-dialog .sp-note {
+  margin: 12px 0 4px; padding: 9px 11px; border-radius: 8px;
+  background: var(--chrome, #f6f7f9); border: 1px solid var(--line);
+  color: var(--muted); font-size: 12px;
+}
+
+#save-policy-dialog .dialog-actions {
+  display: flex; gap: 8px; align-items: center;
+  padding: 12px 20px; border-top: 1px solid var(--line); background: var(--chrome, #f6f7f9);
+}
+#save-policy-dialog .dialog-actions .spacer { flex: 1; }
+#save-policy-dialog .dialog-actions button {
+  height: 30px; padding: 0 14px; font: inherit;
+  border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer;
+}
+#save-policy-dialog .dialog-actions button.primary {
+  border-color: var(--accent); background: var(--accent); color: #fff;
+}

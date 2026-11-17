@@ -345,8 +345,12 @@ function docSettings(manifest, { mode } = {}) {
   return {
     schema: 1,
     mode: docMode,
-    editable: authored.editable ?? docMode === "edit",
-    toolbar: authored.toolbar ?? docMode !== "view",
+    /* A setting may restrict edit mode further (a locked document); it cannot
+       contradict the mode. View and comment are read-only by definition. */
+    editable: docMode === "edit" && (authored.editable ?? true),
+    /* Same rule as editable: a setting can hide chrome, but view mode has no
+       chrome to show — its modules are absent from the file. */
+    toolbar: docMode !== "view" && (authored.toolbar ?? true),
     saveThresholdBytes: authored.saveThresholdBytes ?? DEFAULT_SETTINGS.saveThresholdBytes,
   };
 }
@@ -666,8 +670,12 @@ async function cmdCheck() {
     all.push(`${DIST}/editor.html is stale — run: node build.mjs build`);
   }
   try {
-    if (exists(`${DIST}/slim.html`) && read(`${DIST}/slim.html`) !== buildSlim(html, readManifest())) {
+    const m = readManifest();
+    if (exists(`${DIST}/slim.html`) && read(`${DIST}/slim.html`) !== buildSlim(html, m)) {
       all.push(`${DIST}/slim.html is stale — run: node build.mjs build`);
+    }
+    if (exists(`${DIST}/viewer.html`) && read(`${DIST}/viewer.html`) !== buildViewer(html, m)) {
+      all.push(`${DIST}/viewer.html is stale — run: node build.mjs build`);
     }
   } catch (err) {
     all.push(`manifest: ${err.message}`);
@@ -822,6 +830,26 @@ function buildSlim(html, manifest) {
   return slim;
 }
 
+/** Assets a given mode needs — the build-time twin of the loader's filter. */
+function inMode(asset, mode) {
+  const requiredBy = asset.requiredBy || ["*"];
+  return requiredBy.includes("*") || requiredBy.includes(mode);
+}
+
+/**
+ * The viewer: the same document in view mode, with the editing capability *absent*
+ * rather than offloaded. `inline` is the policy, so it opens from `file://` with no
+ * network — which is the whole point of sending someone a read-only copy.
+ */
+function buildViewer(html, manifest) {
+  const view = new Set(manifest.assets.filter((asset) => inMode(asset, "view")).map((asset) => asset.id));
+  let out = withDocSettings(withDocManifest(html, docManifest(manifest)), docSettings(manifest, {mode: "view"}));
+  for (const asset of manifest.assets) {
+    if (!view.has(asset.id)) out = withoutAsset(out, asset.id);
+  }
+  return out;
+}
+
 function cmdBuild() {
   const { problems, html } = verify({ quiet: true });
   if (problems.length) {
@@ -840,6 +868,7 @@ function cmdBuild() {
   }
 
   write(`${DIST}/slim.html`, buildSlim(html, manifest));
+  write(`${DIST}/viewer.html`, buildViewer(html, manifest));
 
   const m = measure();
   const report = {

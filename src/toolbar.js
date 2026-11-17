@@ -200,7 +200,7 @@ export function createToolbar(deps = {}) {
 
     /* Assets last: the policy decides what travels, and it rewrites both JSON
        blocks in the clone. A failure here is a failed save, not a partial file. */
-    const planned = policy.planned({policy: options.policy});
+    const planned = policy.planned({policy: options.policy, overrides: options.overrides});
     const {problems} = await policy.apply(clone, planned);
     if (problems.length) throw new Error(`save policy: ${problems.join("; ")}`);
 
@@ -254,15 +254,215 @@ export function createToolbar(deps = {}) {
     return problems;
   }
 
+  /* ------------------------------------------------------------ save policy UI */
+
+  /* Rows are capabilities, not assets: content, the base view, each used plugin, the
+     editor. That is the decision an author can actually make ("this copy is for
+     reading"), and the useful saving is usually a plugin rather than the runtime. */
+  const saveKilobytes = (bytes) =>
+    bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+  function rowsFor(planned) {
+    const base = [];
+    const editor = [];
+    const plugins = [];
+    for (const decision of planned.decisions) {
+      if (decision.role === "infra") continue;
+      if (decision.category === "plugin") {
+        plugins.push({
+          key: decision.id,
+          label: `Plugin · ${decision.id}`,
+          ids: [decision.id],
+          bytes: decision.bytes,
+          choices: ["inline", "online", "absent"],
+          choice: decision.to,
+        });
+      } else if ((decision.requiredBy || ["*"]).includes("*")) base.push(decision);
+      else editor.push(decision);
+    }
+    const shared = (decisions) => {
+      const first = decisions[0].to;
+      return decisions.every((decision) => decision.to === first) ? first : "mixed";
+    };
+    const rows = [];
+    if (base.length) {
+      rows.push({key: "view", label: "Base view", ids: base.map((d) => d.id), bytes: base.reduce((n, d) => n + d.bytes, 0), choices: ["inline", "online"], choice: shared(base)});
+    }
+    rows.push(...plugins);
+    if (editor.length) {
+      rows.push({key: "editor", label: "Editor", ids: editor.map((d) => d.id), bytes: editor.reduce((n, d) => n + d.bytes, 0), choices: ["inline", "online", "absent"], choice: shared(editor)});
+    }
+    return rows;
+  }
+
+  function overridesFrom(rows) {
+    const overrides = {};
+    for (const row of rows) {
+      if (row.choice === "mixed" || !row.choices) continue;
+      for (const id of row.ids) overrides[id] = row.choice;
+    }
+    return overrides;
+  }
+
+  /**
+   * Ask what should travel. Resolves `{overrides, declined}`, or null when the author
+   * cancels — a cancelled save writes nothing.
+   */
+  function askSavePolicy({planned, bytes, blocks, threshold}) {
+    const dialog = document.getElementById("save-policy-dialog");
+    if (!dialog) return Promise.resolve(null);
+
+    const rows = rowsFor(planned);
+
+    /* Price a row choice from the file as it stands: removing a block saves what that
+       block actually weighs, and re-adding one costs what the CDN copy weighs. Using
+       the manifest's src/ byte counts here would overstate the saving by the size of
+       the compiled envelope. */
+    const totalFor = (decisions) => {
+      let total = bytes;
+      for (const decision of decisions) {
+        const present = blocks[decision.id] != null;
+        if (present && decision.to !== "inline") total -= blocks[decision.id];
+        if (!present && decision.to === "inline") total += (decision.bytes || 0) + 80;
+      }
+      return Math.max(0, total);
+    };
+
+    return new Promise((resolve) => {
+      const finish = (value) => {
+        dialog.removeEventListener("close", onClose);
+        if (dialog.open) dialog.close();
+        resolve(value);
+      };
+      const onClose = () => resolve(null);
+      dialog.addEventListener("close", onClose, {once: true});
+
+      const paint = () => {
+        const next = policy.planned({policy: "inline", overrides: overridesFrom(rows)});
+        const total = totalFor(next.decisions);
+        const offloads = rows.some((row) => row.choices && row.choice === "online");
+        const drops = rows.some((row) => row.choices && row.choice === "absent");
+        dialog.querySelector("[data-save-title]").textContent = `This document is ${saveKilobytes(total)}`;
+        /* Say what this particular mix means: "absent" and "CDN" are not the same
+           promise to the reader, so they must not share a sentence. */
+        dialog.querySelector("[data-save-note]").textContent = offloads
+          ? "Anything marked CDN is fetched and hash-checked when the file is opened, so editing it needs a connection. Everything else opens offline."
+          : drops
+            ? "Opens offline, with nothing to fetch. What you set to absent is not in this copy at all — the original still has it."
+            : "Opens offline, with nothing to fetch.";
+        dialog.querySelector("[data-save-confirm]").textContent = `Save · ${saveKilobytes(total)}`;
+        return total;
+      };
+
+      const body = dialog.querySelector("[data-save-rows]");
+      body.replaceChildren();
+      for (const row of rows) {
+        const wrap = document.createElement("div");
+        wrap.className = "sp-row";
+        wrap.dataset.row = row.key;
+        const text = document.createElement("div");
+        text.className = "sp-text";
+        const label = document.createElement("span");
+        label.className = "sp-label";
+        label.textContent = row.label;
+        const size = document.createElement("span");
+        size.className = "sp-size";
+        size.textContent = saveKilobytes(row.bytes);
+        text.append(label, size);
+        if (row.why) {
+          const why = document.createElement("div");
+          why.className = "sp-why";
+          why.textContent = row.why;
+          text.append(why);
+        }
+        if (row.choices) {
+          const select = document.createElement("select");
+          for (const choice of row.choices) {
+            const option = document.createElement("option");
+            option.value = choice;
+            option.textContent = choice === "online" ? "CDN" : choice;
+            select.append(option);
+          }
+          if (row.choice === "mixed") {
+            const option = document.createElement("option");
+            option.value = "mixed";
+            option.textContent = "mixed";
+            select.append(option);
+          }
+          select.value = row.choice;
+          select.addEventListener("change", () => {
+            row.choice = select.value;
+            paint();
+          });
+          wrap.append(text, select);
+        } else {
+          const fixed = document.createElement("span");
+          fixed.className = "sp-fixed";
+          fixed.textContent = "inline";
+          wrap.append(text, fixed);
+        }
+        body.append(wrap);
+      }
+
+      dialog.querySelector("[data-save-cancel]").onclick = () => finish(null);
+      dialog.querySelector("[data-save-confirm]").onclick = () =>
+        finish({
+          overrides: overridesFrom(rows),
+          declined: !rows.some((row) => row.choices && row.choice !== "inline") && paint() > threshold,
+        });
+
+      paint();
+      dialog.showModal();
+      dialog.querySelector("select")?.focus();
+    });
+  }
+
+  /** Remember "keep inline" so the prompt does not return until the file doubles. */
+  function rememberDecline(bytes) {
+    const block = document.getElementById("doc-settings");
+    if (!block) return;
+    try {
+      const settings = JSON.parse(block.textContent || "{}");
+      settings.thresholdDeclined = bytes;
+      block.textContent = JSON.stringify(settings);
+    } catch { /* a corrupt settings block is boot's problem, not the save path's */ }
+  }
+
   async function save(options = {}) {
     let serialized;
-    try {
-      serialized = await serialize(options);
-    } catch (error) {
-      console.error("Save aborted:", error && error.message ? error.message : error);
-      status.markDirty();
-      return;
+    const attempt = async (opts) => {
+      try {
+        return await serialize(opts);
+      } catch (error) {
+        console.error("Save aborted:", error && error.message ? error.message : error);
+        status.markDirty();
+        return null;
+      }
+    };
+
+    serialized = await attempt(options);
+    if (!serialized) return;
+
+    /* Over the document's own threshold: ask once, with real numbers. The dialog is
+       a decision, never an automatic offload. */
+    const registry = globalThis.StandaloneDoc;
+    const settings = registry && registry.settings ? registry.settings() : {};
+    const threshold = Number(settings.saveThresholdBytes) || 0;
+    const bytes = serialized.html.length;
+    const declined = Number(settings.thresholdDeclined) || 0;
+    if (!options.policy && !options.overrides && threshold > 0 && bytes > threshold && !(declined && bytes < declined * 2)) {
+      const blocks = {};
+      for (const decision of serialized.planned.decisions) {
+        const block = document.getElementById(decision.id);
+        if (block) blocks[decision.id] = block.outerHTML.length + 80; /* markers + newlines */
+      }
+      const choice = await askSavePolicy({planned: serialized.planned, bytes, blocks, threshold});
+      if (!choice) return;
+      if (choice.declined) rememberDecline(bytes);
+      serialized = await attempt({overrides: choice.overrides});
+      if (!serialized) return;
     }
+
     const {title, html} = serialized;
     const problems = validate(html);
     if (problems.length) {

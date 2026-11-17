@@ -1,0 +1,3402 @@
+<!doctype html>
+<html lang="en-US" data-boot-state="booting">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Standalone HTML Doc</title>
+  <!-- CORE STYLES: CSS, Typography, and Pagination -->
+<!-- @asset id="page-styles" kind="css" order="10" -->
+  <style id="page-styles">
+    :root {
+      --sheet-w: 8.5in;
+      --sheet-h: 11in;
+      --pad: 0.9in;
+      --sheet-gap: 26px;
+
+      --content-w: calc(var(--sheet-w) - 2 * var(--pad));
+      --content-h: calc(var(--sheet-h) - 2 * var(--pad));
+      --pitch: calc(var(--sheet-h) + var(--sheet-gap));
+      /* distance from one sheet's top to the next */
+
+      --block-gap: 0.55em;
+      /* distance between text blocks */
+      --lead: 0.3em;
+      --doc-size: 11pt;
+      /* additional padding above headers  */
+
+      --zoom: 1;
+      /* document zoom: page geometry scales, the chrome does not */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #e0e0e0;
+      color: #1b1f24;
+      font: var(--doc-size)/1.5 Charter, "Iowan Old Style", Georgia, serif;
+    }
+
+    #viewport {
+      flex: auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: auto;
+      /* not hidden: a 200% sheet is wider than the window */
+    }
+
+    #stage {
+      position: relative;
+      width: var(--sheet-w);
+      margin-inline: auto;
+      padding-block: var(--pad);
+      zoom: var(--zoom, 1);
+      /* the whole feature: pages + text scale, toolbar and backdrop do not */
+    }
+
+    #sheets {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 0;
+      width: var(--sheet-w);
+      height: var(--sheet-h);
+      background: #fff;
+      box-shadow: 0 1px 6px rgba(16, 22, 30, .15);
+    }
+
+    .sheet-margin {
+      position: absolute;
+      font: 500 10.5px/1 system-ui, -apple-system, sans-serif;
+      color: #9aa1ab;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      letter-spacing: .01em;
+    }
+
+    .sheet-margin[data-slot="head"] {
+      top: calc(var(--pad) * .42);
+    }
+
+    .sheet-margin[data-slot="folio"] {
+      bottom: calc(var(--pad) * .42);
+    }
+
+    .sheet[data-side="recto"] .sheet-margin[data-slot="head"],
+    .sheet[data-side="recto"] .sheet-margin[data-slot="folio"] {
+      right: var(--pad);
+    }
+
+    .sheet[data-side="verso"] .sheet-margin[data-slot="head"],
+    .sheet[data-side="verso"] .sheet-margin[data-slot="folio"] {
+      left: var(--pad);
+    }
+
+    .sheet[data-first] .sheet-margin[data-slot="head"] {
+      display: none;
+    }
+
+    #content {
+      position: relative;
+      z-index: 1;
+      max-width: var(--content-w);
+      margin-inline: auto;
+      min-height: var(--content-h);
+      outline: none;
+    }
+
+    #content>* {
+      margin: 0;
+      padding-block-end: var(--block-gap);
+    }
+
+    #content> :is(h1, h2, h3) {
+      padding-block-start: var(--lead);
+    }
+
+    #content>.page-spacer {
+      padding: 0;
+      margin: 0;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    /* ===== Figures (images, standalone HTML, media) =====
+       A figure is one block in the flow. Its frame has a deterministic
+       height before any bytes decode or any iframe loads, so the pagination
+       plan never depends on a late image/iframe resize. */
+    #content>figure.figure {
+      --figure-w: 1;
+      --figure-h: .72;
+      position: relative;
+      display: block;
+      width: calc(var(--figure-w) * 100%);
+      margin: 0;
+      padding: 0 0 var(--block-gap);
+      border: 1px solid #d9dde4;
+      border-radius: 5px;
+      background: #fff;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    #content>figure.figure[data-selected] {
+      outline: 2px solid #2f6fed;
+      outline-offset: 2px;
+    }
+
+    figure.figure .figure-frame {
+      position: relative;
+      width: 100%;
+      min-height: 2.5rem;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    /* HTML islands: independent width and height fractions of the text area.
+       The embedded document scrolls inside if it needs more room. */
+    figure.figure[data-kind="html"] .figure-frame {
+      width: 100%;
+      height: calc(var(--content-h) * var(--figure-h, .72));
+      margin-inline: 0;
+    }
+
+    /* Raster/SVG images: width is the scaled content width; aspect-ratio
+       reserves the correct height before decode. When data-h is explicit,
+       the frame becomes a fixed window and object-fit: contain letterboxes
+       the image inside it. */
+    figure.figure[data-kind="image"] .figure-frame {
+      width: 100%;
+      aspect-ratio: var(--figure-aspect, 16 / 9);
+      max-height: calc(var(--content-h) * .92);
+      margin-inline: 0;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    figure.figure[data-kind="image"][data-h]:not([data-h="auto"]) .figure-frame {
+      height: calc(var(--content-h) * var(--figure-h, .72));
+      aspect-ratio: auto;
+      max-height: calc(var(--content-h) * var(--figure-h, .72));
+    }
+
+    figure.figure[data-kind="image"] img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Video gets the same page-height contract as an HTML island. */
+    figure.figure[data-kind="media"][data-media="video"] .figure-frame {
+      width: 100%;
+      height: calc(var(--content-h) * var(--figure-h, .6));
+      margin-inline: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d1117;
+    }
+
+    figure.figure[data-kind="media"][data-media="video"] video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    figure.figure[data-kind="media"][data-media="audio"] .figure-frame {
+      width: 100%;
+      margin-inline: 0;
+      padding: 18px 14px;
+      background: #f7f8fa;
+    }
+
+    figure.figure[data-kind="media"][data-media="audio"] audio {
+      display: block;
+      width: 100%;
+    }
+
+    figure.figure iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    figure.figure figcaption {
+      padding: 6px 10px 7px;
+      border-top: 1px solid #e8eaef;
+      background: #fff;
+      font: 500 9.5pt/1.35 system-ui, -apple-system, sans-serif;
+      color: #555c66;
+      outline: none;
+    }
+
+    figure.figure figcaption:empty::before {
+      content: "Add a caption";
+      color: #a8adb6;
+      font-weight: 400;
+    }
+
+    figure.figure figcaption:focus {
+      background: #fffdf3;
+    }
+
+    figure.figure[data-missing] .figure-frame::after {
+      content: "Figure source is missing from #figure-store";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      color: #b3261e;
+      font: 500 11px/1.4 system-ui, sans-serif;
+      text-align: center;
+    }
+
+    #content.is-drop-target {
+      outline: 3px dashed #2f6fed;
+      outline-offset: 8px;
+    }
+
+    /* Floating controls for the selected figure. Lives in app chrome, never
+       in the document; serialize() removes it from the clone. */
+    #figure-tools {
+      position: fixed;
+      z-index: 70;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+      border: 1px solid #d9dde4;
+      border-radius: 7px;
+      background: #fff;
+      box-shadow: 0 6px 22px rgba(16, 22, 30, .18);
+      font: 500 11px/1 system-ui, -apple-system, sans-serif;
+    }
+
+    #figure-tools[hidden] {
+      display: none;
+    }
+
+    #figure-tools button {
+      min-width: 26px;
+      height: 26px;
+      padding: 0 7px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #31363d;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    #figure-tools button:hover {
+      background: #eef1f6;
+    }
+
+    #figure-tools .figure-dim {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      padding: 0 2px;
+    }
+
+    #figure-tools .figure-dim-label {
+      padding: 0 3px;
+      color: #8a919b;
+      font-size: 10px;
+      letter-spacing: .04em;
+    }
+
+    #figure-tools .figure-dim-value {
+      min-width: 38px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      color: #5b626c;
+    }
+
+    #figure-tools [data-figure-remove] {
+      color: #b3261e;
+    }
+
+    #probe {
+      position: absolute;
+      top: 0;
+      left: -99999px;
+      width: 1px;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    #probe>* {
+      display: block;
+    }
+
+    #probe-content-h {
+      height: var(--content-h);
+    }
+
+    #probe-pitch {
+      height: var(--pitch);
+    }
+
+    #probe-pad {
+      height: var(--pad);
+    }
+
+    /* A document whose settings say `toolbar: false` opens without chrome. The markup
+       stays (it is the cheapest thing to keep in sync); this hides it before first
+       paint, because the loader sets the attribute before any module is built. */
+    html[data-toolbar="off"] #app-toolbar { display: none; }
+  </style>
+<!-- /@asset -->
+<!-- @asset id="boot-ui-styles" kind="css" order="25" -->
+  <style id="boot-ui-styles">
+    /* Boot shell styles. Self-contained on purpose: this file must render before
+       any other asset exists, so it may not rely on core.css or its variables. */
+
+    /* Nothing behind the dialog until boot says so: this is what stops the markup and
+       the SVG sprite from painting before the stylesheets have arrived. `visibility`
+       keeps layout, so revealing the app later does not reflow. */
+    html[data-boot-state="booting"],
+    html[data-boot-state="failed"] {
+      background: #e0e0e0;
+    }
+    html[data-boot-state="booting"] body > :not(script):not(style):not(link):not(#boot-dialog),
+    html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boot-dialog) {
+      visibility: hidden;
+    }
+
+    #boot-dialog {
+      --boot-ink: #1b1f24;
+      --boot-muted: #6b7280;
+      --boot-line: #dfe1e6;
+      --boot-paper: #fff;
+      --boot-chrome: #fbfbfc;
+      --boot-accent: #2f6fed;
+      --boot-danger: #b3261e;
+      --boot-danger-soft: rgba(179, 38, 30, .08);
+      --boot-ok: #1a7f47;
+
+      width: min(520px, calc(100vw - 32px));
+      padding: 0;
+      border: 1px solid var(--boot-line);
+      border-radius: 10px;
+      background: var(--boot-paper);
+      color: var(--boot-ink);
+      box-shadow: 0 12px 32px rgba(16, 24, 40, .18), 0 2px 6px rgba(16, 24, 40, .06);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    #boot-dialog::backdrop { background: rgba(16, 24, 40, .28); }
+    /* The dialog is a container, not a control: a focus ring around the whole card is
+       noise. Focus is moved to Retry (or the first button) on failure. */
+    #boot-dialog:focus,
+    #boot-dialog:focus-visible { outline: none; }
+
+    #boot-dialog .boot-head { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px 12px; }
+    #boot-dialog .boot-mark {
+      width: 22px; height: 22px; flex: 0 0 auto; margin-top: 1px; border-radius: 6px;
+      display: grid; place-items: center; font-size: 12px; font-weight: 700;
+      background: var(--boot-accent); color: #fff;
+    }
+    #boot-dialog[data-phase="failed"] .boot-mark { background: var(--boot-danger); }
+    #boot-dialog h1 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+    #boot-dialog .boot-sub { margin: 2px 0 0; color: var(--boot-muted); font-size: 12.5px; }
+    #boot-dialog .boot-body { padding: 0 18px 14px; max-height: 62vh; overflow: auto; }
+    #boot-dialog .boot-foot {
+      display: flex; gap: 8px; align-items: center; padding: 11px 18px;
+      border-top: 1px solid var(--boot-line); background: var(--boot-chrome);
+    }
+    #boot-dialog .boot-foot .spacer { flex: 1; }
+
+    #boot-dialog button {
+      font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+      border: 1px solid var(--boot-line); background: var(--boot-paper); color: var(--boot-ink);
+    }
+    #boot-dialog button.primary { background: var(--boot-accent); border-color: var(--boot-accent); color: #fff; }
+    #boot-dialog button:focus-visible { outline: 2px solid var(--boot-accent); outline-offset: 2px; }
+
+    #boot-dialog .boot-bar {
+      height: 5px; border-radius: 99px; background: #eceef2; overflow: hidden; margin: 2px 0 12px;
+    }
+    #boot-dialog .boot-fill {
+      display: block; height: 100%; background: var(--boot-accent);
+      width: 100%; transform: scaleX(0); transform-origin: left;
+      transition: transform .32s ease-out;
+    }
+
+    #boot-dialog .boot-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    #boot-dialog .boot-row {
+      display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center;
+      font-size: 12.5px; color: var(--boot-muted);
+    }
+    #boot-dialog .boot-name { color: var(--boot-ink); }
+    #boot-dialog .boot-detail { font-size: 11.5px; font-variant-numeric: tabular-nums; }
+    #boot-dialog .boot-row[data-state="pending"] { opacity: .5; }
+    #boot-dialog .boot-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--boot-line); justify-self: center; }
+    #boot-dialog .boot-row[data-state="active"] .boot-name { color: var(--boot-accent); }
+    #boot-dialog .boot-row[data-state="active"] .boot-dot { background: var(--boot-accent); animation: boot-pulse 1s infinite; }
+    #boot-dialog .boot-row[data-state="ok"] .boot-dot { background: var(--boot-ok); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-dot,
+    #boot-dialog .boot-row[data-state="fail"] .boot-dot { background: var(--boot-danger); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-name,
+    #boot-dialog .boot-row[data-state="fail"] .boot-name { color: var(--boot-danger); }
+
+    @keyframes boot-pulse { 50% { opacity: .35; } }
+
+    #boot-dialog .boot-error {
+      display: grid; grid-template-columns: 18px 1fr; gap: 8px;
+      margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--boot-line);
+    }
+    #boot-dialog .boot-error[hidden] { display: none; }
+    #boot-dialog .boot-error-icon { color: var(--boot-danger); }
+    #boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
+    #boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
+
+    #boot-dialog .boot-diag {
+      margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
+      background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px; white-space: pre-wrap; max-height: 220px; overflow: auto;
+    }
+    #boot-dialog .boot-diag[hidden] { display: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #boot-dialog .boot-fill { transition: none; }
+      #boot-dialog .boot-dot { animation: none !important; }
+    }
+  </style>
+<!-- /@asset -->
+  <style id="user-theme"></style>
+  <style id="print-page"></style>
+  <!-- Favicon for sheet -->
+  <link id="favicon" rel="icon"
+    href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%A7%AC%3C%2Ftext%3E%3C%2Fsvg%3E" />
+</head>
+<!-- BODY: Toolbar and Content UI -->
+
+<body data-ui="ribbon">
+
+  <!-- SVG icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-bold" viewBox="0 0 24 24">
+      <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />
+    </symbol>
+    <symbol id="i-italic" viewBox="0 0 24 24">
+      <line x1="19" x2="10" y1="4" y2="4" />
+      <line x1="14" x2="5" y1="20" y2="20" />
+      <line x1="15" x2="9" y1="4" y2="20" />
+    </symbol>
+    <symbol id="i-underline" viewBox="0 0 24 24">
+      <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+      <line x1="4" x2="20" y1="20" y2="20" />
+    </symbol>
+    <symbol id="i-strike" viewBox="0 0 24 24">
+      <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+      <path d="M14 12a4 4 0 0 1 0 8H6" />
+      <line x1="4" x2="20" y1="12" y2="12" />
+    </symbol>
+    <symbol id="i-list" viewBox="0 0 24 24">
+      <line x1="8" x2="21" y1="6" y2="6" />
+      <line x1="8" x2="21" y1="12" y2="12" />
+      <line x1="8" x2="21" y1="18" y2="18" />
+      <line x1="3" x2="3.01" y1="6" y2="6" />
+      <line x1="3" x2="3.01" y1="12" y2="12" />
+      <line x1="3" x2="3.01" y1="18" y2="18" />
+    </symbol>
+    <symbol id="i-list-ol" viewBox="0 0 24 24">
+      <line x1="10" x2="21" y1="6" y2="6" />
+      <line x1="10" x2="21" y1="12" y2="12" />
+      <line x1="10" x2="21" y1="18" y2="18" />
+      <path d="M4 6h1v4" />
+      <path d="M4 10h2" />
+      <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
+    </symbol>
+    <symbol id="i-link" viewBox="0 0 24 24">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </symbol>
+    <symbol id="i-unlink" viewBox="0 0 24 24">
+      <path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      <line x1="8" x2="8" y1="2" y2="5" />
+      <line x1="2" x2="5" y1="8" y2="8" />
+      <line x1="16" x2="16" y1="19" y2="22" />
+      <line x1="19" x2="22" y1="16" y2="16" />
+    </symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24">
+      <path d="M4 7V4h16v3" />
+      <path d="M5 20h6" />
+      <path d="M13 4 8 20" />
+      <path d="m15 15 5 5" />
+      <path d="m20 15-5 5" />
+    </symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24">
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+    </symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24">
+      <path
+        d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+      <path
+        d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+    </symbol>
+    <symbol id="i-code" viewBox="0 0 24 24">
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </symbol>
+    <symbol id="i-sup" viewBox="0 0 24 24">
+      <path d="m4 19 8-8" />
+      <path d="m12 19-8-8" />
+      <path
+        d="M20 12h-4c0-1.5.44-2 1.5-2.5S20 8.33 20 7c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
+    </symbol>
+    <symbol id="i-sub" viewBox="0 0 24 24">
+      <path d="m4 5 8 8" />
+      <path d="m12 5-8 8" />
+      <path
+        d="M20 19h-4c0-1.5.44-2 1.5-2.5S20 15.33 20 14c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
+    </symbol>
+    <symbol id="i-save" viewBox="0 0 24 24">
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+      <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+    </symbol>
+    <symbol id="i-more" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+      <circle cx="5" cy="12" r="1" />
+    </symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24">
+      <path d="M10 8h.01" />
+      <path d="M12 12h.01" />
+      <path d="M14 8h.01" />
+      <path d="M16 12h.01" />
+      <path d="M18 8h.01" />
+      <path d="M6 8h.01" />
+      <path d="M7 16h10" />
+      <path d="M8 12h.01" />
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+    </symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24">
+      <path d="m6 9 6 6 6-6" />
+    </symbol>
+    <symbol id="i-paneltop" viewBox="0 0 24 24">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M3 9h18" />
+    </symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+      <line x1="11" x2="11" y1="8" y2="14" />
+      <line x1="8" x2="14" y1="11" y2="11" />
+    </symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+      <line x1="8" x2="14" y1="11" y2="11" />
+    </symbol>
+    <symbol id="i-zoom-reset" viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </symbol>
+  </svg>
+
+  <header id="app-toolbar" data-chrome contenteditable="false">
+
+    <!-- ===== RIBBON: two rows ===== -->
+    <header id="ui-ribbon" class="ribbon" data-ui-panel="ribbon">
+
+      <!-- Row 1: title, file menu, save, toggle -->
+      <div class="ribbon-top">
+        <button class="favicon" data-favicon title="Change favicon">🧬</button>
+        <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false"
+          aria-label="Document title">
+        <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+        <span class="sep"></span>
+
+        <!-- File Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>File <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <button data-menu-item data-save><svg class="i sm">
+                <use href="#i-save" />
+              </svg>Save</button>
+
+            <div class="menu-sub" data-submenu>
+              <button type="button" data-menu-item data-submenu-trigger
+                aria-haspopup="menu" aria-expanded="false">Save as…
+                <svg class="i sm">
+                  <use href="#i-chev" />
+                </svg></button>
+              <div class="menu" data-menu-panel hidden>
+
+                <div class="menu-sub" data-submenu>
+                  <button type="button" data-menu-item data-submenu-trigger
+                    aria-haspopup="menu" aria-expanded="false">HTML
+                    <svg class="i sm">
+                      <use href="#i-chev" />
+                    </svg></button>
+                  <div class="menu" data-menu-panel hidden>
+                    <button data-menu-item data-export="html-interactive"
+                      data-save>Interactive (.html)</button>
+                    <button data-menu-item data-export="html-static">Static with captured figures…</button>
+                  </div>
+                </div>
+
+                <div class="menu-sub" data-submenu>
+                  <button type="button" data-menu-item data-submenu-trigger
+                    aria-haspopup="menu" aria-expanded="false">PDF
+                    <svg class="i sm">
+                      <use href="#i-chev" />
+                    </svg></button>
+                  <div class="menu" data-menu-panel hidden>
+                    <button data-menu-item data-export="print-live"
+                      title="The browser print dialog controls headers and footers.">Standard print</button>
+                    <button data-menu-item data-export="print-captured"
+                      title="The browser print dialog controls headers and footers.">Captured figures</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </span>
+
+        <!-- Insert Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>Insert <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <div class="menu-label">Blocks</div>
+            <button data-menu-item data-block-set="p">Paragraph</button>
+            <button data-menu-item data-block-set="h1">Heading 1</button>
+            <button data-menu-item data-block-set="h2">Heading 2</button>
+            <button data-menu-item data-block-set="h3">Heading 3</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Inline</div>
+            <button data-menu-item data-link>Link</button>
+            <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+            <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Figures</div>
+            <button data-menu-item data-figure-pick="image">Image…</button>
+            <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+            <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+            <button data-menu-item data-figure-pick="media">Video or audio…</button>
+          </div>
+        </span>
+
+        <!-- Style Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>Style <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <div class="menu-label">Text size</div>
+            <button data-menu-item data-font="10pt">10 pt</button>
+            <button data-menu-item data-font="11pt">11 pt</button>
+            <button data-menu-item data-font="12pt">12 pt</button>
+            <button data-menu-item data-font="13pt">13 pt</button>
+          </div>
+        </span>
+
+        <!-- Spacing between left and right tools -->
+        <span class="grow"></span>
+
+        <span class="stats" data-stats>—</span>
+        <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
+            <use href="#i-paneltop" />
+          </svg></button>
+        <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+            <use href="#i-keyboard" />
+          </svg></button>
+        <button class="primary" data-save title="Save">Save</button>
+      </div>
+
+      <!-- Row 2: formatting toolbar -->
+      <div class="ribbon-tools">
+        <button data-cmd="undo" title="Undo"><svg class="i">
+            <use href="#i-undo" />
+          </svg></button>
+        <button data-cmd="redo" title="Redo"><svg class="i">
+            <use href="#i-redo" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <!-- Zoom: scales the pages only, never this toolbar -->
+        <span class="zoom-field" role="group" aria-label="Zoom">
+          <button data-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="i">
+              <use href="#i-zoom-out" />
+            </svg></button>
+          <label class="zoom-box">
+            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+              spellcheck="false" value="100" aria-label="Zoom percentage" title="Type a percentage, then Enter">
+            <span class="zoom-unit" aria-hidden="true">%</span>
+          </label>
+          <button data-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="i">
+              <use href="#i-zoom-in" />
+            </svg></button>
+          <button data-zoom="reset" aria-label="Reset zoom to 100%" title="Reset zoom to 100%"><svg class="i sm">
+              <use href="#i-zoom-reset" />
+            </svg></button>
+        </span>
+
+        <span class="sep"></span>
+
+        <select class="select" data-block aria-label="Block style">
+          <option value="p">Paragraph</option>
+          <option value="h1">Heading 1</option>
+          <option value="h2">Heading 2</option>
+          <option value="h3">Heading 3</option>
+          <option value="blockquote">Quote</option>
+          <option value="pre">Code</option>
+        </select>
+
+        <span class="sep"></span>
+
+        <button data-cmd="bold" aria-pressed="false" title="Bold"><svg class="i">
+            <use href="#i-bold" />
+          </svg></button>
+        <button data-cmd="italic" aria-pressed="false" title="Italic"><svg class="i">
+            <use href="#i-italic" />
+          </svg></button>
+        <button data-cmd="underline" aria-pressed="false" title="Underline"><svg class="i">
+            <use href="#i-underline" />
+          </svg></button>
+        <button data-cmd="strikeThrough" aria-pressed="false" title="Strikethrough"><svg class="i">
+            <use href="#i-strike" />
+          </svg></button>
+        <button data-cmd="superscript" aria-pressed="false" title="Superscript"><svg class="i">
+            <use href="#i-sup" />
+          </svg></button>
+        <button data-cmd="subscript" aria-pressed="false" title="Subscript"><svg class="i">
+            <use href="#i-sub" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <button data-cmd="insertUnorderedList" aria-pressed="false" title="Bulleted list"><svg class="i">
+            <use href="#i-list" />
+          </svg></button>
+        <button data-cmd="insertOrderedList" aria-pressed="false" title="Numbered list"><svg class="i">
+            <use href="#i-list-ol" />
+          </svg></button>
+        <button data-block-set="blockquote" title="Quote"><svg class="i">
+            <use href="#i-quote" />
+          </svg></button>
+        <button data-block-set="pre" title="Code block"><svg class="i">
+            <use href="#i-code" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <button data-link title="Insert link"><svg class="i">
+            <use href="#i-link" />
+          </svg></button>
+        <button data-cmd="unlink" title="Remove link"><svg class="i">
+            <use href="#i-unlink" />
+          </svg></button>
+        <button data-cmd="removeFormat" title="Clear formatting"><svg class="i">
+            <use href="#i-eraser" />
+          </svg></button>
+
+        <span class="grow"></span>
+
+        <select class="select" data-fontsize aria-label="Text size">
+          <option value="10pt">10 pt</option>
+          <option value="10.5pt">10.5 pt</option>
+          <option value="11pt" selected>11 pt</option>
+          <option value="12pt">12 pt</option>
+          <option value="13pt">13 pt</option>
+        </select>
+
+      </div>
+    </header>
+
+    <!-- ===== MINIMAL: thin bar ===== -->
+    <header id="ui-minimal" class="bar" data-ui-panel="minimal">
+      <span class="folio" data-folio>p. 1</span>
+      <span class="stats" data-stats>—</span>
+      <span class="grow"></span>
+      <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false" aria-label="Document title">
+      <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+      <span class="grow"></span>
+      <span class="menu-wrap" data-menu-align="right">
+        <button data-menu title="All commands"><svg class="i">
+            <use href="#i-more" />
+          </svg></button>
+        <div class="menu" data-menu-panel hidden>
+          <div class="menu-label">File</div>
+          <button data-menu-item data-save>Save</button>
+          <div class="menu-sub" data-submenu>
+            <button type="button" data-menu-item data-submenu-trigger
+              aria-haspopup="menu" aria-expanded="false">Save as…
+              <svg class="i sm">
+                <use href="#i-chev" />
+              </svg></button>
+            <div class="menu" data-menu-panel hidden>
+              <div class="menu-label">HTML</div>
+              <button data-menu-item data-export="html-interactive" data-save>Interactive (.html)</button>
+              <button data-menu-item data-export="html-static">Static with captured figures…</button>
+              <div class="menu-sep"></div>
+              <div class="menu-label">PDF</div>
+              <button data-menu-item data-export="print-live"
+                title="The browser print dialog controls headers and footers.">Standard print</button>
+              <button data-menu-item data-export="print-captured"
+                title="The browser print dialog controls headers and footers.">Captured figures</button>
+            </div>
+          </div>
+          <div class="menu-sep"></div>
+          <div class="menu-label">Block</div>
+          <button data-menu-item data-block-set="p">Paragraph</button>
+          <button data-menu-item data-block-set="h1">Heading 1</button>
+          <button data-menu-item data-block-set="h2">Heading 2</button>
+          <button data-menu-item data-block-set="h3">Heading 3</button>
+          <button data-menu-item data-block-set="blockquote">Quote</button>
+          <button data-menu-item data-block-set="pre">Code block</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Inline</div>
+          <button data-menu-item data-cmd="bold">Bold</button>
+          <button data-menu-item data-cmd="italic">Italic</button>
+          <button data-menu-item data-cmd="underline">Underline</button>
+          <button data-menu-item data-cmd="strikeThrough">Strikethrough</button>
+          <button data-menu-item data-cmd="superscript">Superscript</button>
+          <button data-menu-item data-cmd="subscript">Subscript</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Lists & links</div>
+          <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+          <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+          <button data-menu-item data-link>Link…</button>
+          <button data-menu-item data-cmd="unlink">Unlink</button>
+          <button data-menu-item data-cmd="removeFormat">Clear formatting</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Figures</div>
+          <button data-menu-item data-figure-pick="image">Image…</button>
+          <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+          <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+          <button data-menu-item data-figure-pick="media">Video or audio…</button>
+
+          <div class="menu-sep"></div>
+
+          <button data-menu-item data-cmd="undo">Undo</button>
+          <button data-menu-item data-cmd="redo">Redo</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label" data-zoom-label>Zoom · 100%</div>
+          <div class="menu-field">
+            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+              spellcheck="false" value="100" aria-label="Zoom percentage">
+            <span class="zoom-unit" aria-hidden="true">%</span>
+          </div>
+          <button data-menu-item data-zoom="out">Zoom out</button>
+          <button data-menu-item data-zoom="reset">Actual size (100%)</button>
+          <button data-menu-item data-zoom="in">Zoom in</button>
+          <button data-menu-item data-zoom="fit">Fit page width</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Text size</div>
+          <button data-menu-item data-font="10pt">10 pt</button>
+          <button data-menu-item data-font="11pt">11 pt</button>
+          <button data-menu-item data-font="12pt">12 pt</button>
+          <button data-menu-item data-font="13pt">13 pt</button>
+
+          <div class="menu-sep"></div>
+
+          <button data-menu-item data-shortcuts>Keyboard shortcuts</button>
+        </div>
+      </span>
+
+      <button data-chrome-toggle aria-label="Full toolbar" title="Full toolbar"><svg class="i">
+          <use href="#i-paneltop" />
+        </svg></button>
+      <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+          <use href="#i-keyboard" />
+        </svg></button>
+
+      <button class="save-text" data-save title="Save">Save</button>
+    </header>
+
+    <input type="file" data-figure-input hidden multiple>
+  </header>
+
+  <div id="figure-tools" data-chrome hidden contenteditable="false">
+    <span class="figure-dim" data-dim="w">
+      <span class="figure-dim-label">W</span>
+      <button data-figure-dim="w" data-figure-step="-" title="Narrower figure">−</button>
+      <span class="figure-dim-value" data-figure-w-value>100%</span>
+      <button data-figure-dim="w" data-figure-step="+" title="Wider figure">+</button>
+    </span>
+    <span class="figure-dim" data-dim="h">
+      <span class="figure-dim-label">H</span>
+      <button data-figure-dim="h" data-figure-step="-" title="Shorter figure">−</button>
+      <span class="figure-dim-value" data-figure-h-value>auto</span>
+      <button data-figure-dim="h" data-figure-step="+" title="Taller figure">+</button>
+    </span>
+    <button data-figure-reset title="Reset figure size">Fit</button>
+    <button data-figure-remove title="Remove figure">Remove</button>
+  </div>
+
+  <main id="viewport">
+    <div id="stage">
+      <div id="sheets" data-generated aria-hidden="true"></div>
+      <article id="content" contenteditable="true" spellcheck="true">
+        <h1>Standalone HTML Doc</h1>
+        <p> Testing </p>
+      </article>
+    </div>
+  </main>
+
+  <!-- PROBE: A stable page size for pagination -->
+  <div id="probe" aria-hidden="true">
+    <i id="probe-content-h"></i>
+    <i id="probe-pitch"></i>
+    <i id="probe-pad"></i>
+  </div>
+
+  <!-- ZONE 5: inert figure data. Sources live here as escaped JSON strings,
+       never as DOM. A saved file can be re-mounted without any HTML parsing. -->
+  <script id="figure-store" type="application/json">{"version":1,"figures":{}}</script>
+
+
+  <!-- Shared content signals -->
+  <!-- The boot shell's markup. Inert until it is opened; defined before the
+       bootstrap runs so boot() can report into it. -->
+  <dialog id="boot-dialog" aria-labelledby="boot-title" aria-describedby="boot-sub">
+    <div class="boot-head">
+      <span class="boot-mark" aria-hidden="true">&#9680;</span>
+      <div>
+        <h1 id="boot-title" data-boot-title>Starting the editor</h1>
+        <p class="boot-sub" id="boot-sub" data-boot-sub></p>
+      </div>
+    </div>
+    <div class="boot-body">
+      <div class="boot-bar" data-boot-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Starting the editor">
+        <span class="boot-fill" data-boot-fill></span>
+      </div>
+      <ul class="boot-rows" data-boot-rows aria-live="polite"></ul>
+      <div class="boot-error" data-boot-error hidden>
+        <span class="boot-error-icon" aria-hidden="true">&#9888;</span>
+        <div>
+          <p class="boot-error-title" data-boot-error-title></p>
+          <p class="boot-error-body" data-boot-error-body></p>
+          <pre class="boot-diag" data-boot-diag hidden></pre>
+        </div>
+      </div>
+    </div>
+    <div class="boot-foot">
+      <button type="button" data-boot-toggle hidden>Diagnostics</button>
+      <span class="spacer"></span>
+      <button type="button" data-boot-copy hidden>Copy diagnostics</button>
+      <button type="button" class="primary" data-boot-retry hidden>Retry</button>
+    </div>
+  </dialog>
+
+<script id="doc-settings" type="application/json">{"schema":1,"mode":"view","editable":false,"toolbar":false,"saveThresholdBytes":2097152}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":15610,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":12996},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":13036,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/policy.js","integrity":"sha384-q2W4gqccXuJx63OmuDZUCkEvODqI/CNBu7DqK3g9K0Epc9c3EQ0Nfh3jkJwAz24l"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":32618,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-sKP2Rx9xcBea7hqw9RjnQ3R6ZXgV14i3oOOKuZai6pfMT9pI6HdxsdQlGqrfgeJt"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<!-- @asset id="registry" kind="js" order="5" -->
+  <script id="registry">
+    /* The container: the only global. Assets register their factory (inline) or are
+       resolved from the CDN, and boot() builds them in manifest order — never
+       document order. */
+    globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
+      "use strict";
+
+      const factories = Object.create(null);
+      const modules = Object.create(null);
+      const errors = [];
+      const listeners = Object.create(null);
+      const injected = [];
+      const sources = Object.create(null);
+      let state = "declared";
+      let parsed = null;
+      let settingsParsed = null;
+      let settingsText = null;
+
+      /* The shell gates the app on this attribute, so it must be set wherever state
+         changes — never by the UI, which only observes. */
+      function setState(next) {
+        state = next;
+        if (typeof document !== "undefined") document.documentElement.dataset.bootState = next;
+      }
+
+      /* The manifest is authoritative for order/deps/mode; a registration only
+         supplies the factory, which is what makes the inline and CDN flavours the
+         same code path. */
+      function register(id, factory) {
+        /* Idempotent by id: a hand-concatenated document may contain the same block
+           twice. The first registration wins, so the module is built only once. */
+        if (factories[id]) return;
+        factories[id] = factory;
+      }
+
+      function manifest() {
+        if (parsed) return parsed;
+        const el = document.getElementById("asset-manifest");
+        try {
+          parsed = el ? JSON.parse(el.textContent) : { assets: [] };
+        } catch (error) {
+          parsed = { assets: [], parseError: String(error && error.message) };
+        }
+        return parsed;
+      }
+
+      /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
+         read as a fallback for documents saved before the block existed (one release
+         of compatibility, not a permanent second source of truth). */
+      function settings() {
+        const el = document.getElementById("doc-settings");
+        const text = el ? el.textContent : "";
+        /* Keyed on the block's text: the save path writes `thresholdDeclined` into it, and
+           a cached parse would make the sticky choice invisible until the next open. */
+        if (settingsParsed && text === settingsText) return settingsParsed;
+        settingsText = text;
+        let authored = null;
+        try {
+          authored = el ? JSON.parse(el.textContent) : null;
+        } catch (error) {
+          authored = { parseError: String(error && error.message) };
+        }
+        const mode = authored?.mode ?? manifest().mode ?? "edit";
+        settingsParsed = {
+          mode,
+          editable: mode === "edit" && (authored?.editable ?? true),
+          toolbar: mode !== "view" && (authored?.toolbar ?? true),
+          saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
+          /* The save choice travels unnormalised: a preset name, or the explicit
+             per-asset map that replaces it once anything is overridden. */
+          policy: authored?.policy ?? null,
+          assets: authored?.assets ?? null,
+          thresholdDeclined: Number(authored?.thresholdDeclined) || 0,
+        };
+        return settingsParsed;
+      }
+
+      function on(event, fn) {
+        (listeners[event] || (listeners[event] = [])).push(fn);
+        return function off() {
+          listeners[event] = (listeners[event] || []).filter((other) => other !== fn);
+        };
+      }
+
+      function emit(event, detail) {
+        for (const fn of (listeners[event] || []).slice()) {
+          try {
+            fn(detail);
+          } catch (error) {
+            /* A broken observer must not derail boot. */
+            console.error(`boot observer for "${event}" failed:`, error);
+          }
+        }
+      }
+
+      function late(id) {
+        return function () {
+          const module = modules[id];
+          if (!module) throw new Error(`"${id}" is not built yet (late edge used during construction, or the asset is disabled)`);
+          return module;
+        };
+      }
+
+      /* Unlike late(), this never throws: the asset may be absent for good — it is
+         mode-gated (an editor module in a view-mode document) or disabled. The getter
+         is read at call time, so a module built later is still visible. */
+      function optional(id) {
+        return function () {
+          return modules[id];
+        };
+      }
+
+      function failure(kind, id, message, extra) {
+        return Object.assign({ kind, id, message }, extra || {});
+      }
+
+      function fail(record) {
+        setState("failed");
+        errors.push(record);
+        emit("failed", { error: record, errors: errors.slice() });
+        return false;
+      }
+
+      /* A document declares the mode it was saved for (edit | view | comment), and an
+         asset declares the modes that need it. "*" means all of them, so a view-mode
+         document never even fetches the editor. */
+      function inMode(asset, mode) {
+        const requiredBy = asset.requiredBy || ["*"];
+        return requiredBy.includes("*") || requiredBy.includes(mode);
+      }
+
+      /* Only constructed modules: infrastructure is already running. */
+      function order() {
+        const mode = settings().mode;
+        return manifest()
+          .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode))
+          .sort((a, b) => a.order - b.order)
+          .map((asset) => asset.id);
+      }
+
+      async function sha384(buffer) {
+        const digest = await crypto.subtle.digest("SHA-384", buffer);
+        let binary = "";
+        for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
+        return "sha384-" + btoa(binary);
+      }
+
+      /* Bytes from the CDN, verified, not yet evaluated. Split out from fetchAsset so
+         the save path can embed exactly what it verified (Phase 4): "verified before
+         it runs" and "verified before it is written into a file" are the same rule. */
+      async function fetchVerified(asset) {
+        if (asset.mode !== "online") {
+          throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
+        }
+        if (!asset.url) throw failure("missing", asset.id, "has no url in the manifest");
+        const timeoutMs = manifest().timeoutMs || 8000;
+
+        /* Our own timer, not AbortSignal.timeout: engines disagree about the error
+           name they produce, and we need to know *we* aborted, not the network. */
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        let response;
+        try {
+          response = await fetch(asset.url, { signal: controller.signal, cache: "force-cache" });
+        } catch (error) {
+          const timedOut = controller.signal.aborted;
+          /* navigator.onLine only *labels* the failure; it never decides anything. */
+          const kind = timedOut ? "timeout" : navigator.onLine === false ? "offline" : "unreachable";
+          const message = timedOut ? `no response within ${timeoutMs} ms` : (error && error.message) || "fetch failed";
+          throw failure(kind, asset.id, message, { url: asset.url });
+        } finally {
+          clearTimeout(timer);
+        }
+
+        if (!response.ok) {
+          throw failure("http", asset.id, `HTTP ${response.status}`, { url: asset.url, status: response.status });
+        }
+
+        const bytes = await response.arrayBuffer();
+        const actual = await sha384(bytes);
+        if (asset.integrity && actual !== asset.integrity) {
+          throw failure("integrity", asset.id, "hash does not match the manifest", {
+            url: asset.url,
+            expected: asset.integrity,
+            actual,
+          });
+        }
+
+        return { text: new TextDecoder().decode(bytes) };
+      }
+
+      /* Evaluate verified bytes. Side effects stay here, never in the fetch, so the
+         load phase can run in parallel without reordering anything. */
+      async function evaluate(asset, text) {
+        if (asset.kind === "css") return { css: text };
+        const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+        let namespace;
+        try {
+          namespace = await import(blob);
+        } catch (error) {
+          throw failure("import", asset.id, error && error.message ? error.message : "module failed to evaluate", { url: asset.url });
+        }
+        const factory = namespace[asset.factory];
+        if (typeof factory !== "function") {
+          throw failure("import", asset.id, `module does not export ${asset.factory}`, { url: asset.url });
+        }
+        return { factory };
+      }
+
+      async function fetchAsset(asset) {
+        if (factories[asset.id]) return { factory: factories[asset.id] };
+        if (asset.mode !== "online") {
+          throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
+        }
+        const { text } = await fetchVerified(asset);
+        return evaluate(asset, text);
+      }
+
+      /* Verified CDN text for an asset, which is what a saved document embeds when a
+         policy decides to inline an asset that was loaded by reference. Cached: the
+         bytes at a pinned url + hash cannot change. An inline asset does not need
+         this — its text is already the block in the document. */
+      async function source(id) {
+        if (sources[id] != null) return sources[id];
+        const asset = manifest().assets.find((candidate) => candidate.id === id);
+        if (!asset) throw failure("missing", id, "is not in the manifest");
+        if (asset.mode === "inline") {
+          throw failure("missing", id, "is inline, so its text is the block in this document, not a CDN file");
+        }
+        const { text } = await fetchVerified(asset);
+        sources[id] = text;
+        return text;
+      }
+
+      async function boot() {
+        if (state !== "declared") return modules;
+        setState("booting");
+        errors.length = 0;
+
+        const mode = settings().mode;
+        const assets = manifest()
+          .assets.filter((asset) => inMode(asset, mode))
+          .sort((a, b) => a.order - b.order);
+        const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
+        emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
+
+        /* 1. Load in parallel: I/O is order-free. */
+        const online = assets.filter((asset) => asset.mode === "online");
+        const loaded = new Map();
+        const outcomes = await Promise.allSettled(
+          online.map(async (asset) => {
+            loaded.set(asset.id, await fetchAsset(asset));
+          }),
+        );
+        for (const [i, outcome] of outcomes.entries()) {
+          if (outcome.status === "rejected") return fail(outcome.reason);
+        }
+
+        /* 2. Construct in order: side effects are order-bound. */
+        let index = 0;
+        for (const asset of assets) {
+          if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
+
+          /* Stylesheets are not modules: inline ones are already in the document,
+             online ones are injected here, in manifest order, so cascade order is
+             the same in both flavours. */
+          if (asset.kind === "css") {
+            const result = loaded.get(asset.id);
+            if (result?.css != null) {
+              const style = document.createElement("style");
+              style.textContent = result.css;
+              style.dataset.asset = asset.id;
+              document.head.append(style);
+              injected.push(style);
+            }
+            continue;
+          }
+
+          const position = index++;
+          emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
+
+          const deps = { env: globalThis, settings: settings(), late, optional };
+          for (const name of asset.deps || []) {
+            if (!(name in modules)) {
+              return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
+            }
+            deps[name] = modules[name];
+          }
+
+          const factory = factories[asset.id] || loaded.get(asset.id)?.factory;
+          if (!factory) {
+            return fail(
+              failure(
+                "missing",
+                asset.id,
+                asset.mode === "inline" ? "not loaded (its block is missing from this document)" : "not loaded from the CDN",
+              ),
+            );
+          }
+
+          try {
+            modules[asset.id] = factory(deps);
+          } catch (error) {
+            return fail(
+              failure("construct", asset.id, error && error.message ? error.message : String(error), {
+                stack: error && error.stack ? String(error.stack) : null,
+              }),
+            );
+          }
+
+          /* No global is published: the manifest's dependency list is the only way
+             one module reaches another, and boot injects it. */
+          emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
+        }
+
+        setState("ready");
+        emit("ready", { count: Object.keys(modules).length });
+        return modules;
+      }
+
+      /* Tear the graph down and build it again. Registered factories survive, so a
+         failure that was environmental can be retried without reloading the file. */
+      async function retry() {
+        if (state === "booting") return modules;
+        for (const id of Object.keys(modules)) delete modules[id];
+        for (const node of injected.splice(0)) node.remove();
+        for (const id of Object.keys(sources)) delete sources[id];
+        errors.length = 0;
+        setState("declared");
+        return boot();
+      }
+
+      return {
+        register,
+        on,
+        late,
+        settings,
+        optional,
+        source,
+        boot,
+        retry,
+        order,
+        manifest,
+        modules,
+        factories,
+        errors,
+        get state() {
+          return state;
+        },
+      };
+    })();
+  </script>
+<!-- /@asset -->
+<!-- @asset id="boot-ui" kind="js" order="6" -->
+  <script id="boot-ui">
+    /* The boot shell. Owns no state: it subscribes to the registry's events and
+       renders them. Loaded before any asset, so it may not depend on core CSS, and
+       it resolves the dialog lazily so markup order cannot break it. */
+    (function () {
+      "use strict";
+
+      const registry = globalThis.StandaloneDoc;
+      const SHOW_DELAY = 150; /* a card that flashes for 60ms is worse than none */
+
+      /* Presentation only: registration ids are technical. */
+      const LABELS = {
+        signals: "Signals",
+        zoom: "Zoom",
+        pagination: "Pagination",
+        status: "Status line",
+        editor: "Editor",
+        figures: "Figures",
+        toolbar: "Toolbar",
+        progress: "Progress dialog",
+        export: "Export",
+      };
+      const label = (id) => LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1);
+
+      let ui = null;
+      let showTimer = null;
+      let lastStart = {order: [], total: 0};
+      const failures = [];
+
+      function ensure() {
+        if (ui) return ui;
+        const dialog = document.getElementById("boot-dialog");
+        if (!dialog) return null;
+        ui = {
+          dialog,
+          title: dialog.querySelector("[data-boot-title]"),
+          sub: dialog.querySelector("[data-boot-sub]"),
+          bar: dialog.querySelector("[data-boot-bar]"),
+          fill: dialog.querySelector("[data-boot-fill]"),
+          rows: dialog.querySelector("[data-boot-rows]"),
+          error: dialog.querySelector("[data-boot-error]"),
+          errorTitle: dialog.querySelector("[data-boot-error-title]"),
+          errorBody: dialog.querySelector("[data-boot-error-body]"),
+          diag: dialog.querySelector("[data-boot-diag]"),
+          retry: dialog.querySelector("[data-boot-retry]"),
+          copy: dialog.querySelector("[data-boot-copy]"),
+          toggle: dialog.querySelector("[data-boot-toggle]"),
+        };
+        wire(ui);
+        return ui;
+      }
+
+      function setBar(fraction) {
+        const el = ensure();
+        if (!el) return;
+        el.fill.style.transform = `scaleX(${Math.max(0, Math.min(1, fraction)).toFixed(3)})`;
+        const pct = Math.round(fraction * 100);
+        el.bar.setAttribute("aria-valuenow", String(pct));
+        el.bar.setAttribute("aria-valuetext", el.sub.textContent || `${pct}%`);
+      }
+
+      function open() {
+        const el = ensure();
+        if (!el || el.dialog.open) return;
+        el.dialog.showModal();
+      }
+
+      function scheduleOpen() {
+        clearTimeout(showTimer);
+        showTimer = setTimeout(open, SHOW_DELAY);
+      }
+
+      function close() {
+        clearTimeout(showTimer);
+        const el = ensure();
+        if (el?.dialog.open) el.dialog.close();
+      }
+
+      function renderRows(order) {
+        const el = ensure();
+        if (!el) return;
+        el.rows.replaceChildren();
+        for (const id of order) {
+          const row = document.createElement("li");
+          row.className = "boot-row";
+          row.dataset.state = "pending";
+          row.dataset.id = id;
+          row.innerHTML = '<span class="boot-dot" aria-hidden="true"></span><span class="boot-name"></span><span class="boot-detail"></span>';
+          row.querySelector(".boot-name").textContent = label(id);
+          el.rows.append(row);
+        }
+      }
+
+      function reset() {
+        const el = ensure();
+        failures.length = 0;
+        if (!el) return;
+        el.error.hidden = true;
+        el.retry.hidden = true;
+        el.toggle.hidden = true;
+        el.diag.hidden = true;
+        el.diag.textContent = "";
+        el.dialog.dataset.phase = "booting";
+        el.title.textContent = "Starting the editor";
+        el.sub.textContent = "";
+        setBar(0);
+      }
+
+      function diagnosticsText() {
+        const el = ensure();
+        const lines = [
+          "standalone-doc boot",
+          `state:    ${registry.state}`,
+          `document: ${location.href}`,
+          `modules:  ${(lastStart.order || []).join(", ") || "—"}`,
+          "",
+        ];
+        for (const failure of failures) {
+          lines.push(`[${failure.kind || failure.phase}] ${failure.id}: ${failure.message}`);
+          if (failure.url) lines.push(`url: ${failure.url}`);
+          if (failure.expected) lines.push(`expected ${failure.expected}`, `actual   ${failure.actual}`);
+          if (failure.stack) lines.push(failure.stack);
+          lines.push("");
+        }
+        lines.push(`user agent: ${navigator.userAgent}`);
+        return lines.join("\n");
+      }
+
+      /* One card per failure mode: the copy is the product here. */
+      function copyFor(failure) {
+        const name = label(failure.id);
+        switch (failure.kind) {
+          case "offline":
+            return { title: "You appear to be offline", body: `${name} could not be downloaded. Reconnect, then retry — nothing has been changed.` };
+          case "unreachable":
+            return { title: "The CDN is unreachable", body: `${name} could not be downloaded. Your connection is working, so this is usually temporary or a proxy blocking the CDN.` };
+          case "http":
+            return { title: "An asset is missing from the CDN", body: `${name} returned HTTP ${failure.status}. This document pins one runtime version; that file was not published at it.` };
+          case "timeout":
+            return { title: "Loading timed out", body: `${name} did not finish downloading in time. Slow connections usually succeed on retry.` };
+          case "integrity":
+            return { title: "This document's code has been altered", body: `The bytes served for ${name} do not match the hash recorded when this document was saved. It was not run.` };
+          case "import":
+            return { title: "A module could not start", body: `${name} downloaded but failed to evaluate.` };
+          case "missing":
+            return { title: "An asset is not loaded", body: `${name}: ${failure.message}` };
+          default:
+            /* Never lose the actual message: it is the actionable part. */
+            return { title: "The editor failed to start", body: `${name} threw while starting: ${failure.message}` };
+        }
+      }
+
+      function renderFailure(failure) {
+        const el = ensure();
+        if (!el) return;
+        failures.push(failure);
+        const copy = copyFor(failure);
+        el.dialog.dataset.phase = "failed";
+        el.title.textContent = copy.title;
+        el.sub.textContent = "Aborted — nothing has been changed on disk";
+        /* Mark the row that failed: the registry emits "active" and then aborts, so
+           without this the last row would sit on "starting…" forever. */
+        const failedRow = el.rows.querySelector(`.boot-row[data-id="${failure.id}"]`);
+        if (failedRow) {
+          failedRow.dataset.state = "failed";
+          failedRow.querySelector(".boot-detail").textContent = "failed";
+        }
+        el.error.hidden = false;
+        el.errorTitle.textContent = label(failure.id);
+        el.errorBody.textContent = copy.body;
+        el.diag.textContent = diagnosticsText();
+        el.retry.hidden = false;
+        el.toggle.hidden = false;
+        el.copy.hidden = false;
+        /* Errors are never delayed: the faster they appear, the less it feels hung. */
+        clearTimeout(showTimer);
+        open();
+        el.retry.focus();
+      }
+
+      function wire(el) {
+        el.dialog.addEventListener("cancel", (event) => event.preventDefault());
+
+        el.retry.addEventListener("click", () => {
+          reset();
+          open();
+          try {
+            registry.retry();
+          } catch {
+            /* retry() re-emits "failed", which renders the card again. */
+          }
+        });
+
+        el.toggle.addEventListener("click", () => {
+          const opening = el.diag.hidden;
+          el.diag.hidden = !opening;
+          el.toggle.textContent = opening ? "Hide diagnostics" : "Diagnostics";
+        });
+
+        el.copy.addEventListener("click", async () => {
+          const text = diagnosticsText();
+          try {
+            await navigator.clipboard.writeText(text);
+            el.copy.textContent = "Copied";
+          } catch {
+            el.diag.hidden = false;
+            el.diag.textContent = text;
+            el.copy.textContent = "Select and copy";
+          }
+          setTimeout(() => (el.copy.textContent = "Copy diagnostics"), 1400);
+        });
+      }
+
+      /* Never leave the document hidden forever: if boot never settles (a broken
+         registry block, a parse error), reveal it and say so. */
+      setTimeout(() => {
+        if (document.documentElement.dataset.bootState !== "booting") return;
+        document.documentElement.dataset.bootState = "failed";
+        const el = ensure();
+        if (!el) return;
+        el.dialog.dataset.phase = "failed";
+        el.title.textContent = "The editor did not start";
+        el.sub.textContent = "Nothing has been changed on disk";
+        el.error.hidden = false;
+        el.errorTitle.textContent = "Boot never finished";
+        el.errorBody.textContent = "The runtime did not report ready or failed. Copy the diagnostics and send them to the author.";
+        el.retry.hidden = false;
+        el.toggle.hidden = false;
+        el.copy.hidden = false;
+        el.diag.textContent = diagnosticsText();
+        open();
+      }, 20_000);
+
+      if (!registry) return;
+
+      registry.on("start", (detail) => {
+        lastStart = detail;
+        reset();
+        renderRows(detail.order);
+        const el = ensure();
+        if (el) {
+          const assets = registry.manifest().assets || [];
+          const online = assets.filter((asset) => asset.mode === "online").length;
+          const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
+          el.sub.textContent = online
+            ? `${detail.total} modules · ${online} fetched from the CDN${version ? ` · ${version}` : ""}`
+            : `${detail.total} modules · everything embedded in this file`;
+        }
+        scheduleOpen();
+      });
+
+      registry.on("construct", (detail) => {
+        const el = ensure();
+        if (!el) return;
+        const row = el.rows.querySelector(`.boot-row[data-id="${detail.id}"]`);
+        if (row) {
+          row.dataset.state = detail.state;
+          row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "starting…";
+        }
+        const done = detail.state === "ok" ? detail.index + 1 : detail.index;
+        setBar(0.95 * (done / Math.max(1, detail.total)));
+      });
+
+      registry.on("ready", (detail) => {
+        const el = ensure();
+        setBar(1);
+        if (!el) return;
+        el.dialog.dataset.phase = "ready";
+        el.sub.textContent = `Ready · ${detail.count} modules`;
+        close();
+      });
+
+      registry.on("failed", (detail) => renderFailure(detail.error));
+    })();
+  </script>
+<!-- /@asset -->
+<!-- @asset id="apply-settings" kind="js" order="7" -->
+  <script type="module" id="apply-settings">
+    /*@compiled-from src/apply-settings.js — envelope is build-owned; edit the body or src/*/
+    export function createApplySettings(deps = {}) {
+      const {settings, env} = deps;
+      const {document} = env;
+
+      /* Behaviour the browser cannot express in CSS, and therefore the loader's job.
+         Everything here is derived from the document's own #doc-settings block, never
+         from the markup: a copy whose markup was edited by hand must not be able to
+         claim it is editable when the file says otherwise. */
+      function apply() {
+        const root = document.documentElement;
+        root.dataset.mode = settings.mode;
+        /* Chrome visibility is a setting of its own, not a consequence of the mode: a
+           read-only copy may still want the toolbar for print or zoom. */
+        root.dataset.toolbar = settings.toolbar ? "on" : "off";
+
+        const content = document.getElementById("content");
+        if (!content) return;
+        if (settings.editable) content.setAttribute("contenteditable", "true");
+        else content.setAttribute("contenteditable", "false");
+      }
+
+      /* Construction-time, like editor and figures: the lock is in place before any
+         module that could act on the content is built. */
+      apply();
+
+      return {apply};
+    }
+    StandaloneDoc.register("apply-settings", createApplySettings);
+  </script>
+<!-- /@asset -->
+
+<!-- @asset id="signals" kind="js" order="30" -->
+  <script type="module" id="signals">
+    /*@compiled-from src/signals.js — envelope is build-owned; edit the body or src/*/
+    export function createSignals() {
+      const target = document.getElementById("content");
+      const listeners = new Map();
+      let muted = 0;
+      let composing = false;
+
+      function on(type, fn) {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type).add(fn);
+        return () => listeners.get(type).delete(fn);
+      }
+
+      function emit(type, detail) {
+        for (const fn of listeners.get(type) || []) fn(detail);
+      }
+
+      // Suppress observer notifications for programmatic changes. Release in a
+      // microtask so the MutationObserver callback still sees muted > 0.
+      function mute(fn) {
+        muted++;
+        try {return fn();}
+        finally {queueMicrotask(() => {muted--;});}
+      }
+
+      new MutationObserver(() => {
+        if (muted) return;
+        emit("mutation");
+      }).observe(target, {childList: true, subtree: true, characterData: true});
+
+      new ResizeObserver(() => {
+        if (muted) return;
+        emit("resize");
+      }).observe(target);
+
+      target.addEventListener("beforeinput", () => emit("beforeinput"));
+      target.addEventListener("input", (e) => {
+        if (e.isComposing || composing) return;
+        emit("edit", {inputType: e.inputType});
+      });
+      target.addEventListener("compositionstart", () => {
+        composing = true;
+        emit("compositionstart");
+      });
+      target.addEventListener("compositionend", () => {
+        composing = false;
+        emit("compositionend");
+      });
+
+      return {on, emit, mute, get composing() {return composing;} };
+    }
+    StandaloneDoc.register("signals", createSignals);
+  </script>
+<!-- /@asset -->
+
+  <!-- Document zoom: scales #stage only (pages + text), never the chrome.
+       Must be declared before the pagination script, which divides measured
+       block heights by Zoom.value. -->
+<!-- @asset id="zoom" kind="js" order="40" -->
+  <script type="module" id="zoom">
+    /*@compiled-from src/zoom.js — envelope is build-owned; edit the body or src/*/
+    /* Buttons and Mod+= / Mod+- walk this list; typed values may sit
+       between stops. Exported so the zoom math can be unit-tested without a DOM. */
+    export const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+    export const MIN = STEPS[0];
+    export const MAX = STEPS[STEPS.length - 1];
+    export const TYPE_MIN = 0.1;
+    export const TYPE_MAX = 4;
+
+    export const clamp = (v) => Math.min(TYPE_MAX, Math.max(TYPE_MIN, v));
+
+    /* Nearest stop, compared in log space so the steps feel even. */
+    export function nearest(v) {
+      let best = STEPS[0];
+      for (const s of STEPS) {
+        if (Math.abs(Math.log(s / v)) < Math.abs(Math.log(best / v))) best = s;
+      }
+      return best;
+    }
+
+    /* "150", "150%", " 150 % " → 150. Anything unparseable → null. */
+    export function parsePercent(text) {
+      const n = parseFloat(String(text).replace(/[%\s]/g, "").replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    }
+
+    export function createZoom() {
+      const stage = document.getElementById("stage");
+      const viewport = document.getElementById("viewport");
+      let value = 1;
+
+      /* Change zoom without losing the reading spot. The anchor is a CLIENT y
+         (the same space as MouseEvent.clientY). The scroll correction is the
+         anchor's change in client position, so content that grew below the
+         anchor scrolls further down. */
+      function apply(next, anchorY) {
+        const z1 = clamp(next);
+        const vr = viewport.getBoundingClientRect();
+        const bottom = vr.top + viewport.clientHeight;
+        const ay = anchorY == null
+          ? vr.top + viewport.clientHeight / 2
+          : Math.min(bottom, Math.max(vr.top, anchorY));
+
+        if (z1 === value) {
+          syncUI();
+          return value;
+        }
+
+        const top0 = stage.getBoundingClientRect().top;
+        const stageY = (ay - top0) / value; // anchor in stage layout px
+
+        value = z1;
+        /* A custom property, not `zoom` itself: the inline style only ever sets
+           --zoom, so the print rule can reset `zoom` without !important. */
+        stage.style.setProperty("--zoom", String(value));
+
+        const top1 = stage.getBoundingClientRect().top;
+        viewport.scrollTop += top1 + stageY * value - ay;
+
+        syncUI();
+        return value;
+      }
+
+      function step(dir, anchorY) {
+        const i = STEPS.indexOf(nearest(value));
+        const j = Math.max(0, Math.min(STEPS.length - 1, i + dir));
+        /* At an end of the list (or past it, e.g. after a fit), stay put rather
+           than jumping back to the last stop. */
+        if (j === i) return apply(value, anchorY);
+        return apply(STEPS[j], anchorY);
+      }
+
+      /* Commit a typed percentage; false means "restore the field". */
+      function setPercent(text, anchorY) {
+        const pct = parsePercent(text);
+        if (pct == null) return false;
+        apply(clamp(pct / 100), anchorY);
+        return true;
+      }
+
+      /* One-shot: the fitted value becomes an ordinary zoom, so it neither
+         re-fits on resize nor survives a save. The computed width is layout
+         px, which makes this idempotent. */
+      function fit() {
+        const sheetW = parseFloat(getComputedStyle(stage).width);
+        if (!sheetW) return value;
+        return apply(viewport.clientWidth / sheetW, 0);
+      }
+
+      function syncUI() {
+        const pct = Math.round(value * 100) + "%";
+        /* Always refresh the fields, including a focused one: an explicit zoom
+           command (button, shortcut, fit) must win over a half-typed value,
+           otherwise the stale text would be committed on blur. Type-then-Enter
+           is unaffected because syncUI only runs when zoom actually moves. */
+        document.querySelectorAll("[data-zoom-input]").forEach((el) => {
+          el.value = String(Math.round(value * 100));
+        });
+        document.querySelectorAll("[data-zoom-label]").forEach((el) => {
+          el.textContent = "Zoom · " + pct;
+        });
+        document.querySelectorAll('[data-zoom="in"]').forEach((el) => {
+          el.disabled = value >= MAX;
+        });
+        document.querySelectorAll('[data-zoom="out"]').forEach((el) => {
+          el.disabled = value <= MIN;
+        });
+        document.querySelectorAll('[data-zoom="reset"]').forEach((el) => {
+          el.setAttribute("aria-label", `Zoom ${pct}. Reset to 100%`);
+          el.title = `Zoom ${pct} — reset to 100%`;
+        });
+      }
+
+      function command(name, anchorY) {
+        if (name === "in") return step(1, anchorY);
+        if (name === "out") return step(-1, anchorY);
+        if (name === "reset") return apply(1, anchorY);
+        if (name === "fit") return fit();
+        return value;
+      }
+
+      return {
+        command,
+        set: apply,
+        setPercent,
+        in: () => step(1),
+        out: () => step(-1),
+        reset: () => apply(1),
+        fit,
+        syncUI,
+        get value() {return value},
+      };
+    }
+    StandaloneDoc.register("zoom", createZoom);
+  </script>
+<!-- /@asset -->
+
+  <!-- Javascript for Pagination -->
+<!-- @asset id="pagination" kind="js" order="50" -->
+  <script type="module" id="pagination">
+    /*@compiled-from src/pagination.js — envelope is build-owned; edit the body or src/*/
+    export function createPagination(deps = {}) {
+      const {signals, zoom, env = globalThis} = deps;
+      const {document} = env;
+
+      const content = document.getElementById("content");
+      const sheets = document.getElementById("sheets");
+      const stage = document.getElementById("stage");
+
+      /* Calculate the height, pitch, and padding of the probe element */
+      const prContent = document.getElementById("probe-content-h");
+      const prPitch = document.getElementById("probe-pitch");
+      const prPad = document.getElementById("probe-pad");
+
+      function geometry() {
+        const px = (el) => el.getBoundingClientRect().height;
+
+        const contentH = px(prContent);
+        const pitch = px(prPitch);
+        const pad = px(prPad);
+
+        return {
+          contentH,
+          pitch,
+          pad,
+          chromeGap: pitch - contentH,
+        };
+      }
+
+      function collectBlocks() {
+        return [...content.children].filter(
+          (el) => !el.classList.contains("page-spacer")
+        );
+      }
+
+      /* Page geometry is measured in layout pixels. The probe elements live
+         OUTSIDE #stage, so geometry() is never zoomed; blocks live inside it, so
+         getBoundingClientRect() returns zoomed pixels and must be divided by the
+         zoom factor. Skipping this makes the plan shrink with the zoom (a 200%
+         view would re-paginate to twice the pages). */
+      function measureH(el) {
+        return el.getBoundingClientRect().height / (zoom.value || 1);
+      }
+
+      function plan() {
+        const g = geometry();
+        const blocks = collectBlocks();
+
+        const pages = [{top: 0, avail: g.contentH, items: []}];
+        const spacers = [];
+        const oversize = [];
+        let cursor = 0;
+
+        for (let i = 0; i < blocks.length; i++) {
+          const el = blocks[i];
+          const h = measureH(el);
+          const tall = h > g.contentH; // Check if larger than page height
+          let page = pages[pages.length - 1];
+
+          // Check if block overflows and adds page + spacer
+          if (page.items.length && cursor + h > page.top + page.avail) {
+            const nextTop = page.top + page.avail + g.chromeGap;
+
+            spacers.push({
+              before: el,
+              height: nextTop - cursor,
+            });
+
+            page = {top: nextTop, avail: g.contentH, items: []};
+            pages.push(page);
+            cursor = nextTop;
+          }
+          // Resizes page size to size of oversized block
+          if (tall) {
+            page.avail = h;
+            oversize.push(i);
+          }
+
+          page.items.push({block: i, from: 0, to: null});
+          cursor += h;
+
+          if (tall && i < blocks.length - 1) {
+            const nextTop = page.top + page.avail + g.chromeGap;
+            page = {top: nextTop, avail: g.contentH, items: []};
+            pages.push(page);
+            cursor = nextTop;
+          }
+        }
+
+        return {blocks, pages, spacers, oversize, ...g};
+      }
+
+      // Adds empty space from last text block to the end of the page to the DOM
+      function applySpacers(p) {
+        const wanted = new Map(
+          p.spacers.map((s) => [s.before, Math.round(s.height)])
+        );
+
+        //
+        for (const sp of [...content.querySelectorAll(".page-spacer")]) {
+          const next = sp.nextElementSibling;
+
+          // Remove spacer element if not wanted.
+          if (!next || !wanted.has(next)) {
+            sp.remove();
+            continue;
+          }
+
+          const want = wanted.get(next);
+          wanted.delete(next);
+          // If two spacers are next to each other and difference > 0.5, merge and use next element's height
+          if (Math.abs(parseFloat(sp.style.height || "0") - want) > 0.5) {
+            sp.style.height = want + "px";
+          }
+        }
+
+        // Insert ones that are missing
+        for (const [block, height] of wanted) {
+          const sp = document.createElement("div");
+          sp.className = "page-spacer";
+          sp.dataset.generated = "";
+          sp.setAttribute("contenteditable", "false");
+          sp.style.height = height + "px";
+          block.before(sp);
+        }
+      }
+
+      // Use the plan to create sheets, pages, and blocks
+      function buildModel(p) {
+        return p.pages.map((page, k) => {
+          const first = page.items[0];
+
+          return {
+            head: "", // intentionally empty for now; not derived from headings
+            folio: `${k + 1} / ${p.pages.length}`,
+            recto: k % 2 === 0,
+            continued: !!first && first.from > 0,
+          };
+        });
+      }
+
+      // Render sheets based off of plan
+      function renderSheets(p, model) {
+        const need = p.pages.length;
+        const cells = [...sheets.children];
+
+        // Removes sheets that don't have page content
+        while (cells.length > need) cells.pop().remove();
+
+        while (cells.length < need) {
+          const sheet = document.createElement("div");
+          sheet.className = "sheet";
+
+          // Adds elements for headers and footers
+          for (const slot of ["head", "folio"]) {
+            const box = document.createElement("div");
+            box.className = "sheet-margin";
+            box.dataset.slot = slot;
+            sheet.append(box);
+          }
+
+          sheets.append(sheet);
+          cells.push(sheet);
+        }
+
+        cells.forEach((sheet, k) => {
+          const pg = p.pages[k];
+          const m = model[k];
+
+          sheet.style.top = pg.top + "px";
+          sheet.style.height = (pg.avail + 2 * p.pad) + "px"; // Pages height + padding
+
+          sheet.dataset.page = String(k + 1);
+          sheet.dataset.side = m.recto ? "recto" : "verso";
+          sheet.toggleAttribute("data-first", k === 0);
+          sheet.toggleAttribute("data-continued", m.continued);
+
+          sheet.querySelector('[data-slot="head"]').textContent = m.head || "";
+          sheet.querySelector('[data-slot="folio"]').textContent = m.folio || "";
+        });
+
+        const last = p.pages[need - 1];
+        stage.style.minHeight = (last.top + last.avail + 2 * p.pad) + "px";
+      }
+
+      // Rendering/reformatting logic:
+      let applying = false;
+      let timer = null;
+      let queued = false;
+      let lastRun = 0;
+
+      // Queue up the replanning and page change event
+      function schedule() {
+        if (queued || applying || signals.composing) return;
+
+        queued = true;
+        const idle = performance.now() - lastRun > 350;
+
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          requestAnimationFrame(() => {
+            queued = false;
+            lastRun = performance.now();
+            refresh();
+          });
+        }, idle ? 0 : 120);
+      }
+
+      signals.on("mutation", () => schedule());
+      signals.on("resize", schedule);
+      signals.on("compositionend", schedule);
+
+      (document.fonts ? document.fonts.ready : Promise.resolve()).then(schedule);
+
+      // Refresh setup starting from Plan to rendering sheets
+      let lastPlan = null;
+
+      function pageCount() {
+        return lastPlan && lastPlan.p ? lastPlan.p.pages.length : 1;
+      }
+
+      function refresh() {
+        if (applying) return;
+
+        applying = true;
+        try {
+          signals.mute(() => {
+            const p = plan();
+            applySpacers(p);
+            const model = buildModel(p);
+            renderSheets(p, model);
+            lastPlan = {p};
+          });
+        } finally {
+          applying = false;
+        }
+        signals.emit("layout", {pages: pageCount()});
+      }
+
+      // Render once immediately, then again after fonts settle.
+      refresh();
+      return {schedule, pageCount, refresh};
+    }
+    StandaloneDoc.register("pagination", createPagination);
+  </script>
+<!-- /@asset -->
+
+
+  <!-- Document status: pages, words, dirty -->
+
+  <!-- Rich text editing -->
+
+  <!-- Figures: import, inert storage, lazy mounting, scaling.
+       Data lives in #figure-store as escaped JSON; the DOM holds only an
+       id and an empty frame. -->
+<!-- @asset id="figures" kind="js" order="80" -->
+  <script type="module" id="figures">
+    /*@compiled-from src/figures.js — envelope is build-owned; edit the body or src/*/
+    export function createFigures(deps = {}) {
+      const {signals, pagination} = deps;
+      /* Editing concerns. A view-mode document mounts figures to render islands but
+         has neither module, so these are optional edges rather than dependencies:
+         the getters return undefined, and every call site tolerates that. */
+      const status = deps.optional("status");
+      const editor = deps.optional("editor");
+      const content = document.getElementById("content");
+      const viewport = document.getElementById("viewport");
+      const storeEl = document.getElementById("figure-store");
+      const input = document.querySelector("[data-figure-input]");
+      const tools = document.getElementById("figure-tools");
+      const toolsW = tools && tools.querySelector("[data-figure-w-value]");
+      const toolsH = tools && tools.querySelector("[data-figure-h-value]");
+
+      const VERSION = 1;
+      const STORE_EMPTY_BYTES = JSON.stringify({version: VERSION, figures: {}})
+        .replace(/</g, "\\u003c").length;
+      const MAX_EDGE = 1600;
+      const WARN_BYTES = 12 * 1024 * 1024;
+      const MIN_SCALE = 0.2;
+      const MAX_SCALE = 1;
+      const DEFAULT_SIZE = {
+        image: {w: 0.8, h: "auto"},
+        html: {w: 1, h: 0.72},
+        media: {w: 1, h: 0.6},
+      };
+      /* srcdoc + opaque origin: the figure's module scripts and WebAssembly
+         still run, its export buttons still download, and it cannot touch
+         parent.document. blob: + allow-same-origin was the old recipe; it
+         forces every imported figure to be same-origin with the app. */
+      const SANDBOX = "allow-scripts allow-downloads";
+
+      /* Export-only snapshot support. The shim only TAGS WebGL canvases; it
+         never changes their context attributes. The bridge is a message
+         listener; the serializer itself is sent only when an export asks for
+         it. */
+      const SNAPSHOT_SHIM = `(function(){
+  var orig = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function(type, attrs){
+    var ctx = orig.call(this, type, attrs);
+    if (ctx && (type === "webgl" || type === "webgl2" || type === "experimental-webgl")) {
+      this.setAttribute("data-webgl", "");
+    }
+    return ctx;
+  };
+})();`;
+      const SNAPSHOT_BRIDGE = `(function(){
+  function reply(id, msg){
+    parent.postMessage(Object.assign({type:"figure-snapshot-result", id:id}, msg), "*");
+  }
+  addEventListener("message", async function(e){
+    var d = e.data || {};
+    if (!d.id || !d.type || d.type.indexOf("figure-") !== 0) return;
+    if (d.type === "figure-ping") {
+      reply(d.id, {ok:true, pong:true, width:innerWidth, height:innerHeight});
+      return;
+    }
+    if (d.type !== "figure-snapshot") return;
+    var started = performance.now();
+    var note = function(step, ms){
+      parent.postMessage({type:"figure-snapshot-progress", id:d.id, step:step,
+        ms: ms == null ? performance.now() - started : ms}, "*");
+    };
+    var realRaf = window.requestAnimationFrame;
+    var realToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    try {
+      note("start");
+      if (!window.htmlToImage && d.lib) (0, eval)(d.lib);
+      var lib = window.htmlToImage;
+      if (!lib) throw new Error("html-to-image did not install");
+      note("lib");
+      if (document.readyState !== "complete") {
+        await Promise.race([
+          new Promise(function(res){ addEventListener("load", res, {once:true}); }),
+          new Promise(function(res){ setTimeout(res, 3000); }),
+        ]);
+      }
+      note("load");
+      if (document.fonts && document.fonts.ready) {
+        await Promise.race([document.fonts.ready, new Promise(function(res){ setTimeout(res, 800); })]);
+      }
+      note("fonts");
+      var pending = [];
+      for (var img of document.images) {
+        if (!img.complete) pending.push(new Promise(function(res){
+          img.addEventListener("load", res, {once:true});
+          img.addEventListener("error", res, {once:true});
+        }));
+      }
+      if (pending.length) await Promise.race([
+        Promise.all(pending), new Promise(function(res){ setTimeout(res, 1500); })
+      ]);
+      note("images");
+      await new Promise(function(res){ setTimeout(res, 50); });
+
+      /* Without preserveDrawingBuffer, toDataURL is blank from a task but
+         valid inside requestAnimationFrame after the app's draw. Capture the
+         WebGL canvases there, then make html-to-image reuse those URLs. */
+      var glCanvases = Array.prototype.slice.call(document.querySelectorAll("canvas[data-webgl]"));
+      var glUrls = new Map();
+      if (glCanvases.length) {
+        note("webgl");
+        await new Promise(function(res){
+          var done = false;
+          var finish = function(){ if (!done) { done = true; res(); } };
+          realRaf.call(window, function(){
+            for (var i = 0; i < glCanvases.length; i++) {
+              try {
+                var u = glCanvases[i].toDataURL();
+                if (u && u !== "data:,") glUrls.set(glCanvases[i], u);
+              } catch (err) { /* leave to html-to-image */ }
+            }
+            finish();
+          });
+          setTimeout(finish, 1200);
+        });
+      }
+
+      var opts = {
+        width: Math.max(1, innerWidth),
+        height: Math.max(1, innerHeight),
+        pixelRatio: d.pixelRatio || 2,
+        backgroundColor: d.background || "#ffffff",
+        cacheBust: false,
+      };
+      note("tocanvas");
+      /* html-to-image waits one rAF before decoding; a timer works in
+         offscreen/throttled islands. */
+      window.requestAnimationFrame = function(cb){
+        return setTimeout(function(){ cb(performance.now()); }, 16);
+      };
+      if (glUrls.size) {
+        HTMLCanvasElement.prototype.toDataURL = function(){
+          if (glUrls.has(this)) return glUrls.get(this);
+          return realToDataURL.apply(this, arguments);
+        };
+      }
+      var canvas = await Promise.race([
+        lib.toCanvas(document.body, opts),
+        new Promise(function(_, rej){ setTimeout(function(){ rej(new Error("toCanvas timeout")); }, 20000); }),
+      ]);
+      var dataUrl = canvas.toDataURL(d.format === "png" ? "image/png" : "image/webp", d.quality || 0.9);
+      note("done");
+      reply(d.id, {ok:true, dataUrl:dataUrl, width:opts.width, height:opts.height,
+        pixelRatio:opts.pixelRatio, ms:performance.now() - started});
+    } catch (err) {
+      note("error");
+      reply(d.id, {ok:false, error:String(err && err.stack || err), ms:performance.now() - started});
+    } finally {
+      window.requestAnimationFrame = realRaf;
+      HTMLCanvasElement.prototype.toDataURL = realToDataURL;
+    }
+  });
+})();`;
+      const SNAPSHOT_TAG = "<script>" + SNAPSHOT_SHIM + "</" + "script><script>" + SNAPSHOT_BRIDGE + "</" + "script>";
+
+      let store = {version: VERSION, figures: {}};
+      let observer = null;
+      let observing = true;
+      let selected = null;
+      let pickKind = "any";
+      let pickTrusted = false;
+      let scanTimer = null;
+      const mounted = new Map(); // <figure> -> {url, el}
+      const sizeCache = new Map(); // store-id -> serialized entry length
+      const snapshotWaiters = new Map(); // request id -> {resolve, timer, onProgress}
+      let snapshotSeq = 0;
+
+      function blank() {
+        return {version: VERSION, figures: {}};
+      }
+
+      function readStore() {
+        if (!storeEl) return blank();
+        try {
+          const parsed = JSON.parse(storeEl.textContent || "{}");
+          if (!parsed || typeof parsed !== "object") return blank();
+          if (!parsed.figures || typeof parsed.figures !== "object") parsed.figures = {};
+          parsed.version = Number(parsed.version) || VERSION;
+          return parsed;
+        } catch (err) {
+          console.warn("figure-store is not valid JSON; starting empty", err);
+          return blank();
+        }
+      }
+
+      /* Escape `<` so an island containing the literal end-of-script tag cannot
+         terminate its own JSON container. JSON.parse restores it on load. */
+      function syncStore() {
+        if (storeEl) storeEl.textContent = JSON.stringify(store).replace(/</g, "\\u003c");
+        signals.emit("figures");
+      }
+
+      function storeJSON() {
+        return JSON.stringify(store).replace(/</g, "\\u003c");
+      }
+
+      function storeBytes() {
+        return byteLength(storeJSON());
+      }
+
+      function entryBytes(entry) {
+        if (!entry) return 0;
+        let size = sizeCache.get(entry.id);
+        if (size == null) {
+          size = byteLength(JSON.stringify(entry).replace(/</g, "\\u003c"));
+          sizeCache.set(entry.id, size);
+        }
+        return size;
+      }
+
+      /* Size of what a save would actually contain: only figures currently in
+         the document, plus the sources they reference. This walks the figures
+         and sums cached per-entry sizes; it does not stringify the store. A
+         deleted figure therefore drops out of the estimate immediately, while
+         its source remains in the live store for undo. */
+      function savedStoreBytes() {
+        const seen = new Set();
+        let total = STORE_EMPTY_BYTES;
+        let count = 0;
+        const add = (id) => {
+          if (!id || seen.has(id)) return;
+          const entry = store.figures[id];
+          if (!entry) return;
+          seen.add(id);
+          total += entryBytes(entry) + byteLength(JSON.stringify(entry.id)) + 1 + (count ? 1 : 0);
+          count++;
+          if (entry.sourceId) add(entry.sourceId);
+        };
+        content.querySelectorAll("figure[data-figure-id]").forEach((figure) => {
+          add(figure.dataset.figureId);
+        });
+        return total;
+      }
+
+      function byteLength(str) {
+        try {return new Blob([str]).size;} catch {return str.length;}
+      }
+
+      function hashString(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 0x01000193);
+        }
+        return (h >>> 0).toString(16).padStart(8, "0");
+      }
+
+      function uid() {
+        let id;
+        do {
+          const rnd = globalThis.crypto && crypto.randomUUID
+            ? crypto.randomUUID().replace(/-/g, "").slice(0, 10)
+            : Math.random().toString(36).slice(2, 12);
+          id = "fig-" + rnd;
+        } while (store.figures[id]);
+        return id;
+      }
+
+      function readDataURL(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error || new Error("read failed"));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function dataUrlText(src) {
+        const comma = src.indexOf(",");
+        if (comma < 0) return "";
+        const meta = src.slice(0, comma);
+        const data = src.slice(comma + 1);
+        if (/;base64/i.test(meta)) {
+          const binary = atob(data);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          return new TextDecoder().decode(bytes);
+        }
+        return decodeURIComponent(data);
+      }
+
+      function dataUrlBytes(src) {
+        const comma = src.indexOf(",");
+        if (comma < 0) return byteLength(src);
+        const meta = src.slice(0, comma);
+        const data = src.slice(comma + 1);
+        if (/;base64/i.test(meta)) {
+          const padding = data.endsWith("==") ? 2 : data.endsWith("=") ? 1 : 0;
+          return Math.max(0, Math.floor((data.length * 3) / 4) - padding);
+        }
+        return byteLength(decodeURIComponent(data));
+      }
+
+      function resolveEntry(entry) {
+        if (!entry) return null;
+        if (entry.src) return entry;
+        return store.figures[entry.sourceId] || entry;
+      }
+
+      function findSource(entry) {
+        for (const candidate of Object.values(store.figures)) {
+          if (candidate.src && candidate.kind === entry.kind && candidate.hash === entry.hash) {
+            return candidate;
+          }
+        }
+        return null;
+      }
+
+      function guessMime(name) {
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        return ({
+          png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
+          webp: "image/webp", avif: "image/avif", svg: "image/svg+xml", bmp: "image/bmp",
+          html: "text/html", htm: "text/html",
+          mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+          mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", m4a: "audio/mp4",
+        })[ext] || "";
+      }
+
+      function kindOf(file) {
+        const mime = file.type || guessMime(file.name || "");
+        const name = (file.name || "").toLowerCase();
+        if (mime.startsWith("image/")) return "image";
+        if (mime === "text/html" || /\.html?$/.test(name)) return "html";
+        if (mime.startsWith("video/") || mime.startsWith("audio/")) return "media";
+        return null;
+      }
+
+      function svgSize(text) {
+        try {
+          const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+          const svg = doc.documentElement;
+          if (!svg || svg.localName.toLowerCase() !== "svg") return null;
+          const w = parseFloat(svg.getAttribute("width"));
+          const h = parseFloat(svg.getAttribute("height"));
+          if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+            return {width: w, height: h};
+          }
+          const vb = (svg.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(Number);
+          if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) {
+            return {width: vb[2], height: vb[3]};
+          }
+        } catch { /* malformed SVG */ }
+        return null;
+      }
+
+      function dataUrlSize(src) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve({
+            width: img.naturalWidth || 1200,
+            height: img.naturalHeight || 800,
+          });
+          img.onerror = () => resolve({width: 1200, height: 800});
+          img.src = src;
+        });
+      }
+
+      function loadImage(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("image decode failed"));
+          img.src = src;
+        });
+      }
+
+      /* Images are downscaled before storage. GIF stays untouched so animation
+         survives; SVG stays vector and is never rasterised. Decoding goes
+         through <img> rather than createImageBitmap: the latter can reject or
+         stall on some file/worker combinations, and it gains us nothing here. */
+      async function imagePayload(file) {
+        const mime = file.type || guessMime(file.name || "") || "image/png";
+        const isSvg = mime === "image/svg+xml" || /\.svg$/i.test(file.name || "");
+        if (isSvg) {
+          const src = await readDataURL(file);
+          const size = svgSize(dataUrlText(src)) || {width: 1200, height: 800};
+          return {src, mime: "image/svg+xml", ...size, storedBytes: dataUrlBytes(src), encoded: false};
+        }
+
+        const original = await readDataURL(file);
+        let img = null;
+        try {img = await loadImage(original);} catch { /* size fallback below */ }
+        let width = img ? img.naturalWidth : 0;
+        let height = img ? img.naturalHeight : 0;
+        let bestSrc = original;
+        let bestMime = mime;
+        let bestBytes = dataUrlBytes(original);
+        let encoded = false;
+
+        const tooBig = width > MAX_EDGE || height > MAX_EDGE;
+        const worthEncoding = bestBytes > 24 * 1024;
+        if (img && mime !== "image/gif" && (tooBig || worthEncoding)) {
+          const ratio = tooBig ? Math.min(1, MAX_EDGE / Math.max(width, height)) : 1;
+          const cw = Math.max(1, Math.round(width * ratio));
+          const ch = Math.max(1, Math.round(height * ratio));
+          const canvas = document.createElement("canvas");
+          canvas.width = cw;
+          canvas.height = ch;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, cw, ch);
+
+            // PNG may carry alpha, so never flatten it to JPEG. WebP keeps
+            // alpha and is usually much smaller. Opaque sources try both.
+            const candidates = mime === "image/png"
+              ? [["image/webp", 0.9]]
+              : [["image/webp", 0.82], ["image/jpeg", 0.82]];
+            for (const [format, quality] of candidates) {
+              const candidate = canvas.toDataURL(format, quality);
+              if (!candidate.startsWith(`data:${format}`)) continue;
+              const bytes = dataUrlBytes(candidate);
+              if (bytes < bestBytes) {
+                bestSrc = candidate;
+                bestMime = format;
+                bestBytes = bytes;
+                encoded = true;
+              }
+            }
+            if (encoded) {
+              width = cw;
+              height = ch;
+            }
+          }
+        }
+
+        if (!width || !height) {
+          const size = await dataUrlSize(bestSrc);
+          width = size.width;
+          height = size.height;
+        }
+        return {
+          src: bestSrc,
+          mime: bestMime,
+          width: width || 1200,
+          height: height || 800,
+          storedBytes: bestBytes,
+          encoded,
+        };
+      }
+
+      async function makeEntry(file, kind, {trusted = false} = {}) {
+        const name = file.name || `${kind}-${Date.now()}`;
+        const entry = {
+          id: uid(),
+          kind,
+          name,
+          mime: file.type || guessMime(name),
+          bytes: file.size || 0,
+          hash: "",
+          src: "",
+          width: 0,
+          height: 0,
+        };
+        if (trusted) entry.trusted = true;
+
+        if (kind === "image") {
+          Object.assign(entry, await imagePayload(file));
+        } else if (kind === "html") {
+          entry.src = dataUrlText(await readDataURL(file));
+          entry.mime = "text/html";
+          entry.storedBytes = byteLength(entry.src);
+        } else if (kind === "media") {
+          entry.src = await readDataURL(file);
+          entry.media = (file.type || "").startsWith("audio/") ? "audio" : "video";
+          entry.storedBytes = dataUrlBytes(entry.src);
+        }
+
+        entry.hash = hashString(entry.src);
+        entry.bytes = file.size || byteLength(entry.src);
+        if (entry.bytes > WARN_BYTES) {
+          console.warn(`Figure ${name} is ${(entry.bytes / 1048576).toFixed(1)} MB; saved files will grow by about that much.`);
+        }
+
+        // Share the bytes of an identical source. The second figure keeps its
+        // own id, caption and size, but points at the first entry's src.
+        const shared = findSource(entry);
+        if (shared) {
+          entry.sourceId = shared.id;
+          entry.mime = shared.mime;
+          entry.width = shared.width;
+          entry.height = shared.height;
+          entry.bytes = shared.bytes;
+          entry.storedBytes = 0;
+          delete entry.src;
+        } else {
+          if (!entry.storedBytes) entry.storedBytes = byteLength(entry.src);
+        }
+
+        store.figures[entry.id] = entry;
+        syncStore();
+        return entry;
+      }
+
+      function defaultCaption(entry) {
+        const base = (entry.name || "").replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+        return base || (entry.kind === "image" ? "Image" : "Figure");
+      }
+
+      function createFigure(entry) {
+        const figure = document.createElement("figure");
+        figure.className = "figure";
+        figure.dataset.figureId = entry.id;
+        figure.dataset.kind = entry.kind;
+        if (entry.media) figure.dataset.media = entry.media;
+        if (entry.trusted) figure.dataset.trusted = "1";
+        figure.setAttribute("contenteditable", "false");
+
+        const defaults = DEFAULT_SIZE[entry.kind] || {w: 1, h: 0.72};
+        const width = defaults.w;
+        const height = entry.kind === "media" && entry.media === "audio" ? "auto" : defaults.h;
+        figure.dataset.w = String(width);
+        figure.dataset.h = String(height);
+        figure.dataset.scale = String(width);
+        figure.style.setProperty("--figure-w", String(width));
+        figure.style.setProperty("--figure-scale", String(width));
+        if (height !== "auto") figure.style.setProperty("--figure-h", String(height));
+        if (entry.kind === "image") {
+          const source = resolveEntry(entry);
+          figure.style.setProperty("--figure-aspect", `${source.width || 16} / ${source.height || 9}`);
+        }
+
+        const frame = document.createElement("div");
+        frame.className = "figure-frame";
+        frame.dataset.runtime = "ephemeral";
+
+        const caption = document.createElement("figcaption");
+        caption.setAttribute("contenteditable", "true");
+        caption.textContent = defaultCaption(entry);
+
+        figure.append(frame, caption);
+        return figure;
+      }
+
+      /* data-w/data-h are the persisted size. data-scale is kept as the old
+         width alias so files saved before this change still load. */
+      function normaliseScale(figure) {
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const kind = (stored && stored.kind) || figure.dataset.kind;
+        const defaults = DEFAULT_SIZE[kind] || {w: 1, h: 0.72};
+        const legacy = parseFloat(figure.dataset.scale);
+        const rawW = parseFloat(figure.dataset.w);
+        const width = Math.max(MIN_SCALE, Math.min(MAX_SCALE,
+          Number.isFinite(rawW) ? rawW : Number.isFinite(legacy) ? legacy : defaults.w));
+
+        const rawH = figure.dataset.h;
+        let height = rawH === "auto" ? "auto" : parseFloat(rawH);
+        if (height !== "auto" && !Number.isFinite(height)) height = defaults.h;
+
+        figure.dataset.w = String(width);
+        figure.dataset.scale = String(width);
+        figure.style.setProperty("--figure-w", String(width));
+        figure.style.setProperty("--figure-scale", String(width));
+
+        if (height === "auto") {
+          figure.dataset.h = "auto";
+          figure.style.removeProperty("--figure-h");
+        } else {
+          const h = Math.max(MIN_SCALE, Math.min(MAX_SCALE, height));
+          figure.dataset.h = String(h);
+          figure.style.setProperty("--figure-h", String(h));
+        }
+
+        if (entry && entry.kind === "image") {
+          figure.style.setProperty("--figure-aspect", `${entry.width || 16} / ${entry.height || 9}`);
+        }
+      }
+
+      function htmlDocument(src) {
+        const html = /<html[\s>]/i.test(src) ? src
+          : `<!doctype html><html><head><meta charset="utf-8">`
+            + `<style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif}</style>`
+            + `</head><body>${src}</body></html>`;
+        if (html.includes("data-figure-bridge")) return html;
+        const tag = SNAPSHOT_TAG.replace("<script>", "<script data-figure-bridge>", 1);
+        const head = html.match(/<head[^>]*>/i);
+        if (head) {
+          const at = head.index + head[0].length;
+          return html.slice(0, at) + tag + html.slice(at);
+        }
+        const doctype = html.match(/<!doctype[^>]*>/i);
+        if (doctype) {
+          const at = doctype.index + doctype[0].length;
+          return html.slice(0, at) + tag + html.slice(at);
+        }
+        return tag + html;
+      }
+
+      function mount(figure) {
+        if (!figure || !figure.isConnected) return;
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const frame = figure.querySelector(".figure-frame");
+        if (!entry || !frame) {
+          figure.dataset.missing = "";
+          return;
+        }
+        figure.removeAttribute("data-missing");
+        if (frame.firstElementChild) {
+          figure.dataset.mounted = "";
+          return;
+        }
+
+        if (entry.kind === "image") {
+          const img = new Image();
+          img.decoding = "async";
+          img.alt = (figure.querySelector("figcaption")?.textContent || entry.name || "").trim();
+          img.src = entry.src;
+          frame.append(img);
+        } else if (entry.kind === "html") {
+          const iframe = document.createElement("iframe");
+          /* Mounting is already gated by IntersectionObserver. Native
+             loading=lazy on srcdoc can defer the very island we just decided
+             to mount, so it is deliberately not used here. */
+          iframe.setAttribute("sandbox", stored && stored.trusted ? `${SANDBOX} allow-same-origin` : SANDBOX);
+          iframe.setAttribute("title", entry.name || "Embedded figure");
+          iframe.setAttribute("referrerpolicy", "no-referrer");
+          iframe.srcdoc = htmlDocument(entry.src);
+          frame.append(iframe);
+          mounted.set(figure, {el: iframe});
+        } else if (entry.kind === "media") {
+          const el = document.createElement(entry.media === "audio" ? "audio" : "video");
+          el.controls = true;
+          el.preload = "metadata";
+          el.src = entry.src;
+          if (entry.media === "video") el.playsInline = true;
+          frame.append(el);
+        }
+        figure.dataset.mounted = "";
+      }
+
+      function unmount(figure) {
+        const rec = mounted.get(figure);
+        if (rec) {
+          if (rec.url) URL.revokeObjectURL(rec.url);
+          rec.el.remove();
+          mounted.delete(figure);
+        }
+        const media = figure && figure.querySelector(".figure-frame video, .figure-frame audio");
+        if (media) {
+          try {media.pause();} catch { }
+          media.removeAttribute("src");
+          try {media.load();} catch { }
+          media.remove();
+        }
+        if (figure) delete figure.dataset.mounted;
+      }
+
+      function unmountAll() {
+        for (const figure of [...mounted.keys()]) unmount(figure);
+        if (observer) observer.disconnect();
+      }
+
+      /* ---- export-only snapshots ----------------------------------------
+         The bridge is injected into every HTML island's srcdoc. It answers
+         ping/snapshot messages. The serializer source is supplied by the
+         Export module only when a static export starts. */
+      function onSnapshotMessage(event) {
+        const data = event.data;
+        if (!data || !data.id) return;
+        const waiter = snapshotWaiters.get(data.id);
+        if (!waiter) return;
+        if (data.type === "figure-snapshot-progress") {
+          if (waiter.onProgress) waiter.onProgress(data);
+          return;
+        }
+        if (data.type !== "figure-snapshot-result") return;
+        snapshotWaiters.delete(data.id);
+        clearTimeout(waiter.timer);
+        waiter.resolve(data);
+      }
+      window.addEventListener("message", onSnapshotMessage);
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function requestSnapshot(win, message, timeout = 30000, onProgress = null) {
+        return new Promise((resolve) => {
+          const id = "snap-" + (++snapshotSeq) + "-" + Math.random().toString(36).slice(2);
+          const timer = setTimeout(() => {
+            snapshotWaiters.delete(id);
+            resolve({ok: false, timeout: true, error: "snapshot timed out"});
+          }, timeout);
+          snapshotWaiters.set(id, {resolve, timer, onProgress});
+          try {
+            win.postMessage(Object.assign({id}, message), "*");
+          } catch (err) {
+            snapshotWaiters.delete(id);
+            clearTimeout(timer);
+            resolve({ok: false, error: String(err)});
+          }
+        });
+      }
+
+      async function waitForBridge(win, tries = 60) {
+        for (let i = 0; i < tries; i++) {
+          const res = await requestSnapshot(win, {type: "figure-ping"}, 400);
+          if (res.ok) return res;
+          await sleep(100);
+        }
+        return {ok: false, error: "snapshot bridge did not answer"};
+      }
+
+      function videoSnapshot(figure) {
+        const video = figure.querySelector(".figure-frame video");
+        if (!video || !video.videoWidth) return null;
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+          return canvas.toDataURL("image/webp", 0.9);
+        } catch (err) {
+          return null;
+        }
+      }
+
+      async function snapshot(figure, options = {}) {
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const kind = (stored && stored.kind) || figure.dataset.kind;
+        if (!entry) return {ok: false, error: "figure source is missing"};
+
+        if (kind === "image") {
+          return {ok: true, dataUrl: entry.src, width: entry.width, height: entry.height,
+            engine: "image-src"};
+        }
+
+        if (kind === "media") {
+          if (entry.media === "audio") {
+            return {ok: false, error: "audio has no visual snapshot"};
+          }
+          const dataUrl = videoSnapshot(figure);
+          return dataUrl
+            ? {ok: true, dataUrl, engine: "video-frame"}
+            : {ok: false, error: "video frame is not ready"};
+        }
+
+        const iframe = figure.querySelector(".figure-frame iframe");
+        if (!iframe) return {ok: false, error: "island is not mounted"};
+        const ping = await waitForBridge(iframe.contentWindow);
+        if (!ping.ok) return {ok: false, error: ping.error || "island did not answer"};
+        return requestSnapshot(iframe.contentWindow, {
+          type: "figure-snapshot",
+          lib: options.lib || "",
+          pixelRatio: options.pixelRatio || 2,
+          format: options.format || "webp",
+          quality: options.quality == null ? 0.9 : options.quality,
+          background: options.background || "#ffffff",
+        }, options.timeout || 30000, options.onProgress);
+      }
+
+      function suspendObserver() {
+        observing = false;
+        if (observer) observer.disconnect();
+      }
+
+      function resumeObserver() {
+        observing = true;
+        scan();
+      }
+
+      function scrollIntoViewForCapture(figure) {
+        const rect = figure.getBoundingClientRect();
+        if (rect.top >= 0 && rect.bottom <= window.innerHeight) return null;
+        const previous = viewport.scrollTop;
+        viewport.scrollTop += rect.top - 80;
+        return previous;
+      }
+
+      async function captureAll(options = {}) {
+        const figures = [...content.querySelectorAll("figure.figure")];
+        const out = [];
+        const mountedForExport = new Set();
+        suspendObserver();
+        try {
+          for (let i = 0; i < figures.length; i++) {
+            if (options.signal && options.signal.aborted) break;
+            const figure = figures[i];
+            const kind = figure.dataset.kind;
+            const progress = options.onProgress;
+            if (progress) progress({phase: "mount", index: i + 1, total: figures.length, figure});
+
+            const wasMounted = !!figure.querySelector(".figure-frame iframe, .figure-frame video");
+            if ((kind === "html" || kind === "media") && !wasMounted) {
+              mount(figure);
+              mountedForExport.add(figure);
+            }
+
+            let previousScroll = null;
+            if (kind === "html") {
+              previousScroll = scrollIntoViewForCapture(figure);
+              if (previousScroll != null) await sleep(120);
+            }
+
+            let capture;
+            try {
+              capture = await snapshot(figure, {
+                lib: options.lib,
+                pixelRatio: options.pixelRatio,
+                format: options.format,
+                quality: options.quality,
+                onProgress: progress ? (p) => progress({
+                  phase: "capture", index: i + 1, total: figures.length,
+                  step: p.step, ms: p.ms, figure,
+                }) : null,
+              });
+            } catch (err) {
+              capture = {ok: false, error: String(err && err.message || err)};
+            }
+
+            if (previousScroll != null) viewport.scrollTop = previousScroll;
+            out.push(Object.assign({figure, id: figure.dataset.figureId, kind}, capture));
+
+            if (mountedForExport.has(figure)) {
+              unmount(figure);
+              mountedForExport.delete(figure);
+            }
+          }
+        } finally {
+          for (const figure of [...mountedForExport]) unmount(figure);
+          resumeObserver();
+          if (options.onProgress) options.onProgress({phase: "done", total: figures.length});
+        }
+        return out;
+      }
+
+      /* Developer/test switches. Normal operation never calls these; they make
+         a single figure's mount/unmount observable without scroll timing. */
+      function pause() {
+        observing = false;
+        if (observer) observer.disconnect();
+        scan();
+      }
+
+      function resume() {
+        observing = true;
+        scan();
+      }
+
+      function scan() {
+        const figures = [...content.querySelectorAll("figure.figure")];
+        for (const figure of figures) {
+          const entry = store.figures[figure.dataset.figureId];
+          if (!entry) {
+            figure.dataset.missing = "";
+            continue;
+          }
+          figure.removeAttribute("data-missing");
+          normaliseScale(figure);
+
+          if (entry.kind === "image") {
+            mount(figure);
+            continue;
+          }
+          if (!observer || !observing) {
+            mount(figure);
+          } else {
+            observer.observe(figure);
+          }
+        }
+
+        for (const figure of [...mounted.keys()]) {
+          if (!figure.isConnected || !content.contains(figure)) unmount(figure);
+        }
+        if (selected && !selected.isConnected) select(null);
+      }
+
+      function scheduleScan() {
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(scan, 80);
+      }
+
+      function positionTools(figure) {
+        if (!tools || !figure) return;
+        const rect = figure.getBoundingClientRect();
+        const toolbar = document.getElementById("app-toolbar");
+        const toolbarBottom = toolbar ? toolbar.getBoundingClientRect().bottom : 0;
+        const minTop = Math.max(8, toolbarBottom + 8);
+
+        if (rect.bottom < 0 || rect.top > window.innerHeight || rect.bottom <= minTop) {
+          tools.hidden = true;
+          return;
+        }
+
+        const pad = 8;
+        const width = tools.offsetWidth || 260;
+        const maxTop = Math.max(minTop, window.innerHeight - tools.offsetHeight - pad);
+        tools.hidden = false;
+        tools.style.left = `${Math.max(pad, Math.min(window.innerWidth - width - pad, rect.right - width))}px`;
+        tools.style.top = `${Math.min(maxTop, Math.max(minTop, rect.top + 6))}px`;
+
+        if (toolsW) {
+          const w = parseFloat(figure.dataset.w || figure.dataset.scale) || 1;
+          toolsW.textContent = `${Math.round(w * 100)}%`;
+        }
+        if (toolsH) {
+          const h = figure.dataset.h;
+          toolsH.textContent = h === "auto" ? "auto" : `${Math.round((parseFloat(h) || 0.72) * 100)}%`;
+        }
+      }
+
+      function select(figure) {
+        if (selected && selected !== figure) selected.removeAttribute("data-selected");
+        selected = figure || null;
+        if (!selected) {
+          if (tools) tools.hidden = true;
+          return;
+        }
+        selected.setAttribute("data-selected", "");
+        positionTools(selected);
+      }
+
+      function setDimension(figure, dimension, value) {
+        if (!figure) return;
+        const dim = dimension === "h" ? "h" : "w";
+
+        if (dim === "h" && value === "auto") {
+          figure.dataset.h = "auto";
+          figure.style.removeProperty("--figure-h");
+        } else {
+          const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.round(Number(value) * 100) / 100));
+          figure.dataset[dim] = String(next);
+          figure.style.setProperty(`--figure-${dim}`, String(next));
+          if (dim === "w") {
+            figure.dataset.scale = String(next);
+            figure.style.setProperty("--figure-scale", String(next));
+          }
+        }
+
+        if (selected === figure) positionTools(figure);
+        status()?.markDirty();
+        pagination.schedule();
+      }
+
+      function setScale(figure, scale) {
+        setDimension(figure, "w", scale);
+      }
+
+      function resetSize(figure) {
+        if (!figure) return;
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const kind = (stored && stored.kind) || figure.dataset.kind;
+        const defaults = DEFAULT_SIZE[kind] || {w: 1, h: 0.72};
+        const height = kind === "media" && entry && entry.media === "audio" ? "auto" : defaults.h;
+        setDimension(figure, "w", defaults.w);
+        setDimension(figure, "h", height);
+      }
+
+      function remove(figure) {
+        if (!figure) return;
+        unmount(figure);
+        figure.remove();
+        select(null);
+        editor()?.history.record();
+        status()?.markDirty();
+        pagination.schedule();
+        scan();
+      }
+
+      function referencedIds(root) {
+        const ids = new Set();
+        root.querySelectorAll("figure[data-figure-id]").forEach((figure) => {
+          if (figure.dataset.figureId) ids.add(figure.dataset.figureId);
+        });
+        return ids;
+      }
+
+      /* Called on the save clone only. The live store keeps entries for an
+         undo/redo stack that can still put a deleted figure back. */
+      function prepareClone(clone) {
+        clone.querySelectorAll("[data-runtime='ephemeral']").forEach((el) => el.replaceChildren());
+        clone.querySelectorAll("figure.figure").forEach((figure) => {
+          figure.removeAttribute("data-selected");
+          figure.removeAttribute("data-mounted");
+          figure.removeAttribute("data-missing");
+        });
+        clone.querySelector("#figure-tools")?.remove();
+
+        const out = {version: VERSION, figures: {}};
+        const add = (id) => {
+          const entry = store.figures[id];
+          if (!entry || out.figures[id]) return;
+          out.figures[id] = entry;
+          if (entry.sourceId) add(entry.sourceId);
+        };
+        for (const id of referencedIds(clone)) add(id);
+        const target = clone.querySelector("#figure-store");
+        if (target) target.textContent = JSON.stringify(out).replace(/</g, "\\u003c");
+      }
+
+      function blockAtPoint(x, y) {
+        const el = document.elementFromPoint(x, y);
+        if (!el || !content.contains(el)) return null;
+        return el.closest("#content > *");
+      }
+
+      function pick(kind = "any") {
+        if (!input) return;
+        pickTrusted = kind === "html-trusted";
+        pickKind = pickTrusted ? "html" : kind;
+        input.accept = pickKind === "image" ? "image/*,.svg"
+          : pickKind === "html" ? "text/html,.html,.htm"
+          : pickKind === "media" ? "video/*,audio/*"
+          : "image/*,.svg,text/html,.html,.htm,video/*,audio/*";
+        input.value = "";
+        input.click();
+      }
+
+      async function insertFiles(fileList, {after = null, kindHint = "any", trusted = false} = {}) {
+        const files = [...(fileList || [])].filter(Boolean);
+        if (!files.length) return [];
+        const created = [];
+        let anchor = after;
+
+        for (const file of files) {
+          try {
+            const kind = kindOf(file);
+            if (!kind) {
+              console.warn(`Unsupported figure type: ${file.name || file.type}`);
+              continue;
+            }
+            if (kindHint !== "any" && kind !== kindHint) {
+              console.warn(`Skipping ${file.name}: expected ${kindHint}, got ${kind}`);
+              continue;
+            }
+            const entry = await makeEntry(file, kind, {trusted});
+            const figure = createFigure(entry);
+            editor()?.insertBlock(figure, {after: anchor});
+            anchor = figure;
+            created.push(figure);
+          } catch (err) {
+            console.error("Figure import failed", file.name, err);
+          }
+        }
+
+        if (created.length) {
+          syncStore();
+          scan();
+          pagination.schedule();
+          status()?.markDirty();
+        }
+        return created;
+      }
+
+      function onPaste(event) {
+        const dt = event.clipboardData;
+        if (!dt) return;
+        const files = [];
+        for (const item of dt.items || []) {
+          if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+        if (!files.length) return; // leave ordinary text/HTML paste native
+        event.preventDefault();
+        insertFiles(files);
+      }
+
+      function onDragOver(event) {
+        if (!event.dataTransfer || ![...event.dataTransfer.types].includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        content.classList.add("is-drop-target");
+      }
+
+      function onDragLeave(event) {
+        if (!content.contains(event.relatedTarget)) content.classList.remove("is-drop-target");
+      }
+
+      function onDrop(event) {
+        if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+        event.preventDefault();
+        content.classList.remove("is-drop-target");
+        const after = blockAtPoint(event.clientX, event.clientY);
+        insertFiles(event.dataTransfer.files, {after});
+      }
+
+      function init() {
+        if (!storeEl) {
+          console.warn("No #figure-store found; figure import disabled");
+          return;
+        }
+        store = readStore();
+        /* Give status the exact store size from now on. Before this point it counts
+           the raw store text; status cannot depend on figures (it is built first and
+           refreshes during construction), so the estimator travels this way. */
+        status()?.setStoreEstimator(savedStoreBytes);
+        syncStore();
+
+        if ("IntersectionObserver" in window) {
+          observer = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+              const figure = entry.target;
+              if (!figure.isConnected) {
+                unmount(figure);
+                continue;
+              }
+              if (entry.isIntersecting) mount(figure);
+              else unmount(figure);
+            }
+          }, {root: viewport, rootMargin: "100% 0px 100% 0px", threshold: 0.01});
+        }
+
+        if (input) {
+          input.addEventListener("change", async () => {
+            const files = [...(input.files || [])];
+            const hint = pickKind;
+            const useTrusted = pickTrusted;
+            pickKind = "any";
+            pickTrusted = false;
+            input.value = "";
+            await insertFiles(files, {kindHint: hint, trusted: useTrusted});
+          });
+        }
+
+        content.addEventListener("paste", onPaste);
+        content.addEventListener("dragover", onDragOver);
+        content.addEventListener("dragleave", onDragLeave);
+        content.addEventListener("drop", onDrop);
+
+        document.addEventListener("click", (event) => {
+          const figure = event.target.closest && event.target.closest("figure.figure");
+          if (figure && content.contains(figure)) {
+            select(figure);
+            return;
+          }
+          if (event.target.closest && event.target.closest("#figure-tools")) return;
+          select(null);
+        });
+
+        if (tools) {
+          tools.addEventListener("mousedown", (event) => event.preventDefault());
+          tools.addEventListener("click", (event) => {
+            const button = event.target.closest("button");
+            if (!button || !selected) return;
+            if (button.hasAttribute("data-figure-remove")) {
+              remove(selected);
+              return;
+            }
+            if (button.hasAttribute("data-figure-reset")) {
+              resetSize(selected);
+              return;
+            }
+            const dimButton = button.closest("[data-figure-dim]");
+            if (dimButton) {
+              const dim = dimButton.dataset.figureDim;
+              const direction = button.dataset.figureStep;
+              const step = direction === "+" ? 0.1 : -0.1;
+              const entry = store.figures[selected.dataset.figureId];
+              const kind = (entry && entry.kind) || selected.dataset.kind;
+              const defaults = DEFAULT_SIZE[kind] || {w: 1, h: 0.72};
+              let current = parseFloat(dim === "h" ? selected.dataset.h : selected.dataset.w);
+              if (!Number.isFinite(current)) {
+                current = dim === "h" && defaults.h === "auto" ? 0.7 : defaults[dim];
+              }
+              setDimension(selected, dim, current + step);
+            }
+          });
+        }
+
+        viewport.addEventListener("scroll", () => {
+          if (selected) positionTools(selected);
+        }, {passive: true});
+        window.addEventListener("resize", () => {
+          if (selected) positionTools(selected);
+        });
+
+        signals.on("layout", scan);
+        signals.on("mutation", scheduleScan);
+        signals.on("compositionend", scheduleScan);
+        scan();
+        status()?.save();
+      }
+
+      const api = {
+        init, pick, insertFiles, scan, mount, unmount, unmountAll, pause, resume,
+        suspendObserver, resumeObserver, snapshot, captureAll,
+        setScale, setDimension, resetSize, remove, select, prepareClone, storeJSON, storeBytes, savedStoreBytes,
+        get store() {return store;},
+        get selected() {return selected;},
+      };
+
+      /* Construction-time, exactly where the IIFE's trailing Figures.init() ran. */
+      init();
+      return api;
+    }
+    StandaloneDoc.register("figures", createFigures);
+  </script>
+<!-- /@asset -->
+
+  <!-- Javascript for Toolbar -->
+
+
+  <!-- Static export / print. Captures HTML islands only when an export asks
+       for it; normal rendering never runs the serializer. -->
+
+  <dialog id="shortcuts-dialog">
+    <form method="dialog">
+      <h2>Keyboard shortcuts</h2>
+      <div id="keylist"></div>
+      <div class="dialog-actions">
+        <button class="primary" value="close" autofocus>Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="progress-dialog" aria-labelledby="progress-title">
+    <h2 id="progress-title" data-progress-title>Working…</h2>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <i data-progress-bar></i>
+    </div>
+    <p data-progress-text aria-live="polite">Starting…</p>
+    <div class="dialog-actions">
+      <button type="button" data-progress-cancel>Cancel</button>
+    </div>
+  </dialog>
+
+  <dialog id="save-policy-dialog" aria-labelledby="save-policy-title">
+    <div class="sp-body">
+      <h2 id="save-policy-title" data-save-title>This document is large</h2>
+      <p class="sp-sub" data-save-sub>Choose what travels inside the file. Nothing is written until you save.</p>
+      <div data-save-rows></div>
+      <p class="sp-note" data-save-note></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" data-save-cancel>Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" class="primary" data-save-confirm>Save</button>
+    </div>
+  </dialog>
+
+<!-- @asset id="bootstrap" kind="js" order="120" -->
+  <script type="module" id="bootstrap">
+    /* Runs last, and as a module block: `await` means this line is the end of boot,
+       not just the end of parsing. A rejection here still surfaces through the boot
+       dialog, because boot() fails closed and records the error before rejecting. */
+    await globalThis.StandaloneDoc.boot();
+  </script>
+<!-- /@asset -->
+</body>
+
+</html>
