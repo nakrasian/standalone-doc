@@ -12,7 +12,7 @@ edit by hand; `npm run check` fails if this file is stale.
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | * |
 | pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `refresh` | * |
-| status | 60 | signals, pagination | figures | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
+| status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, status, editor | — | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | toolbar | 90 | zoom, editor, figures, status | export | `save`, `serialize`, `validate` | edit, comment |
@@ -26,7 +26,6 @@ graph LR
   zoom --> pagination
   signals --> status
   pagination --> status
-  figures -.->|late| status
   signals --> editor
   status --> editor
   pagination --> editor

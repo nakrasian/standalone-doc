@@ -60,8 +60,8 @@ test("boots entirely from the CDN", async ({ page }) => {
   const info = await page.evaluate(() => ({
     state: StandaloneDoc.state,
     built: Object.keys(StandaloneDoc.modules),
-    signals: typeof Signals,
-    figures: typeof Figures,
+    signals: typeof StandaloneDoc.modules.signals,
+    figures: typeof StandaloneDoc.modules.figures,
     /* nothing carried the module code inline */
     inlineBlocks: document.querySelectorAll('script[id="signals"], script[id="figures"]').length,
     injectedStyles: [...document.querySelectorAll('style[data-asset]')].map((el) => el.dataset.asset),

@@ -1770,7 +1770,7 @@
     </div>
   </dialog>
 
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":9497},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"global":"Signals","factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"global":"Zoom","factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"global":"Pagination","factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"global":"ProgressDialog","factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3789,"deps":["signals","pagination"],"late":["figures"],"global":"Status","factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"global":"Editor","factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":42072,"deps":["signals","status","editor"],"global":"Figures","factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22829,"deps":["zoom","editor","figures","status"],"late":["export"],"global":"Toolbar","factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"global":"Export","factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":9244},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3773,"deps":["signals","pagination"],"factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":42072,"deps":["signals","status","editor"],"factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22920,"deps":["zoom","editor","figures","status"],"late":["export"],"factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -1796,8 +1796,7 @@
 
       /* The manifest is authoritative for order/deps/mode; a registration only
          supplies the factory, which is what makes the inline and CDN flavours the
-         same code path. An extra options argument from the compiled envelope is
-         accepted and ignored. */
+         same code path. */
       function register(id, factory) {
         /* Idempotent by id: a hand-concatenated document may contain the same block
            twice. The first registration wins, so the module is built only once. */
@@ -2001,9 +2000,8 @@
             );
           }
 
-          /* Transitional: publish the legacy global until every consumer takes the
-             dependency properly (Phase 3, commit 5). */
-          if (asset.global) globalThis[asset.global] = modules[asset.id];
+          /* No global is published: the manifest's dependency list is the only way
+             one module reaches another, and boot injects it. */
           emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
         }
 
@@ -2017,9 +2015,6 @@
       async function retry() {
         if (state === "booting") return modules;
         for (const id of Object.keys(modules)) delete modules[id];
-        for (const asset of manifest().assets) {
-          if (asset.global) delete globalThis[asset.global];
-        }
         for (const node of injected.splice(0)) node.remove();
         errors.length = 0;
         setState("declared");
@@ -2376,7 +2371,7 @@
 
       return {on, emit, mute, get composing() {return composing;} };
     }
-    StandaloneDoc.register("signals", createSignals, {"order":30,"deps":[],"late":[],"global":"Signals"});
+    StandaloneDoc.register("signals", createSignals);
     })();
   </script>
 <!-- /@asset -->
@@ -2521,7 +2516,7 @@
         get value() {return value},
       };
     }
-    StandaloneDoc.register("zoom", createZoom, {"order":40,"deps":[],"late":[],"global":"Zoom"});
+    StandaloneDoc.register("zoom", createZoom);
     })();
   </script>
 <!-- /@asset -->
@@ -2774,7 +2769,7 @@
       refresh();
       return {schedule, pageCount, refresh};
     }
-    StandaloneDoc.register("pagination", createPagination, {"order":50,"deps":["signals","zoom"],"late":[],"global":"Pagination"});
+    StandaloneDoc.register("pagination", createPagination);
     })();
   </script>
 <!-- /@asset -->
@@ -2842,7 +2837,7 @@
 
       return {open, update, setText, setCancel, close, get isOpen() {return dialog.open;}};
     }
-    StandaloneDoc.register("progress", createProgress, {"order":45,"deps":[],"late":[],"global":"ProgressDialog"});
+    StandaloneDoc.register("progress", createProgress);
     })();
   </script>
 <!-- /@asset -->
@@ -2858,8 +2853,8 @@
       /* The exact figure-store size is figures' business, and figures is built after
          status (order 80 vs 60). It registers an estimator once it exists; until then
          count the raw store text, which is readable during construction and cannot
-         throw. A deps.late("figures") edge would throw instead: refresh() runs at the
-         bottom of this factory, while figures is still unbuilt. */
+         throw. A late edge would throw instead: refresh() runs at the bottom of this
+         factory, while figures is still unbuilt. */
       let storeBytes = () => (storeEl ? storeEl.textContent.length : 0);
       function setStoreEstimator(fn) {
         if (typeof fn === "function") storeBytes = fn;
@@ -2953,7 +2948,7 @@
 
       return {refresh, save, markDirty, setStoreEstimator};
     }
-    StandaloneDoc.register("status", createStatus, {"order":60,"deps":["signals","pagination"],"late":["figures"],"global":"Status"});
+    StandaloneDoc.register("status", createStatus);
     })();
   </script>
 <!-- /@asset -->
@@ -3460,7 +3455,7 @@
       init();
       return api;
     }
-    StandaloneDoc.register("editor", createEditor, {"order":70,"deps":["signals","status","pagination"],"late":["figures"],"global":"Editor"});
+    StandaloneDoc.register("editor", createEditor);
     })();
   </script>
 <!-- /@asset -->
@@ -4662,7 +4657,7 @@
       init();
       return api;
     }
-    StandaloneDoc.register("figures", createFigures, {"order":80,"deps":["signals","status","editor"],"late":[],"global":"Figures"});
+    StandaloneDoc.register("figures", createFigures);
     })();
   </script>
 <!-- /@asset -->
@@ -4932,7 +4927,7 @@
       }
 
       const KEYMAP = [
-        {keys: "Mod+S", label: "Save", group: "File", run: save, global: true},
+        {keys: "Mod+S", label: "Save", group: "File", run: save, anywhere: true},
         {keys: "Mod+B", label: "Bold", group: "Format", cmd: "bold"},
         {keys: "Mod+I", label: "Italic", group: "Format", cmd: "italic"},
         {keys: "Mod+U", label: "Underline", group: "Format", cmd: "underline"},
@@ -4952,14 +4947,14 @@
         {keys: "Mod+Shift+K", label: "Remove link", group: "Insert", cmd: "unlink"},
         {keys: "Mod+Z", label: "Undo", group: "History", cmd: "undo"},
         {keys: "Mod+Shift+Z", label: "Redo", group: "History", cmd: "redo"},
-        {keys: "Mod+Shift+M", label: "Toggle compact chrome", group: "View", run: toggleChrome, global: true},
+        {keys: "Mod+Shift+M", label: "Toggle compact chrome", group: "View", run: toggleChrome, anywhere: true},
         /* native: listed in the shortcut dialog but handled by zoomChord(), which
            matches on e.code so Mod+= and Mod+Shift++ both work. */
         {keys: "Mod+=", label: "Zoom in", group: "View", native: true, zoom: "in"},
         {keys: "Mod+-", label: "Zoom out", group: "View", native: true, zoom: "out"},
         {keys: "Mod+0", label: "Actual size (100%)", group: "View", native: true, zoom: "reset"},
         {keys: "Mod+9", label: "Fit page width", group: "View", native: true, zoom: "fit"},
-        {keys: "Mod+/", label: "Keyboard shortcuts", group: "Help", run: showShortcuts, global: true},
+        {keys: "Mod+/", label: "Keyboard shortcuts", group: "Help", run: showShortcuts, anywhere: true},
       ];
 
       const byChord = new Map(
@@ -5222,7 +5217,8 @@
 
         const entry = byChord.get(chordOf(e));
         if (!entry) return;
-        if (!entry.global && !inEditor()) return;
+        /* `anywhere` shortcuts fire outside the editor; the rest are scoped to it. */
+        if (!entry.anywhere && !inEditor()) return;
 
         e.preventDefault();
         if (entry.run) {entry.run(); return;}
@@ -5256,7 +5252,7 @@
 
       return {save, serialize, validate};
     }
-    StandaloneDoc.register("toolbar", createToolbar, {"order":90,"deps":["zoom","editor","figures","status"],"late":["export"],"global":"Toolbar"});
+    StandaloneDoc.register("toolbar", createToolbar);
     })();
   </script>
 <!-- /@asset -->
@@ -5617,7 +5613,7 @@
       return {begin, capture, captureAndBuild, buildStatic, validateStatic, download,
         syncPrintPage, printLive, printCaptured};
     }
-    StandaloneDoc.register("export", createExport, {"order":100,"deps":["figures","toolbar","progress"],"late":[],"global":"Export"});
+    StandaloneDoc.register("export", createExport);
     })();
   </script>
 <!-- /@asset -->

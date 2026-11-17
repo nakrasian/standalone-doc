@@ -38,12 +38,11 @@ import {
   uncompileBody,
 } from "./lib/compile.mjs";
 import { dedentCode as dedent, indentCode as reindent } from "./lib/indent.mjs";
-import { auditContract, extractContract } from "./lib/deps.mjs";
+import { auditContract, extractContract, LEGACY_GLOBALS } from "./lib/deps.mjs";
 
-/** global name → asset id, for spotting implicit cross-module references. */
-const GLOBAL_TO_ID = Object.freeze(
-  Object.fromEntries(Object.entries(MODULES).map(([id, entry]) => [entry.global, id])),
-);
+/** global name → asset id, for spotting implicit cross-module references. The
+ *  bindings themselves are gone; this is a tripwire, not a publication list. */
+const LEGACY_GLOBAL_TO_ID = LEGACY_GLOBALS;
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE = "index.html";
@@ -255,13 +254,10 @@ function buildManifest(assets, previous) {
     entry.role = INFRA.has(a.id) ? "infra" : "module";
     if (isConverted(a.id)) {
       entry.exports = moduleExportNames(text);
-      const contract = extractContract(text, { globals: GLOBAL_TO_ID });
+      const contract = extractContract(text, { globals: LEGACY_GLOBAL_TO_ID });
       entry.deps = contract.deps;
       entry.late = contract.late;
       entry.provides = contract.provides;
-      /* Transitional: the global name boot still publishes for consumers that
-         read it directly. Removed in Phase 3, commit 5. */
-      if (MODULES[a.id]?.global) entry.global = MODULES[a.id].global;
       if (contract.usesEnv) entry.env = true;
       if (contract.implicitGlobals.length) entry.implicit = contract.implicitGlobals;
     }
@@ -298,7 +294,6 @@ function docManifest(manifest, overrides = {}) {
       };
       if (a.deps?.length) entry.deps = a.deps;
       if (a.late?.length) entry.late = a.late;
-      if (a.global) entry.global = a.global;
       if (isConverted(a.id)) entry.factory = MODULES[a.id].factory;
       if (mode === "online") {
         entry.url = `${base}/${a.id}.${ext}`;
@@ -412,7 +407,7 @@ function sourceTextFor(a, entry) {
  * itself, so this must NOT be pre-indented.
  */
 function readBodyFor(a, source) {
-  return isConverted(a.id) ? compileBody(a.id, source, { order: a.order }).body : source.replace(/\n$/, "");
+  return isConverted(a.id) ? compileBody(a.id, source).body : source.replace(/\n$/, "");
 }
 
 /** The body index.html should contain, given the src/ text for that asset. */
@@ -627,15 +622,6 @@ function cmdCheck() {
       const audited = auditContract(a.id, contract, index);
       for (const problem of audited.problems) all.push(`deps: ${problem}`);
       for (const warning of audited.warnings) depWarnings.push(`deps: ${warning}`);
-
-      const declared = MODULES[a.id]?.deps;
-      if (declared) {
-        const want = Object.keys(declared).sort().join(",");
-        const got = [...contract.deps].sort().join(",");
-        if (want !== got) {
-          all.push(`deps: ${a.id} declares {${want}} in the MODULES table but its signature says {${got}}`);
-        }
-      }
     }
     if (exists("deps.json") && read("deps.json") !== JSON.stringify(depsJson(m), null, 2) + "\n") {
       all.push("deps.json is stale — run: node build.mjs combine");

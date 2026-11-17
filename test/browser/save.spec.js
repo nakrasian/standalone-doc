@@ -49,8 +49,8 @@ test("a saved document reopens as a working editor", async ({ page }) => {
   const reopened = await page.context().newPage();
   const reopenedProblems = await load(reopened, "file://" + saved);
   const state = await reopened.evaluate(() => ({
-    signals: typeof Signals,
-    zoom: typeof Zoom.value,
+    signals: typeof StandaloneDoc.modules.signals,
+    zoom: typeof StandaloneDoc.modules.zoom.value,
     toolbar: !!document.getElementById("app-toolbar"),
     stats: document.querySelector("[data-stats]")?.textContent ?? "",
     markers: document.querySelectorAll("script[id]").length,

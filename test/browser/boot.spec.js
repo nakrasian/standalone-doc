@@ -83,8 +83,8 @@ test("construction follows the manifest order, not document order", async ({ pag
   const state = await page.evaluate(() => ({
     state: StandaloneDoc.state,
     built: StandaloneDoc.order(),
-    signals: typeof Signals,
-    figures: typeof Figures,
+    signals: typeof StandaloneDoc.modules.signals,
+    figures: typeof StandaloneDoc.modules.figures,
     toolbar: !!document.getElementById("app-toolbar"),
     stats: document.querySelector("[data-stats]")?.textContent ?? "",
   }));
@@ -115,12 +115,9 @@ test("the app introduces only the allowlisted globals", async ({ page }) => {
   const after = await page.evaluate(() => Object.getOwnPropertyNames(globalThis));
 
   const added = after.filter((name) => !before.includes(name)).sort();
-  /* Transitional: boot still publishes the legacy bindings so unconverted
-     consumers keep working. Commit 5 shrinks this to ["StandaloneDoc"]. */
-  expect(added).toEqual([
-    "Editor", "Export", "Figures", "Pagination", "ProgressDialog",
-    "Signals", "StandaloneDoc", "Status", "Toolbar", "Zoom",
-  ]);
+  /* One global, by design: the registry. Every other binding a module needs is
+     injected by boot() from the manifest's dependency list. */
+  expect(added).toEqual(["StandaloneDoc"]);
 });
 
 test("a missing dependency aborts boot with a named error", async ({ page }) => {

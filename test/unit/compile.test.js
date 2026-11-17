@@ -13,7 +13,7 @@ import {
 /* MODULES is empty until an asset is converted; these tests register a fixture
    module so the transform is exercised before any real asset changes shape. */
 
-const ENTRY = { factory: "createDemo", global: "Demo", file: "src/demo.js" };
+const ENTRY = { factory: "createDemo", file: "src/demo.js" };
 
 function withModule(fn) {
   MODULES.demo = ENTRY;
@@ -43,7 +43,7 @@ test("an asset absent from MODULES is a pass-through", () => {
 
 test("compile produces the envelope and records the export list", () => {
   withModule(() => {
-    const { body, exports } = compileBody("demo", 'export function createDemo(deps = {}) {\n  const {signals} = deps;\n  return {a};\n}\n', { order: 7 });
+    const { body, exports } = compileBody("demo", 'export function createDemo(deps = {}) {\n  const {signals} = deps;\n  return {a};\n}\n');
     assert.deepEqual(exports, ["createDemo"]);
     assert.ok(body.startsWith("/*@compiled-from src/demo.js"), "envelope header first");
     assert.match(body, /^\(function \(\) \{$/m);
@@ -51,8 +51,8 @@ test("compile produces the envelope and records the export list", () => {
     assert.ok(body.includes("function createDemo(deps = {}) {"), "export keyword stripped");
     assert.ok(!/^export /m.test(body), "no export keyword survives");
     assert.ok(
-      body.includes('StandaloneDoc.register("demo", createDemo, {"order":7,"deps":["signals"],"late":[],"global":"Demo"});'),
-      "registration carries the derived contract",
+      body.includes('StandaloneDoc.register("demo", createDemo);'),
+      "the registration carries no metadata: the manifest is the plan",
     );
     assert.ok(body.endsWith("})();"), "the block ends with the registration");
   });

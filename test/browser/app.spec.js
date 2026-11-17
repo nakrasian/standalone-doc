@@ -36,17 +36,23 @@ test.describe("file:// (the archival case)", () => {
 
   test("every module binding exists and the UI is fully rendered", async ({ page }) => {
     await load(page, fileUrl());
-    const state = await page.evaluate(() => ({
-      signals: typeof Signals,
-      signalsApi: Object.keys(Signals).sort().join(","),
-      zoom: typeof Zoom.value,
-      figures: typeof Figures,
-      exporter: typeof Export,
-      progress: typeof ProgressDialog,
-      toolbar: !!document.getElementById("app-toolbar"),
-      symbols: document.querySelectorAll("symbol").length,
-      sheets: document.getElementById("sheets").children.length,
-    }));
+    const state = await page.evaluate(() => {
+      const m = StandaloneDoc.modules;
+      return {
+        signals: typeof m.signals,
+        signalsApi: Object.keys(m.signals).sort().join(","),
+        zoom: typeof m.zoom.value,
+        figures: typeof m.figures,
+        exporter: typeof m.export,
+        progress: typeof m.progress,
+        toolbar: !!document.getElementById("app-toolbar"),
+        symbols: document.querySelectorAll("symbol").length,
+        sheets: document.getElementById("sheets").children.length,
+        /* The legacy bindings are gone: only the registry may leak out. */
+        legacyGlobals: ["Signals", "Zoom", "Figures", "Export", "ProgressDialog", "Editor", "Toolbar", "Status", "Pagination"]
+          .filter((name) => name in globalThis),
+      };
+    });
     expect(state).toEqual({
       signals: "object",
       signalsApi: "composing,emit,mute,on",
@@ -57,6 +63,7 @@ test.describe("file:// (the archival case)", () => {
       toolbar: true,
       symbols: 23,
       sheets: expect.any(Number),
+      legacyGlobals: [],
     });
     expect(state.sheets).toBeGreaterThan(0);
   });
@@ -93,7 +100,7 @@ test.describe("file:// (the archival case)", () => {
     await zoomIn.click();
 
     const after = await page.evaluate(() => ({
-      value: Zoom.value,
+      value: StandaloneDoc.modules.zoom.value,
       cssVar: getComputedStyle(document.getElementById("stage")).getPropertyValue("--zoom").trim(),
       label: document.querySelector("[data-zoom-label]")?.textContent ?? "",
     }));
@@ -106,13 +113,14 @@ test.describe("file:// (the archival case)", () => {
     await load(page, fileUrl());
     const result = await page.evaluate(async () => {
       const content = document.getElementById("content");
+      const signals = StandaloneDoc.modules.signals;
       let muted = 0;
       let unmuted = 0;
-      const off1 = Signals.on("mutation", () => muted++);
-      Signals.mute(() => content.append(document.createElement("p")));
+      const off1 = signals.on("mutation", () => muted++);
+      signals.mute(() => content.append(document.createElement("p")));
       await new Promise((r) => setTimeout(r, 300));
       off1();
-      const off2 = Signals.on("mutation", () => unmuted++);
+      const off2 = signals.on("mutation", () => unmuted++);
       content.append(document.createElement("p"));
       await new Promise((r) => setTimeout(r, 300));
       off2();
@@ -124,12 +132,15 @@ test.describe("file:// (the archival case)", () => {
   test("re-executing a compiled block reuses the instance", async ({ page }) => {
     const problems = await load(page, fileUrl());
     const result = await page.evaluate(async () => {
-      const before = Signals;
+      const before = StandaloneDoc.modules.signals;
       const dup = document.createElement("script");
       dup.textContent = document.getElementById("signals").textContent;
       document.body.append(dup);
       await new Promise((r) => setTimeout(r, 100));
-      return { sameInstance: Signals === before, api: Object.keys(Signals).length };
+      return {
+        sameInstance: StandaloneDoc.modules.signals === before,
+        api: Object.keys(StandaloneDoc.modules.signals).length,
+      };
     });
     expect(result).toEqual({ sameInstance: true, api: 4 });
     expect(problems).toEqual([]);
@@ -140,7 +151,7 @@ test.describe("http:// (the served case)", () => {
   test("hydrates identically over http", async ({ page }) => {
     const problems = await load(page, "/index.html");
     const state = await page.evaluate(() => ({
-      signals: typeof Signals,
+      signals: typeof StandaloneDoc.modules.signals,
       toolbar: !!document.getElementById("app-toolbar"),
       sheets: document.getElementById("sheets").children.length,
     }));
@@ -155,8 +166,8 @@ test.describe("dist/ (what ships)", () => {
   test("the built artifact behaves like the source", async ({ page }) => {
     const problems = await load(page, fileUrl("dist/editor.html"));
     const state = await page.evaluate(() => ({
-      signals: typeof Signals,
-      zoom: typeof Zoom.value,
+      signals: typeof StandaloneDoc.modules.signals,
+      zoom: typeof StandaloneDoc.modules.zoom.value,
       toolbar: !!document.getElementById("app-toolbar"),
     }));
     expect(state).toEqual({ signals: "object", zoom: "number", toolbar: true });

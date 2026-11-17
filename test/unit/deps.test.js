@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { auditContract, extractContract } from "../../lib/deps.mjs";
+import { auditContract, extractContract, LEGACY_GLOBALS } from "../../lib/deps.mjs";
 import { MODULES } from "../../lib/compile.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const GLOBALS = Object.fromEntries(Object.entries(MODULES).map(([id, entry]) => [entry.global, id]));
+/* The tripwire map the build uses: these globals are no longer published, so any
+   reference to one is an undeclared edge and must fail the audit. */
+const GLOBALS = LEGACY_GLOBALS;
 
 const factory = (body) => `export function createDemo(deps = {}) {\n${body}\n}\n`;
 
@@ -78,6 +80,18 @@ test("finds implicit globals that shadow a declared dependency", () => {
   assert.deepEqual(c.implicitGlobals, ["figures"]);
 });
 
+test("audit: an implicit global is a problem, not a warning", () => {
+  /* Phase 3, commit 5 removed the published bindings. A reference that survives
+     would only work by load order, so the build refuses it. */
+  const index = new Map([
+    ["a", {id: "a", order: 10}],
+    ["figures", {id: "figures", order: 80}],
+  ]);
+  const audited = auditContract("a", {deps: [], late: [], provides: [], implicitGlobals: ["figures"]}, index);
+  assert.match(audited.problems[0], /through a global/);
+  assert.deepEqual(audited.warnings, []);
+});
+
 test("audit: construction deps must come earlier than the declarer", () => {
   const index = new Map([
     ["a", {id: "a", order: 10}],
@@ -101,20 +115,17 @@ test("audit: unknown, self, and needless late edges", () => {
   assert.match(auditContract("b", {...empty, late: ["a"]}, index).warnings[0], /points backwards/);
 });
 
-test("the real sources match the MODULES table and the recorded manifest", () => {
+test("the real sources match the manifest and their signatures", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
   const index = new Map(manifest.assets.map((a) => [a.id, a]));
-  for (const [id, entry] of Object.entries(MODULES)) {
+  for (const id of Object.keys(MODULES)) {
     const source = fs.readFileSync(path.join(ROOT, `src/${id}.js`), "utf8");
     const derived = extractContract(source, { globals: GLOBALS });
     const recorded = manifest.assets.find((a) => a.id === id);
     assert.deepEqual(derived.deps, recorded.deps, `${id}: manifest deps match the signature`);
     assert.deepEqual(derived.late, recorded.late, `${id}: manifest late edges match`);
     assert.deepEqual(derived.provides, recorded.provides, `${id}: manifest provides match`);
-
-    if (entry.deps) {
-      assert.deepEqual(derived.deps, Object.keys(entry.deps), `${id}: signature matches the MODULES table`);
-    }
+    assert.deepEqual(derived.implicitGlobals, [], `${id}: no global reaches`);
     const audited = auditContract(id, derived, index);
     assert.deepEqual(audited.problems, [], `${id}: no audit problems`);
   }

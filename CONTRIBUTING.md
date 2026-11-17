@@ -53,11 +53,15 @@ Rules the build enforces:
    inside `boot()`;
 7. dependency order comes from `manifest.json`'s `order`, not from source order;
 8. factories take **one object**: `createX(deps = {})`, destructured inside the body.
-   Until `boot()` takes over, the dependencies are declared in the `MODULES` entry's
-   `deps` map and the envelope passes them at the call site;
+   The signature *is* the dependency declaration: the build derives the graph from it
+   and `boot()` injects exactly that list;
 9. never write `"use strict"` in a factory. It is illegal beside a non-simple
    parameter list (`deps = {}` counts), and the envelope already applies it to the
-   whole block. ES modules are strict regardless.
+   whole block. ES modules are strict regardless;
+10. never reach another module through a global (`window.Figures`, `globalThis.Export`).
+   Take it as a dependency or via `deps.late("id")`. Since Phase 3 nothing is
+   published, and `lib/deps.mjs`'s `LEGACY_GLOBALS` map turns any such reference into a
+   build failure instead of an edge that only works by luck of load order.
 
 ### The envelope
 
@@ -66,29 +70,35 @@ there and because a classic script keeps its parse-time position:
 
 ```html
 /*@compiled-from src/signals.js — envelope is build-owned; edit the body or src/*/
-var Signals = globalThis.Signals || (function () {
+(function () {
+"use strict";
 function createSignals(deps = {}) { … }      ← `export ` stripped
-return createSignals();
+StandaloneDoc.register("signals", createSignals);
 })();
 ```
 
-The two envelope lines are **build-owned**: change them by editing `src/` and running
+The envelope lines are **build-owned**: change them by editing `src/` and running
 `npm run combine`, or `split` will refuse with a message telling you so. The body is
-yours, from either side. `globalThis.X ||` makes a duplicated block reuse the first
-instance instead of attaching a second set of observers.
+yours, from either side. The IIFE keeps a duplicated block from clashing with the first
+copy's declarations; `register()` is idempotent by id, so the first copy wins.
+
+The registration carries **no metadata**. Order, dependencies, late edges and mode live
+in the in-document `#asset-manifest`, derived from the signature at build time — one
+source of truth instead of two that can disagree.
 
 Assets with no `MODULES` entry pass through verbatim, so the transform can ship before
 any asset changes shape.
 
-**Changing a `MODULES` entry changes the compiled envelope** (the `deps` literal in the
-call site), so the anchors move. Run `npm run combine` *before* `npm run split` after
-touching the table; `split` will otherwise refuse with "envelope anchors not found".
+**Changing a factory's signature changes the in-document manifest**, so run
+`npm run combine` after touching it — `check` fails if the document's copy is stale.
 
-**Document order is construction order.** While factories are still invoked by the
-envelope at parse time, a module's markup must exist before its factory runs — which is
-why `progress` (whose `<dialog>` sits late in the body) is constructed last and
-`export` reaches it through `globalThis.ProgressDialog` at call time. Once `boot()` runs
-after parsing, those constraints disappear and the edge becomes an ordinary dependency.
+**Document order is irrelevant.** `boot()` runs after parsing, so a module's markup may
+sit anywhere; construction follows `manifest.json`'s `order`, which is why `progress`
+(a dependency of `export`) is ordered before it even though its `<dialog>` sits late in
+the body. Use `deps.late("id")` for a back-edge (editor → figures, toolbar → export) and
+only call it from a function that runs after boot. When a cycle is only about a value
+rather than behaviour, invert it instead: `status` takes its size estimate from a
+callback that `figures` registers, so no edge exists.
 
 Why: a module with no imports is valid both as a CDN ES module and as an inline classic
 script. One source shape, two loaders, no bundler.

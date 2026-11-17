@@ -118,7 +118,10 @@ test("each src file exists, is hashed correctly, and reproduces its body", () =>
       assert.match(body, /^\s*StandaloneDoc\.register\("/m, `${asset.id}: registration line missing`);
       const factory = /^export function (create[A-Za-z0-9_$]*)\s*\(/m.exec(disk)?.[1];
       assert.ok(factory, `${asset.id}: no create<Name> export`);
-      assert.ok(body.includes(`StandaloneDoc.register("${asset.id}", ${factory}, `), `${asset.id}: registration does not name ${factory}`);
+      assert.ok(
+        body.includes(`StandaloneDoc.register("${asset.id}", ${factory});`),
+        `${asset.id}: registration does not name ${factory}`,
+      );
       for (const m of disk.matchAll(/^export function ([A-Za-z_$][\w$]*)\s*\(/gm)) {
         assert.ok(body.includes(`function ${m[1]}(`), `${asset.id}: ${m[1]} is not present in the compiled body`);
       }

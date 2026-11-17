@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 227223
+    "bytes": 226167
   },
   "assets": [
     {
@@ -22,7 +22,7 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 10448
+      "bytes": 10175
     },
     {
       "id": "boot-ui",
@@ -32,37 +32,37 @@
     {
       "id": "signals",
       "kind": "js",
-      "bytes": 1842
+      "bytes": 1789
     },
     {
       "id": "zoom",
       "kind": "js",
-      "bytes": 5215
+      "bytes": 5165
     },
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 8019
+      "bytes": 7947
     },
     {
       "id": "progress",
       "kind": "js",
-      "bytes": 2097
+      "bytes": 2037
     },
     {
       "id": "status",
       "kind": "js",
-      "bytes": 4419
+      "bytes": 4320
     },
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 18141
+      "bytes": 18049
     },
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 46202
+      "bytes": 46122
     },
     {
       "id": "toolbar",
@@ -72,7 +72,7 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 35279
+      "bytes": 35196
     },
     {
       "id": "bootstrap",
@@ -81,10 +81,10 @@
     }
   ],
   "flavors": {
-    "index.html": 227223,
-    "asset-bodies": 197868,
-    "markup-and-runtime": 29355,
-    "dist/slim.html": 57361
+    "index.html": 226167,
+    "asset-bodies": 197006,
+    "markup-and-runtime": 29161,
+    "dist/slim.html": 56894
   },
   "notes": [
     "dist/cdn/ is intentionally absent until Phase 2: the published module shape",

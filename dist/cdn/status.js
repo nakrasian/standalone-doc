@@ -5,8 +5,8 @@ export function createStatus(deps = {}) {
   /* The exact figure-store size is figures' business, and figures is built after
      status (order 80 vs 60). It registers an estimator once it exists; until then
      count the raw store text, which is readable during construction and cannot
-     throw. A deps.late("figures") edge would throw instead: refresh() runs at the
-     bottom of this factory, while figures is still unbuilt. */
+     throw. A late edge would throw instead: refresh() runs at the bottom of this
+     factory, while figures is still unbuilt. */
   let storeBytes = () => (storeEl ? storeEl.textContent.length : 0);
   function setStoreEstimator(fn) {
     if (typeof fn === "function") storeBytes = fn;

@@ -107,9 +107,7 @@
         "signals",
         "pagination"
       ],
-      "late": [
-        "figures"
-      ],
+      "late": [],
       "provides": [
         "refresh",
         "save",

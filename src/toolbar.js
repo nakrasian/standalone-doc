@@ -257,7 +257,7 @@ export function createToolbar(deps = {}) {
   }
 
   const KEYMAP = [
-    {keys: "Mod+S", label: "Save", group: "File", run: save, global: true},
+    {keys: "Mod+S", label: "Save", group: "File", run: save, anywhere: true},
     {keys: "Mod+B", label: "Bold", group: "Format", cmd: "bold"},
     {keys: "Mod+I", label: "Italic", group: "Format", cmd: "italic"},
     {keys: "Mod+U", label: "Underline", group: "Format", cmd: "underline"},
@@ -277,14 +277,14 @@ export function createToolbar(deps = {}) {
     {keys: "Mod+Shift+K", label: "Remove link", group: "Insert", cmd: "unlink"},
     {keys: "Mod+Z", label: "Undo", group: "History", cmd: "undo"},
     {keys: "Mod+Shift+Z", label: "Redo", group: "History", cmd: "redo"},
-    {keys: "Mod+Shift+M", label: "Toggle compact chrome", group: "View", run: toggleChrome, global: true},
+    {keys: "Mod+Shift+M", label: "Toggle compact chrome", group: "View", run: toggleChrome, anywhere: true},
     /* native: listed in the shortcut dialog but handled by zoomChord(), which
        matches on e.code so Mod+= and Mod+Shift++ both work. */
     {keys: "Mod+=", label: "Zoom in", group: "View", native: true, zoom: "in"},
     {keys: "Mod+-", label: "Zoom out", group: "View", native: true, zoom: "out"},
     {keys: "Mod+0", label: "Actual size (100%)", group: "View", native: true, zoom: "reset"},
     {keys: "Mod+9", label: "Fit page width", group: "View", native: true, zoom: "fit"},
-    {keys: "Mod+/", label: "Keyboard shortcuts", group: "Help", run: showShortcuts, global: true},
+    {keys: "Mod+/", label: "Keyboard shortcuts", group: "Help", run: showShortcuts, anywhere: true},
   ];
 
   const byChord = new Map(
@@ -547,7 +547,8 @@ export function createToolbar(deps = {}) {
 
     const entry = byChord.get(chordOf(e));
     if (!entry) return;
-    if (!entry.global && !inEditor()) return;
+    /* `anywhere` shortcuts fire outside the editor; the rest are scoped to it. */
+    if (!entry.anywhere && !inEditor()) return;
 
     e.preventDefault();
     if (entry.run) {entry.run(); return;}

@@ -21,8 +21,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
 
   /* The manifest is authoritative for order/deps/mode; a registration only
      supplies the factory, which is what makes the inline and CDN flavours the
-     same code path. An extra options argument from the compiled envelope is
-     accepted and ignored. */
+     same code path. */
   function register(id, factory) {
     /* Idempotent by id: a hand-concatenated document may contain the same block
        twice. The first registration wins, so the module is built only once. */
@@ -226,9 +225,8 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
         );
       }
 
-      /* Transitional: publish the legacy global until every consumer takes the
-         dependency properly (Phase 3, commit 5). */
-      if (asset.global) globalThis[asset.global] = modules[asset.id];
+      /* No global is published: the manifest's dependency list is the only way
+         one module reaches another, and boot injects it. */
       emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
     }
 
@@ -242,9 +240,6 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   async function retry() {
     if (state === "booting") return modules;
     for (const id of Object.keys(modules)) delete modules[id];
-    for (const asset of manifest().assets) {
-      if (asset.global) delete globalThis[asset.global];
-    }
     for (const node of injected.splice(0)) node.remove();
     errors.length = 0;
     setState("declared");
