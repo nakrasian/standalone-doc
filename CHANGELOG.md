@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.3.1 — 2026-11-17
 
 ### Fixed
 
@@ -8,6 +8,12 @@
   nothing below it the browser had nowhere to put the caret and the reader could not type
   under the last figure. `editor.insertBlock()` now leaves a text block after every atomic
   block it inserts, reusing the paragraph already there when the figure lands mid-document.
+
+### Changed
+
+- **`cdnBase` moves to `v0.3.1`.** Every flavour now pins that tag, so `dist/slim.html` and
+  `dist/viewer.html` fetch the bytes this release contains. Documents saved before this tag
+  are unaffected: a file keeps the pin it was saved with, and `v0.3.0` keeps serving v0.3.0.
 
 ## v0.3.0 — 2025-11-23
 
