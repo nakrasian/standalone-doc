@@ -1,17 +1,27 @@
 {
   "source": {
-    "bytes": 293491
+    "bytes": 380486
   },
   "assets": [
     {
-      "id": "toolbar",
-      "kind": "js",
-      "bytes": 48962
-    },
-    {
       "id": "figures",
       "kind": "js",
-      "bytes": 46380
+      "bytes": 60443
+    },
+    {
+      "id": "toolbar",
+      "kind": "js",
+      "bytes": 49246
+    },
+    {
+      "id": "registry",
+      "kind": "js",
+      "bytes": 37599
+    },
+    {
+      "id": "plugins",
+      "kind": "js",
+      "bytes": 36690
     },
     {
       "id": "export",
@@ -21,37 +31,32 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 22314
-    },
-    {
-      "id": "editor",
-      "kind": "js",
-      "bytes": 18009
+      "bytes": 31261
     },
     {
       "id": "policy",
       "kind": "js",
-      "bytes": 16956
+      "bytes": 18928
     },
     {
-      "id": "registry",
+      "id": "editor",
       "kind": "js",
-      "bytes": 16650
+      "bytes": 18368
     },
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 16282
+      "bytes": 16919
     },
     {
       "id": "boot-ui",
       "kind": "js",
-      "bytes": 10895
+      "bytes": 11121
     },
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 8814
+      "bytes": 10447
     },
     {
       "id": "pagination",
@@ -81,7 +86,7 @@
     {
       "id": "status",
       "kind": "js",
-      "bytes": 4280
+      "bytes": 4606
     },
     {
       "id": "progress",
@@ -110,9 +115,9 @@
     }
   ],
   "flavors": {
-    "index.html": 293491,
-    "asset-bodies": 280814,
-    "markup-and-runtime": 12677,
-    "dist/slim.html": 44243
+    "index.html": 380486,
+    "asset-bodies": 366900,
+    "markup-and-runtime": 13586,
+    "dist/slim.html": 66209
   }
 }
