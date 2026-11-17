@@ -301,6 +301,7 @@ export function createToolbar(deps = {}) {
       editable: settings.editable,
       toolbar: settings.toolbar,
       thresholdMb: toMb(settings.saveThresholdBytes),
+      timeoutMs: settings.timeoutMs,
       never: Number(settings.thresholdDeclined) > 0,
       planned: policy.planned({}),
       dirty: false,
@@ -339,6 +340,7 @@ export function createToolbar(deps = {}) {
     dialog.querySelector("[data-ds='toolbar']").checked = draft.toolbar && draft.mode !== "view";
     dialog.querySelector("[data-ds='toolbar']").disabled = draft.mode === "view";
     dialog.querySelector("[data-ds='threshold']").value = String(draft.thresholdMb);
+    dialog.querySelector("[data-ds='timeout']").value = String(draft.timeoutMs);
     dialog.querySelector("[data-ds='never']").checked = draft.never;
     dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
       ? "quiet until the file doubles"
@@ -424,6 +426,7 @@ export function createToolbar(deps = {}) {
     next.editable = draft.mode === "edit" ? draft.editable : false;
     next.toolbar = draft.mode === "view" ? false : draft.toolbar;
     next.saveThresholdBytes = Math.max(0, toBytes(draft.thresholdMb || 0));
+    next.timeoutMs = Math.max(0, Math.round(Number(draft.timeoutMs) || 0));
 
     if (draft.never) {
       /* The stored number is the size at which the author declined; the prompt re-arms
@@ -470,6 +473,10 @@ export function createToolbar(deps = {}) {
     });
     dialog.querySelector("[data-ds='threshold']").addEventListener("change", (event) => {
       settingsDraft.thresholdMb = Number(event.target.value) || 0;
+      settingsDraft.dirty = true;
+    });
+    dialog.querySelector("[data-ds='timeout']").addEventListener("change", (event) => {
+      settingsDraft.timeoutMs = Math.round(Number(event.target.value) || 0);
       settingsDraft.dirty = true;
     });
     dialog.querySelector("[data-ds='never']").addEventListener("change", (event) => {

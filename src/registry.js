@@ -65,6 +65,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       editable: mode === "edit" && (authored?.editable ?? true),
       toolbar: mode !== "view" && (authored?.toolbar ?? true),
       saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
+      /* Behaviour, so it lives in the settings block; the manifest's copy is the
+         fallback for a document saved before the move. */
+      timeoutMs: Number(authored?.timeoutMs ?? manifest().timeoutMs) || 8000,
       /* The save choice travels unnormalised: a preset name, or the explicit
          per-asset map that replaces it once anything is overridden. */
       policy: authored?.policy ?? null,
@@ -152,7 +155,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
     }
     if (!asset.url) throw failure("missing", asset.id, "has no url in the manifest");
-    const timeoutMs = manifest().timeoutMs || 8000;
+    const timeoutMs = settings().timeoutMs || 8000;
 
     /* Our own timer, not AbortSignal.timeout: engines disagree about the error
        name they produce, and we need to know *we* aborted, not the network. */

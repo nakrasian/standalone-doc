@@ -162,6 +162,28 @@ test("'don't ask again' records the decline, and re-arm clears it", async ({ pag
   expect((await settingsBlock(page)).thresholdDeclined).toBeUndefined();
 });
 
+test("the load timeout is a setting, not a manifest field", async ({ page }) => {
+  await load(page);
+  await openSheet(page);
+
+  const initial = await page.evaluate(() => ({
+    field: document.querySelector("[data-ds='timeout']").value,
+    fromSettings: StandaloneDoc.settings().timeoutMs,
+    inManifest: "timeoutMs" in StandaloneDoc.manifest(),
+  }));
+  expect(initial).toEqual({field: "8000", fromSettings: 8000, inManifest: false});
+
+  await page.fill("[data-ds='timeout']", "1500");
+  await page.dispatchEvent("[data-ds='timeout']", "change");
+  await page.click("[data-ds-done]");
+
+  const after = await page.evaluate(() => ({
+    block: JSON.parse(document.getElementById("doc-settings").textContent).timeoutMs,
+    live: StandaloneDoc.settings().timeoutMs,
+  }));
+  expect(after).toEqual({block: 1500, live: 1500});
+});
+
 test("the size readout opens the sheet at Size & loading", async ({ page }) => {
   await load(page);
   /* The second door: the number that asks "why is this file big?" answers it. */

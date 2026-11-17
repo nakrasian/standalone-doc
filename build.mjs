@@ -315,7 +315,6 @@ function docManifest(manifest, overrides = {}) {
   return {
     schema: 1,
     cdnBase: base,
-    timeoutMs: manifest.timeoutMs || 8000,
     assets: manifest.assets.map((a) => {
       const ext = extensionFor(a.kind);
       const mode = overrides[a.id] ?? a.mode;
@@ -374,6 +373,9 @@ function docSettings(manifest, { mode } = {}) {
        chrome to show — its modules are absent from the file. */
     toolbar: docMode !== "view" && (authored.toolbar ?? true),
     saveThresholdBytes: authored.saveThresholdBytes ?? DEFAULT_SETTINGS.saveThresholdBytes,
+    /* Read by the loader, so it belongs here rather than in the asset manifest: a
+       timeout is behaviour, not an asset. Falls back to the manifest for one release. */
+    timeoutMs: Number(authored.timeoutMs ?? manifest.timeoutMs) || 8000,
   };
 }
 
