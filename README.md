@@ -62,6 +62,14 @@ The catalog is advisory in the same sense as `dist/registry.json`: it costs conv
 lies or disappears, never correctness — whatever it names is still verified against the
 hashes the document carries after re-pinning.
 
+It is read from the base's moving sibling (`…@main/dist/runtime.json`) unless the document
+names its own `catalog`. jsDelivr caches branch refs, so a fresh release can lag behind the
+catalog until that path is purged — measured, and worth knowing before suspecting the code:
+
+```sh
+curl -s https://purge.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json
+```
+
 ### Repairing a document whose pin no longer resolves
 
 A tag can stop serving what a document pinned: a rebuild without a release, a force-moved
