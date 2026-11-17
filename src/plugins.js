@@ -135,6 +135,9 @@ export function createPlugins(deps = {}) {
         caption: content.caption || declared.label || entry.label || "",
         pin: pinFor(id, entry),
         island: content.island || island,
+        /* What the content may ask the host for at run time (__figureBytes). Declared by the
+           contribution, stored on the figure. */
+        assets: content.assets || declared.assets || null,
       });
     } catch (error) {
       refuse(id, `insert "${itemId}" failed: ${(error && error.message) || error}`);

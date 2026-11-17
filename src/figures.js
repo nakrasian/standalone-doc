@@ -84,6 +84,33 @@ export function createFigures(deps = {}) {
   };
 })();`;
   const SNAPSHOT_BRIDGE = `(function(){
+  /* Bytes into an island (5k).
+     A sealed island has no network, so anything it needs to *run* has to be handed in. The
+     island asks by name; the figure it belongs to decides what it may ask for, and the host
+     answers with verified bytes over this same channel — never a fetch, never eval here. */
+  var byteWaiters = {};
+  var byteSeq = 0;
+  window.__figureBytes = function(name){
+    return new Promise(function(resolve, reject){
+      var id = "bytes-" + (++byteSeq) + "-" + Math.random().toString(36).slice(2);
+      byteWaiters[id] = {resolve: resolve, reject: reject};
+      parent.postMessage({type:"figure-bytes-request", id:id, name:String(name)}, "*");
+      setTimeout(function(){
+        if (!byteWaiters[id]) return;
+        delete byteWaiters[id];
+        reject(new Error("no bytes for " + name + " within 10s"));
+      }, 10000);
+    });
+  };
+  addEventListener("message", function(e){
+    var d = e.data || {};
+    if (d.type !== "figure-bytes" || !d.id || !byteWaiters[d.id]) return;
+    var waiter = byteWaiters[d.id];
+    delete byteWaiters[d.id];
+    if (d.error) waiter.reject(new Error(d.error));
+    else waiter.resolve(d.bytes);
+  });
+
   function reply(id, msg){
     parent.postMessage(Object.assign({type:"figure-snapshot-result", id:id}, msg), "*");
   }
@@ -821,6 +848,40 @@ export function createFigures(deps = {}) {
     if (observer) observer.disconnect();
   }
 
+  /* ---- bytes into an island ------------------------------------------
+     The mirror of __figureBytes() in the bridge. Authorization is the *figure*, not the
+     request: an island may only ask for the asset ids its store entry declares, so a
+     hostile island gets nothing the document did not already intend to hand it. */
+  async function onIslandMessage(event) {
+    const data = event.data;
+    if (!data || data.type !== "figure-bytes-request" || !data.id) return;
+    const source = event.source;
+    const figure = [...content.querySelectorAll("figure.figure")].find(
+      (candidate) => candidate.querySelector("iframe")?.contentWindow === source,
+    );
+    const reply = (payload, transfer) =>
+      source.postMessage(Object.assign({ type: "figure-bytes", id: data.id }, payload), "*", transfer || []);
+
+    const stored = figure && store.figures[figure.dataset.figureId];
+    if (!stored) return reply({ error: "this island is not a mounted figure" });
+    const declared = Array.isArray(stored.assets) ? stored.assets : [];
+    if (!declared.includes(data.name)) {
+      return reply({ error: `"${data.name}" is not declared by this figure` });
+    }
+    const standalone = env && env.StandaloneDoc;
+    if (!standalone || typeof standalone.bytes !== "function") return reply({ error: "this document cannot supply bytes" });
+    try {
+      const bytes = await standalone.bytes(data.name);
+      /* One copy, and transfer that same reference: handing over the cached ArrayBuffer would
+         neuter the parent's copy for the next island that asks for the same runtime. */
+      const copy = bytes.slice(0);
+      reply({ bytes: copy }, [copy]);
+    } catch (error) {
+      reply({ error: (error && error.message) || String(error) });
+    }
+  }
+  window.addEventListener("message", onIslandMessage);
+
   /* ---- export-only snapshots ----------------------------------------
      The bridge is injected into every HTML island's srcdoc. It answers
      ping/snapshot messages. The serializer source is supplied by the
@@ -1146,7 +1207,7 @@ export function createFigures(deps = {}) {
    * content mounts into, so the figure can be reopened without the plugin and can say
    * so — and a later plugin version cannot widen the island.
    */
-  function insertHTML(html, {caption = "", pin = null, island = null} = {}) {
+  function insertHTML(html, {caption = "", pin = null, island = null, assets = null} = {}) {
     if (!html) return null;
     const entry = {
       id: uid(),
@@ -1161,6 +1222,9 @@ export function createFigures(deps = {}) {
     };
     if (pin && pin.id) entry.plugin = pin;
     if (island) entry.island = island;
+    /* The asset ids this content may ask the host for (__figureBytes). Stored on the figure,
+       so a later plugin version cannot widen it. */
+    if (Array.isArray(assets) && assets.length) entry.assets = assets;
     /* Same bytes, same entry: two insertions of one contribution cost one copy. */
     const shared = findSource(entry);
     if (shared) {
