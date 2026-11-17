@@ -1,0 +1,49 @@
+name: cdn
+
+# The only job in this repository that leaves the network. It fetches every
+# published asset at the pinned base and compares the bytes with the hash a
+# document verifies on open, so a CDN serving stale, missing or tampered files
+# becomes a failure here instead of a broken file in someone's hands.
+#
+# Deliberately not on push or pull_request: it verifies what is *published*, and
+# network flakiness in a PR check teaches people to ignore it.
+
+on:
+  schedule:
+    # Off the hour: cached dispatch at :00 is the busiest minute of the day.
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Verify this tag instead of manifest.json's cdnBase (e.g. v0.1.0)"
+        required: false
+        type: string
+
+jobs:
+  verify:
+    name: verify published bytes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The hashes come from manifest.json, so the tree has to be the one that was
+      # released: dist/ and the document manifests must agree with each other.
+      - name: tree is consistent
+        run: node build.mjs check
+
+      - name: every published byte matches the hash a document verifies
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            node build.mjs verify-cdn --tag="${{ github.event.inputs.tag }}"
+          else
+            node build.mjs verify-cdn
+          fi
+
+      - name: what was checked
+        if: always()
+        run: git log --oneline -1 && node -e "console.log(require('./manifest.json').cdnBase)"

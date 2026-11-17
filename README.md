@@ -20,6 +20,12 @@ The manifest carries `"schema": 1`. The format is still preliminary: fields are 
 phases land, and there is no migration contract yet. Once the editor is stable, `schema`
 is what will identify a document that needs upgrading, and a bump will mean exactly that.
 
+`cdnBase` is pinned to a tag (`v0.1.0`), never a branch. Branch URLs move, so a document
+that pinned one would run different code after any commit — and jsDelivr caches branch
+refs, so it would do so unpredictably. `npm run cdn:verify` fetches every published
+asset at the pin and compares it with the recorded hash; `.github/workflows/cdn.yml` runs
+it nightly.
+
 ## Quick start
 
 No dependencies to install. Node 20+.
@@ -29,6 +35,7 @@ npm run verify      # round-trip check: index.html <-> src/
 npm run check       # CI gate: verify + manifest schema + guarded-file scan
 npm run build       # dist/editor.html + dist/size-report.json
 npm run dev         # http://127.0.0.1:8080 — always use this for anything that fetches
+npm run cdn:verify  # fetch every published asset and check its hash (needs network)
 npm test            # unit tests (node:test)
 npm run report      # size table, per asset
 ```
@@ -94,10 +101,11 @@ shared global is `globalThis.StandaloneDoc`.
 
 ## Status
 
-Phases 0–3 are complete: repository and markers, module conversion, the dependency
-contract, the registry and `boot()`, the boot shell with diagnostics, and the CDN loader
-with `dist/slim.html`. Next are save-time materialization, the plugin manager and the
-`v0.1.0` publication. The editor is usable today; the file format is not frozen.
+`v0.1.0` is published: module conversion, the dependency contract and its audit, the
+registry and `boot()` with diagnostics, the CDN loader, save-time materialization with
+policies, and a viewer flavour. Next is the plugin manager (a figure requiring a plugin,
+pinned and hash-verified in the document that uses it) and an update flow. The file
+format is not frozen — see `CHANGELOG.md`.
 
 ## License
 

@@ -8,6 +8,7 @@
  *   node build.mjs check      verify + schema + guarded-file scan  (CI gate)
  *   node build.mjs build      dist/editor.html + dist/size-report.json
  *   node build.mjs report     size table; --baseline rewrites size-baseline.json
+ *   node build.mjs verify-cdn fetch every published asset and check its hash
  *   node build.mjs dev        static server on :8080
  *
  * Asset regions in index.html are delimited by flush-left marker comments:
@@ -921,6 +922,94 @@ function cmdReport({ baseline = false } = {}) {
   }
 }
 
+/**
+ * Check that the CDN actually serves what the documents pin.
+ *
+ * This is the only check that leaves the repository. It fetches every published
+ * asset at `manifest.json`'s `cdnBase` (or `--tag <ref>`), hashes the bytes it gets
+ * back, and compares them with the hash the document will verify on open. A tag is
+ * immutable, so a mismatch here means the release itself is wrong; a branch is not,
+ * so a mismatch on `@main` usually means the branch moved and the documents need
+ * rebuilding.
+ */
+async function cmdVerifyCdn({ tag = null } = {}) {
+  const manifest = readManifest();
+  let base = String(manifest.cdnBase || "").replace(/\/$/, "");
+  if (tag) base = base.replace(/@[^/]+/, `@${tag}`);
+  if (!/^https?:\/\//.test(base)) {
+    console.error(`verify-cdn: cdnBase is not a URL: ${JSON.stringify(base)}`);
+    process.exit(1);
+  }
+  const docBase = base.replace(/\/cdn$/, "");
+
+  const targets = [];
+  for (const asset of manifest.assets) {
+    if (asset.role === "infra") continue;
+    targets.push({
+      id: `${asset.id}.${extensionFor(asset.kind)}`,
+      url: `${base}/${asset.id}.${extensionFor(asset.kind)}`,
+      expected: asset.sha384,
+      local: null,
+    });
+  }
+  /* The document is the thing people actually open, so it is checked too. */
+  for (const name of ["editor.html", "slim.html", "viewer.html"]) {
+    if (!exists(`${DIST}/${name}`)) continue;
+    targets.push({ id: name, url: `${docBase}/${name}`, expected: sha384(read(`${DIST}/${name}`)), local: `${DIST}/${name}` });
+  }
+
+  console.log(`verify-cdn: ${targets.length} files at ${base}${tag ? ` (tag ${tag})` : ""}`);
+  const failures = [];
+
+  /* Two attempts per file: this runs nightly over someone else's network, and a
+     single dropped connection should not page anyone. */
+  const fetchOnce = async (url) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(url, { signal: controller.signal, redirect: "follow" });
+      if (!response.ok) return { error: `HTTP ${response.status}` };
+      const bytes = Buffer.from(await response.arrayBuffer());
+      return { bytes };
+    } catch (error) {
+      return { error: controller.signal.aborted ? "timed out" : (error && error.message) || "fetch failed" };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  for (const target of targets) {
+    let result = await fetchOnce(target.url);
+    if (result.error) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      result = await fetchOnce(target.url);
+    }
+    if (result.error) {
+      console.log(`  unreachable  ${target.id}  ${result.error}`);
+      failures.push({ ...target, why: result.error });
+      continue;
+    }
+    const actual = "sha384-" + createHash("sha384").update(result.bytes).digest("base64");
+    if (actual === target.expected) {
+      console.log(`  ok           ${target.id}  ${result.bytes.length} bytes`);
+    } else {
+      console.log(`  MISMATCH     ${target.id}  expected ${target.expected.slice(0, 16)}… got ${actual.slice(0, 16)}…`);
+      failures.push({ ...target, why: "hash does not match the manifest", actual });
+    }
+  }
+
+  if (failures.length) {
+    console.error(`verify-cdn: FAILED (${failures.length} of ${targets.length})`);
+    for (const failure of failures) console.error(`  - ${failure.id}: ${failure.why}`);
+    if (!tag) {
+      console.error("  A branch ref is not a release. If the branch moved, rebuild and re-verify;");
+      console.error("  if this is a release, run with --tag <version> against an immutable tag.");
+    }
+    process.exit(1);
+  }
+  console.log(`verify-cdn: ok — ${targets.length} files match the recorded hashes`);
+}
+
 function cmdDev() {
   const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png" };
   const port = Number(process.env.PORT || 8080);
@@ -964,6 +1053,9 @@ switch (cmd) {
     break;
   case "report":
     cmdReport({ baseline: flags.includes("--baseline") });
+    break;
+  case "verify-cdn":
+    await cmdVerifyCdn({ tag: flags.find((flag) => flag.startsWith("--tag="))?.slice("--tag=".length) ?? null });
     break;
   case "dev":
     cmdDev();
