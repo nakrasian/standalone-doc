@@ -807,3 +807,78 @@ dialog#shortcuts-dialog::backdrop {
 #save-policy-dialog .dialog-actions button.primary {
   border-color: var(--accent); background: var(--accent); color: #fff;
 }
+
+/* ---- document settings sheet ---- */
+#doc-settings-dialog {
+  width: min(600px, calc(100vw - 32px));
+  max-height: min(86dvh, 780px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+#doc-settings-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+#doc-settings-dialog:focus,
+#doc-settings-dialog:focus-visible { outline: none; }
+
+#doc-settings-dialog .ds-head { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
+#doc-settings-dialog .ds-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+#doc-settings-dialog .ds-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+#doc-settings-dialog .ds-body { padding: 4px 20px 8px; overflow-y: auto; max-height: 62dvh; }
+
+#doc-settings-dialog .ds-sect { border-bottom: 1px solid #f0f2f5; padding: 13px 0; }
+#doc-settings-dialog .ds-sect:last-child { border-bottom: 0; }
+#doc-settings-dialog .ds-sect > h3 { margin: 0 0 2px; font-size: 12.5px; font-weight: 650; }
+#doc-settings-dialog .ds-sect > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+
+#doc-settings-dialog .ds-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+#doc-settings-dialog .ds-row .grow { flex: 1 1 auto; }
+#doc-settings-dialog .ds-row select,
+#doc-settings-dialog .ds-row input[type="number"] {
+  font: inherit; font-size: 12.5px; height: 28px; padding: 0 7px; border-radius: 6px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+}
+#doc-settings-dialog .ds-row input[type="number"] { width: 88px; }
+#doc-settings-dialog .ds-unit { color: var(--muted); }
+#doc-settings-dialog .ds-hint { color: var(--muted); font-size: 11.5px; }
+
+#doc-settings-dialog .ds-chips { display: flex; gap: 6px; }
+#doc-settings-dialog .ds-chip {
+  font: inherit; font-size: 12px; height: 26px; padding: 0 10px; border-radius: 99px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+}
+#doc-settings-dialog .ds-chip[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+#doc-settings-dialog .ds-chip:disabled { opacity: .45; cursor: default; }
+
+#doc-settings-dialog .ds-ledger { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+#doc-settings-dialog .ds-ledger th,
+#doc-settings-dialog .ds-ledger td { text-align: left; padding: 5px 6px; border-bottom: 1px solid #f2f4f7; }
+#doc-settings-dialog .ds-ledger th { color: var(--muted); font-weight: 600; }
+#doc-settings-dialog .ds-ledger td.num { text-align: right; font-variant-numeric: tabular-nums; }
+#doc-settings-dialog .ds-ledger select {
+  font: inherit; font-size: 12px; height: 24px; border: 1px solid var(--line);
+  border-radius: 6px; background: #fff; color: var(--ink);
+}
+
+#doc-settings-dialog .ds-foot {
+  display: flex; gap: 8px; align-items: center; padding: 11px 20px;
+  border-top: 1px solid var(--line); background: var(--chrome-bg);
+}
+#doc-settings-dialog .ds-foot .grow { flex: 1 1 auto; }
+#doc-settings-dialog .ds-foot button {
+  height: 30px; padding: 0 14px; font: inherit; border: 1px solid var(--line);
+  border-radius: 7px; background: #fff; cursor: pointer;
+}
+#doc-settings-dialog .ds-foot button.primary {
+  border-color: var(--accent); background: var(--accent); color: #fff;
+}
+#doc-settings-dialog .ds-pending { color: #b3261e; font-size: 12px; }
+
+/* a clickable size readout: it opens the sheet at Size & loading */
+.stats[data-stats] { cursor: pointer; border-radius: 4px; }
+.stats[data-stats]:hover { background: var(--hover); }

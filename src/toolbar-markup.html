@@ -106,9 +106,19 @@
     <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
         <use href="#i-paneltop" />
       </svg></button>
-    <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
-        <use href="#i-keyboard" />
-      </svg></button>
+    <span class="menu-wrap" data-menu-align="right">
+      <button data-menu aria-label="Document settings" title="Document settings"><svg class="i">
+          <use href="#i-settings" />
+        </svg></button>
+      <div class="menu" data-menu-panel hidden>
+        <button data-menu-item data-settings-open><svg class="i sm">
+            <use href="#i-settings" />
+          </svg>Document settings…<kbd data-hint="action:settings"></kbd></button>
+        <button data-menu-item data-shortcuts><svg class="i sm">
+            <use href="#i-keyboard" />
+          </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
+      </div>
+    </span>
     <button class="primary" data-save title="Save">Save</button>
   </div>
 
@@ -317,9 +327,20 @@
   <button data-chrome-toggle aria-label="Full toolbar" title="Full toolbar"><svg class="i">
       <use href="#i-paneltop" />
     </svg></button>
-  <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
-      <use href="#i-keyboard" />
-    </svg></button>
+
+  <span class="menu-wrap" data-menu-align="right">
+    <button data-menu aria-label="Document settings" title="Document settings"><svg class="i">
+        <use href="#i-settings" />
+      </svg></button>
+    <div class="menu" data-menu-panel hidden>
+      <button data-menu-item data-settings-open><svg class="i sm">
+          <use href="#i-settings" />
+        </svg>Document settings…<kbd data-hint="action:settings"></kbd></button>
+      <button data-menu-item data-shortcuts><svg class="i sm">
+          <use href="#i-keyboard" />
+        </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
+    </div>
+  </span>
 
   <button class="save-text" data-save title="Save">Save</button>
 </header>

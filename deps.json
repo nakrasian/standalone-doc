@@ -257,7 +257,8 @@
       "provides": [
         "save",
         "serialize",
-        "validate"
+        "validate",
+        "settings"
       ]
     },
     {

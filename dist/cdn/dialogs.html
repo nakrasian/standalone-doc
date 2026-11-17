@@ -32,3 +32,78 @@
     <button type="button" class="primary" data-save-confirm>Save</button>
   </div>
 </dialog>
+
+<dialog id="doc-settings-dialog" aria-labelledby="doc-settings-title">
+  <div class="ds-head">
+    <h2 id="doc-settings-title">Document settings</h2>
+    <p data-ds-sub>Stored in this file.</p>
+  </div>
+
+  <div class="ds-body">
+    <section class="ds-sect">
+      <h3>Behaviour</h3>
+      <p>Applies the next time this file is opened — the loader enforces it, not the markup.</p>
+      <div class="ds-row">
+        <span class="grow">Mode</span>
+        <select data-ds="mode" aria-label="Document mode">
+          <option value="edit">edit — full editor</option>
+          <option value="view">view — read only</option>
+          <option value="comment">comment — annotate (not built yet)</option>
+        </select>
+      </div>
+      <div class="ds-row">
+        <label class="grow"><input type="checkbox" data-ds="editable"> Content is editable</label>
+        <span class="ds-hint">edit mode only</span>
+      </div>
+      <div class="ds-row">
+        <label class="grow"><input type="checkbox" data-ds="toolbar"> Show the toolbar</label>
+        <span class="ds-hint">hidden in view mode</span>
+      </div>
+    </section>
+
+    <section class="ds-sect" data-ds-section="size">
+      <h3>Size &amp; loading</h3>
+      <p>Applies when you save.</p>
+      <div class="ds-row">
+        <span class="grow">Warn above</span>
+        <input type="number" data-ds="threshold" min="0" step="0.5" aria-label="Warning threshold in megabytes"> <span class="ds-unit">MB</span>
+        <button type="button" class="ds-chip" data-ds="arm">Re-arm</button>
+      </div>
+      <div class="ds-row">
+        <label class="grow"><input type="checkbox" data-ds="never"> Don't ask again</label>
+        <span class="ds-hint" data-ds-never-hint></span>
+      </div>
+      <div class="ds-row">
+        <span class="grow">Preset</span>
+        <span class="ds-chips" data-ds-presets>
+          <button type="button" class="ds-chip" data-preset="inline">Inline</button>
+          <button type="button" class="ds-chip" data-preset="smart">Smart</button>
+          <button type="button" class="ds-chip" data-preset="slim">Slim</button>
+          <button type="button" class="ds-chip" disabled data-preset="custom">Custom</button>
+        </span>
+      </div>
+      <table class="ds-ledger">
+        <thead><tr><th>Capability</th><th>Size</th><th>Stored</th></tr></thead>
+        <tbody data-ds-rows></tbody>
+      </table>
+      <div class="ds-hint" data-ds-total></div>
+    </section>
+
+    <section class="ds-sect" data-ds-section="runtime">
+      <h3>Runtime</h3>
+      <p>Which version of the code this file runs. Pinned by tag, verified by SHA-384.</p>
+      <div class="ds-row">
+        <span class="grow"><code data-ds-pin>@—</code>
+          <div class="ds-hint" data-ds-base></div></span>
+        <button type="button" class="ds-chip" data-ds-update disabled title="Not built yet">Check for updates…</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="ds-foot">
+    <span class="ds-pending" data-ds-pending hidden></span>
+    <span class="grow"></span>
+    <button type="button" data-ds-cancel>Cancel</button>
+    <button type="button" class="primary" data-ds-done>Done</button>
+  </div>
+</dialog>

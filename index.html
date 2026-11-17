@@ -1175,6 +1175,81 @@
     #save-policy-dialog .dialog-actions button.primary {
       border-color: var(--accent); background: var(--accent); color: #fff;
     }
+
+    /* ---- document settings sheet ---- */
+    #doc-settings-dialog {
+      width: min(600px, calc(100vw - 32px));
+      max-height: min(86dvh, 780px);
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+      color: var(--ink);
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    #doc-settings-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+    #doc-settings-dialog:focus,
+    #doc-settings-dialog:focus-visible { outline: none; }
+
+    #doc-settings-dialog .ds-head { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
+    #doc-settings-dialog .ds-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    #doc-settings-dialog .ds-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    #doc-settings-dialog .ds-body { padding: 4px 20px 8px; overflow-y: auto; max-height: 62dvh; }
+
+    #doc-settings-dialog .ds-sect { border-bottom: 1px solid #f0f2f5; padding: 13px 0; }
+    #doc-settings-dialog .ds-sect:last-child { border-bottom: 0; }
+    #doc-settings-dialog .ds-sect > h3 { margin: 0 0 2px; font-size: 12.5px; font-weight: 650; }
+    #doc-settings-dialog .ds-sect > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+
+    #doc-settings-dialog .ds-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+    #doc-settings-dialog .ds-row .grow { flex: 1 1 auto; }
+    #doc-settings-dialog .ds-row select,
+    #doc-settings-dialog .ds-row input[type="number"] {
+      font: inherit; font-size: 12.5px; height: 28px; padding: 0 7px; border-radius: 6px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+    }
+    #doc-settings-dialog .ds-row input[type="number"] { width: 88px; }
+    #doc-settings-dialog .ds-unit { color: var(--muted); }
+    #doc-settings-dialog .ds-hint { color: var(--muted); font-size: 11.5px; }
+
+    #doc-settings-dialog .ds-chips { display: flex; gap: 6px; }
+    #doc-settings-dialog .ds-chip {
+      font: inherit; font-size: 12px; height: 26px; padding: 0 10px; border-radius: 99px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+    }
+    #doc-settings-dialog .ds-chip[aria-pressed="true"] {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    #doc-settings-dialog .ds-chip:disabled { opacity: .45; cursor: default; }
+
+    #doc-settings-dialog .ds-ledger { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+    #doc-settings-dialog .ds-ledger th,
+    #doc-settings-dialog .ds-ledger td { text-align: left; padding: 5px 6px; border-bottom: 1px solid #f2f4f7; }
+    #doc-settings-dialog .ds-ledger th { color: var(--muted); font-weight: 600; }
+    #doc-settings-dialog .ds-ledger td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    #doc-settings-dialog .ds-ledger select {
+      font: inherit; font-size: 12px; height: 24px; border: 1px solid var(--line);
+      border-radius: 6px; background: #fff; color: var(--ink);
+    }
+
+    #doc-settings-dialog .ds-foot {
+      display: flex; gap: 8px; align-items: center; padding: 11px 20px;
+      border-top: 1px solid var(--line); background: var(--chrome-bg);
+    }
+    #doc-settings-dialog .ds-foot .grow { flex: 1 1 auto; }
+    #doc-settings-dialog .ds-foot button {
+      height: 30px; padding: 0 14px; font: inherit; border: 1px solid var(--line);
+      border-radius: 7px; background: #fff; cursor: pointer;
+    }
+    #doc-settings-dialog .ds-foot button.primary {
+      border-color: var(--accent); background: var(--accent); color: #fff;
+    }
+    #doc-settings-dialog .ds-pending { color: #b3261e; font-size: 12px; }
+
+    /* a clickable size readout: it opens the sheet at Size & loading */
+    .stats[data-stats] { cursor: pointer; border-radius: 4px; }
+    .stats[data-stats]:hover { background: var(--hover); }
   </style>
 <!-- /@asset -->
 <!-- @asset id="boot-ui-styles" kind="css" order="25" -->
@@ -1432,6 +1507,11 @@
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />
     </symbol>
+
+    <symbol id="i-settings" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </symbol>
   </svg>
 <!-- /@asset -->
 
@@ -1545,9 +1625,19 @@
         <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
             <use href="#i-paneltop" />
           </svg></button>
-        <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
-            <use href="#i-keyboard" />
-          </svg></button>
+        <span class="menu-wrap" data-menu-align="right">
+          <button data-menu aria-label="Document settings" title="Document settings"><svg class="i">
+              <use href="#i-settings" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <button data-menu-item data-settings-open><svg class="i sm">
+                <use href="#i-settings" />
+              </svg>Document settings…<kbd data-hint="action:settings"></kbd></button>
+            <button data-menu-item data-shortcuts><svg class="i sm">
+                <use href="#i-keyboard" />
+              </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
+          </div>
+        </span>
         <button class="primary" data-save title="Save">Save</button>
       </div>
 
@@ -1756,9 +1846,20 @@
       <button data-chrome-toggle aria-label="Full toolbar" title="Full toolbar"><svg class="i">
           <use href="#i-paneltop" />
         </svg></button>
-      <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
-          <use href="#i-keyboard" />
-        </svg></button>
+
+      <span class="menu-wrap" data-menu-align="right">
+        <button data-menu aria-label="Document settings" title="Document settings"><svg class="i">
+            <use href="#i-settings" />
+          </svg></button>
+        <div class="menu" data-menu-panel hidden>
+          <button data-menu-item data-settings-open><svg class="i sm">
+              <use href="#i-settings" />
+            </svg>Document settings…<kbd data-hint="action:settings"></kbd></button>
+          <button data-menu-item data-shortcuts><svg class="i sm">
+              <use href="#i-keyboard" />
+            </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
+        </div>
+      </span>
 
       <button class="save-text" data-save title="Save">Save</button>
     </header>
@@ -1842,7 +1943,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","editable":true,"toolbar":true,"saveThresholdBytes":2097152}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":15610,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/toolbar-styles.css","integrity":"sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":4610,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/sprite.html","integrity":"sha384-y+yz7qA0tRecgjUNZTuUW6xqaZPCygg9jExhfiIAEEnc+LICTA93jcM3zNpbdgZq"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":14010,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/toolbar-markup.html","integrity":"sha384-q2sZIbOri3AkYkeLuYKYLzFtPVpsyGQJWTDiN/M9LDRHRkg5OqSOj7Q91p3xKCor"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":14955},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42354,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/figures.js","integrity":"sha384-3CDpokYFxuAJVKVDMlje2/7VTdlAWzGV/srOMEUdlF864RXZM6kl//NvEIGruc7V"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":14359,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/policy.js","integrity":"sha384-86ryQFRPgnQZlQq97N6RQzCf/m5nb55OrIzGHNx2DBWPsUk0h1LgDKc4rp6GhYes"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":32856,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/toolbar.js","integrity":"sha384-8LhbFf6oYuVyLuix48787u/TIJr1II2+X/B4WoRGVBHRU12aEGoK7/wf3xqvpU5C"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":1266,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/dialogs.html","integrity":"sha384-SYZ6ET+T3hvyz7OwS+B4DBw3ONyUnv/bjpMpSQBfaVhByAm8T4rbwGFVpgzzhWmR"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":19279,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/toolbar-styles.css","integrity":"sha384-TSkyPLokrGyo5Ko7M5Lp8vYa12ymuKI7Q21//EPMioNtlTg8IkRO8K9h8s+DiDG5"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15067,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/toolbar-markup.html","integrity":"sha384-R0fChUK0NsQPi3tAEYDTnSQtez2aNkr7PVErjhtRByDsUhljxZSQHt9jF8G6t0iz"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":14955},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42354,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/figures.js","integrity":"sha384-3CDpokYFxuAJVKVDMlje2/7VTdlAWzGV/srOMEUdlF864RXZM6kl//NvEIGruc7V"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":14712,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/policy.js","integrity":"sha384-/wnucm7EAFPoWBSR7VcH4Tq59vk6mMT7ZP3ceZtkVEk1HE5x/4HZRkPBJDn8oQv8"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":43613,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/toolbar.js","integrity":"sha384-O09LYeWn3Eeq3iqepKPK/UuCCdo8zRr54s8Ta8hcusgMU69v82+BtuIQCZiWXMlg"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4470,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.1.0/dist/cdn/dialogs.html","integrity":"sha384-od6F5S+GvjPPYiHE+xWstDcyE2hBQZ0fu8Vp0MN+5AIDR8Z6S/V3X7WLnd9RuU0Q"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -5232,14 +5333,22 @@
        * The plan the live document would use at save, honouring its stored choice unless
        * the caller names a policy (that is what the save dialog does).
        */
+      /* The injected `settings` is the boot snapshot. The settings sheet edits the block
+         during the session, so anything that re-plans has to read the live view. */
+      const liveSettings = () => {
+        const registry = env.StandaloneDoc;
+        return registry && registry.settings ? registry.settings() : settings;
+      };
+
       function planned({policy, overrides, mode, baseBytes = 0} = {}) {
         const registry = env.StandaloneDoc;
         const manifest = registry && registry.manifest ? registry.manifest() : {assets: []};
-        const stored = resolve(settings);
+        const current = liveSettings();
+        const stored = resolve(current);
         const chosen = policy || overrides ? {policy: policy || "inline", overrides: overrides || {}} : stored;
         return plan(manifest, {
           policy: chosen.policy || "inline",
-          mode: mode || settings.mode,
+          mode: mode || current.mode,
           overrides: chosen.overrides,
           usage: usage(),
           baseBytes,
@@ -5447,6 +5556,7 @@
         });
         clone.querySelectorAll("[data-dirty]").forEach((el) => {el.hidden = true;});
         clone.querySelector("#progress-dialog")?.removeAttribute("open");
+        clone.querySelector("#doc-settings-dialog")?.removeAttribute("open");
 
         // Runtime frames out, and the store pruned to the figures still present.
         figures.prepareClone(clone);
@@ -5512,6 +5622,243 @@
           }
         }
         return problems;
+      }
+
+      /* ------------------------------------------------------- document settings sheet */
+      /*
+       * Two scopes share one sheet, and the copy says so: `mode` / `editable` / `toolbar`
+       * are read by the loader, so they apply on **next open**; the threshold and the
+       * per-capability storage are read by `serialize()`, so they apply **when you save**.
+       * Nothing here re-runs the loader: a `file://` document cannot reopen itself, and
+       * pretending otherwise would be the one lie this sheet must not tell.
+       */
+
+      const settingsEl = () => document.getElementById("doc-settings");
+      const settingsDialog = () => document.getElementById("doc-settings-dialog");
+      const MB = 1024 * 1024;
+
+      function readSettingsBlock() {
+        const el = settingsEl();
+        try {
+          return el ? JSON.parse(el.textContent || "{}") : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function writeSettingsBlock(next) {
+        const el = settingsEl();
+        if (!el) return false;
+        el.textContent = JSON.stringify(next);
+        return true;
+      }
+
+      const toMb = (bytes) => Math.round((Number(bytes) / MB) * 10) / 10;
+      const toBytes = (mb) => Math.round(Number(mb) * MB);
+
+      let settingsDraft = null;
+
+      function openDocSettings({section} = {}) {
+        const dialog = settingsDialog();
+        if (!dialog) return;
+        const settings = globalThis.StandaloneDoc.settings();
+        settingsDraft = {
+          mode: settings.mode,
+          editable: settings.editable,
+          toolbar: settings.toolbar,
+          thresholdMb: toMb(settings.saveThresholdBytes),
+          never: Number(settings.thresholdDeclined) > 0,
+          planned: policy.planned({}),
+          dirty: false,
+        };
+        paintDocSettings();
+        if (!dialog.open) dialog.showModal();
+        if (section) {
+          dialog.querySelector(`[data-ds-section="${section}"]`)?.scrollIntoView({block: "nearest"});
+        }
+      }
+
+      function closeDocSettings() {
+        settingsDraft = null;
+        const dialog = settingsDialog();
+        if (dialog?.open) dialog.close();
+      }
+
+      /** Re-price the draft from its rows, and re-derive which preset (if any) it is. */
+      function repriceDraft(planned) {
+        settingsDraft.planned = planned;
+        settingsDraft.dirty = true;
+        paintDocSettings();
+      }
+
+      function paintDocSettings() {
+        const dialog = settingsDialog();
+        if (!dialog || !settingsDraft) return;
+        const draft = settingsDraft;
+        const manifest = globalThis.StandaloneDoc.manifest();
+        const base = String(manifest.cdnBase || "");
+        const pin = /@([^/]+)/.exec(base)?.[1] ?? "unpinned";
+
+        dialog.querySelector("[data-ds='mode']").value = draft.mode;
+        dialog.querySelector("[data-ds='editable']").checked = draft.editable && draft.mode === "edit";
+        dialog.querySelector("[data-ds='editable']").disabled = draft.mode !== "edit";
+        dialog.querySelector("[data-ds='toolbar']").checked = draft.toolbar && draft.mode !== "view";
+        dialog.querySelector("[data-ds='toolbar']").disabled = draft.mode === "view";
+        dialog.querySelector("[data-ds='threshold']").value = String(draft.thresholdMb);
+        dialog.querySelector("[data-ds='never']").checked = draft.never;
+        dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
+          ? "quiet until the file doubles"
+          : "the prompt returns when the file doubles";
+        dialog.querySelector("[data-ds-pin]").textContent = `@${pin}`;
+        dialog.querySelector("[data-ds-base]").textContent = base.replace(/^https?:\/\//, "");
+
+        dialog.querySelector("[data-ds-sub]").textContent = draft.mode === "edit"
+          ? "Stored in this file. Behaviour applies on next open; assets apply when you save."
+          : `Stored in this file. This copy opens in ${draft.mode} mode.`;
+
+        const preset = policy.presetFor(draft.planned);
+        dialog.querySelectorAll("[data-preset]").forEach((chip) => {
+          const name = chip.dataset.preset;
+          chip.setAttribute("aria-pressed", String(name === (preset ?? "custom")));
+        });
+
+        const body = dialog.querySelector("[data-ds-rows]");
+        body.replaceChildren();
+        for (const row of rowsFor(draft.planned)) {
+          const tr = document.createElement("tr");
+          tr.dataset.row = row.key;
+          const name = document.createElement("td");
+          name.textContent = row.label;
+          if (row.why) {
+            const hint = document.createElement("span");
+            hint.className = "ds-hint";
+            hint.textContent = ` ${row.why}`;
+            name.append(hint);
+          }
+          const size = document.createElement("td");
+          size.className = "num";
+          size.textContent = saveKilobytes(row.bytes);
+          const stored = document.createElement("td");
+          if (row.choices) {
+            const select = document.createElement("select");
+            for (const choice of row.choices) {
+              const option = document.createElement("option");
+              option.value = choice;
+              option.textContent = choice === "online" ? "CDN" : choice;
+              select.append(option);
+            }
+            if (row.choice === "mixed") {
+              const option = document.createElement("option");
+              option.value = "mixed";
+              option.textContent = "mixed";
+              select.append(option);
+            }
+            select.value = row.choice;
+            select.addEventListener("change", () => {
+              /* Re-derive the row list from the live plan, apply this one change to it, and
+                 price the result: the plan is the truth, rows are a view of it. */
+              const next = rowsFor(draft.planned);
+              const target = next.find((candidate) => candidate.key === row.key);
+              if (target) target.choice = select.value;
+              repriceDraft(policy.planned({policy: "inline", overrides: overridesFrom(next)}));
+            });
+            stored.append(select);
+          } else {
+            stored.textContent = "inline";
+          }
+          tr.append(name, size, stored);
+          body.append(tr);
+        }
+
+        const inline = draft.planned.decisions.reduce((sum, decision) => sum + (decision.to === "inline" ? decision.bytes : 0), 0);
+        const offloads = draft.planned.decisions.some((decision) => decision.to === "online");
+        dialog.querySelector("[data-ds-total]").textContent =
+          `Stored inline: ${saveKilobytes(inline)} · reader ${offloads ? "fetches what is offloaded, after verifying it" : "opens offline"}`;
+
+        const pending = dialog.querySelector("[data-ds-pending]");
+        pending.hidden = !draft.dirty;
+        pending.textContent = "Unsaved";
+      }
+
+      /** Apply the draft to the live settings block. Saving is what makes it travel. */
+      function commitDocSettings() {
+        if (!settingsDraft) return;
+        const draft = settingsDraft;
+        const next = {...readSettingsBlock()};
+        next.mode = draft.mode;
+        /* A setting can restrict a mode, never contradict it — the loader clamps too. */
+        next.editable = draft.mode === "edit" ? draft.editable : false;
+        next.toolbar = draft.mode === "view" ? false : draft.toolbar;
+        next.saveThresholdBytes = Math.max(0, toBytes(draft.thresholdMb || 0));
+
+        if (draft.never) {
+          /* The stored number is the size at which the author declined; the prompt re-arms
+             at twice that. `outerHTML` is the honest estimate available without saving. */
+          next.thresholdDeclined = Number(settings()?.thresholdDeclined) || document.documentElement.outerHTML.length;
+        } else {
+          delete next.thresholdDeclined;
+        }
+
+        const choice = policy.persist(draft.planned);
+        if (choice.policy) {
+          next.policy = choice.policy;
+          delete next.assets;
+        } else {
+          next.assets = choice.assets;
+          delete next.policy;
+        }
+
+        writeSettingsBlock(next);
+        status.markDirty();
+        closeDocSettings();
+      }
+
+      /** `settings()` is the registry's normalised view; used only for the decline size. */
+      const settings = () => (globalThis.StandaloneDoc && globalThis.StandaloneDoc.settings ? globalThis.StandaloneDoc.settings() : null);
+
+      function wireDocSettings() {
+        const dialog = settingsDialog();
+        if (!dialog || dialog.dataset.wired) return;
+        dialog.dataset.wired = "1";
+
+        dialog.querySelector("[data-ds='mode']").addEventListener("change", (event) => {
+          settingsDraft.mode = event.target.value;
+          settingsDraft.dirty = true;
+          paintDocSettings();
+        });
+        dialog.querySelector("[data-ds='editable']").addEventListener("change", (event) => {
+          settingsDraft.editable = event.target.checked;
+          settingsDraft.dirty = true;
+        });
+        dialog.querySelector("[data-ds='toolbar']").addEventListener("change", (event) => {
+          settingsDraft.toolbar = event.target.checked;
+          settingsDraft.dirty = true;
+        });
+        dialog.querySelector("[data-ds='threshold']").addEventListener("change", (event) => {
+          settingsDraft.thresholdMb = Number(event.target.value) || 0;
+          settingsDraft.dirty = true;
+        });
+        dialog.querySelector("[data-ds='never']").addEventListener("change", (event) => {
+          settingsDraft.never = event.target.checked;
+          settingsDraft.dirty = true;
+          paintDocSettings();
+        });
+        dialog.querySelector("[data-ds='arm']").addEventListener("click", () => {
+          settingsDraft.never = false;
+          settingsDraft.dirty = true;
+          paintDocSettings();
+        });
+        dialog.querySelectorAll("[data-preset]").forEach((chip) => {
+          chip.addEventListener("click", () => {
+            const name = chip.dataset.preset;
+            if (!policy.PRESETS.includes(name)) return;
+            repriceDraft(policy.planned({policy: name}));
+          });
+        });
+        dialog.querySelector("[data-ds-cancel]").addEventListener("click", closeDocSettings);
+        dialog.querySelector("[data-ds-done]").addEventListener("click", commitDocSettings);
+        /* Escape, or a backdrop-free close, discards the draft. */
+        dialog.addEventListener("close", () => { settingsDraft = null; });
       }
 
       /* ------------------------------------------------------------ save policy UI */
@@ -5767,6 +6114,7 @@
         {keys: "Mod+-", label: "Zoom out", group: "View", native: true, zoom: "out"},
         {keys: "Mod+0", label: "Actual size (100%)", group: "View", native: true, zoom: "reset"},
         {keys: "Mod+9", label: "Fit page width", group: "View", native: true, zoom: "fit"},
+        {keys: "Mod+,", label: "Document settings", group: "File", run: () => openDocSettings(), anywhere: true},
         {keys: "Mod+/", label: "Keyboard shortcuts", group: "Help", run: showShortcuts, anywhere: true},
       ];
 
@@ -5816,6 +6164,14 @@
         hints.set("action:save", "Mod+S");
         hints.set("action:link", "Mod+K");
         hints.set("action:shortcuts", "Mod+/");
+        hints.set("action:settings", "Mod+,");
+
+        /* Markup can declare its own hint slot (`<kbd data-hint="action:settings">`), which
+           keeps the menu's shape in the fragment instead of growing this function. */
+        document.querySelectorAll(".menu kbd[data-hint]").forEach((slot) => {
+          const keys = hints.get(slot.dataset.hint);
+          if (keys) slot.textContent = pretty(keys);
+        });
 
         document.querySelectorAll(".menu button").forEach((btn) => {
           if (btn.querySelector("kbd")) return;
@@ -5935,6 +6291,14 @@
             return;
           }
         }
+
+        const settingsItem = e.target.closest("[data-settings-open]");
+        if (settingsItem) {closeAllMenus(); openDocSettings(); return;}
+
+        /* The size readout is the second door: it is the number that makes an author ask
+           "why is this file big?", so it opens the sheet where that is answered. */
+        const statsHit = e.target.closest("[data-stats]");
+        if (statsHit) {closeAllMenus(); openDocSettings({section: "size"}); return;}
 
         const submenuBtn = e.target.closest("[data-submenu-trigger]");
         if (submenuBtn) {toggleSubmenu(submenuBtn); return;}
@@ -6063,7 +6427,8 @@
       editor.syncToolbar();
       zoom.syncUI();
 
-      return {save, serialize, validate};
+      wireDocSettings();
+      return {save, serialize, validate, settings: openDocSettings};
     }
     StandaloneDoc.register("toolbar", createToolbar);
   </script>
@@ -6461,6 +6826,81 @@
       <button type="button" data-save-cancel>Cancel</button>
       <span class="spacer"></span>
       <button type="button" class="primary" data-save-confirm>Save</button>
+    </div>
+  </dialog>
+
+  <dialog id="doc-settings-dialog" aria-labelledby="doc-settings-title">
+    <div class="ds-head">
+      <h2 id="doc-settings-title">Document settings</h2>
+      <p data-ds-sub>Stored in this file.</p>
+    </div>
+
+    <div class="ds-body">
+      <section class="ds-sect">
+        <h3>Behaviour</h3>
+        <p>Applies the next time this file is opened — the loader enforces it, not the markup.</p>
+        <div class="ds-row">
+          <span class="grow">Mode</span>
+          <select data-ds="mode" aria-label="Document mode">
+            <option value="edit">edit — full editor</option>
+            <option value="view">view — read only</option>
+            <option value="comment">comment — annotate (not built yet)</option>
+          </select>
+        </div>
+        <div class="ds-row">
+          <label class="grow"><input type="checkbox" data-ds="editable"> Content is editable</label>
+          <span class="ds-hint">edit mode only</span>
+        </div>
+        <div class="ds-row">
+          <label class="grow"><input type="checkbox" data-ds="toolbar"> Show the toolbar</label>
+          <span class="ds-hint">hidden in view mode</span>
+        </div>
+      </section>
+
+      <section class="ds-sect" data-ds-section="size">
+        <h3>Size &amp; loading</h3>
+        <p>Applies when you save.</p>
+        <div class="ds-row">
+          <span class="grow">Warn above</span>
+          <input type="number" data-ds="threshold" min="0" step="0.5" aria-label="Warning threshold in megabytes"> <span class="ds-unit">MB</span>
+          <button type="button" class="ds-chip" data-ds="arm">Re-arm</button>
+        </div>
+        <div class="ds-row">
+          <label class="grow"><input type="checkbox" data-ds="never"> Don't ask again</label>
+          <span class="ds-hint" data-ds-never-hint></span>
+        </div>
+        <div class="ds-row">
+          <span class="grow">Preset</span>
+          <span class="ds-chips" data-ds-presets>
+            <button type="button" class="ds-chip" data-preset="inline">Inline</button>
+            <button type="button" class="ds-chip" data-preset="smart">Smart</button>
+            <button type="button" class="ds-chip" data-preset="slim">Slim</button>
+            <button type="button" class="ds-chip" disabled data-preset="custom">Custom</button>
+          </span>
+        </div>
+        <table class="ds-ledger">
+          <thead><tr><th>Capability</th><th>Size</th><th>Stored</th></tr></thead>
+          <tbody data-ds-rows></tbody>
+        </table>
+        <div class="ds-hint" data-ds-total></div>
+      </section>
+
+      <section class="ds-sect" data-ds-section="runtime">
+        <h3>Runtime</h3>
+        <p>Which version of the code this file runs. Pinned by tag, verified by SHA-384.</p>
+        <div class="ds-row">
+          <span class="grow"><code data-ds-pin>@—</code>
+            <div class="ds-hint" data-ds-base></div></span>
+          <button type="button" class="ds-chip" data-ds-update disabled title="Not built yet">Check for updates…</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="ds-foot">
+      <span class="ds-pending" data-ds-pending hidden></span>
+      <span class="grow"></span>
+      <button type="button" data-ds-cancel>Cancel</button>
+      <button type="button" class="primary" data-ds-done>Done</button>
     </div>
   </dialog>
   </div>

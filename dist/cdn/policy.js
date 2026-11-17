@@ -351,14 +351,22 @@ export function createPolicy(deps = {}) {
    * The plan the live document would use at save, honouring its stored choice unless
    * the caller names a policy (that is what the save dialog does).
    */
+  /* The injected `settings` is the boot snapshot. The settings sheet edits the block
+     during the session, so anything that re-plans has to read the live view. */
+  const liveSettings = () => {
+    const registry = env.StandaloneDoc;
+    return registry && registry.settings ? registry.settings() : settings;
+  };
+
   function planned({policy, overrides, mode, baseBytes = 0} = {}) {
     const registry = env.StandaloneDoc;
     const manifest = registry && registry.manifest ? registry.manifest() : {assets: []};
-    const stored = resolve(settings);
+    const current = liveSettings();
+    const stored = resolve(current);
     const chosen = policy || overrides ? {policy: policy || "inline", overrides: overrides || {}} : stored;
     return plan(manifest, {
       policy: chosen.policy || "inline",
-      mode: mode || settings.mode,
+      mode: mode || current.mode,
       overrides: chosen.overrides,
       usage: usage(),
       baseBytes,

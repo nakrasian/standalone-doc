@@ -169,7 +169,7 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
   expect(result.policy).toBe(true);
   /* The chrome came back as markup, from the verified fragment plus its open tag. */
   expect(result.toolbar).toBe(true);
-  expect(result.symbols).toBe(23);
+  expect(result.symbols).toBe(24);
   expect(result.fragmentMarkers).toBe(4);
   expect(result.validate).toEqual([]);
 });
@@ -260,5 +260,5 @@ test("nothing paints behind the dialog until boot finishes", async ({ page }) =>
     symbols: document.querySelectorAll("symbol").length,
     dialogOpen: document.getElementById("boot-dialog").open,
   }));
-  expect(after).toEqual({ boot: "ready", toolbar: "visible", symbols: 23, dialogOpen: false });
+  expect(after).toEqual({ boot: "ready", toolbar: "visible", symbols: 24, dialogOpen: false });
 });

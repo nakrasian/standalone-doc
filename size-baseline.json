@@ -1,17 +1,17 @@
 {
   "source": {
-    "bytes": 269372
+    "bytes": 290550
   },
   "assets": [
+    {
+      "id": "toolbar",
+      "kind": "js",
+      "bytes": 47583
+    },
     {
       "id": "figures",
       "kind": "js",
       "bytes": 46380
-    },
-    {
-      "id": "toolbar",
-      "kind": "js",
-      "bytes": 35906
     },
     {
       "id": "export",
@@ -21,7 +21,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 18377
+      "bytes": 22314
     },
     {
       "id": "editor",
@@ -34,14 +34,14 @@
       "bytes": 16354
     },
     {
-      "id": "policy",
-      "kind": "js",
-      "bytes": 15834
-    },
-    {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 15145
+      "bytes": 16282
+    },
+    {
+      "id": "policy",
+      "kind": "js",
+      "bytes": 16215
     },
     {
       "id": "boot-ui",
@@ -64,14 +64,19 @@
       "bytes": 5815
     },
     {
+      "id": "sprite",
+      "kind": "html",
+      "bytes": 5775
+    },
+    {
       "id": "zoom",
       "kind": "js",
       "bytes": 5181
     },
     {
-      "id": "sprite",
+      "id": "dialogs",
       "kind": "html",
-      "bytes": 5109
+      "bytes": 4673
     },
     {
       "id": "status",
@@ -94,11 +99,6 @@
       "bytes": 1375
     },
     {
-      "id": "dialogs",
-      "kind": "html",
-      "bytes": 1329
-    },
-    {
       "id": "figure-tools",
       "kind": "html",
       "bytes": 835
@@ -110,9 +110,9 @@
     }
   ],
   "flavors": {
-    "index.html": 269372,
-    "asset-bodies": 256745,
-    "markup-and-runtime": 12627,
-    "dist/slim.html": 43897
+    "index.html": 290550,
+    "asset-bodies": 277887,
+    "markup-and-runtime": 12663,
+    "dist/slim.html": 43933
   }
 }

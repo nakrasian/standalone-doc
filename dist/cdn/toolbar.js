@@ -190,6 +190,7 @@ export function createToolbar(deps = {}) {
     });
     clone.querySelectorAll("[data-dirty]").forEach((el) => {el.hidden = true;});
     clone.querySelector("#progress-dialog")?.removeAttribute("open");
+    clone.querySelector("#doc-settings-dialog")?.removeAttribute("open");
 
     // Runtime frames out, and the store pruned to the figures still present.
     figures.prepareClone(clone);
@@ -255,6 +256,243 @@ export function createToolbar(deps = {}) {
       }
     }
     return problems;
+  }
+
+  /* ------------------------------------------------------- document settings sheet */
+  /*
+   * Two scopes share one sheet, and the copy says so: `mode` / `editable` / `toolbar`
+   * are read by the loader, so they apply on **next open**; the threshold and the
+   * per-capability storage are read by `serialize()`, so they apply **when you save**.
+   * Nothing here re-runs the loader: a `file://` document cannot reopen itself, and
+   * pretending otherwise would be the one lie this sheet must not tell.
+   */
+
+  const settingsEl = () => document.getElementById("doc-settings");
+  const settingsDialog = () => document.getElementById("doc-settings-dialog");
+  const MB = 1024 * 1024;
+
+  function readSettingsBlock() {
+    const el = settingsEl();
+    try {
+      return el ? JSON.parse(el.textContent || "{}") : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function writeSettingsBlock(next) {
+    const el = settingsEl();
+    if (!el) return false;
+    el.textContent = JSON.stringify(next);
+    return true;
+  }
+
+  const toMb = (bytes) => Math.round((Number(bytes) / MB) * 10) / 10;
+  const toBytes = (mb) => Math.round(Number(mb) * MB);
+
+  let settingsDraft = null;
+
+  function openDocSettings({section} = {}) {
+    const dialog = settingsDialog();
+    if (!dialog) return;
+    const settings = globalThis.StandaloneDoc.settings();
+    settingsDraft = {
+      mode: settings.mode,
+      editable: settings.editable,
+      toolbar: settings.toolbar,
+      thresholdMb: toMb(settings.saveThresholdBytes),
+      never: Number(settings.thresholdDeclined) > 0,
+      planned: policy.planned({}),
+      dirty: false,
+    };
+    paintDocSettings();
+    if (!dialog.open) dialog.showModal();
+    if (section) {
+      dialog.querySelector(`[data-ds-section="${section}"]`)?.scrollIntoView({block: "nearest"});
+    }
+  }
+
+  function closeDocSettings() {
+    settingsDraft = null;
+    const dialog = settingsDialog();
+    if (dialog?.open) dialog.close();
+  }
+
+  /** Re-price the draft from its rows, and re-derive which preset (if any) it is. */
+  function repriceDraft(planned) {
+    settingsDraft.planned = planned;
+    settingsDraft.dirty = true;
+    paintDocSettings();
+  }
+
+  function paintDocSettings() {
+    const dialog = settingsDialog();
+    if (!dialog || !settingsDraft) return;
+    const draft = settingsDraft;
+    const manifest = globalThis.StandaloneDoc.manifest();
+    const base = String(manifest.cdnBase || "");
+    const pin = /@([^/]+)/.exec(base)?.[1] ?? "unpinned";
+
+    dialog.querySelector("[data-ds='mode']").value = draft.mode;
+    dialog.querySelector("[data-ds='editable']").checked = draft.editable && draft.mode === "edit";
+    dialog.querySelector("[data-ds='editable']").disabled = draft.mode !== "edit";
+    dialog.querySelector("[data-ds='toolbar']").checked = draft.toolbar && draft.mode !== "view";
+    dialog.querySelector("[data-ds='toolbar']").disabled = draft.mode === "view";
+    dialog.querySelector("[data-ds='threshold']").value = String(draft.thresholdMb);
+    dialog.querySelector("[data-ds='never']").checked = draft.never;
+    dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
+      ? "quiet until the file doubles"
+      : "the prompt returns when the file doubles";
+    dialog.querySelector("[data-ds-pin]").textContent = `@${pin}`;
+    dialog.querySelector("[data-ds-base]").textContent = base.replace(/^https?:\/\//, "");
+
+    dialog.querySelector("[data-ds-sub]").textContent = draft.mode === "edit"
+      ? "Stored in this file. Behaviour applies on next open; assets apply when you save."
+      : `Stored in this file. This copy opens in ${draft.mode} mode.`;
+
+    const preset = policy.presetFor(draft.planned);
+    dialog.querySelectorAll("[data-preset]").forEach((chip) => {
+      const name = chip.dataset.preset;
+      chip.setAttribute("aria-pressed", String(name === (preset ?? "custom")));
+    });
+
+    const body = dialog.querySelector("[data-ds-rows]");
+    body.replaceChildren();
+    for (const row of rowsFor(draft.planned)) {
+      const tr = document.createElement("tr");
+      tr.dataset.row = row.key;
+      const name = document.createElement("td");
+      name.textContent = row.label;
+      if (row.why) {
+        const hint = document.createElement("span");
+        hint.className = "ds-hint";
+        hint.textContent = ` ${row.why}`;
+        name.append(hint);
+      }
+      const size = document.createElement("td");
+      size.className = "num";
+      size.textContent = saveKilobytes(row.bytes);
+      const stored = document.createElement("td");
+      if (row.choices) {
+        const select = document.createElement("select");
+        for (const choice of row.choices) {
+          const option = document.createElement("option");
+          option.value = choice;
+          option.textContent = choice === "online" ? "CDN" : choice;
+          select.append(option);
+        }
+        if (row.choice === "mixed") {
+          const option = document.createElement("option");
+          option.value = "mixed";
+          option.textContent = "mixed";
+          select.append(option);
+        }
+        select.value = row.choice;
+        select.addEventListener("change", () => {
+          /* Re-derive the row list from the live plan, apply this one change to it, and
+             price the result: the plan is the truth, rows are a view of it. */
+          const next = rowsFor(draft.planned);
+          const target = next.find((candidate) => candidate.key === row.key);
+          if (target) target.choice = select.value;
+          repriceDraft(policy.planned({policy: "inline", overrides: overridesFrom(next)}));
+        });
+        stored.append(select);
+      } else {
+        stored.textContent = "inline";
+      }
+      tr.append(name, size, stored);
+      body.append(tr);
+    }
+
+    const inline = draft.planned.decisions.reduce((sum, decision) => sum + (decision.to === "inline" ? decision.bytes : 0), 0);
+    const offloads = draft.planned.decisions.some((decision) => decision.to === "online");
+    dialog.querySelector("[data-ds-total]").textContent =
+      `Stored inline: ${saveKilobytes(inline)} · reader ${offloads ? "fetches what is offloaded, after verifying it" : "opens offline"}`;
+
+    const pending = dialog.querySelector("[data-ds-pending]");
+    pending.hidden = !draft.dirty;
+    pending.textContent = "Unsaved";
+  }
+
+  /** Apply the draft to the live settings block. Saving is what makes it travel. */
+  function commitDocSettings() {
+    if (!settingsDraft) return;
+    const draft = settingsDraft;
+    const next = {...readSettingsBlock()};
+    next.mode = draft.mode;
+    /* A setting can restrict a mode, never contradict it — the loader clamps too. */
+    next.editable = draft.mode === "edit" ? draft.editable : false;
+    next.toolbar = draft.mode === "view" ? false : draft.toolbar;
+    next.saveThresholdBytes = Math.max(0, toBytes(draft.thresholdMb || 0));
+
+    if (draft.never) {
+      /* The stored number is the size at which the author declined; the prompt re-arms
+         at twice that. `outerHTML` is the honest estimate available without saving. */
+      next.thresholdDeclined = Number(settings()?.thresholdDeclined) || document.documentElement.outerHTML.length;
+    } else {
+      delete next.thresholdDeclined;
+    }
+
+    const choice = policy.persist(draft.planned);
+    if (choice.policy) {
+      next.policy = choice.policy;
+      delete next.assets;
+    } else {
+      next.assets = choice.assets;
+      delete next.policy;
+    }
+
+    writeSettingsBlock(next);
+    status.markDirty();
+    closeDocSettings();
+  }
+
+  /** `settings()` is the registry's normalised view; used only for the decline size. */
+  const settings = () => (globalThis.StandaloneDoc && globalThis.StandaloneDoc.settings ? globalThis.StandaloneDoc.settings() : null);
+
+  function wireDocSettings() {
+    const dialog = settingsDialog();
+    if (!dialog || dialog.dataset.wired) return;
+    dialog.dataset.wired = "1";
+
+    dialog.querySelector("[data-ds='mode']").addEventListener("change", (event) => {
+      settingsDraft.mode = event.target.value;
+      settingsDraft.dirty = true;
+      paintDocSettings();
+    });
+    dialog.querySelector("[data-ds='editable']").addEventListener("change", (event) => {
+      settingsDraft.editable = event.target.checked;
+      settingsDraft.dirty = true;
+    });
+    dialog.querySelector("[data-ds='toolbar']").addEventListener("change", (event) => {
+      settingsDraft.toolbar = event.target.checked;
+      settingsDraft.dirty = true;
+    });
+    dialog.querySelector("[data-ds='threshold']").addEventListener("change", (event) => {
+      settingsDraft.thresholdMb = Number(event.target.value) || 0;
+      settingsDraft.dirty = true;
+    });
+    dialog.querySelector("[data-ds='never']").addEventListener("change", (event) => {
+      settingsDraft.never = event.target.checked;
+      settingsDraft.dirty = true;
+      paintDocSettings();
+    });
+    dialog.querySelector("[data-ds='arm']").addEventListener("click", () => {
+      settingsDraft.never = false;
+      settingsDraft.dirty = true;
+      paintDocSettings();
+    });
+    dialog.querySelectorAll("[data-preset]").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const name = chip.dataset.preset;
+        if (!policy.PRESETS.includes(name)) return;
+        repriceDraft(policy.planned({policy: name}));
+      });
+    });
+    dialog.querySelector("[data-ds-cancel]").addEventListener("click", closeDocSettings);
+    dialog.querySelector("[data-ds-done]").addEventListener("click", commitDocSettings);
+    /* Escape, or a backdrop-free close, discards the draft. */
+    dialog.addEventListener("close", () => { settingsDraft = null; });
   }
 
   /* ------------------------------------------------------------ save policy UI */
@@ -510,6 +748,7 @@ export function createToolbar(deps = {}) {
     {keys: "Mod+-", label: "Zoom out", group: "View", native: true, zoom: "out"},
     {keys: "Mod+0", label: "Actual size (100%)", group: "View", native: true, zoom: "reset"},
     {keys: "Mod+9", label: "Fit page width", group: "View", native: true, zoom: "fit"},
+    {keys: "Mod+,", label: "Document settings", group: "File", run: () => openDocSettings(), anywhere: true},
     {keys: "Mod+/", label: "Keyboard shortcuts", group: "Help", run: showShortcuts, anywhere: true},
   ];
 
@@ -559,6 +798,14 @@ export function createToolbar(deps = {}) {
     hints.set("action:save", "Mod+S");
     hints.set("action:link", "Mod+K");
     hints.set("action:shortcuts", "Mod+/");
+    hints.set("action:settings", "Mod+,");
+
+    /* Markup can declare its own hint slot (`<kbd data-hint="action:settings">`), which
+       keeps the menu's shape in the fragment instead of growing this function. */
+    document.querySelectorAll(".menu kbd[data-hint]").forEach((slot) => {
+      const keys = hints.get(slot.dataset.hint);
+      if (keys) slot.textContent = pretty(keys);
+    });
 
     document.querySelectorAll(".menu button").forEach((btn) => {
       if (btn.querySelector("kbd")) return;
@@ -678,6 +925,14 @@ export function createToolbar(deps = {}) {
         return;
       }
     }
+
+    const settingsItem = e.target.closest("[data-settings-open]");
+    if (settingsItem) {closeAllMenus(); openDocSettings(); return;}
+
+    /* The size readout is the second door: it is the number that makes an author ask
+       "why is this file big?", so it opens the sheet where that is answered. */
+    const statsHit = e.target.closest("[data-stats]");
+    if (statsHit) {closeAllMenus(); openDocSettings({section: "size"}); return;}
 
     const submenuBtn = e.target.closest("[data-submenu-trigger]");
     if (submenuBtn) {toggleSubmenu(submenuBtn); return;}
@@ -806,5 +1061,6 @@ export function createToolbar(deps = {}) {
   editor.syncToolbar();
   zoom.syncUI();
 
-  return {save, serialize, validate};
+  wireDocSettings();
+  return {save, serialize, validate, settings: openDocSettings};
 }

@@ -61,7 +61,7 @@ test.describe("file:// (the archival case)", () => {
       exporter: "object",
       progress: "object",
       toolbar: true,
-      symbols: 23,
+      symbols: 24,
       sheets: expect.any(Number),
       legacyGlobals: [],
     });

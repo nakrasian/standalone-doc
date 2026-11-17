@@ -31,8 +31,8 @@
       "order": 20,
       "tag": "style",
       "file": "src/toolbar-styles.css",
-      "bytes": 15610,
-      "sha384": "sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19",
+      "bytes": 19279,
+      "sha384": "sha384-TSkyPLokrGyo5Ko7M5Lp8vYa12ymuKI7Q21//EPMioNtlTg8IkRO8K9h8s+DiDG5",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -59,8 +59,8 @@
       "order": 11,
       "tag": "svg",
       "file": "src/sprite.html",
-      "bytes": 4610,
-      "sha384": "sha384-y+yz7qA0tRecgjUNZTuUW6xqaZPCygg9jExhfiIAEEnc+LICTA93jcM3zNpbdgZq",
+      "bytes": 5260,
+      "sha384": "sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -74,8 +74,8 @@
       "order": 12,
       "tag": "header",
       "file": "src/toolbar-markup.html",
-      "bytes": 14010,
-      "sha384": "sha384-q2sZIbOri3AkYkeLuYKYLzFtPVpsyGQJWTDiN/M9LDRHRkg5OqSOj7Q91p3xKCor",
+      "bytes": 15067,
+      "sha384": "sha384-R0fChUK0NsQPi3tAEYDTnSQtez2aNkr7PVErjhtRByDsUhljxZSQHt9jF8G6t0iz",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -355,8 +355,8 @@
       "order": 85,
       "tag": "script",
       "file": "src/policy.js",
-      "bytes": 14359,
-      "sha384": "sha384-86ryQFRPgnQZlQq97N6RQzCf/m5nb55OrIzGHNx2DBWPsUk0h1LgDKc4rp6GhYes",
+      "bytes": 14712,
+      "sha384": "sha384-/wnucm7EAFPoWBSR7VcH4Tq59vk6mMT7ZP3ceZtkVEk1HE5x/4HZRkPBJDn8oQv8",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -386,8 +386,8 @@
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 32856,
-      "sha384": "sha384-8LhbFf6oYuVyLuix48787u/TIJr1II2+X/B4WoRGVBHRU12aEGoK7/wf3xqvpU5C",
+      "bytes": 43613,
+      "sha384": "sha384-O09LYeWn3Eeq3iqepKPK/UuCCdo8zRr54s8Ta8hcusgMU69v82+BtuIQCZiWXMlg",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -406,7 +406,8 @@
       "provides": [
         "save",
         "serialize",
-        "validate"
+        "validate",
+        "settings"
       ]
     },
     {
@@ -445,8 +446,8 @@
       "order": 14,
       "tag": "div",
       "file": "src/dialogs.html",
-      "bytes": 1266,
-      "sha384": "sha384-SYZ6ET+T3hvyz7OwS+B4DBw3ONyUnv/bjpMpSQBfaVhByAm8T4rbwGFVpgzzhWmR",
+      "bytes": 4470,
+      "sha384": "sha384-od6F5S+GvjPPYiHE+xWstDcyE2hBQZ0fu8Vp0MN+5AIDR8Z6S/V3X7WLnd9RuU0Q",
       "mode": "inline",
       "requiredBy": [
         "edit"
