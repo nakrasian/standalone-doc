@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 369042
+    "bytes": 370354
   },
   "assets": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 29311
+      "bytes": 29398
     },
     {
       "id": "boot-ui-styles",
@@ -97,7 +97,7 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 31985
+      "bytes": 33210
     },
     {
       "id": "export",
@@ -116,8 +116,8 @@
     }
   ],
   "flavors": {
-    "index.html": 369042,
-    "asset-bodies": 355456,
+    "index.html": 370354,
+    "asset-bodies": 356768,
     "markup-and-runtime": 13586,
     "dist/slim.html": 66209
   }

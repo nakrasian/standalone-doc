@@ -981,6 +981,7 @@ dialog.plugin-sheet:focus-visible { outline: none; }
 .plugin-sheet .ps-num { text-align: right; font-variant-numeric: tabular-nums; }
 .plugin-sheet .ps-asset-id { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
 .plugin-sheet .ps-empty { color: var(--muted); font-size: 12px; }
+.plugin-sheet .ps-from { color: var(--muted); font-weight: 400; font-size: 11px; }
 
 .plugin-sheet .ps-form { display: grid; gap: 7px; }
 .plugin-sheet .ps-field { display: flex; gap: 8px; align-items: center; }

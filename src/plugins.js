@@ -273,6 +273,20 @@ export function createPlugins(deps = {}) {
   const catalogUrl = () =>
     String(registry.manifest().cdnBase || "").replace(/\/$/, "").replace(/\/cdn$/, "") + "/registry.json";
 
+  /* A document may carry its own catalog in a `#plugin-catalog` block. That is what makes
+     the sheet useful from disk: a `file://` page cannot fetch a relative url (lab/007), and
+     the published tag is not where a lab document looks. Absent, it is fetched from the
+     runtime's cdnBase — advisory either way. */
+  function catalogBlock() {
+    const el = document.getElementById("plugin-catalog");
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent);
+    } catch {
+      return null;
+    }
+  }
+
   const say = (text) => {
     foot = text;
     if (sheet) sheet.querySelector("[data-ps-foot]").textContent = text;
@@ -470,12 +484,15 @@ export function createPlugins(deps = {}) {
       const why = catalogError
         ? `No catalog reachable (${catalogError}). Add a plugin by url below.`
         : catalog
-          ? "Nothing in this catalog matches."
+          ? `Catalog: ${catalogFrom}. Nothing in it matches.`
           : "No catalog yet for this runtime — add a plugin by url below.";
       availableList.append(element("p", "ps-empty", why));
     } else {
       for (const [id, asset] of available) availableList.append(availableRow(id, asset));
     }
+
+    const from = sheet.querySelector("[data-ps-from]");
+    if (from) from.textContent = catalog ? `· ${catalogFrom}` : catalogFrom ? `· ${catalogFrom}` : "";
 
     const advanced = sheet.querySelector('[data-ps-form]');
     advanced.replaceChildren(formRow());
@@ -509,7 +526,7 @@ export function createPlugins(deps = {}) {
           <div data-ps-list="installed"></div>
         </section>
         <section class="ps-sect" data-ps-section="available">
-          <h3>Available</h3>
+          <h3>Available <span class="ps-from" data-ps-from></span></h3>
           <p>From this runtime's catalog. Installing pins <code>url + sha384</code> into this file.</p>
           <div data-ps-list="available"></div>
         </section>
@@ -545,16 +562,27 @@ export function createPlugins(deps = {}) {
     loadCatalog().then(() => renderSheet()).catch(() => renderSheet());
   }
 
+  let catalogFrom = null;
+
   async function loadCatalog() {
     if (catalog || catalogError) return;
+    const inline = catalogBlock();
+    if (inline) {
+      catalog = inline;
+      catalogFrom = "this file";
+      return;
+    }
     try {
       const response = await fetch(catalogUrl(), { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       catalog = await response.json();
+      catalogFrom = catalogUrl();
     } catch (error) {
       /* Advisory only: the document embeds its own pins, so a missing catalog costs
-         nothing but convenience. */
-      catalogError = (error && error.message) || String(error);
+         nothing but convenience — but say which url failed, or the next person has to
+         guess whether the network, the tag, or the code is at fault. */
+      catalogFrom = catalogUrl();
+      catalogError = `${(error && error.message) || String(error)} at ${catalogUrl()}`;
     }
   }
 

@@ -50,7 +50,7 @@ const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s
  * (`<base>/registry.json`) resolves to a file this spec controls. The document itself
  * is fully inline, so nothing else is fetched.
  */
-function makeDoc({ pinned = false, catalog = true, withFigure = false } = {}) {
+function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCatalog = false } = {}) {
   fs.mkdirSync(FILES, { recursive: true });
   fs.writeFileSync(path.join(FILES, "widget-plugin.js"), PLUGIN_JS);
 
@@ -90,8 +90,7 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false } = {}) {
       + '<div class="figure-frame" data-runtime="ephemeral"></div><figcaption>Widget figure</figcaption></figure>');
   }
 
-  if (catalog) {
-    fs.writeFileSync(path.join(FILES, "registry.json"), JSON.stringify({
+  const catalogJson = JSON.stringify({
       schema: 1,
       assets: {
         widget: {
@@ -110,12 +109,20 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false } = {}) {
           }],
         },
       },
-    }));
-  } else {
-    fs.rmSync(path.join(FILES, "registry.json"), { force: true });
+  });
+  if (catalog) fs.writeFileSync(path.join(FILES, "registry.json"), catalogJson);
+  else fs.rmSync(path.join(FILES, "registry.json"), { force: true });
+
+  const slug = [pinned && "pinned", !catalog && "nocat", withFigure && "fig", inlineCatalog && "inlinecat"].filter(Boolean).join("-") || "base";
+  /* A document may carry its catalog: that is what makes "Available" work from disk,
+     where a relative fetch is impossible (lab/007). */
+  if (inlineCatalog) {
+    /* The same JSON, carried by the document instead of served next to it. */
+    const block = `<script id="plugin-catalog" type="application/json">${catalogJson.replace(/</g, "\\u003c")}</script>`;
+    const at = html.lastIndexOf("</body>");
+    html = html.slice(0, at) + block + html.slice(at);
   }
 
-  const slug = [pinned && "pinned", !catalog && "nocat", withFigure && "fig"].filter(Boolean).join("-") || "base";
   const name = `.test-tmp/${DIR}/doc-${slug}.html`;
   fs.writeFileSync(path.join(ROOT, name), html);
   return "/" + name;
@@ -202,6 +209,32 @@ test("a plugin a figure needs cannot be switched off or removed", async ({ page 
   expect(refused.afterRemove.rows).toBe(1);
   expect(refused.afterRemove.plugins).toEqual(["widget"]);
   expect(refused.afterRemove.foot).toContain("Refused");
+});
+
+test("a document that carries its catalog needs no network for it", async ({ page }) => {
+  /* The catalog file is deliberately absent: only the block in the document can supply it. */
+  await openSheet(page, makeDoc({ catalog: false, inlineCatalog: true }));
+  await page.waitForFunction(() => !!document.querySelector("[data-install]"));
+
+  const state = await page.evaluate(() => ({
+    from: document.querySelector("[data-ps-from]").textContent,
+    available: [...document.querySelectorAll('[data-ps-list="available"] .ps-row')].map((row) => row.dataset.id),
+    installs: document.querySelectorAll("[data-install]").length,
+  }));
+  /* "· this file" is the label: it says where the list came from, which is the difference
+     between a real catalog and a document that remembered one. */
+  expect(state.from).toContain("this file");
+  expect(state.available).toEqual(["widget"]);
+  expect(state.installs).toBe(1);
+
+  await page.evaluate(() => document.querySelector("[data-install]").click());
+  await page.waitForFunction(() => Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}).includes("widget"));
+  const pinned = await page.evaluate(() => {
+    const asset = JSON.parse(document.getElementById("asset-manifest").textContent).assets.find((a) => a.id === "widget");
+    return { url: asset.url, integrity: asset.integrity };
+  });
+  expect(pinned.url).toBe(`${LOCAL}/widget-plugin.js`);
+  expect(pinned.integrity).toMatch(/^sha384-/);
 });
 
 test("install from the catalog pins the version's own hash", async ({ page }) => {
