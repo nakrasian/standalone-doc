@@ -235,3 +235,60 @@ test("a catalog proposal must be absolute, hashed, and an identifier factory", (
     run(["combine"]);
   }
 });
+
+test("build --base re-points the documents without touching a hash", () => {
+  const out = path.join(".test-tmp", "base-build");
+  const target = path.join(ROOT, out);
+  fs.rmSync(target, { recursive: true, force: true });
+  try {
+    const published = manifestOf(fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8"));
+    const before = fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8");
+
+    run(["build", "--base=http://127.0.0.1:8080/dist/cdn", `--out=${out}`]);
+
+    const dev = manifestOf(fs.readFileSync(path.join(target, "slim.html"), "utf8"));
+    assert.equal(dev.cdnBase, "http://127.0.0.1:8080/dist/cdn");
+    assert.equal(published.assets.length, dev.assets.length);
+    for (const [i, asset] of published.assets.entries()) {
+      assert.equal(dev.assets[i].integrity, asset.integrity, `${asset.id}: a base moves the address, never the hash`);
+      assert.equal(dev.assets[i].bytes, asset.bytes, `${asset.id}: bytes are the tree's`);
+      if (asset.url) assert.ok(dev.assets[i].url.startsWith("http://127.0.0.1:8080/dist/cdn/"), `${asset.id}: url re-pointed`);
+      else assert.equal(dev.assets[i].url, undefined, `${asset.id}: infra has no url to move`);
+      assert.equal(dev.assets[i].mode, asset.mode, `${asset.id}: materialisation is not the base's business`);
+    }
+    assert.equal(dev.assets.find((a) => a.id === "editor").url, "http://127.0.0.1:8080/dist/cdn/editor.js");
+
+    /* The release artefacts are not touched: a dev base must never be committed. */
+    assert.equal(fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8"), before);
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test("build --base refuses to write into dist/", () => {
+  const output = runFailing(["build", "--base=http://127.0.0.1:8080/dist/cdn", "--out=dist"]);
+  assert.ok(output, "build should have refused");
+  assert.match(output, /must not write into dist\//);
+});
+
+test("check refuses a document base that is not a release tag", () => {
+  const file = path.join(ROOT, "manifest.json");
+  const original = fs.readFileSync(file, "utf8");
+  try {
+    const manifest = JSON.parse(original);
+    manifest.cdnBase = "http://127.0.0.1:8080/dist/cdn";
+    fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
+    run(["combine"]);
+    const output = runFailing(["check"]);
+    assert.ok(output, "check should have failed");
+    assert.match(output, /cdnBase is not a release tag/);
+  } finally {
+    fs.writeFileSync(file, original);
+    run(["combine"]);
+  }
+});
+
+/** The document's own manifest block, read the way the loader reads it. */
+function manifestOf(html) {
+  return JSON.parse(/<script id="asset-manifest" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1]);
+}

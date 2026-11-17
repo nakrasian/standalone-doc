@@ -26,6 +26,21 @@ refs, so it would do so unpredictably. `npm run cdn:verify` fetches every publis
 asset at the pin and compares it with the recorded hash; `.github/workflows/cdn.yml` runs
 it nightly.
 
+A document's base and its bytes are therefore a *pair*: the hashes are the tree's, the URL
+is the tag's, and the two only agree at the tag. `npm run build` alone produces documents
+that are true only once that tag exists. To run the tree you are editing **before** it is
+tagged, build against your own server instead — same hashes, different address:
+
+```sh
+npm run dev &                                                   # serves dist/cdn
+node build.mjs build --base=http://127.0.0.1:8080/dist/cdn --out=.test-tmp/build
+open .test-tmp/build/slim.html                                  # from disk, no tag involved
+```
+
+`--base` refuses to write into `dist/`, and `check` fails if `manifest.json`'s `cdnBase` is
+not a tag: a local or branch base must never be committed, because every fetch from it
+would promise bytes no server keeps.
+
 ## Quick start
 
 No dependencies to install. Node 20+.

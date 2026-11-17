@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`build --base=<url> --out=<dir>`** builds the three flavours re-pointed at another base
+  with `integrity`, `bytes` and every `mode` untouched — a hash never moves, only the address.
+  It is what a development loop needs: `--base=http://127.0.0.1:8080/dist/cdn` plus
+  `npm run dev` makes `slim.html` fetch the tree you are editing, before any tag exists.
+  The flag refuses to write into `dist/`, because a committed document is a *release pair*:
+  its base is a tag and its hashes are that tag's bytes. `check` now enforces the same rule
+  from the other side — a `cdnBase` that is not `@vX.Y.Z` fails the gate.
+
 ## v0.3.1 — 2026-11-17
 
 ### Fixed
@@ -15,7 +27,7 @@
   `dist/viewer.html` fetch the bytes this release contains. Documents saved before this tag
   are unaffected: a file keeps the pin it was saved with, and `v0.3.0` keeps serving v0.3.0.
 
-## v0.3.0 — 2025-11-23
+## v0.3.0 — 2026-11-17
 
 Documents can carry plugins: code a document pins, loads on demand, verifies before it runs,
 and extends the editor with — and a catalog so an author can find one.
@@ -70,7 +82,7 @@ figure store entries, and `#plugin-catalog`. `#doc-settings` is unchanged.
 index.html 293 → 372 KB (+27 %), slim 44 → 65 KB (+48 %). The plugin contract is
 infrastructure: every document carries the loader that can run one.
 
-## v0.2.0 — 2025-11-17
+## v0.2.0 — 2026-11-17
 
 The document gains a settings sheet, and its own behaviour becomes editable without
 hand-editing JSON.
@@ -102,7 +114,7 @@ hand-editing JSON.
 `schema: 1`, still preliminary. Two additive fields (`settings.ui`, `settings.timeoutMs`)
 and one subtraction: `policy` is only written when it differs from the default.
 
-## v0.1.0 — 2025-11-17
+## v0.1.0 — 2026-11-17
 
 The first published runtime. `manifest.json.cdnBase` points at
 `…/standalone-doc@v0.1.0/dist/cdn`, so a document saved by this version pins an

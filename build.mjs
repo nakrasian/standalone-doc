@@ -7,6 +7,9 @@
  *   node build.mjs verify     round-trip and hash checks (read-only)
  *   node build.mjs check      verify + schema + guarded-file scan  (CI gate)
  *   node build.mjs build      dist/editor.html + dist/size-report.json
+ *   node build.mjs build --base=<url> --out=<dir>
+ *                             the same documents re-pointed at another base (dev);
+ *                             never writes dist/, since only a tag is a release pair
  *   node build.mjs report     size table; --baseline rewrites size-baseline.json
  *   node build.mjs verify-cdn fetch every published asset and check its hash
  *   node build.mjs dev        static server on :8080
@@ -466,6 +469,33 @@ function withDocManifest(html, doc) {
   return html.slice(0, lineStart) + block + "\n" + html.slice(lineStart);
 }
 
+/** Read a document's own manifest block back out of built HTML. */
+function docManifestOf(html) {
+  const found = new RegExp(`<script id="${DOC_MANIFEST_ID}" type="application/json">([\\s\\S]*?)</script>`).exec(html);
+  return found ? JSON.parse(found[1]) : null;
+}
+
+/**
+ * Re-point a document at another base, leaving `integrity`, `bytes` and every `mode`
+ * exactly as they were: the bytes are this tree's, so only the address moves. That is
+ * the whole difference between a dev build and a release — and the reason a rebuild
+ * committed against an older tag could promise bytes no tag served.
+ *
+ * Plugin pins carry explicit urls that are not derived from `cdnBase` (their author
+ * publishes them), so they keep pointing where they were installed from.
+ */
+function retarget(html, base) {
+  const doc = docManifestOf(html);
+  if (!doc) throw new Error(`cannot retarget: no #${DOC_MANIFEST_ID} block`);
+  const from = String(doc.cdnBase || "").replace(/\/$/, "");
+  doc.cdnBase = base;
+  for (const entry of doc.assets) {
+    if (!entry.url || !from || !entry.url.startsWith(`${from}/`)) continue;
+    entry.url = `${base}/${entry.url.slice(from.length + 1)}`;
+  }
+  return withDocManifest(html, doc);
+}
+
 /** Remove one marked asset block entirely. */
 function withoutAsset(html, id) {
   const start = html.indexOf(`<!-- @asset id="${id}" `);
@@ -843,6 +873,19 @@ async function cmdCheck() {
     all.push(`manifest: ${err.message}`);
   }
 
+  /* A base and its bytes are a release pair. Only a tag can be both immutable and
+     public; a local or branch base is a dev build's address and must never reach a
+     document that is committed, because every fetch from it then promises bytes no
+     server keeps (that is exactly how the v0.3.0 slim stopped opening). */
+  try {
+    const base = String(readManifest().cdnBase || "");
+    if (!/@v\d+\.\d+\.\d+(\/|$)/.test(base)) {
+      all.push(`manifest.json cdnBase is not a release tag: ${base} — use \`build --base --out\` for a dev build`);
+    }
+  } catch (err) {
+    all.push(`manifest: ${err.message}`);
+  }
+
   /* dependency-graph audit: order constraints, late-vs-plain, drift against the
      MODULES table, and freshness of the generated reference artifacts */
   const depWarnings = [];
@@ -1061,17 +1104,38 @@ function buildViewer(html, manifest) {
   return out;
 }
 
-function cmdBuild() {
+function cmdBuild({ base = null, out = null } = {}) {
   const { problems, html } = verify({ quiet: true });
   if (problems.length) {
     console.error(`build: refusing to build, verify failed (${problems.length})`);
     for (const p of problems) console.error(`  - ${p}`);
     process.exit(1);
   }
+  const manifest = readManifest();
+
+  /* A dev base produces documents that are true only against a server you run, so it
+     must not land where a release lives: the committed flavours are the only copy a
+     reader ever sees, and `check` refuses a document whose base is not a tag. */
+  if (base) {
+    const dir = out || ".test-tmp/build";
+    const resolved = path.resolve(ROOT, dir);
+    if (resolved === path.resolve(ROOT, DIST) || resolved.startsWith(path.resolve(ROOT, DIST) + path.sep)) {
+      console.error(`build: --base must not write into ${DIST}/ — a committed document is a release pair`);
+      console.error(`build: try --out=.test-tmp/build`);
+      process.exit(1);
+    }
+    const put = (doc) => retarget(doc, base);
+    write(`${dir}/editor.html`, put(html));
+    write(`${dir}/slim.html`, put(buildSlim(html, manifest)));
+    write(`${dir}/viewer.html`, put(buildViewer(html, manifest)));
+    console.log(`build: dev base ${base} → ${dir}/ (nothing published, nothing checked in)`);
+    console.log(`build: open ${dir}/slim.html from disk, with ${DIST}/cdn served`);
+    return;
+  }
+
   write(`${DIST}/editor.html`, html);
 
   /* Byte copies of the sources: what integrity pins is exactly what we publish. */
-  const manifest = readManifest();
   for (const asset of manifest.assets) {
     if (asset.role === "infra") continue;
     if (asset.kind === "bin") writeBytes(`${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`, readBytes(asset.file));
@@ -1278,7 +1342,10 @@ switch (cmd) {
     await cmdCheck();
     break;
   case "build":
-    cmdBuild();
+    cmdBuild({
+      base: flags.find((flag) => flag.startsWith("--base="))?.slice("--base=".length) ?? null,
+      out: flags.find((flag) => flag.startsWith("--out="))?.slice("--out=".length) ?? null,
+    });
     break;
   case "report":
     cmdReport({ baseline: flags.includes("--baseline") });
