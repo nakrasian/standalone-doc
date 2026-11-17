@@ -1,22 +1,22 @@
 {
   "source": {
-    "bytes": 392835
+    "bytes": 407691
   },
   "assets": [
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 60443
+      "bytes": 60772
     },
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 49246
+      "bytes": 50945
     },
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 41597
+      "bytes": 41829
     },
     {
       "id": "plugins",
@@ -61,7 +61,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 7907
+      "bytes": 9654
     },
     {
       "id": "boot-ui-styles",
@@ -89,6 +89,16 @@
       "bytes": 4606
     },
     {
+      "id": "viewer-bar",
+      "kind": "js",
+      "bytes": 4164
+    },
+    {
+      "id": "viewer-bar-styles",
+      "kind": "css",
+      "bytes": 3780
+    },
+    {
       "id": "progress",
       "kind": "js",
       "bytes": 1997
@@ -104,6 +114,11 @@
       "bytes": 1591
     },
     {
+      "id": "viewer-bar-markup",
+      "kind": "html",
+      "bytes": 1344
+    },
+    {
       "id": "figure-tools",
       "kind": "html",
       "bytes": 835
@@ -115,9 +130,9 @@
     }
   ],
   "flavors": {
-    "index.html": 392835,
-    "asset-bodies": 378852,
-    "markup-and-runtime": 13983,
-    "dist/slim.html": 77199
+    "index.html": 407691,
+    "asset-bodies": 392147,
+    "markup-and-runtime": 15544,
+    "dist/slim.html": 78586
   }
 }

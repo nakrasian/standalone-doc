@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.5.0 — 2026-11-17
+
+A read-only document now has chrome of its own: a folio that knows the page, a save, and
+settings a reader can act on — and, because of it, a repaired viewer can keep its repair.
+
+### Added
+
+- **The viewer bar** — `viewer-bar-markup`, `viewer-bar-styles`, `viewer-bar`
+  (`requiredBy: ["view"]`). The editor's minimal silhouette in 34 px: folio, centred title,
+  *Save a copy*, and a settings popover with mode, pages, pinned runtime and zoom. It carries
+  its own ~3 KB of CSS because `toolbar-styles.css` is edit-only and 30.5 KB, and a viewer must
+  not pay that to show two buttons.
+- **A real current page.** `pagination.pageAt()` answers which sheet covers the viewport's
+  centre (not its top: a tall figure can fill the top while the reader is still above), and
+  `pagination.syncFolio()` writes every `[data-folio]` on a rAF-throttled scroll tick. The
+  editor's minimal bar shows a live `p. 3 / 12` for the first time — it had been static markup —
+  and a viewer's bar reads the same element.
+- **Save from a viewer**, which is the reason for the bar: 6a's repair card asks whether a
+  `[data-save]` exists before promising "save the file to keep this update", so a viewer with a
+  Save button is a viewer that can keep a repair. A viewer's save is a download — a read-only
+  document cannot write the file it came from.
+
+### Changed
+
+- **The save policy has one row per capability** — Base view, Editor, Viewer — instead of folding
+  everything non-base into "Editor". An editing document is therefore offered the Viewer row,
+  absent by default: the bar is chrome it never builds, and the author can now see and price it.
+- **`settings.toolbar` means "show chrome"**, not "show the editor toolbar":
+  `authored.toolbar ?? (mode !== "view")`, and `buildViewer()` authors `true`. A viewer saved
+  before this release never authored it, so it keeps its chrome-less look.
+- **A figure is selectable only in edit mode.** `#figure-tools` is an edit-only fragment, so the
+  outline a viewer used to draw promised actions that could not exist (lab/010, measured).
+
+### Fixed
+
+- **The save dialog's estimate subtracted a mode-driven `absent` twice.** Adding an asset a
+  document does not build (the viewer bar in an editor) exposed it: the dialog now prices from
+  "everything present in the file". *Keep inline* also means "nothing is fetched" rather than
+  "every row is inline" — an absent row is a removal, not an offload.
+
+### Size
+
+editor 383.6 → 398.1 KB, viewer 161.4 → 174.2 KB, slim 75.4 → 76.7 KB. The bar is 7.9 KB of
+markup, CSS and JS. An editing document carries it without building it, because `dist/editor.html`
+is byte-identical to `index.html` and `index.html` is the canonical document — the author can drop
+it with the Viewer row. A slim document pays 1.4 KB now, and fetches the bar (three files,
+8.1 KB) only if it is saved as a viewer.
+
 ## v0.4.0 — 2026-11-17
 
 A document whose pin no longer resolves can repair itself. The failure card offers the newest

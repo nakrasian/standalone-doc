@@ -161,8 +161,8 @@ test("a view-mode document boots without the editor", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(state.state).toBe("ready");
-  expect(state.built).toEqual(["apply-settings", "signals", "zoom", "pagination", "figures"]);
-  expect(state.constructed).toEqual(["apply-settings", "figures", "pagination", "signals", "zoom"]);
+  expect(state.built).toEqual(["apply-settings", "signals", "zoom", "pagination", "figures", "viewer-bar"]);
+  expect(state.constructed).toEqual(["apply-settings", "figures", "pagination", "signals", "viewer-bar", "zoom"]);
   /* The lock is the loader's job, from the settings block — not the markup's. */
   expect(state.mode).toBe("view");
   expect(state.editable).toBe("false");

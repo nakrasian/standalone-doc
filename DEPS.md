@@ -12,12 +12,13 @@ edit by hand; `npm run check` fails if this file is stale.
 | signals | 30 | — | — | `on`, `emit`, `mute`, `composing` | * |
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | edit |
-| pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `refresh` | * |
+| pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `usage`, `blockOf`, `settingsFragment`, `PRESETS` | edit |
 | toolbar | 90 | zoom, editor, figures, status, policy | export | `save`, `serialize`, `validate`, `settings` | edit |
+| viewer-bar | 92 | pagination, zoom, figures, signals | — | `save`, `sync`, `openPanel` | view |
 | plugins | 95 | signals, figures, status | — | `activateUi`, `wire`, `unwire`, `openPanel`, `openSheet`, `install` | edit |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
 | bootstrap | 120 | — | — | _infrastructure_ | * |
@@ -44,6 +45,10 @@ graph LR
   status --> toolbar
   policy --> toolbar
   export -.->|late| toolbar
+  pagination --> viewer-bar
+  zoom --> viewer-bar
+  figures --> viewer-bar
+  signals --> viewer-bar
   signals --> plugins
   figures --> plugins
   status --> plugins

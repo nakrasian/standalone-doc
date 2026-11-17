@@ -1399,6 +1399,10 @@ export function createFigures(deps = {}) {
     content.addEventListener("drop", onDrop);
 
     document.addEventListener("click", (event) => {
+      /* Selection is an editing affordance: #figure-tools is an edit-only fragment, so an
+         outline in a viewer promises actions that cannot exist (lab/010, measured). */
+      const mode = env?.StandaloneDoc?.settings?.().mode ?? document.documentElement.dataset.mode;
+      if (mode === "view") return;
       const figure = event.target.closest && event.target.closest("figure.figure");
       if (figure && content.contains(figure)) {
         select(figure);

@@ -1,0 +1,163 @@
+/* The viewer's only chrome: a folio, a save, and a reader's settings.
+   It mirrors the editor's `#ui-minimal` bar (34px, folio left, title centred, Save
+   right) with its own rules: `toolbar-styles.css` is `requiredBy: ["edit"]` and costs
+   30.5 KB, which a viewer must not pay for two buttons. The tokens are the editor's
+   values, repeated on purpose. */
+
+#viewer-bar {
+  --vb-ink: #1b1f24;
+  --vb-muted: #6b7280;
+  --vb-line: #dfe1e6;
+  --vb-paper: #fff;
+  --vb-hover: #eef0f4;
+  --vb-accent: #2f6fed;
+
+  flex: 0 0 auto;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  background: #fbfbfc;
+  border-bottom: 1px solid var(--vb-line);
+  font: 500 12px/1 system-ui, -apple-system, sans-serif;
+  color: var(--vb-muted);
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+  z-index: 40;
+}
+
+/* `toolbar` in #doc-settings means "show chrome". A viewer saved before this release
+   never authored it, so it stays bar-less — see registry.settings(). */
+html[data-toolbar="off"] #viewer-bar {
+  display: none;
+}
+
+#viewer-bar .folio {
+  min-width: 6.5em;
+  font-variant-numeric: tabular-nums;
+  color: #9aa1ab;
+}
+
+#viewer-bar .vb-title {
+  max-width: 26em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  color: var(--vb-ink);
+}
+
+#viewer-bar .grow {
+  flex: 1;
+}
+
+#viewer-bar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  color: var(--vb-ink);
+  cursor: pointer;
+}
+
+#viewer-bar button:hover {
+  background: var(--vb-hover);
+}
+
+#viewer-bar button:focus-visible {
+  outline: 2px solid var(--vb-accent);
+  outline-offset: 1px;
+}
+
+#viewer-bar button.save-text {
+  color: var(--vb-accent);
+  font-weight: 600;
+}
+
+#viewer-bar button[aria-expanded="true"] {
+  background: var(--vb-hover);
+}
+
+#viewer-bar .vb-wrap {
+  position: relative;
+}
+
+#viewer-bar .vb-panel {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  width: 268px;
+  padding: 12px 14px;
+  background: var(--vb-paper);
+  border: 1px solid var(--vb-line);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(20, 24, 32, .14);
+  color: var(--vb-ink);
+  font-weight: 400;
+  white-space: normal;
+  text-align: left;
+  z-index: 50;
+}
+
+#viewer-bar .vb-panel[hidden] {
+  display: none;
+}
+
+#viewer-bar .vb-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--vb-muted);
+}
+
+#viewer-bar .vb-row b {
+  margin-left: auto;
+  color: var(--vb-ink);
+  font-weight: 600;
+}
+
+#viewer-bar .vb-row code {
+  margin-left: auto;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--vb-ink);
+}
+
+#viewer-bar .vb-sep {
+  height: 1px;
+  margin: 9px 0;
+  background: var(--vb-line);
+}
+
+#viewer-bar .vb-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#viewer-bar .vb-zoom [data-zoom-label] {
+  min-width: 5.2em;
+  text-align: center;
+  font-size: 12px;
+  color: var(--vb-ink);
+}
+
+#viewer-bar .vb-note {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--vb-muted);
+}
+
+@media print {
+  #viewer-bar {
+    display: none;
+  }
+}

@@ -526,9 +526,20 @@ export function createToolbar(deps = {}) {
   const saveKilobytes = (bytes) =>
     bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+  /**
+   * Rows are capabilities, not assets: one per `requiredBy` group. Three modes now ship
+   * chrome of their own — a `["*"]` base, `["edit"]` editing, `["view"]` the viewer bar —
+   * so an edit document is offered the choice of carrying a reader's bar it will not
+   * build. Plugins are their own rows: their presence is an author's switch.
+   */
   function rowsFor(planned) {
-    const base = [];
-    const editor = [];
+    const LABEL = {view: "Base view", editor: "Editor", viewer: "Viewer"};
+    /* `["view"]` and `["*"]` must not share a key: one is the base row, the other is the
+       bar that only a viewer builds. */
+    const keyOf = (requiredBy) => requiredBy.includes("*")
+      ? "view"
+      : requiredBy.includes("edit") ? "editor" : requiredBy.includes("view") ? "viewer" : requiredBy.join("+");
+    const groups = new Map();
     const plugins = [];
     for (const decision of planned.decisions) {
       if (decision.role === "infra") continue;
@@ -541,20 +552,39 @@ export function createToolbar(deps = {}) {
           choices: ["inline", "online", "absent"],
           choice: decision.to,
         });
-      } else if ((decision.requiredBy || ["*"]).includes("*")) base.push(decision);
-      else editor.push(decision);
+        continue;
+      }
+      const key = keyOf(decision.requiredBy || ["*"]);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(decision);
     }
     const shared = (decisions) => {
       const first = decisions[0].to;
       return decisions.every((decision) => decision.to === first) ? first : "mixed";
     };
     const rows = [];
-    if (base.length) {
-      rows.push({key: "view", label: "Base view", ids: base.map((d) => d.id), bytes: base.reduce((n, d) => n + d.bytes, 0), choices: ["inline", "online"], choice: shared(base)});
+    for (const [key, decisions] of groups) {
+      if (key === "viewer") continue;
+      rows.push({
+        key,
+        label: LABEL[key] || key,
+        ids: decisions.map((d) => d.id),
+        bytes: decisions.reduce((n, d) => n + d.bytes, 0),
+        choices: key === "view" ? ["inline", "online"] : ["inline", "online", "absent"],
+        choice: shared(decisions),
+      });
     }
     rows.push(...plugins);
-    if (editor.length) {
-      rows.push({key: "editor", label: "Editor", ids: editor.map((d) => d.id), bytes: editor.reduce((n, d) => n + d.bytes, 0), choices: ["inline", "online", "absent"], choice: shared(editor)});
+    for (const [key, decisions] of groups) {
+      if (key !== "viewer") continue;
+      rows.push({
+        key,
+        label: LABEL[key] || key,
+        ids: decisions.map((d) => d.id),
+        bytes: decisions.reduce((n, d) => n + d.bytes, 0),
+        choices: ["inline", "online", "absent"],
+        choice: shared(decisions),
+      });
     }
     return rows;
   }
@@ -577,13 +607,20 @@ export function createToolbar(deps = {}) {
     if (!dialog) return Promise.resolve(null);
 
     const rows = rowsFor(planned);
+    /* `bytes` is what this document's own plan would write. The dialog prices every
+       choice from "everything present in the file", so add back what that plan already
+       dropped — a mode-driven `absent`, such as the viewer bar in an editing document. */
+    const baseline = planned.decisions.reduce(
+      (total, decision) => (decision.to !== "inline" && blocks[decision.id] != null ? total + blocks[decision.id] : total),
+      bytes,
+    );
 
     /* Price a row choice from the file as it stands: removing a block saves what that
        block actually weighs, and re-adding one costs what the CDN copy weighs. Using
        the manifest's src/ byte counts here would overstate the saving by the size of
        the compiled envelope. */
     const totalFor = (decisions) => {
-      let total = bytes;
+      let total = baseline;
       for (const decision of decisions) {
         const present = blocks[decision.id] != null;
         if (present && decision.to !== "inline") total -= blocks[decision.id];
@@ -672,7 +709,7 @@ export function createToolbar(deps = {}) {
       dialog.querySelector("[data-save-confirm]").onclick = () =>
         finish({
           overrides: overridesFrom(rows),
-          declined: !rows.some((row) => row.choices && row.choice !== "inline") && paint() > threshold,
+          declined: !rows.some((row) => row.choices && row.choice === "online") && paint() > threshold,
         });
 
       paint();

@@ -2,6 +2,27 @@
   "schema": 1,
   "assets": [
     {
+      "id": "viewer-bar",
+      "order": 92,
+      "mode": "inline",
+      "requiredBy": [
+        "view"
+      ],
+      "deps": [
+        "pagination",
+        "zoom",
+        "figures",
+        "signals"
+      ],
+      "late": [],
+      "optional": [],
+      "provides": [
+        "save",
+        "sync",
+        "openPanel"
+      ]
+    },
+    {
       "id": "registry",
       "order": 5,
       "mode": "inline",
@@ -94,6 +115,8 @@
       "provides": [
         "schedule",
         "pageCount",
+        "pageAt",
+        "syncFolio",
         "refresh"
       ]
     },

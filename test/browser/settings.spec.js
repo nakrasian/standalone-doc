@@ -101,8 +101,14 @@ test("the sheet shows behaviour, storage and the pin", async ({ page }) => {
 
   expect(shown.open).toBe(true);
   expect(shown.mode).toBe("edit");
-  /* An edit-mode document: the base view and the editor, both inline by default. */
-  expect(shown.rows).toEqual([{key: "view", stored: "inline"}, {key: "editor", stored: "inline"}]);
+  /* An edit-mode document: the base view and the editor, both inline by default — and a
+     Viewer row, absent. The bar a viewer builds is chrome an editor never shows, so it is
+     offered as a choice rather than silently carried. */
+  expect(shown.rows).toEqual([
+    {key: "view", stored: "inline"},
+    {key: "editor", stored: "inline"},
+    {key: "viewer", stored: "absent"},
+  ]);
   expect(shown.presets).toEqual(["inline"]);
   expect(shown.pin).toBe(`@${PIN}`);
   expect(shown.threshold).toBe("2");

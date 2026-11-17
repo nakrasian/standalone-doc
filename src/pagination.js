@@ -5,6 +5,7 @@ export function createPagination(deps = {}) {
   const content = document.getElementById("content");
   const sheets = document.getElementById("sheets");
   const stage = document.getElementById("stage");
+  const viewport = document.getElementById("viewport");
 
   /* Calculate the height, pitch, and padding of the probe element */
   const prContent = document.getElementById("probe-content-h");
@@ -218,6 +219,36 @@ export function createPagination(deps = {}) {
     return lastPlan && lastPlan.p ? lastPlan.p.pages.length : 1;
   }
 
+  /* The page under the reader's eye: the sheet covering the centre of the viewport.
+     Centre, not top — a tall figure can fill the top of the screen while the reader is
+     still on the page above. Layout px, so the zoomed scroll offset is divided out,
+     exactly as measureH() does. */
+  function pageAt(clientY = viewport.clientHeight / 2) {
+    const pages = lastPlan?.p?.pages;
+    if (!pages || !pages.length) return 1;
+    const y = (viewport.scrollTop + clientY) / (zoom.value || 1);
+    for (let i = 0; i < pages.length; i++) {
+      if (y < pages[i].top + pages[i].avail) return i + 1;
+    }
+    return pages.length;
+  }
+
+  /* Every `[data-folio]` in the document, the way zoom.syncUI() owns [data-zoom-label].
+     Page numbers are written in one place because two bars show them: the editor's
+     minimal chrome and a viewer's bar. A scroll tick, not a signal — pagination does not
+     mutate while the reader scrolls. */
+  let folioFrame = 0;
+
+  function syncFolio() {
+    folioFrame = 0;
+    const nodes = document.querySelectorAll("[data-folio]");
+    if (!nodes.length) return;
+    const text = `p. ${pageAt()} / ${pageCount()}`;
+    for (const node of nodes) {
+      if (node.textContent !== text) node.textContent = text;
+    }
+  }
+
   function refresh() {
     if (applying) return;
 
@@ -236,7 +267,14 @@ export function createPagination(deps = {}) {
     signals.emit("layout", {pages: pageCount()});
   }
 
+  /* The reader moves; the pages do not. One rAF-throttled tick per scroll burst. */
+  viewport.addEventListener("scroll", () => {
+    if (!folioFrame) folioFrame = requestAnimationFrame(syncFolio);
+  }, {passive: true});
+  signals.on("layout", syncFolio);
+
   // Render once immediately, then again after fonts settle.
   refresh();
-  return {schedule, pageCount, refresh};
+  syncFolio();
+  return {schedule, pageCount, pageAt, syncFolio, refresh};
 }

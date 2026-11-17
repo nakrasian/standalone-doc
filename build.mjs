@@ -91,6 +91,8 @@ const REGIONS = [
   { id: "toolbar-markup", kind: "html", order: 12, label: "Toolbar", requiredBy: ["edit"], tag: "header"  },
   { id: "figure-tools", kind: "html", order: 13, label: "Figure tools", requiredBy: ["edit"], tag: "div"  },
   { id: "dialogs", kind: "html", order: 14, label: "Dialogs", requiredBy: ["edit"], tag: "div"  },
+  { id: "viewer-bar-markup", kind: "html", order: 15, label: "Viewer bar", requiredBy: ["view"], tag: "header"  },
+  { id: "viewer-bar-styles", kind: "css", order: 21, label: "Viewer bar styles", requiredBy: ["view"]  },
   { id: "signals", kind: "js", order: 30, label: "Signals", requiredBy: ["*"]  },
   { id: "zoom", kind: "js", order: 40, label: "Zoom", requiredBy: ["*"]  },
   { id: "pagination", kind: "js", order: 50, label: "Pagination", requiredBy: ["*"]  },
@@ -102,6 +104,7 @@ const REGIONS = [
   { id: "plugins", kind: "js", order: 95, label: "Plugins", requiredBy: ["edit"]  },
   { id: "toolbar", kind: "js", order: 90, label: "Toolbar binding", requiredBy: ["edit"]  },
   { id: "export", kind: "js", order: 100, label: "Export", requiredBy: ["edit"]  },
+  { id: "viewer-bar", kind: "js", order: 92, label: "Viewer bar binding", requiredBy: ["view"]  },
   { id: "bootstrap", kind: "js", order: 120, label: "Bootstrap", requiredBy: ["*"]  },
 ];
 
@@ -431,7 +434,7 @@ const manifestBlock = (doc) =>
  * this document need", settings answer "how does it behave". `mode` used to live
  * in the manifest and is read from there as a fallback for one release.
  */
-function docSettings(manifest, { mode } = {}) {
+function docSettings(manifest, { mode, toolbar } = {}) {
   const authored = manifest.settings || {};
   const docMode = mode ?? authored.mode ?? DEFAULT_SETTINGS.mode;
   return {
@@ -441,9 +444,10 @@ function docSettings(manifest, { mode } = {}) {
     /* A setting may restrict edit mode further (a locked document); it cannot
        contradict the mode. View and comment are read-only by definition. */
     editable: docMode === "edit" && (authored.editable ?? true),
-    /* Same rule as editable: a setting can hide chrome, but view mode has no
-       chrome to show — its modules are absent from the file. */
-    toolbar: docMode !== "view" && (authored.toolbar ?? true),
+    /* "Show chrome". A viewer has a bar of its own (`viewer-bar`), so view mode is no
+       longer chrome-less by definition; an explicit override wins, and a file that never
+       authored the key keeps the old default. */
+    toolbar: toolbar ?? authored.toolbar ?? (docMode !== "view"),
     saveThresholdBytes: authored.saveThresholdBytes ?? DEFAULT_SETTINGS.saveThresholdBytes,
     /* Read by the loader, so it belongs here rather than in the asset manifest: a
        timeout is behaviour, not an asset. Falls back to the manifest for one release. */
@@ -1144,7 +1148,7 @@ function inMode(asset, mode) {
  */
 function buildViewer(html, manifest) {
   const view = new Set(manifest.assets.filter((asset) => inMode(asset, "view")).map((asset) => asset.id));
-  let out = withDocSettings(withDocManifest(html, docManifest(manifest)), docSettings(manifest, {mode: "view"}));
+  let out = withDocSettings(withDocManifest(html, docManifest(manifest)), docSettings(manifest, {mode: "view", toolbar: true}));
   for (const asset of manifest.assets) {
     if (!view.has(asset.id)) out = withoutAsset(out, asset.id);
   }

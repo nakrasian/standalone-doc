@@ -181,16 +181,18 @@ test("over the threshold, the dialog asks per capability and the choice reaches 
   const dialog = page.locator("#save-policy-dialog");
   await expect(dialog).toBeVisible();
 
-  /* Rows are capabilities: a base view and an editor for an edit-mode document. */
+  /* Rows are capabilities: a base view, an editor, and the viewer chrome an edit-mode
+     document does not build (absent by default). */
   const rows = await page.evaluate(() =>
     [...document.querySelectorAll("#save-policy-dialog .sp-row")].map((row) => ({
       key: row.dataset.row,
       choices: [...row.querySelectorAll("option")].map((option) => option.value),
     })),
   );
-  expect(rows.map((row) => row.key)).toEqual(["view", "editor"]);
+  expect(rows.map((row) => row.key)).toEqual(["view", "editor", "viewer"]);
   expect(rows[0].choices).toEqual(["inline", "online"]);
   expect(rows[1].choices).toEqual(["inline", "online", "absent"]);
+  expect(rows[2].choices).toEqual(["inline", "online", "absent"]);
 
   /* Absent, not offloaded: this copy is for reading. */
   await page.selectOption('#save-policy-dialog .sp-row[data-row="editor"] select', "absent");

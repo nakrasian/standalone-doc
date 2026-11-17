@@ -70,6 +70,17 @@ catalog until that path is purged — measured, and worth knowing before suspect
 curl -s https://purge.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json
 ```
 
+### The viewer's chrome
+
+A `view`-mode document builds `viewer-bar`: a 34 px bar with a folio, the title, *Save a copy*
+and a settings popover (mode, pages, pinned runtime, zoom). It is the reason a repaired viewer
+can keep its repair — the repair card promises "save the file" only when a `[data-save]` exists.
+Its save is a download, because a read-only document cannot write the file it came from.
+
+`settings.toolbar` decides whether that chrome shows (`"toolbar": true` in `#doc-settings`);
+`buildViewer()` authors it, and a viewer saved before v0.5.0 never did, so it stays bar-less.
+`#app-toolbar` — the editor's ribbon — is a different element and never exists in a viewer.
+
 ### Repairing a document whose pin no longer resolves
 
 A tag can stop serving what a document pinned: a rebuild without a release, a force-moved

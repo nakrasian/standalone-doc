@@ -114,7 +114,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       mode,
       ui: authored?.ui === "minimal" ? "minimal" : "ribbon",
       editable: mode === "edit" && (authored?.editable ?? true),
-      toolbar: mode !== "view" && (authored?.toolbar ?? true),
+      /* "Show chrome", not "show the editor toolbar": a view-mode document can carry a
+         bar of its own (viewer-bar), and a file saved before that existed never authored
+         this, so it keeps its chrome-less look. */
+      toolbar: authored?.toolbar ?? mode !== "view",
       saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
       /* Behaviour, so it lives in the settings block; the manifest's copy is the
          fallback for a document saved before the move. */
