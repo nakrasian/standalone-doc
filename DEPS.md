@@ -7,6 +7,7 @@ edit by hand; `npm run check` fails if this file is stale.
 | id | order | requires | late | provides | needed by |
 | --- | --- | --- | --- | --- | --- |
 | registry | 5 | — | — | _not derived_ | * |
+| boot-ui | 6 | — | — | _not derived_ | * |
 | signals | 30 | — | — | `on`, `emit`, `mute`, `composing` | * |
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | * |

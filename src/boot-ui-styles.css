@@ -1,0 +1,97 @@
+/* Boot shell styles. Self-contained on purpose: this file must render before
+   any other asset exists, so it may not rely on core.css or its variables. */
+
+#boot-dialog {
+  --boot-ink: #1b1f24;
+  --boot-muted: #6b7280;
+  --boot-line: #dfe1e6;
+  --boot-paper: #fff;
+  --boot-chrome: #fbfbfc;
+  --boot-accent: #2f6fed;
+  --boot-danger: #b3261e;
+  --boot-danger-soft: rgba(179, 38, 30, .08);
+  --boot-ok: #1a7f47;
+
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--boot-line);
+  border-radius: 10px;
+  background: var(--boot-paper);
+  color: var(--boot-ink);
+  box-shadow: 0 12px 32px rgba(16, 24, 40, .18), 0 2px 6px rgba(16, 24, 40, .06);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+#boot-dialog::backdrop { background: rgba(16, 24, 40, .28); }
+
+#boot-dialog .boot-head { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px 12px; }
+#boot-dialog .boot-mark {
+  width: 22px; height: 22px; flex: 0 0 auto; margin-top: 1px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  background: var(--boot-accent); color: #fff;
+}
+#boot-dialog[data-phase="failed"] .boot-mark { background: var(--boot-danger); }
+#boot-dialog h1 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+#boot-dialog .boot-sub { margin: 2px 0 0; color: var(--boot-muted); font-size: 12.5px; }
+#boot-dialog .boot-body { padding: 0 18px 14px; max-height: 62vh; overflow: auto; }
+#boot-dialog .boot-foot {
+  display: flex; gap: 8px; align-items: center; padding: 11px 18px;
+  border-top: 1px solid var(--boot-line); background: var(--boot-chrome);
+}
+#boot-dialog .boot-foot .spacer { flex: 1; }
+
+#boot-dialog button {
+  font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--boot-line); background: var(--boot-paper); color: var(--boot-ink);
+}
+#boot-dialog button.primary { background: var(--boot-accent); border-color: var(--boot-accent); color: #fff; }
+#boot-dialog button:focus-visible { outline: 2px solid var(--boot-accent); outline-offset: 2px; }
+
+#boot-dialog .boot-bar {
+  height: 5px; border-radius: 99px; background: #eceef2; overflow: hidden; margin: 2px 0 12px;
+}
+#boot-dialog .boot-fill {
+  display: block; height: 100%; background: var(--boot-accent);
+  width: 100%; transform: scaleX(0); transform-origin: left;
+  transition: transform .32s ease-out;
+}
+
+#boot-dialog .boot-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#boot-dialog .boot-row {
+  display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center;
+  font-size: 12.5px; color: var(--boot-muted);
+}
+#boot-dialog .boot-name { color: var(--boot-ink); }
+#boot-dialog .boot-detail { font-size: 11.5px; font-variant-numeric: tabular-nums; }
+#boot-dialog .boot-row[data-state="pending"] { opacity: .5; }
+#boot-dialog .boot-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--boot-line); justify-self: center; }
+#boot-dialog .boot-row[data-state="active"] .boot-name { color: var(--boot-accent); }
+#boot-dialog .boot-row[data-state="active"] .boot-dot { background: var(--boot-accent); animation: boot-pulse 1s infinite; }
+#boot-dialog .boot-row[data-state="ok"] .boot-dot { background: var(--boot-ok); }
+#boot-dialog .boot-row[data-state="failed"] .boot-dot,
+#boot-dialog .boot-row[data-state="fail"] .boot-dot { background: var(--boot-danger); }
+#boot-dialog .boot-row[data-state="failed"] .boot-name,
+#boot-dialog .boot-row[data-state="fail"] .boot-name { color: var(--boot-danger); }
+
+@keyframes boot-pulse { 50% { opacity: .35; } }
+
+#boot-dialog .boot-error {
+  display: grid; grid-template-columns: 18px 1fr; gap: 8px;
+  margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--boot-line);
+}
+#boot-dialog .boot-error[hidden] { display: none; }
+#boot-dialog .boot-error-icon { color: var(--boot-danger); }
+#boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
+#boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
+
+#boot-dialog .boot-diag {
+  margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
+  background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; white-space: pre-wrap; max-height: 220px; overflow: auto;
+}
+#boot-dialog .boot-diag[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #boot-dialog .boot-fill { transition: none; }
+  #boot-dialog .boot-dot { animation: none !important; }
+}

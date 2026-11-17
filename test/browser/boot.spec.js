@@ -138,3 +138,115 @@ test("a factory that throws is recorded against its asset", async ({ page }) => 
   expect(state.message).toContain("deliberate test failure");
   fs.rmSync(file, { force: true });
 });
+
+test.describe("boot dialog", () => {
+  const dialog = (page) =>
+    page.evaluate(() => {
+      const el = document.getElementById("boot-dialog");
+      const q = (s) => el.querySelector(s);
+      return {
+        open: el.open,
+        phase: el.dataset.phase ?? "",
+        title: q("[data-boot-title]").textContent,
+        sub: q("[data-boot-sub]").textContent,
+        errorTitle: q("[data-boot-error-title]").textContent,
+        errorBody: q("[data-boot-error-body]").textContent,
+        diag: q("[data-boot-diag]").textContent,
+        retryHidden: q("[data-boot-retry]").hidden,
+        rows: el.querySelectorAll(".boot-row").length,
+        states: [...el.querySelectorAll(".boot-row")].map((r) => `${r.dataset.id}:${r.dataset.state}`),
+        barNow: q("[data-boot-bar]").getAttribute("aria-valuenow"),
+        ariaLive: q("[data-boot-rows]").getAttribute("aria-live"),
+        toolbarVisible: !!document.getElementById("app-toolbar"),
+      };
+    });
+
+  test("stays out of the way when boot is instant", async ({ page }) => {
+    await load(page, "file://" + path.join(ROOT, "index.html"));
+    await page.waitForTimeout(300);
+    const seen = await dialog(page);
+    expect(seen.open).toBe(false);
+    expect(seen.phase).toBe("ready");
+    expect(seen.rows).toBe(9);
+    expect(seen.barNow).toBe("100");
+  });
+
+  test("a missing dependency opens the dialog naming both assets", async ({ page }) => {
+    const file = tmp("dialog-missing-dep");
+    fs.writeFileSync(file, SOURCE.replace(blocks(SOURCE).get("progress").block, () => ""));
+    await load(page, "file://" + file);
+    const seen = await dialog(page);
+    expect(seen.open).toBe(true);
+    expect(seen.phase).toBe("failed");
+    expect(seen.title).toBe("The editor failed to start");
+    expect(seen.errorTitle).toBe("Export threw while starting");
+    expect(seen.errorBody).toContain('requires "progress"');
+    expect(seen.diag).toContain('requires "progress"');
+    expect(seen.retryHidden).toBe(false);
+    expect(seen.ariaLive).toBe("polite");
+    /* The document stays visible: only interaction is blocked, by the modal. */
+    expect(seen.toolbarVisible).toBe(true);
+    /* The row that failed is marked; assets that never registered are absent
+       from the plan entirely (the error names the missing one). */
+    expect(seen.states).toContain("export:failed");
+    expect(seen.states.some((entry) => entry.startsWith("progress:"))).toBe(false);
+    fs.rmSync(file, { force: true });
+  });
+
+  test("a factory that throws shows its message and stack", async ({ page }) => {
+    const file = tmp("dialog-throws");
+    fs.writeFileSync(
+      file,
+      SOURCE.replace('function createFigures(deps = {}) {', 'function createFigures(deps = {}) {\n    throw new Error("deliberate test failure");'),
+    );
+    await load(page, "file://" + file);
+    const seen = await dialog(page);
+    expect(seen.open).toBe(true);
+    expect(seen.errorTitle).toBe("Figures threw while starting");
+    expect(seen.errorBody).toContain("deliberate test failure");
+    expect(seen.diag).toContain("deliberate test failure");
+    expect(seen.diag).toContain("createFigures"); /* the stack */
+    expect(seen.states).toContain("figures:failed");
+    fs.rmSync(file, { force: true });
+  });
+
+  test("retry rebuilds from a clean state instead of accumulating errors", async ({ page }) => {
+    const file = tmp("dialog-retry");
+    fs.writeFileSync(file, SOURCE.replace(blocks(SOURCE).get("progress").block, () => ""));
+    await load(page, "file://" + file);
+    expect(await page.evaluate(() => window.StandaloneDoc.errors.length)).toBe(1);
+
+    await page.click("[data-boot-retry]");
+    await page.waitForTimeout(100);
+
+    const after = await page.evaluate(() => ({
+      errors: window.StandaloneDoc.errors.length,
+      state: window.StandaloneDoc.state,
+      built: Object.keys(window.StandaloneDoc.modules),
+      legacyPublished: typeof window.Export,
+    }));
+    expect(after.errors).toBe(1); /* reset, then failed again once */
+    expect(after.state).toBe("failed");
+    expect(after.built).toContain("toolbar");
+    expect(after.built).not.toContain("export");
+    expect(after.legacyPublished).toBe("undefined"); /* the failed asset's global is cleared */
+    fs.rmSync(file, { force: true });
+  });
+
+  test("diagnostics can be revealed and copied without throwing", async ({ page }) => {
+    const file = tmp("dialog-diag");
+    fs.writeFileSync(file, SOURCE.replace(blocks(SOURCE).get("progress").block, () => ""));
+    const problems = await load(page, "file://" + file);
+
+    await page.click("[data-boot-toggle]");
+    await expect(page.locator("[data-boot-diag]")).toBeVisible();
+    await expect(page.locator("[data-boot-toggle]")).toHaveText("Hide diagnostics");
+
+    await page.click("[data-boot-copy]");
+    await page.waitForTimeout(150);
+    const label = await page.locator("[data-boot-copy]").textContent();
+    expect(["Copied", "Select and copy"]).toContain(label);
+    expect(problems.filter((p) => p.includes("clipboard"))).toEqual([]);
+    fs.rmSync(file, { force: true });
+  });
+});

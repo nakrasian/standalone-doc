@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 197657
+    "bytes": 213925
   },
   "assets": [
     {
@@ -39,19 +39,29 @@
       "bytes": 8019
     },
     {
+      "id": "boot-ui",
+      "kind": "js",
+      "bytes": 7751
+    },
+    {
       "id": "zoom",
       "kind": "js",
       "bytes": 5215
     },
     {
-      "id": "status",
-      "kind": "js",
-      "bytes": 3936
+      "id": "boot-ui-styles",
+      "kind": "css",
+      "bytes": 5006
     },
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 2493
+      "bytes": 4306
+    },
+    {
+      "id": "status",
+      "kind": "js",
+      "bytes": 3936
     },
     {
       "id": "progress",
@@ -70,8 +80,8 @@
     }
   ],
   "flavors": {
-    "index.html": 197657,
-    "asset-bodies": 172186,
-    "markup-and-runtime": 25471
+    "index.html": 213925,
+    "asset-bodies": 186756,
+    "markup-and-runtime": 27169
   }
 }

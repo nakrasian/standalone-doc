@@ -13,6 +13,17 @@
       "provides": null
     },
     {
+      "id": "boot-ui",
+      "order": 6,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": null
+    },
+    {
       "id": "signals",
       "order": 30,
       "mode": "inline",

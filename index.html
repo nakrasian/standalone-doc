@@ -1112,6 +1112,107 @@
     }
   </style>
 <!-- /@asset -->
+<!-- @asset id="boot-ui-styles" kind="css" order="25" -->
+  <style id="boot-ui-styles">
+    /* Boot shell styles. Self-contained on purpose: this file must render before
+       any other asset exists, so it may not rely on core.css or its variables. */
+
+    #boot-dialog {
+      --boot-ink: #1b1f24;
+      --boot-muted: #6b7280;
+      --boot-line: #dfe1e6;
+      --boot-paper: #fff;
+      --boot-chrome: #fbfbfc;
+      --boot-accent: #2f6fed;
+      --boot-danger: #b3261e;
+      --boot-danger-soft: rgba(179, 38, 30, .08);
+      --boot-ok: #1a7f47;
+
+      width: min(520px, calc(100vw - 32px));
+      padding: 0;
+      border: 1px solid var(--boot-line);
+      border-radius: 10px;
+      background: var(--boot-paper);
+      color: var(--boot-ink);
+      box-shadow: 0 12px 32px rgba(16, 24, 40, .18), 0 2px 6px rgba(16, 24, 40, .06);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    #boot-dialog::backdrop { background: rgba(16, 24, 40, .28); }
+
+    #boot-dialog .boot-head { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px 12px; }
+    #boot-dialog .boot-mark {
+      width: 22px; height: 22px; flex: 0 0 auto; margin-top: 1px; border-radius: 6px;
+      display: grid; place-items: center; font-size: 12px; font-weight: 700;
+      background: var(--boot-accent); color: #fff;
+    }
+    #boot-dialog[data-phase="failed"] .boot-mark { background: var(--boot-danger); }
+    #boot-dialog h1 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+    #boot-dialog .boot-sub { margin: 2px 0 0; color: var(--boot-muted); font-size: 12.5px; }
+    #boot-dialog .boot-body { padding: 0 18px 14px; max-height: 62vh; overflow: auto; }
+    #boot-dialog .boot-foot {
+      display: flex; gap: 8px; align-items: center; padding: 11px 18px;
+      border-top: 1px solid var(--boot-line); background: var(--boot-chrome);
+    }
+    #boot-dialog .boot-foot .spacer { flex: 1; }
+
+    #boot-dialog button {
+      font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+      border: 1px solid var(--boot-line); background: var(--boot-paper); color: var(--boot-ink);
+    }
+    #boot-dialog button.primary { background: var(--boot-accent); border-color: var(--boot-accent); color: #fff; }
+    #boot-dialog button:focus-visible { outline: 2px solid var(--boot-accent); outline-offset: 2px; }
+
+    #boot-dialog .boot-bar {
+      height: 5px; border-radius: 99px; background: #eceef2; overflow: hidden; margin: 2px 0 12px;
+    }
+    #boot-dialog .boot-fill {
+      display: block; height: 100%; background: var(--boot-accent);
+      width: 100%; transform: scaleX(0); transform-origin: left;
+      transition: transform .32s ease-out;
+    }
+
+    #boot-dialog .boot-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    #boot-dialog .boot-row {
+      display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center;
+      font-size: 12.5px; color: var(--boot-muted);
+    }
+    #boot-dialog .boot-name { color: var(--boot-ink); }
+    #boot-dialog .boot-detail { font-size: 11.5px; font-variant-numeric: tabular-nums; }
+    #boot-dialog .boot-row[data-state="pending"] { opacity: .5; }
+    #boot-dialog .boot-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--boot-line); justify-self: center; }
+    #boot-dialog .boot-row[data-state="active"] .boot-name { color: var(--boot-accent); }
+    #boot-dialog .boot-row[data-state="active"] .boot-dot { background: var(--boot-accent); animation: boot-pulse 1s infinite; }
+    #boot-dialog .boot-row[data-state="ok"] .boot-dot { background: var(--boot-ok); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-dot,
+    #boot-dialog .boot-row[data-state="fail"] .boot-dot { background: var(--boot-danger); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-name,
+    #boot-dialog .boot-row[data-state="fail"] .boot-name { color: var(--boot-danger); }
+
+    @keyframes boot-pulse { 50% { opacity: .35; } }
+
+    #boot-dialog .boot-error {
+      display: grid; grid-template-columns: 18px 1fr; gap: 8px;
+      margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--boot-line);
+    }
+    #boot-dialog .boot-error[hidden] { display: none; }
+    #boot-dialog .boot-error-icon { color: var(--boot-danger); }
+    #boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
+    #boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
+
+    #boot-dialog .boot-diag {
+      margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
+      background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px; white-space: pre-wrap; max-height: 220px; overflow: auto;
+    }
+    #boot-dialog .boot-diag[hidden] { display: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #boot-dialog .boot-fill { transition: none; }
+      #boot-dialog .boot-dot { animation: none !important; }
+    }
+  </style>
+<!-- /@asset -->
   <style id="user-theme"></style>
   <style id="print-page"></style>
   <!-- Favicon for sheet -->
@@ -1621,6 +1722,38 @@
 
 
   <!-- Shared content signals -->
+  <!-- The boot shell's markup. Inert until it is opened; defined before the
+       bootstrap runs so boot() can report into it. -->
+  <dialog id="boot-dialog" aria-labelledby="boot-title" aria-describedby="boot-sub">
+    <div class="boot-head">
+      <span class="boot-mark" aria-hidden="true">&#9680;</span>
+      <div>
+        <h1 id="boot-title" data-boot-title>Starting the editor</h1>
+        <p class="boot-sub" id="boot-sub" data-boot-sub></p>
+      </div>
+    </div>
+    <div class="boot-body">
+      <div class="boot-bar" data-boot-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Starting the editor">
+        <span class="boot-fill" data-boot-fill></span>
+      </div>
+      <ul class="boot-rows" data-boot-rows aria-live="polite"></ul>
+      <div class="boot-error" data-boot-error hidden>
+        <span class="boot-error-icon" aria-hidden="true">&#9888;</span>
+        <div>
+          <p class="boot-error-title" data-boot-error-title></p>
+          <p class="boot-error-body" data-boot-error-body></p>
+          <pre class="boot-diag" data-boot-diag hidden></pre>
+        </div>
+      </div>
+    </div>
+    <div class="boot-foot">
+      <button type="button" data-boot-toggle hidden>Diagnostics</button>
+      <span class="spacer"></span>
+      <button type="button" data-boot-copy hidden>Copy diagnostics</button>
+      <button type="button" class="primary" data-boot-retry hidden>Retry</button>
+    </div>
+  </dialog>
+
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Every asset registers a factory and boot()
@@ -1632,6 +1765,7 @@
       const meta = Object.create(null);
       const modules = Object.create(null);
       const errors = [];
+      const listeners = Object.create(null);
       let state = "declared";
 
       function register(id, factory, options) {
@@ -1640,6 +1774,25 @@
         if (factories[id]) return;
         factories[id] = factory;
         meta[id] = options || {};
+      }
+
+      /* Observers get told what boot is doing; they never influence it. */
+      function on(event, fn) {
+        (listeners[event] || (listeners[event] = [])).push(fn);
+        return function off() {
+          listeners[event] = (listeners[event] || []).filter((other) => other !== fn);
+        };
+      }
+
+      function emit(event, detail) {
+        for (const fn of (listeners[event] || []).slice()) {
+          try {
+            fn(detail);
+          } catch (error) {
+            /* A broken observer must not derail boot. */
+            console.error(`boot observer for "${event}" failed:`, error);
+          }
+        }
       }
 
       /* A back-edge: resolved when called, never during construction. */
@@ -1653,12 +1806,14 @@
 
       function abort(phase, id, error) {
         state = "failed";
-        errors.push({
+        const record = {
           phase,
           id,
           message: error && error.message ? error.message : String(error),
           stack: error && error.stack ? String(error.stack) : null,
-        });
+        };
+        errors.push(record);
+        emit("failed", {error: record, errors: errors.slice()});
         throw error;
       }
 
@@ -1669,26 +1824,288 @@
       function boot() {
         if (state !== "declared") return modules;
         state = "booting";
-        for (const id of order()) {
+        errors.length = 0;
+
+        const plan = order();
+        emit("start", {order: plan, total: plan.length});
+
+        for (const [index, id] of plan.entries()) {
+          emit("construct", {id, state: "active", index, total: plan.length});
+
           const deps = {env: globalThis, late};
           for (const name of meta[id].deps || []) {
-            if (!(name in modules)) abort("construct", id, new Error(`${id} requires "${name}", which is not built`));
+            if (!(name in modules)) {
+              abort("construct", id, new Error(`${id} requires "${name}", which is not built`));
+            }
             deps[name] = modules[name];
           }
+
           try {
             modules[id] = factories[id](deps);
           } catch (error) {
             abort("construct", id, error);
           }
-          /* Transitional: publish the legacy global until every consumer takes
-             the dependency properly (Phase 3, commit 5). */
+
+          /* Transitional: publish the legacy global until every consumer takes the
+             dependency properly (Phase 3, commit 5). */
           if (meta[id].global) globalThis[meta[id].global] = modules[id];
+          emit("construct", {id, state: "ok", index, total: plan.length});
         }
+
         state = "ready";
+        emit("ready", {count: plan.length});
         return modules;
       }
 
-      return {register, late, boot, order, modules, factories, errors, get state() {return state;}};
+      /* Tear the graph down and build it again. Registered factories survive, so a
+         failure that was environmental can be retried without reloading the file. */
+      function retry() {
+        if (state === "booting") return modules;
+        for (const id of Object.keys(modules)) delete modules[id];
+        for (const [id, options] of Object.entries(meta)) {
+          if (options.global) delete globalThis[options.global];
+        }
+        errors.length = 0;
+        state = "declared";
+        return boot();
+      }
+
+      return {
+        register,
+        on,
+        late,
+        boot,
+        retry,
+        order,
+        modules,
+        factories,
+        meta,
+        errors,
+        get state() {
+          return state;
+        },
+      };
+    })();
+  </script>
+<!-- /@asset -->
+<!-- @asset id="boot-ui" kind="js" order="6" -->
+  <script id="boot-ui">
+    /* The boot shell. Owns no state: it subscribes to the registry's events and
+       renders them. Loaded before any asset, so it may not depend on core CSS, and
+       it resolves the dialog lazily so markup order cannot break it. */
+    (function () {
+      "use strict";
+
+      const registry = globalThis.StandaloneDoc;
+      const SHOW_DELAY = 150; /* a card that flashes for 60ms is worse than none */
+
+      /* Presentation only: registration ids are technical. */
+      const LABELS = {
+        signals: "Signals",
+        zoom: "Zoom",
+        pagination: "Pagination",
+        status: "Status line",
+        editor: "Editor",
+        figures: "Figures",
+        toolbar: "Toolbar",
+        progress: "Progress dialog",
+        export: "Export",
+      };
+      const label = (id) => LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1);
+
+      let ui = null;
+      let showTimer = null;
+      let lastStart = {order: [], total: 0};
+      const failures = [];
+
+      function ensure() {
+        if (ui) return ui;
+        const dialog = document.getElementById("boot-dialog");
+        if (!dialog) return null;
+        ui = {
+          dialog,
+          title: dialog.querySelector("[data-boot-title]"),
+          sub: dialog.querySelector("[data-boot-sub]"),
+          bar: dialog.querySelector("[data-boot-bar]"),
+          fill: dialog.querySelector("[data-boot-fill]"),
+          rows: dialog.querySelector("[data-boot-rows]"),
+          error: dialog.querySelector("[data-boot-error]"),
+          errorTitle: dialog.querySelector("[data-boot-error-title]"),
+          errorBody: dialog.querySelector("[data-boot-error-body]"),
+          diag: dialog.querySelector("[data-boot-diag]"),
+          retry: dialog.querySelector("[data-boot-retry]"),
+          copy: dialog.querySelector("[data-boot-copy]"),
+          toggle: dialog.querySelector("[data-boot-toggle]"),
+        };
+        wire(ui);
+        return ui;
+      }
+
+      function setBar(fraction) {
+        const el = ensure();
+        if (!el) return;
+        el.fill.style.transform = `scaleX(${Math.max(0, Math.min(1, fraction)).toFixed(3)})`;
+        const pct = Math.round(fraction * 100);
+        el.bar.setAttribute("aria-valuenow", String(pct));
+        el.bar.setAttribute("aria-valuetext", el.sub.textContent || `${pct}%`);
+      }
+
+      function open() {
+        const el = ensure();
+        if (!el || el.dialog.open) return;
+        el.dialog.showModal();
+      }
+
+      function scheduleOpen() {
+        clearTimeout(showTimer);
+        showTimer = setTimeout(open, SHOW_DELAY);
+      }
+
+      function close() {
+        clearTimeout(showTimer);
+        const el = ensure();
+        if (el?.dialog.open) el.dialog.close();
+      }
+
+      function renderRows(order) {
+        const el = ensure();
+        if (!el) return;
+        el.rows.replaceChildren();
+        for (const id of order) {
+          const row = document.createElement("li");
+          row.className = "boot-row";
+          row.dataset.state = "pending";
+          row.dataset.id = id;
+          row.innerHTML = '<span class="boot-dot" aria-hidden="true"></span><span class="boot-name"></span><span class="boot-detail"></span>';
+          row.querySelector(".boot-name").textContent = label(id);
+          el.rows.append(row);
+        }
+      }
+
+      function reset() {
+        const el = ensure();
+        failures.length = 0;
+        if (!el) return;
+        el.error.hidden = true;
+        el.retry.hidden = true;
+        el.toggle.hidden = true;
+        el.diag.hidden = true;
+        el.diag.textContent = "";
+        el.dialog.dataset.phase = "booting";
+        el.title.textContent = "Starting the editor";
+        el.sub.textContent = "";
+        setBar(0);
+      }
+
+      function diagnosticsText() {
+        const el = ensure();
+        const lines = [
+          "standalone-doc boot",
+          `state:    ${registry.state}`,
+          `document: ${location.href}`,
+          `modules:  ${(lastStart.order || []).join(", ") || "—"}`,
+          "",
+        ];
+        for (const failure of failures) {
+          lines.push(`[${failure.phase}] ${failure.id}: ${failure.message}`, failure.stack || "", "");
+        }
+        lines.push(`user agent: ${navigator.userAgent}`);
+        return lines.join("\n");
+      }
+
+      function renderFailure(failure) {
+        const el = ensure();
+        if (!el) return;
+        failures.push(failure);
+        el.dialog.dataset.phase = "failed";
+        el.title.textContent = "The editor failed to start";
+        el.sub.textContent = "Aborted — nothing has been changed on disk";
+        /* Mark the row that failed: the registry emits "active" and then aborts, so
+           without this the last row would sit on "starting…" forever. */
+        const failedRow = el.rows.querySelector(`.boot-row[data-id="${failure.id}"]`);
+        if (failedRow) {
+          failedRow.dataset.state = "failed";
+          failedRow.querySelector(".boot-detail").textContent = "failed";
+        }
+        el.error.hidden = false;
+        el.errorTitle.textContent = `${label(failure.id)} ${failure.phase === "construct" ? "threw while starting" : "could not be loaded"}`;
+        el.errorBody.textContent = failure.message;
+        el.diag.textContent = diagnosticsText();
+        el.retry.hidden = false;
+        el.toggle.hidden = false;
+        el.copy.hidden = false;
+        /* Errors are never delayed: the faster they appear, the less it feels hung. */
+        clearTimeout(showTimer);
+        open();
+        el.retry.focus();
+      }
+
+      function wire(el) {
+        el.dialog.addEventListener("cancel", (event) => event.preventDefault());
+
+        el.retry.addEventListener("click", () => {
+          reset();
+          open();
+          try {
+            registry.retry();
+          } catch {
+            /* retry() re-emits "failed", which renders the card again. */
+          }
+        });
+
+        el.toggle.addEventListener("click", () => {
+          const opening = el.diag.hidden;
+          el.diag.hidden = !opening;
+          el.toggle.textContent = opening ? "Hide diagnostics" : "Diagnostics";
+        });
+
+        el.copy.addEventListener("click", async () => {
+          const text = diagnosticsText();
+          try {
+            await navigator.clipboard.writeText(text);
+            el.copy.textContent = "Copied";
+          } catch {
+            el.diag.hidden = false;
+            el.diag.textContent = text;
+            el.copy.textContent = "Select and copy";
+          }
+          setTimeout(() => (el.copy.textContent = "Copy diagnostics"), 1400);
+        });
+      }
+
+      if (!registry) return;
+
+      registry.on("start", (detail) => {
+        lastStart = detail;
+        reset();
+        renderRows(detail.order);
+        const el = ensure();
+        if (el) el.sub.textContent = `${detail.total} modules · everything embedded in this file`;
+        scheduleOpen();
+      });
+
+      registry.on("construct", (detail) => {
+        const el = ensure();
+        if (!el) return;
+        const row = el.rows.querySelector(`.boot-row[data-id="${detail.id}"]`);
+        if (row) {
+          row.dataset.state = detail.state;
+          row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "starting…";
+        }
+        const done = detail.state === "ok" ? detail.index + 1 : detail.index;
+        setBar(0.95 * (done / Math.max(1, detail.total)));
+      });
+
+      registry.on("ready", (detail) => {
+        const el = ensure();
+        setBar(1);
+        if (!el) return;
+        el.dialog.dataset.phase = "ready";
+        el.sub.textContent = `Ready · ${detail.count} modules`;
+        close();
+      });
+
+      registry.on("failed", (detail) => renderFailure(detail.error));
     })();
   </script>
 <!-- /@asset -->

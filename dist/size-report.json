@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 197657
+    "bytes": 213925
   },
   "assets": [
     {
@@ -15,9 +15,19 @@
       "bytes": 15718
     },
     {
+      "id": "boot-ui-styles",
+      "kind": "css",
+      "bytes": 5006
+    },
+    {
       "id": "registry",
       "kind": "js",
-      "bytes": 2493
+      "bytes": 4306
+    },
+    {
+      "id": "boot-ui",
+      "kind": "js",
+      "bytes": 7751
     },
     {
       "id": "signals",
@@ -71,9 +81,9 @@
     }
   ],
   "flavors": {
-    "index.html": 197657,
-    "asset-bodies": 172186,
-    "markup-and-runtime": 25471
+    "index.html": 213925,
+    "asset-bodies": 186756,
+    "markup-and-runtime": 27169
   },
   "notes": [
     "dist/cdn/ is intentionally absent until Phase 2: the published module shape",

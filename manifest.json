@@ -31,13 +31,39 @@
       ]
     },
     {
+      "id": "boot-ui-styles",
+      "kind": "css",
+      "order": 25,
+      "tag": "style",
+      "file": "src/boot-ui-styles.css",
+      "bytes": 4663,
+      "sha384": "sha384-QuB8zcobCEIGq+izwSzi8JW8Qqc0WOddodi4fm4zfdPiqwFV8IuZkJxDN4YUtFR7",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
       "id": "registry",
       "kind": "js",
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 2254,
-      "sha384": "sha384-mJpAjjkfLjHcTlpr/qNgwN/sS6igO5tCyVVfoUhoI1LVeUGUohDBGr6of8qgtSrA",
+      "bytes": 3851,
+      "sha384": "sha384-rQTGu0hOBu5GD5JlHIaopilDmfjQmUDESqM5Ph6FSt3gOm9bQukTjxFHS/qhtb3W",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "boot-ui",
+      "kind": "js",
+      "order": 6,
+      "tag": "script",
+      "file": "src/boot-ui.js",
+      "bytes": 6968,
+      "sha384": "sha384-vyiYWECwtF8nRWkh/xReTFnXdFZWLhXGupRybCuZVaIVP9lBa4oV8AwZxOYIK9Gq",
       "mode": "inline",
       "requiredBy": [
         "*"
