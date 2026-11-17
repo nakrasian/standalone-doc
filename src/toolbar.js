@@ -168,7 +168,10 @@ export function createToolbar(deps = {}) {
   async function serialize(options = {}) {
     const clone = document.documentElement.cloneNode(true);
 
-    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], #figure-tools").forEach((el) => el.remove());
+    /* Not #figure-tools: its markup is an asset now (the `figure-tools` fragment), so
+       whether it travels with the file is the save policy's decision, not a cleanup
+       rule. It is `hidden`, so an inline copy costs bytes and nothing else. */
+    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu]").forEach((el) => el.remove());
     clone.querySelectorAll("[data-menu-panel]").forEach((m) => m.setAttribute("hidden", ""));
     clone.querySelectorAll(".menu").forEach((m) => {
       m.classList.remove("menu-flip");
@@ -453,7 +456,7 @@ export function createToolbar(deps = {}) {
     if (!options.policy && !options.overrides && threshold > 0 && bytes > threshold && !(declined && bytes < declined * 2)) {
       const blocks = {};
       for (const decision of serialized.planned.decisions) {
-        const block = document.getElementById(decision.id);
+        const block = policy.blockOf(document, decision.id);
         if (block) blocks[decision.id] = block.outerHTML.length + 80; /* markers + newlines */
       }
       const choice = await askSavePolicy({planned: serialized.planned, bytes, blocks, threshold});

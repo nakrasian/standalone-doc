@@ -1,17 +1,17 @@
 {
   "source": {
-    "bytes": 263784
+    "bytes": 269372
   },
   "assets": [
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 46437
+      "bytes": 46380
     },
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 35656
+      "bytes": 35906
     },
     {
       "id": "export",
@@ -29,14 +29,19 @@
       "bytes": 18009
     },
     {
-      "id": "policy",
-      "kind": "js",
-      "bytes": 14395
-    },
-    {
       "id": "registry",
       "kind": "js",
-      "bytes": 14255
+      "bytes": 16354
+    },
+    {
+      "id": "policy",
+      "kind": "js",
+      "bytes": 15834
+    },
+    {
+      "id": "toolbar-markup",
+      "kind": "html",
+      "bytes": 15145
     },
     {
       "id": "boot-ui",
@@ -64,6 +69,11 @@
       "bytes": 5181
     },
     {
+      "id": "sprite",
+      "kind": "html",
+      "bytes": 5109
+    },
+    {
       "id": "status",
       "kind": "js",
       "bytes": 4280
@@ -84,15 +94,25 @@
       "bytes": 1375
     },
     {
+      "id": "dialogs",
+      "kind": "html",
+      "bytes": 1329
+    },
+    {
+      "id": "figure-tools",
+      "kind": "html",
+      "bytes": 835
+    },
+    {
       "id": "bootstrap",
       "kind": "js",
       "bytes": 298
     }
   ],
   "flavors": {
-    "index.html": 263784,
-    "asset-bodies": 230596,
-    "markup-and-runtime": 33188,
-    "dist/slim.html": 62917
+    "index.html": 269372,
+    "asset-bodies": 256745,
+    "markup-and-runtime": 12627,
+    "dist/slim.html": 43897
   }
 }

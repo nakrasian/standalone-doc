@@ -1,0 +1,327 @@
+
+<!-- ===== RIBBON: two rows ===== -->
+<header id="ui-ribbon" class="ribbon" data-ui-panel="ribbon">
+
+  <!-- Row 1: title, file menu, save, toggle -->
+  <div class="ribbon-top">
+    <button class="favicon" data-favicon title="Change favicon">🧬</button>
+    <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false"
+      aria-label="Document title">
+    <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+    <span class="sep"></span>
+
+    <!-- File Dropdown Menu -->
+    <span class="menu-wrap">
+      <button class="menu-trigger" data-menu>File <svg class="i sm">
+          <use href="#i-chev" />
+        </svg></button>
+      <div class="menu" data-menu-panel hidden>
+        <button data-menu-item data-save><svg class="i sm">
+            <use href="#i-save" />
+          </svg>Save</button>
+
+        <div class="menu-sub" data-submenu>
+          <button type="button" data-menu-item data-submenu-trigger
+            aria-haspopup="menu" aria-expanded="false">Save as…
+            <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+
+            <div class="menu-sub" data-submenu>
+              <button type="button" data-menu-item data-submenu-trigger
+                aria-haspopup="menu" aria-expanded="false">HTML
+                <svg class="i sm">
+                  <use href="#i-chev" />
+                </svg></button>
+              <div class="menu" data-menu-panel hidden>
+                <button data-menu-item data-export="html-interactive"
+                  data-save>Interactive (.html)</button>
+                <button data-menu-item data-export="html-static">Static with captured figures…</button>
+              </div>
+            </div>
+
+            <div class="menu-sub" data-submenu>
+              <button type="button" data-menu-item data-submenu-trigger
+                aria-haspopup="menu" aria-expanded="false">PDF
+                <svg class="i sm">
+                  <use href="#i-chev" />
+                </svg></button>
+              <div class="menu" data-menu-panel hidden>
+                <button data-menu-item data-export="print-live"
+                  title="The browser print dialog controls headers and footers.">Standard print</button>
+                <button data-menu-item data-export="print-captured"
+                  title="The browser print dialog controls headers and footers.">Captured figures</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </span>
+
+    <!-- Insert Dropdown Menu -->
+    <span class="menu-wrap">
+      <button class="menu-trigger" data-menu>Insert <svg class="i sm">
+          <use href="#i-chev" />
+        </svg></button>
+      <div class="menu" data-menu-panel hidden>
+        <div class="menu-label">Blocks</div>
+        <button data-menu-item data-block-set="p">Paragraph</button>
+        <button data-menu-item data-block-set="h1">Heading 1</button>
+        <button data-menu-item data-block-set="h2">Heading 2</button>
+        <button data-menu-item data-block-set="h3">Heading 3</button>
+        <div class="menu-sep"></div>
+        <div class="menu-label">Inline</div>
+        <button data-menu-item data-link>Link</button>
+        <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+        <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+        <div class="menu-sep"></div>
+        <div class="menu-label">Figures</div>
+        <button data-menu-item data-figure-pick="image">Image…</button>
+        <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+        <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+        <button data-menu-item data-figure-pick="media">Video or audio…</button>
+      </div>
+    </span>
+
+    <!-- Style Dropdown Menu -->
+    <span class="menu-wrap">
+      <button class="menu-trigger" data-menu>Style <svg class="i sm">
+          <use href="#i-chev" />
+        </svg></button>
+      <div class="menu" data-menu-panel hidden>
+        <div class="menu-label">Text size</div>
+        <button data-menu-item data-font="10pt">10 pt</button>
+        <button data-menu-item data-font="11pt">11 pt</button>
+        <button data-menu-item data-font="12pt">12 pt</button>
+        <button data-menu-item data-font="13pt">13 pt</button>
+      </div>
+    </span>
+
+    <!-- Spacing between left and right tools -->
+    <span class="grow"></span>
+
+    <span class="stats" data-stats>—</span>
+    <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
+        <use href="#i-paneltop" />
+      </svg></button>
+    <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+        <use href="#i-keyboard" />
+      </svg></button>
+    <button class="primary" data-save title="Save">Save</button>
+  </div>
+
+  <!-- Row 2: formatting toolbar -->
+  <div class="ribbon-tools">
+    <button data-cmd="undo" title="Undo"><svg class="i">
+        <use href="#i-undo" />
+      </svg></button>
+    <button data-cmd="redo" title="Redo"><svg class="i">
+        <use href="#i-redo" />
+      </svg></button>
+
+    <span class="sep"></span>
+
+    <!-- Zoom: scales the pages only, never this toolbar -->
+    <span class="zoom-field" role="group" aria-label="Zoom">
+      <button data-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="i">
+          <use href="#i-zoom-out" />
+        </svg></button>
+      <label class="zoom-box">
+        <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+          spellcheck="false" value="100" aria-label="Zoom percentage" title="Type a percentage, then Enter">
+        <span class="zoom-unit" aria-hidden="true">%</span>
+      </label>
+      <button data-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="i">
+          <use href="#i-zoom-in" />
+        </svg></button>
+      <button data-zoom="reset" aria-label="Reset zoom to 100%" title="Reset zoom to 100%"><svg class="i sm">
+          <use href="#i-zoom-reset" />
+        </svg></button>
+    </span>
+
+    <span class="sep"></span>
+
+    <select class="select" data-block aria-label="Block style">
+      <option value="p">Paragraph</option>
+      <option value="h1">Heading 1</option>
+      <option value="h2">Heading 2</option>
+      <option value="h3">Heading 3</option>
+      <option value="blockquote">Quote</option>
+      <option value="pre">Code</option>
+    </select>
+
+    <span class="sep"></span>
+
+    <button data-cmd="bold" aria-pressed="false" title="Bold"><svg class="i">
+        <use href="#i-bold" />
+      </svg></button>
+    <button data-cmd="italic" aria-pressed="false" title="Italic"><svg class="i">
+        <use href="#i-italic" />
+      </svg></button>
+    <button data-cmd="underline" aria-pressed="false" title="Underline"><svg class="i">
+        <use href="#i-underline" />
+      </svg></button>
+    <button data-cmd="strikeThrough" aria-pressed="false" title="Strikethrough"><svg class="i">
+        <use href="#i-strike" />
+      </svg></button>
+    <button data-cmd="superscript" aria-pressed="false" title="Superscript"><svg class="i">
+        <use href="#i-sup" />
+      </svg></button>
+    <button data-cmd="subscript" aria-pressed="false" title="Subscript"><svg class="i">
+        <use href="#i-sub" />
+      </svg></button>
+
+    <span class="sep"></span>
+
+    <button data-cmd="insertUnorderedList" aria-pressed="false" title="Bulleted list"><svg class="i">
+        <use href="#i-list" />
+      </svg></button>
+    <button data-cmd="insertOrderedList" aria-pressed="false" title="Numbered list"><svg class="i">
+        <use href="#i-list-ol" />
+      </svg></button>
+    <button data-block-set="blockquote" title="Quote"><svg class="i">
+        <use href="#i-quote" />
+      </svg></button>
+    <button data-block-set="pre" title="Code block"><svg class="i">
+        <use href="#i-code" />
+      </svg></button>
+
+    <span class="sep"></span>
+
+    <button data-link title="Insert link"><svg class="i">
+        <use href="#i-link" />
+      </svg></button>
+    <button data-cmd="unlink" title="Remove link"><svg class="i">
+        <use href="#i-unlink" />
+      </svg></button>
+    <button data-cmd="removeFormat" title="Clear formatting"><svg class="i">
+        <use href="#i-eraser" />
+      </svg></button>
+
+    <span class="grow"></span>
+
+    <select class="select" data-fontsize aria-label="Text size">
+      <option value="10pt">10 pt</option>
+      <option value="10.5pt">10.5 pt</option>
+      <option value="11pt" selected>11 pt</option>
+      <option value="12pt">12 pt</option>
+      <option value="13pt">13 pt</option>
+    </select>
+
+  </div>
+</header>
+
+<!-- ===== MINIMAL: thin bar ===== -->
+<header id="ui-minimal" class="bar" data-ui-panel="minimal">
+  <span class="folio" data-folio>p. 1</span>
+  <span class="stats" data-stats>—</span>
+  <span class="grow"></span>
+  <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false" aria-label="Document title">
+  <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+  <span class="grow"></span>
+  <span class="menu-wrap" data-menu-align="right">
+    <button data-menu title="All commands"><svg class="i">
+        <use href="#i-more" />
+      </svg></button>
+    <div class="menu" data-menu-panel hidden>
+      <div class="menu-label">File</div>
+      <button data-menu-item data-save>Save</button>
+      <div class="menu-sub" data-submenu>
+        <button type="button" data-menu-item data-submenu-trigger
+          aria-haspopup="menu" aria-expanded="false">Save as…
+          <svg class="i sm">
+            <use href="#i-chev" />
+          </svg></button>
+        <div class="menu" data-menu-panel hidden>
+          <div class="menu-label">HTML</div>
+          <button data-menu-item data-export="html-interactive" data-save>Interactive (.html)</button>
+          <button data-menu-item data-export="html-static">Static with captured figures…</button>
+          <div class="menu-sep"></div>
+          <div class="menu-label">PDF</div>
+          <button data-menu-item data-export="print-live"
+            title="The browser print dialog controls headers and footers.">Standard print</button>
+          <button data-menu-item data-export="print-captured"
+            title="The browser print dialog controls headers and footers.">Captured figures</button>
+        </div>
+      </div>
+      <div class="menu-sep"></div>
+      <div class="menu-label">Block</div>
+      <button data-menu-item data-block-set="p">Paragraph</button>
+      <button data-menu-item data-block-set="h1">Heading 1</button>
+      <button data-menu-item data-block-set="h2">Heading 2</button>
+      <button data-menu-item data-block-set="h3">Heading 3</button>
+      <button data-menu-item data-block-set="blockquote">Quote</button>
+      <button data-menu-item data-block-set="pre">Code block</button>
+
+      <div class="menu-sep"></div>
+
+      <div class="menu-label">Inline</div>
+      <button data-menu-item data-cmd="bold">Bold</button>
+      <button data-menu-item data-cmd="italic">Italic</button>
+      <button data-menu-item data-cmd="underline">Underline</button>
+      <button data-menu-item data-cmd="strikeThrough">Strikethrough</button>
+      <button data-menu-item data-cmd="superscript">Superscript</button>
+      <button data-menu-item data-cmd="subscript">Subscript</button>
+
+      <div class="menu-sep"></div>
+
+      <div class="menu-label">Lists & links</div>
+      <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+      <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+      <button data-menu-item data-link>Link…</button>
+      <button data-menu-item data-cmd="unlink">Unlink</button>
+      <button data-menu-item data-cmd="removeFormat">Clear formatting</button>
+
+      <div class="menu-sep"></div>
+
+      <div class="menu-label">Figures</div>
+      <button data-menu-item data-figure-pick="image">Image…</button>
+      <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+      <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+      <button data-menu-item data-figure-pick="media">Video or audio…</button>
+
+      <div class="menu-sep"></div>
+
+      <button data-menu-item data-cmd="undo">Undo</button>
+      <button data-menu-item data-cmd="redo">Redo</button>
+
+      <div class="menu-sep"></div>
+
+      <div class="menu-label" data-zoom-label>Zoom · 100%</div>
+      <div class="menu-field">
+        <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+          spellcheck="false" value="100" aria-label="Zoom percentage">
+        <span class="zoom-unit" aria-hidden="true">%</span>
+      </div>
+      <button data-menu-item data-zoom="out">Zoom out</button>
+      <button data-menu-item data-zoom="reset">Actual size (100%)</button>
+      <button data-menu-item data-zoom="in">Zoom in</button>
+      <button data-menu-item data-zoom="fit">Fit page width</button>
+
+      <div class="menu-sep"></div>
+
+      <div class="menu-label">Text size</div>
+      <button data-menu-item data-font="10pt">10 pt</button>
+      <button data-menu-item data-font="11pt">11 pt</button>
+      <button data-menu-item data-font="12pt">12 pt</button>
+      <button data-menu-item data-font="13pt">13 pt</button>
+
+      <div class="menu-sep"></div>
+
+      <button data-menu-item data-shortcuts>Keyboard shortcuts</button>
+    </div>
+  </span>
+
+  <button data-chrome-toggle aria-label="Full toolbar" title="Full toolbar"><svg class="i">
+      <use href="#i-paneltop" />
+    </svg></button>
+  <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+      <use href="#i-keyboard" />
+    </svg></button>
+
+  <button class="save-text" data-save title="Save">Save</button>
+</header>
+
+<input type="file" data-figure-input hidden multiple>

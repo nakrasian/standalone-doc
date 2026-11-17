@@ -44,6 +44,40 @@ file says otherwise.
 `mode` falls back to the manifest's old copy for one release, so a document saved
 before the split opens with the mode it was saved in.
 
+## Fragments (`kind="html"`)
+
+Chrome — the icon sprite, the toolbar, the figure tools, the edit-only dialogs — is
+shipped as **fragments**: assets whose body is markup rather than code.
+
+```html
+<!-- @asset id="toolbar-markup" kind="html" order="12" -->
+  <header id="app-toolbar" data-chrome contenteditable="false">
+    …
+  </header>
+<!-- /@asset -->
+```
+
+Three rules make them work:
+
+1. **The body is the element's inner markup.** `src/<id>.html` and
+   `dist/cdn/<id>.html` are both the body, so a fragment hashes like every other asset.
+   The element's own open tag travels in the manifest as `open`, because that is what
+   turns a body back into an element — and it means a fragment's element does not have
+   to carry the asset id (the sprite's `<svg>` has none).
+2. **`insert` says where it goes when fetched**: `before:<selector>` (default
+   `before:#viewport`) or `append:<selector>`. The body is a flex column whose children
+   are the layout, so position is part of the chrome's behaviour, not a detail.
+3. **A fetched fragment is session state.** The loader tags it `data-asset="<id>"`, and
+   the save path removes it before materialising: a saved file must never contain both
+   a fetched copy and the markup that says to fetch it.
+
+Inline is the default and the cheap case: the markup is already in the document, so
+nothing is fetched and nothing is rebuilt. A viewer leaves the fragments *absent* — no
+toolbar element exists at all rather than an empty one.
+
+Because a fragment is just an asset, this is also how a plugin can ship markup later: a
+fragment with `requiredBy: ["figure:<kind>"]` and its own `insert` host.
+
 ## Module shape (Phase 2 onward)
 
 Source modules are dependency-injected with **zero `import` statements**:

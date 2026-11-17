@@ -193,6 +193,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
      load phase can run in parallel without reordering anything. */
   async function evaluate(asset, text) {
     if (asset.kind === "css") return { css: text };
+    if (asset.kind === "html") return { html: text };
     const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
     let namespace;
     try {
@@ -232,6 +233,34 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return text;
   }
 
+  /**
+   * Put a fetched fragment where its manifest entry says. Chrome goes in front of
+   * `#viewport` because the body is a flex column and its position is the layout;
+   * a plugin fragment can name its own host with `append:<selector>`.
+   */
+  function insertFragment(asset, markup) {
+    const instruction = asset.insert || "before:#viewport";
+    const split = instruction.indexOf(":");
+    const place = split < 0 ? "before" : instruction.slice(0, split);
+    const selector = split < 0 ? instruction : instruction.slice(split + 1);
+    const anchor = document.querySelector(selector);
+
+    /* A fragment is published as its *body*, so the element has to be rebuilt from
+       the open tag the manifest carries. That is what keeps a fetched fragment
+       identical to the inline one. */
+    const open = asset.open || "<div>";
+    const tag = (/^<([a-zA-Z][\w-]*)/.exec(open) || [null, "div"])[1];
+    const template = document.createElement("template");
+    template.innerHTML = `${open}${markup}</${tag}>`;
+    const nodes = template.content;
+    /* Tag the roots: a fetched fragment is session state, and the save path has to be
+       able to tell it from a block that belongs to the file. */
+    for (const node of nodes.children) node.setAttribute("data-asset", asset.id);
+    if (place === "append" && anchor) anchor.append(nodes);
+    else if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(nodes, anchor);
+    else document.body.append(nodes);
+  }
+
   async function boot() {
     if (state !== "declared") return modules;
     setState("booting");
@@ -260,6 +289,15 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     let index = 0;
     for (const asset of assets) {
       if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
+
+      /* Fragments and stylesheets are not modules. An inline fragment is already in
+         the document (that is the point of shipping markup); a fetched one is
+         inserted here, in manifest order, before anything that reads it. */
+      if (asset.kind === "html") {
+        const fetched = loaded.get(asset.id);
+        if (fetched?.html != null) insertFragment(asset, fetched.html);
+        continue;
+      }
 
       /* Stylesheets are not modules: inline ones are already in the document,
          online ones are injected here, in manifest order, so cascade order is

@@ -1305,6 +1305,7 @@
 <body data-ui="ribbon">
 
   <!-- SVG icon sprite -->
+<!-- @asset id="sprite" kind="html" order="11" -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-bold" viewBox="0 0 24 24">
       <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />
@@ -1432,7 +1433,9 @@
       <path d="M3 3v5h5" />
     </symbol>
   </svg>
+<!-- /@asset -->
 
+<!-- @asset id="toolbar-markup" kind="html" order="12" -->
   <header id="app-toolbar" data-chrome contenteditable="false">
 
     <!-- ===== RIBBON: two rows ===== -->
@@ -1762,7 +1765,9 @@
 
     <input type="file" data-figure-input hidden multiple>
   </header>
+<!-- /@asset -->
 
+<!-- @asset id="figure-tools" kind="html" order="13" -->
   <div id="figure-tools" data-chrome hidden contenteditable="false">
     <span class="figure-dim" data-dim="w">
       <span class="figure-dim-label">W</span>
@@ -1779,6 +1784,7 @@
     <button data-figure-reset title="Reset figure size">Fit</button>
     <button data-figure-remove title="Remove figure">Remove</button>
   </div>
+<!-- /@asset -->
 
   <main id="viewport">
     <div id="stage">
@@ -1836,7 +1842,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","editable":true,"toolbar":true,"saveThresholdBytes":2097152}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":15610,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":12996},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":13036,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/policy.js","integrity":"sha384-q2W4gqccXuJx63OmuDZUCkEvODqI/CNBu7DqK3g9K0Epc9c3EQ0Nfh3jkJwAz24l"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":32618,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-sKP2Rx9xcBea7hqw9RjnQ3R6ZXgV14i3oOOKuZai6pfMT9pI6HdxsdQlGqrfgeJt"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":15610,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":4610,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/sprite.html","integrity":"sha384-y+yz7qA0tRecgjUNZTuUW6xqaZPCygg9jExhfiIAEEnc+LICTA93jcM3zNpbdgZq"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":14010,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-markup.html","integrity":"sha384-q2sZIbOri3AkYkeLuYKYLzFtPVpsyGQJWTDiN/M9LDRHRkg5OqSOj7Q91p3xKCor"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":14955},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42354,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-3CDpokYFxuAJVKVDMlje2/7VTdlAWzGV/srOMEUdlF864RXZM6kl//NvEIGruc7V"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":14359,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/policy.js","integrity":"sha384-86ryQFRPgnQZlQq97N6RQzCf/m5nb55OrIzGHNx2DBWPsUk0h1LgDKc4rp6GhYes"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":32856,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-8LhbFf6oYuVyLuix48787u/TIJr1II2+X/B4WoRGVBHRU12aEGoK7/wf3xqvpU5C"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":1266,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/dialogs.html","integrity":"sha384-SYZ6ET+T3hvyz7OwS+B4DBw3ONyUnv/bjpMpSQBfaVhByAm8T4rbwGFVpgzzhWmR"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -2034,6 +2040,7 @@
          load phase can run in parallel without reordering anything. */
       async function evaluate(asset, text) {
         if (asset.kind === "css") return { css: text };
+        if (asset.kind === "html") return { html: text };
         const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
         let namespace;
         try {
@@ -2073,6 +2080,34 @@
         return text;
       }
 
+      /**
+       * Put a fetched fragment where its manifest entry says. Chrome goes in front of
+       * `#viewport` because the body is a flex column and its position is the layout;
+       * a plugin fragment can name its own host with `append:<selector>`.
+       */
+      function insertFragment(asset, markup) {
+        const instruction = asset.insert || "before:#viewport";
+        const split = instruction.indexOf(":");
+        const place = split < 0 ? "before" : instruction.slice(0, split);
+        const selector = split < 0 ? instruction : instruction.slice(split + 1);
+        const anchor = document.querySelector(selector);
+
+        /* A fragment is published as its *body*, so the element has to be rebuilt from
+           the open tag the manifest carries. That is what keeps a fetched fragment
+           identical to the inline one. */
+        const open = asset.open || "<div>";
+        const tag = (/^<([a-zA-Z][\w-]*)/.exec(open) || [null, "div"])[1];
+        const template = document.createElement("template");
+        template.innerHTML = `${open}${markup}</${tag}>`;
+        const nodes = template.content;
+        /* Tag the roots: a fetched fragment is session state, and the save path has to be
+           able to tell it from a block that belongs to the file. */
+        for (const node of nodes.children) node.setAttribute("data-asset", asset.id);
+        if (place === "append" && anchor) anchor.append(nodes);
+        else if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(nodes, anchor);
+        else document.body.append(nodes);
+      }
+
       async function boot() {
         if (state !== "declared") return modules;
         setState("booting");
@@ -2101,6 +2136,15 @@
         let index = 0;
         for (const asset of assets) {
           if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
+
+          /* Fragments and stylesheets are not modules. An inline fragment is already in
+             the document (that is the point of shipping markup); a fetched one is
+             inserted here, in manifest order, before anything that reads it. */
+          if (asset.kind === "html") {
+            const fetched = loaded.get(asset.id);
+            if (fetched?.html != null) insertFragment(asset, fetched.html);
+            continue;
+          }
 
           /* Stylesheets are not modules: inline ones are already in the document,
              online ones are injected here, in manifest order, so cascade order is
@@ -4619,8 +4663,6 @@
           figure.removeAttribute("data-mounted");
           figure.removeAttribute("data-missing");
         });
-        clone.querySelector("#figure-tools")?.remove();
-
         const out = {version: VERSION, figures: {}};
         const add = (id) => {
           const entry = store.figures[id];
@@ -4985,6 +5027,21 @@
         return true;
       }
 
+      /** The element an asset block wraps, found by its marker (fragments have no id). */
+      function blockOf(root, id) {
+        const doc = docOf(root);
+        const walker = doc.createTreeWalker(root, 128 /* SHOW_COMMENT */);
+        const wanted = new RegExp(`id="${id}"`);
+        let node;
+        while ((node = walker.nextNode())) {
+          if (!startMarker(node) || !wanted.test(node.nodeValue || "")) continue;
+          let sibling = node.nextSibling;
+          while (sibling && sibling.nodeType !== 1 /* ELEMENT_NODE */) sibling = sibling.nextSibling;
+          return sibling;
+        }
+        return null;
+      }
+
       /** The first @asset marker whose order is greater than `order`, for a tidy insert. */
       function markerAfter(root, order) {
         const doc = docOf(root);
@@ -5005,10 +5062,11 @@
        * build-produced block has, minus the build-provenance comment line, which exists
        * for `verify` on the repository's own file and means nothing in a saved document.
        */
-      function insertBlock(root, {id, order, kind, factory, text}) {
+      function insertBlock(root, {id, order, kind, factory, open, text}) {
         const doc = docOf(root);
         const isCss = kind === "css";
-        const body = isCss
+        const isHtml = kind === "html";
+        const body = isCss || isHtml
           ? text.replace(/\n$/, "")
           : `${text.replace(/\n$/, "")}\nStandaloneDoc.register(${JSON.stringify(id)}, ${factory});`;
         /* Two spaces for the element, two more for its body — the same shape the build
@@ -5019,16 +5077,29 @@
           .join("\n");
 
         const fragment = doc.createDocumentFragment();
+        const markerKind = isCss ? "css" : isHtml ? "html" : "js";
         fragment.append(
           doc.createTextNode("\n"),
-          doc.createComment(` @asset id="${id}" kind="${isCss ? "css" : "js"}" order="${order}" `),
+          doc.createComment(` @asset id="${id}" kind="${markerKind}" order="${order}" `),
           doc.createTextNode("\n  "),
         );
-        const el = doc.createElement(isCss ? "style" : "script");
-        if (!isCss) el.type = "module";
-        el.id = id;
-        el.textContent = isCss ? `\n${indented}\n  ` : `\n${indented}\n  `;
-        fragment.append(el, doc.createTextNode("\n"), doc.createComment(" /@asset "), doc.createTextNode("\n"));
+
+        let el;
+        if (isHtml) {
+          /* A fragment is an element, not a script: rebuild it from the open tag the
+             manifest recorded, so the saved block is shaped like the original. */
+          const holder = doc.createElement("template");
+          holder.innerHTML = `${open || "<div>"}${body}${open ? `</${/^<([a-zA-Z][\w-]*)/.exec(open)[1]}>` : "</div>"}`;
+          const nodes = [...holder.content.childNodes];
+          for (const node of nodes) fragment.append(node);
+        } else {
+          el = doc.createElement(isCss ? "style" : "script");
+          if (!isCss) el.type = "module";
+          el.id = id;
+          el.textContent = `\n${indented}\n  `;
+          fragment.append(el);
+        }
+        fragment.append(doc.createTextNode("\n"), doc.createComment(" /@asset "), doc.createTextNode("\n"));
 
         const ref = markerAfter(root, order);
         if (ref && ref.parentNode) ref.parentNode.insertBefore(fragment, ref);
@@ -5074,12 +5145,12 @@
         for (const decision of planned.decisions) {
           const entry = byIdEntry.get(decision.id);
 
-          /* A stylesheet that arrived from the CDN was injected at boot. That is session
-             state: the saved file must not carry both a fetched copy and the markup that
-             says to fetch it. */
-          for (const injected of root.querySelectorAll(`style[data-asset="${decision.id}"]`)) injected.remove();
+          /* Anything that arrived from the CDN was injected at boot — a stylesheet, a
+             fragment. That is session state: the saved file must not carry both a fetched
+             copy and the markup that says to fetch it. */
+          for (const injected of root.querySelectorAll(`[data-asset="${decision.id}"]`)) injected.remove();
 
-          const el = byId(root, decision.id);
+          const el = blockOf(root, decision.id);
           const present = Boolean(el);
 
           if (decision.to === "inline") {
@@ -5087,7 +5158,8 @@
               /* Stylesheets have no factory; modules need one to register. Both need a
                  pinned url, because that is the only place their bytes come from. */
               const needsFactory = entry && entry.kind === "js";
-              if (!entry || !entry.url || (needsFactory && !entry.factory)) {
+              const needsOpen = entry && entry.kind === "html";
+              if (!entry || !entry.url || (needsFactory && !entry.factory) || (needsOpen && !entry.open)) {
                 problems.push(`${decision.id}: this document has no pinned url for it, so it cannot be inlined`);
                 continue;
               }
@@ -5098,6 +5170,7 @@
                   order: entry.order,
                   kind: entry.kind,
                   factory: entry.factory,
+                  open: entry.open,
                   text,
                 });
                 changed.push(decision.id);
@@ -5173,7 +5246,7 @@
         });
       }
 
-      return {plan, apply, persist, presetFor, resolve, planned, target, usage, PRESETS};
+      return {plan, apply, persist, presetFor, resolve, planned, target, usage, blockOf, PRESETS};
     }
     StandaloneDoc.register("policy", createPolicy);
   </script>
@@ -5352,7 +5425,10 @@
       async function serialize(options = {}) {
         const clone = document.documentElement.cloneNode(true);
 
-        clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], #figure-tools").forEach((el) => el.remove());
+        /* Not #figure-tools: its markup is an asset now (the `figure-tools` fragment), so
+           whether it travels with the file is the save policy's decision, not a cleanup
+           rule. It is `hidden`, so an inline copy costs bytes and nothing else. */
+        clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu]").forEach((el) => el.remove());
         clone.querySelectorAll("[data-menu-panel]").forEach((m) => m.setAttribute("hidden", ""));
         clone.querySelectorAll(".menu").forEach((m) => {
           m.classList.remove("menu-flip");
@@ -5637,7 +5713,7 @@
         if (!options.policy && !options.overrides && threshold > 0 && bytes > threshold && !(declined && bytes < declined * 2)) {
           const blocks = {};
           for (const decision of serialized.planned.decisions) {
-            const block = document.getElementById(decision.id);
+            const block = policy.blockOf(document, decision.id);
             if (block) blocks[decision.id] = block.outerHTML.length + 80; /* markers + newlines */
           }
           const choice = await askSavePolicy({planned: serialized.planned, bytes, blocks, threshold});
@@ -6351,6 +6427,8 @@
   </script>
 <!-- /@asset -->
 
+<!-- @asset id="dialogs" kind="html" order="14" -->
+  <div id="dialogs">
   <dialog id="shortcuts-dialog">
     <form method="dialog">
       <h2>Keyboard shortcuts</h2>
@@ -6385,6 +6463,8 @@
       <button type="button" class="primary" data-save-confirm>Save</button>
     </div>
   </dialog>
+  </div>
+<!-- /@asset -->
 
 <!-- @asset id="bootstrap" kind="js" order="120" -->
   <script type="module" id="bootstrap">

@@ -40,7 +40,7 @@ test("the viewer opens from disk with no network and no editing modules", async 
     ).length,
     editable: document.getElementById("content")?.getAttribute("contenteditable"),
     mode: document.documentElement.dataset.mode,
-    toolbarDisplay: getComputedStyle(document.getElementById("app-toolbar")).display,
+    toolbar: document.getElementById("app-toolbar") ? "present" : "absent",
     figures: typeof StandaloneDoc.modules.figures,
     content: (document.getElementById("content")?.textContent || "").trim().length,
     /* A build artifact materialises its modes in the manifest, so it stores no
@@ -58,7 +58,7 @@ test("the viewer opens from disk with no network and no editing modules", async 
   expect(state.editingBlocks).toBe(0);
   expect(state.editable).toBe("false");
   expect(state.mode).toBe("view");
-  expect(state.toolbarDisplay).toBe("none");
+  expect(state.toolbar).toBe("absent");
   expect(state.figures).toBe("object");
   expect(state.content).toBeGreaterThan(0);
   expect(state.policy).toBe(null);

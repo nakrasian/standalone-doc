@@ -54,13 +54,58 @@
       "role": "infra"
     },
     {
+      "id": "sprite",
+      "kind": "html",
+      "order": 11,
+      "tag": "svg",
+      "file": "src/sprite.html",
+      "bytes": 4610,
+      "sha384": "sha384-y+yz7qA0tRecgjUNZTuUW6xqaZPCygg9jExhfiIAEEnc+LICTA93jcM3zNpbdgZq",
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "role": "module",
+      "open": "<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">"
+    },
+    {
+      "id": "toolbar-markup",
+      "kind": "html",
+      "order": 12,
+      "tag": "header",
+      "file": "src/toolbar-markup.html",
+      "bytes": 14010,
+      "sha384": "sha384-q2sZIbOri3AkYkeLuYKYLzFtPVpsyGQJWTDiN/M9LDRHRkg5OqSOj7Q91p3xKCor",
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "role": "module",
+      "open": "<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">"
+    },
+    {
+      "id": "figure-tools",
+      "kind": "html",
+      "order": 13,
+      "tag": "div",
+      "file": "src/figure-tools.html",
+      "bytes": 780,
+      "sha384": "sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7",
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "role": "module",
+      "open": "<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">"
+    },
+    {
       "id": "registry",
       "kind": "js",
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 12996,
-      "sha384": "sha384-IMQhng0fnjVdneItpo6brmp/6OiTufNiAWoa7zJnrMbbN2i7SBcoartlhyFdFIna",
+      "bytes": 14955,
+      "sha384": "sha384-P/IaLulu587ceaNrsJapNtuwLMwEfBa84bks4kOFc3+DuAfoYzopc6KTp2mExsj7",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -262,8 +307,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 42407,
-      "sha384": "sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU",
+      "bytes": 42354,
+      "sha384": "sha384-3CDpokYFxuAJVKVDMlje2/7VTdlAWzGV/srOMEUdlF864RXZM6kl//NvEIGruc7V",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -310,8 +355,8 @@
       "order": 85,
       "tag": "script",
       "file": "src/policy.js",
-      "bytes": 13036,
-      "sha384": "sha384-q2W4gqccXuJx63OmuDZUCkEvODqI/CNBu7DqK3g9K0Epc9c3EQ0Nfh3jkJwAz24l",
+      "bytes": 14359,
+      "sha384": "sha384-86ryQFRPgnQZlQq97N6RQzCf/m5nb55OrIzGHNx2DBWPsUk0h1LgDKc4rp6GhYes",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -329,6 +374,7 @@
         "planned",
         "target",
         "usage",
+        "blockOf",
         "PRESETS"
       ],
       "env": true,
@@ -340,8 +386,8 @@
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 32618,
-      "sha384": "sha384-sKP2Rx9xcBea7hqw9RjnQ3R6ZXgV14i3oOOKuZai6pfMT9pI6HdxsdQlGqrfgeJt",
+      "bytes": 32856,
+      "sha384": "sha384-8LhbFf6oYuVyLuix48787u/TIJr1II2+X/B4WoRGVBHRU12aEGoK7/wf3xqvpU5C",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -392,6 +438,21 @@
         "printLive",
         "printCaptured"
       ]
+    },
+    {
+      "id": "dialogs",
+      "kind": "html",
+      "order": 14,
+      "tag": "div",
+      "file": "src/dialogs.html",
+      "bytes": 1266,
+      "sha384": "sha384-SYZ6ET+T3hvyz7OwS+B4DBw3ONyUnv/bjpMpSQBfaVhByAm8T4rbwGFVpgzzhWmR",
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "role": "module",
+      "open": "<div id=\"dialogs\">"
     },
     {
       "id": "bootstrap",

@@ -79,6 +79,10 @@ const REGIONS = [
   { id: "registry", kind: "js", order: 5, requiredBy: ["*"] },
   { id: "boot-ui", kind: "js", order: 6, requiredBy: ["*"] },
   { id: "apply-settings", kind: "js", order: 7, requiredBy: ["*"] },
+  { id: "sprite", kind: "html", order: 11, requiredBy: ["edit"], tag: "svg" },
+  { id: "toolbar-markup", kind: "html", order: 12, requiredBy: ["edit"], tag: "header" },
+  { id: "figure-tools", kind: "html", order: 13, requiredBy: ["edit"], tag: "div" },
+  { id: "dialogs", kind: "html", order: 14, requiredBy: ["edit"], tag: "div" },
   { id: "signals", kind: "js", order: 30, requiredBy: ["*"] },
   { id: "zoom", kind: "js", order: 40, requiredBy: ["*"] },
   { id: "pagination", kind: "js", order: 50, requiredBy: ["*"] },
@@ -179,7 +183,10 @@ function parseSource(html) {
       kind: attrs.kind || (tag === "style" ? "css" : "js"),
       order: Number(attrs.order ?? assets.length * 10 + 10),
       tag,
-      file: `${SRC}/${id}.${tag === "style" ? "css" : "js"}`,
+      file: `${SRC}/${id}.${extensionFor(attrs.kind || (tag === "style" ? "css" : "js"))}`,
+      /* A fragment is published as its body; its own open tag is the thing that turns
+         a body back into an element, so that travels in the manifest. */
+      open: openLine.trim(),
       indent: reversible ? indent : "",
       body,
       bodyStart,
@@ -189,6 +196,13 @@ function parseSource(html) {
     });
   }
   return assets;
+}
+
+/** Extension for an asset kind: css and html are published as-is, js as .js. */
+function extensionFor(kind) {
+  if (kind === "css") return "css";
+  if (kind === "html") return "html";
+  return "js";
 }
 
 /** Replace only asset bodies. Everything else in `html` is untouched. */
@@ -209,7 +223,7 @@ function insertMarkers(html) {
 
   const inserts = [];
   for (const [i, region] of REGIONS.entries()) {
-    const tag = region.kind === "css" ? "style" : "script";
+    const tag = region.tag || (region.kind === "css" ? "style" : "script");
     const openRe = new RegExp(`^([ \\t]*)<${tag}\\b[^>]*\\bid="${region.id}"[^>]*>`, "m");
     const m = openRe.exec(html);
     if (!m) throw new Error(`bootstrap: no <${tag} id="${region.id}"> found`);
@@ -263,6 +277,7 @@ function buildManifest(assets, previous) {
       requiredBy,
     };
     entry.role = INFRA.has(a.id) ? "infra" : "module";
+    if (a.kind === "html") entry.open = a.open;
     if (isConverted(a.id)) {
       const contract = extractContract(text, { globals: LEGACY_GLOBAL_TO_ID });
       entry.deps = contract.deps;
@@ -301,7 +316,7 @@ function docManifest(manifest, overrides = {}) {
     cdnBase: base,
     timeoutMs: manifest.timeoutMs || 8000,
     assets: manifest.assets.map((a) => {
-      const ext = a.kind === "css" ? "css" : "js";
+      const ext = extensionFor(a.kind);
       const mode = overrides[a.id] ?? a.mode;
       const entry = {
         id: a.id,
@@ -316,6 +331,12 @@ function docManifest(manifest, overrides = {}) {
       if (a.late?.length) entry.late = a.late;
       if (a.optional?.length) entry.optional = a.optional;
       if (isConverted(a.id)) entry.factory = MODULES[a.id].factory;
+      if (a.kind === "html") {
+        entry.open = a.open;
+        /* Where a fetched fragment lands: `before:<selector>` or `append:<selector>`.
+           The default suits chrome; a plugin fragment can name its own host. */
+        entry.insert = a.insert || "before:#viewport";
+      }
       /* Every non-infra asset carries where it lives and what it hashes to, even
          when it is inline today. That is what lets a save policy move an asset
          between inline and online with no network: the target state is already
@@ -735,8 +756,7 @@ async function cmdCheck() {
     }
     for (const asset of m.assets) {
       if (asset.role === "infra") continue;
-      const ext = asset.kind === "css" ? "css" : "js";
-      const published = `${DIST}/cdn/${asset.id}.${ext}`;
+      const published = `${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`;
       if (!exists(published)) all.push(`${published} is missing — run: node build.mjs build`);
       else if (sha384(read(published)) !== asset.sha384) all.push(`${published} does not match the manifest hash — run: node build.mjs build`);
     }
@@ -767,7 +787,7 @@ async function cmdCheck() {
     const m = readManifest();
     if (m.schema !== 1) all.push(`manifest.json schema is ${m.schema}, expected 1`);
     for (const a of m.assets) {
-      if (!["css", "js"].includes(a.kind)) all.push(`${a.id}: unknown kind "${a.kind}"`);
+      if (!["css", "js", "html"].includes(a.kind)) all.push(`${a.id}: unknown kind "${a.kind}"`);
       if (!["inline", "online", "disabled"].includes(a.mode)) all.push(`${a.id}: unknown mode "${a.mode}"`);
       if (!Array.isArray(a.requiredBy) || !a.requiredBy.length) all.push(`${a.id}: requiredBy must be a non-empty array`);
     }
@@ -863,8 +883,7 @@ function cmdBuild() {
   const manifest = readManifest();
   for (const asset of manifest.assets) {
     if (asset.role === "infra") continue;
-    const ext = asset.kind === "css" ? "css" : "js";
-    write(`${DIST}/cdn/${asset.id}.${ext}`, read(asset.file));
+    write(`${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`, read(asset.file));
   }
 
   write(`${DIST}/slim.html`, buildSlim(html, manifest));

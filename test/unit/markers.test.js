@@ -50,7 +50,7 @@ const marked = regions(html);
 test("every marked region is well formed", () => {
   assert.ok(marked.length > 0, "expected at least one @asset region");
   for (const r of marked) {
-    assert.match(r.openLine.trim(), /^<(style|script)\b/, `${r.id}: the line after a marker must be the element`);
+    assert.match(r.openLine.trim(), /^<(style|script|svg|header|div)\b/, `${r.id}: the line after a marker must be the element`);
   }
 });
 
@@ -61,7 +61,7 @@ test("ids and orders are unique", () => {
   assert.equal(new Set(orders).size, orders.length, "duplicate order");
   for (const r of marked) {
     assert.ok(r.id, "marker without id");
-    assert.ok(["css", "js"].includes(r.kind), `${r.id}: kind must be css or js`);
+    assert.ok(["css", "js", "html"].includes(r.kind), `${r.id}: kind must be css, js or html`);
     assert.ok(/^\d+$/.test(r.order), `${r.id}: order must be an integer`);
   }
 });
@@ -70,10 +70,19 @@ test("the element inside a region matches its declared kind", () => {
   for (const r of marked) {
     const open = r.openLine.trim();
     const close = r.closeLine.trim();
-    const tag = r.kind === "css" ? "style" : "script";
-    assert.ok(open.startsWith(`<${tag}`), `${r.id}: expected <${tag}>, got ${open}`);
-    assert.equal(close, `</${tag}>`, `${r.id}: expected </${tag}>`);
-    assert.ok(open.includes(`id="${r.id}"`), `${r.id}: the element must carry the same id`);
+    if (r.kind === "html") {
+      /* A fragment can be any element; its own tag is the contract. */
+      const tag = /^<([a-zA-Z][\w-]*)/.exec(open)?.[1];
+      assert.ok(tag, `${r.id}: the fragment must open with an element`);
+      assert.equal(close, `</${tag}>`, `${r.id}: expected </${tag}>`);
+    } else {
+      const tag = r.kind === "css" ? "style" : "script";
+      assert.ok(open.startsWith(`<${tag}`), `${r.id}: expected <${tag}>, got ${open}`);
+      assert.equal(close, `</${tag}>`, `${r.id}: expected </${tag}>`);
+    }
+    /* A fragment's element is the fragment, not a script named after the asset: the
+       asset id is the file name, so only non-fragment kinds must carry it. */
+    if (r.kind !== "html") assert.ok(open.includes(`id="${r.id}"`), `${r.id}: the element must carry the same id`);
     assert.ok(r.bodyLines.length > 0, `${r.id}: body is empty`);
   }
 });

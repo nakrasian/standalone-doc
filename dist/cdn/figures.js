@@ -982,8 +982,6 @@ export function createFigures(deps = {}) {
       figure.removeAttribute("data-mounted");
       figure.removeAttribute("data-missing");
     });
-    clone.querySelector("#figure-tools")?.remove();
-
     const out = {version: VERSION, figures: {}};
     const add = (id) => {
       const entry = store.figures[id];

@@ -93,12 +93,19 @@ test("the slim policy offloads everything except the loader, and leaves the edit
     const manifest = JSON.parse(doc.getElementById("asset-manifest").textContent);
     const settings = JSON.parse(doc.getElementById("doc-settings").textContent);
     const byId = Object.fromEntries(manifest.assets.map((asset) => [asset.id, asset]));
+    const byIdFragment = () => {
+      const entry = byId["toolbar-markup"];
+      return { mode: entry.mode, url: /toolbar-markup\.html$/.test(entry.url || ""), hasOpen: Boolean(entry.open), insert: entry.insert };
+    };
     return {
       blocks: {
         signals: !!doc.getElementById("signals"),
         editor: !!doc.getElementById("editor"),
         registry: !!doc.getElementById("registry"),
+        toolbar: !!doc.getElementById("app-toolbar"),
+        sprite: doc.querySelectorAll("symbol").length,
       },
+      fragment: byIdFragment(doc),
       signals: {mode: byId.signals.mode, url: Boolean(byId.signals.url), integrity: Boolean(byId.signals.integrity)},
       registry: {mode: byId.registry.mode, url: Boolean(byId.registry.url)},
       policy: settings.policy ?? null,
@@ -111,7 +118,9 @@ test("the slim policy offloads everything except the loader, and leaves the edit
     };
   });
 
-  expect(result.blocks).toEqual({signals: false, editor: false, registry: true});
+  expect(result.blocks).toEqual({signals: false, editor: false, registry: true, toolbar: false, sprite: 0});
+  /* A fragment carries what turns its body back into an element. */
+  expect(result.fragment).toEqual({mode: "online", url: true, hasOpen: true, insert: "before:#viewport"});
   expect(result.signals).toEqual({mode: "online", url: true, integrity: true});
   /* The loader has no url on purpose: it cannot be fetched, only carried. */
   expect(result.registry).toEqual({mode: "inline", url: false});

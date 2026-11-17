@@ -133,480 +133,8 @@
 <body data-ui="ribbon">
 
   <!-- SVG icon sprite -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <symbol id="i-bold" viewBox="0 0 24 24">
-      <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />
-    </symbol>
-    <symbol id="i-italic" viewBox="0 0 24 24">
-      <line x1="19" x2="10" y1="4" y2="4" />
-      <line x1="14" x2="5" y1="20" y2="20" />
-      <line x1="15" x2="9" y1="4" y2="20" />
-    </symbol>
-    <symbol id="i-underline" viewBox="0 0 24 24">
-      <path d="M6 4v6a6 6 0 0 0 12 0V4" />
-      <line x1="4" x2="20" y1="20" y2="20" />
-    </symbol>
-    <symbol id="i-strike" viewBox="0 0 24 24">
-      <path d="M16 4H9a3 3 0 0 0-2.83 4" />
-      <path d="M14 12a4 4 0 0 1 0 8H6" />
-      <line x1="4" x2="20" y1="12" y2="12" />
-    </symbol>
-    <symbol id="i-list" viewBox="0 0 24 24">
-      <line x1="8" x2="21" y1="6" y2="6" />
-      <line x1="8" x2="21" y1="12" y2="12" />
-      <line x1="8" x2="21" y1="18" y2="18" />
-      <line x1="3" x2="3.01" y1="6" y2="6" />
-      <line x1="3" x2="3.01" y1="12" y2="12" />
-      <line x1="3" x2="3.01" y1="18" y2="18" />
-    </symbol>
-    <symbol id="i-list-ol" viewBox="0 0 24 24">
-      <line x1="10" x2="21" y1="6" y2="6" />
-      <line x1="10" x2="21" y1="12" y2="12" />
-      <line x1="10" x2="21" y1="18" y2="18" />
-      <path d="M4 6h1v4" />
-      <path d="M4 10h2" />
-      <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
-    </symbol>
-    <symbol id="i-link" viewBox="0 0 24 24">
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </symbol>
-    <symbol id="i-unlink" viewBox="0 0 24 24">
-      <path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-      <line x1="8" x2="8" y1="2" y2="5" />
-      <line x1="2" x2="5" y1="8" y2="8" />
-      <line x1="16" x2="16" y1="19" y2="22" />
-      <line x1="19" x2="22" y1="16" y2="16" />
-    </symbol>
-    <symbol id="i-eraser" viewBox="0 0 24 24">
-      <path d="M4 7V4h16v3" />
-      <path d="M5 20h6" />
-      <path d="M13 4 8 20" />
-      <path d="m15 15 5 5" />
-      <path d="m20 15-5 5" />
-    </symbol>
-    <symbol id="i-undo" viewBox="0 0 24 24">
-      <path d="M9 14 4 9l5-5" />
-      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-    </symbol>
-    <symbol id="i-redo" viewBox="0 0 24 24">
-      <path d="m15 14 5-5-5-5" />
-      <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
-    </symbol>
-    <symbol id="i-quote" viewBox="0 0 24 24">
-      <path
-        d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
-      <path
-        d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
-    </symbol>
-    <symbol id="i-code" viewBox="0 0 24 24">
-      <polyline points="16 18 22 12 16 6" />
-      <polyline points="8 6 2 12 8 18" />
-    </symbol>
-    <symbol id="i-sup" viewBox="0 0 24 24">
-      <path d="m4 19 8-8" />
-      <path d="m12 19-8-8" />
-      <path
-        d="M20 12h-4c0-1.5.44-2 1.5-2.5S20 8.33 20 7c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
-    </symbol>
-    <symbol id="i-sub" viewBox="0 0 24 24">
-      <path d="m4 5 8 8" />
-      <path d="m12 5-8 8" />
-      <path
-        d="M20 19h-4c0-1.5.44-2 1.5-2.5S20 15.33 20 14c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
-    </symbol>
-    <symbol id="i-save" viewBox="0 0 24 24">
-      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
-      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
-      <path d="M7 3v4a1 1 0 0 0 1 1h7" />
-    </symbol>
-    <symbol id="i-more" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="19" cy="12" r="1" />
-      <circle cx="5" cy="12" r="1" />
-    </symbol>
-    <symbol id="i-keyboard" viewBox="0 0 24 24">
-      <path d="M10 8h.01" />
-      <path d="M12 12h.01" />
-      <path d="M14 8h.01" />
-      <path d="M16 12h.01" />
-      <path d="M18 8h.01" />
-      <path d="M6 8h.01" />
-      <path d="M7 16h10" />
-      <path d="M8 12h.01" />
-      <rect width="20" height="16" x="2" y="4" rx="2" />
-    </symbol>
-    <symbol id="i-chev" viewBox="0 0 24 24">
-      <path d="m6 9 6 6 6-6" />
-    </symbol>
-    <symbol id="i-paneltop" viewBox="0 0 24 24">
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M3 9h18" />
-    </symbol>
-    <symbol id="i-zoom-in" viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
-      <line x1="11" x2="11" y1="8" y2="14" />
-      <line x1="8" x2="14" y1="11" y2="11" />
-    </symbol>
-    <symbol id="i-zoom-out" viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
-      <line x1="8" x2="14" y1="11" y2="11" />
-    </symbol>
-    <symbol id="i-zoom-reset" viewBox="0 0 24 24">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-    </symbol>
-  </svg>
 
-  <header id="app-toolbar" data-chrome contenteditable="false">
 
-    <!-- ===== RIBBON: two rows ===== -->
-    <header id="ui-ribbon" class="ribbon" data-ui-panel="ribbon">
-
-      <!-- Row 1: title, file menu, save, toggle -->
-      <div class="ribbon-top">
-        <button class="favicon" data-favicon title="Change favicon">🧬</button>
-        <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false"
-          aria-label="Document title">
-        <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
-        <span class="sep"></span>
-
-        <!-- File Dropdown Menu -->
-        <span class="menu-wrap">
-          <button class="menu-trigger" data-menu>File <svg class="i sm">
-              <use href="#i-chev" />
-            </svg></button>
-          <div class="menu" data-menu-panel hidden>
-            <button data-menu-item data-save><svg class="i sm">
-                <use href="#i-save" />
-              </svg>Save</button>
-
-            <div class="menu-sub" data-submenu>
-              <button type="button" data-menu-item data-submenu-trigger
-                aria-haspopup="menu" aria-expanded="false">Save as…
-                <svg class="i sm">
-                  <use href="#i-chev" />
-                </svg></button>
-              <div class="menu" data-menu-panel hidden>
-
-                <div class="menu-sub" data-submenu>
-                  <button type="button" data-menu-item data-submenu-trigger
-                    aria-haspopup="menu" aria-expanded="false">HTML
-                    <svg class="i sm">
-                      <use href="#i-chev" />
-                    </svg></button>
-                  <div class="menu" data-menu-panel hidden>
-                    <button data-menu-item data-export="html-interactive"
-                      data-save>Interactive (.html)</button>
-                    <button data-menu-item data-export="html-static">Static with captured figures…</button>
-                  </div>
-                </div>
-
-                <div class="menu-sub" data-submenu>
-                  <button type="button" data-menu-item data-submenu-trigger
-                    aria-haspopup="menu" aria-expanded="false">PDF
-                    <svg class="i sm">
-                      <use href="#i-chev" />
-                    </svg></button>
-                  <div class="menu" data-menu-panel hidden>
-                    <button data-menu-item data-export="print-live"
-                      title="The browser print dialog controls headers and footers.">Standard print</button>
-                    <button data-menu-item data-export="print-captured"
-                      title="The browser print dialog controls headers and footers.">Captured figures</button>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </span>
-
-        <!-- Insert Dropdown Menu -->
-        <span class="menu-wrap">
-          <button class="menu-trigger" data-menu>Insert <svg class="i sm">
-              <use href="#i-chev" />
-            </svg></button>
-          <div class="menu" data-menu-panel hidden>
-            <div class="menu-label">Blocks</div>
-            <button data-menu-item data-block-set="p">Paragraph</button>
-            <button data-menu-item data-block-set="h1">Heading 1</button>
-            <button data-menu-item data-block-set="h2">Heading 2</button>
-            <button data-menu-item data-block-set="h3">Heading 3</button>
-            <div class="menu-sep"></div>
-            <div class="menu-label">Inline</div>
-            <button data-menu-item data-link>Link</button>
-            <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
-            <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
-            <div class="menu-sep"></div>
-            <div class="menu-label">Figures</div>
-            <button data-menu-item data-figure-pick="image">Image…</button>
-            <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
-            <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
-            <button data-menu-item data-figure-pick="media">Video or audio…</button>
-          </div>
-        </span>
-
-        <!-- Style Dropdown Menu -->
-        <span class="menu-wrap">
-          <button class="menu-trigger" data-menu>Style <svg class="i sm">
-              <use href="#i-chev" />
-            </svg></button>
-          <div class="menu" data-menu-panel hidden>
-            <div class="menu-label">Text size</div>
-            <button data-menu-item data-font="10pt">10 pt</button>
-            <button data-menu-item data-font="11pt">11 pt</button>
-            <button data-menu-item data-font="12pt">12 pt</button>
-            <button data-menu-item data-font="13pt">13 pt</button>
-          </div>
-        </span>
-
-        <!-- Spacing between left and right tools -->
-        <span class="grow"></span>
-
-        <span class="stats" data-stats>—</span>
-        <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
-            <use href="#i-paneltop" />
-          </svg></button>
-        <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
-            <use href="#i-keyboard" />
-          </svg></button>
-        <button class="primary" data-save title="Save">Save</button>
-      </div>
-
-      <!-- Row 2: formatting toolbar -->
-      <div class="ribbon-tools">
-        <button data-cmd="undo" title="Undo"><svg class="i">
-            <use href="#i-undo" />
-          </svg></button>
-        <button data-cmd="redo" title="Redo"><svg class="i">
-            <use href="#i-redo" />
-          </svg></button>
-
-        <span class="sep"></span>
-
-        <!-- Zoom: scales the pages only, never this toolbar -->
-        <span class="zoom-field" role="group" aria-label="Zoom">
-          <button data-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="i">
-              <use href="#i-zoom-out" />
-            </svg></button>
-          <label class="zoom-box">
-            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
-              spellcheck="false" value="100" aria-label="Zoom percentage" title="Type a percentage, then Enter">
-            <span class="zoom-unit" aria-hidden="true">%</span>
-          </label>
-          <button data-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="i">
-              <use href="#i-zoom-in" />
-            </svg></button>
-          <button data-zoom="reset" aria-label="Reset zoom to 100%" title="Reset zoom to 100%"><svg class="i sm">
-              <use href="#i-zoom-reset" />
-            </svg></button>
-        </span>
-
-        <span class="sep"></span>
-
-        <select class="select" data-block aria-label="Block style">
-          <option value="p">Paragraph</option>
-          <option value="h1">Heading 1</option>
-          <option value="h2">Heading 2</option>
-          <option value="h3">Heading 3</option>
-          <option value="blockquote">Quote</option>
-          <option value="pre">Code</option>
-        </select>
-
-        <span class="sep"></span>
-
-        <button data-cmd="bold" aria-pressed="false" title="Bold"><svg class="i">
-            <use href="#i-bold" />
-          </svg></button>
-        <button data-cmd="italic" aria-pressed="false" title="Italic"><svg class="i">
-            <use href="#i-italic" />
-          </svg></button>
-        <button data-cmd="underline" aria-pressed="false" title="Underline"><svg class="i">
-            <use href="#i-underline" />
-          </svg></button>
-        <button data-cmd="strikeThrough" aria-pressed="false" title="Strikethrough"><svg class="i">
-            <use href="#i-strike" />
-          </svg></button>
-        <button data-cmd="superscript" aria-pressed="false" title="Superscript"><svg class="i">
-            <use href="#i-sup" />
-          </svg></button>
-        <button data-cmd="subscript" aria-pressed="false" title="Subscript"><svg class="i">
-            <use href="#i-sub" />
-          </svg></button>
-
-        <span class="sep"></span>
-
-        <button data-cmd="insertUnorderedList" aria-pressed="false" title="Bulleted list"><svg class="i">
-            <use href="#i-list" />
-          </svg></button>
-        <button data-cmd="insertOrderedList" aria-pressed="false" title="Numbered list"><svg class="i">
-            <use href="#i-list-ol" />
-          </svg></button>
-        <button data-block-set="blockquote" title="Quote"><svg class="i">
-            <use href="#i-quote" />
-          </svg></button>
-        <button data-block-set="pre" title="Code block"><svg class="i">
-            <use href="#i-code" />
-          </svg></button>
-
-        <span class="sep"></span>
-
-        <button data-link title="Insert link"><svg class="i">
-            <use href="#i-link" />
-          </svg></button>
-        <button data-cmd="unlink" title="Remove link"><svg class="i">
-            <use href="#i-unlink" />
-          </svg></button>
-        <button data-cmd="removeFormat" title="Clear formatting"><svg class="i">
-            <use href="#i-eraser" />
-          </svg></button>
-
-        <span class="grow"></span>
-
-        <select class="select" data-fontsize aria-label="Text size">
-          <option value="10pt">10 pt</option>
-          <option value="10.5pt">10.5 pt</option>
-          <option value="11pt" selected>11 pt</option>
-          <option value="12pt">12 pt</option>
-          <option value="13pt">13 pt</option>
-        </select>
-
-      </div>
-    </header>
-
-    <!-- ===== MINIMAL: thin bar ===== -->
-    <header id="ui-minimal" class="bar" data-ui-panel="minimal">
-      <span class="folio" data-folio>p. 1</span>
-      <span class="stats" data-stats>—</span>
-      <span class="grow"></span>
-      <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false" aria-label="Document title">
-      <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
-      <span class="grow"></span>
-      <span class="menu-wrap" data-menu-align="right">
-        <button data-menu title="All commands"><svg class="i">
-            <use href="#i-more" />
-          </svg></button>
-        <div class="menu" data-menu-panel hidden>
-          <div class="menu-label">File</div>
-          <button data-menu-item data-save>Save</button>
-          <div class="menu-sub" data-submenu>
-            <button type="button" data-menu-item data-submenu-trigger
-              aria-haspopup="menu" aria-expanded="false">Save as…
-              <svg class="i sm">
-                <use href="#i-chev" />
-              </svg></button>
-            <div class="menu" data-menu-panel hidden>
-              <div class="menu-label">HTML</div>
-              <button data-menu-item data-export="html-interactive" data-save>Interactive (.html)</button>
-              <button data-menu-item data-export="html-static">Static with captured figures…</button>
-              <div class="menu-sep"></div>
-              <div class="menu-label">PDF</div>
-              <button data-menu-item data-export="print-live"
-                title="The browser print dialog controls headers and footers.">Standard print</button>
-              <button data-menu-item data-export="print-captured"
-                title="The browser print dialog controls headers and footers.">Captured figures</button>
-            </div>
-          </div>
-          <div class="menu-sep"></div>
-          <div class="menu-label">Block</div>
-          <button data-menu-item data-block-set="p">Paragraph</button>
-          <button data-menu-item data-block-set="h1">Heading 1</button>
-          <button data-menu-item data-block-set="h2">Heading 2</button>
-          <button data-menu-item data-block-set="h3">Heading 3</button>
-          <button data-menu-item data-block-set="blockquote">Quote</button>
-          <button data-menu-item data-block-set="pre">Code block</button>
-
-          <div class="menu-sep"></div>
-
-          <div class="menu-label">Inline</div>
-          <button data-menu-item data-cmd="bold">Bold</button>
-          <button data-menu-item data-cmd="italic">Italic</button>
-          <button data-menu-item data-cmd="underline">Underline</button>
-          <button data-menu-item data-cmd="strikeThrough">Strikethrough</button>
-          <button data-menu-item data-cmd="superscript">Superscript</button>
-          <button data-menu-item data-cmd="subscript">Subscript</button>
-
-          <div class="menu-sep"></div>
-
-          <div class="menu-label">Lists & links</div>
-          <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
-          <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
-          <button data-menu-item data-link>Link…</button>
-          <button data-menu-item data-cmd="unlink">Unlink</button>
-          <button data-menu-item data-cmd="removeFormat">Clear formatting</button>
-
-          <div class="menu-sep"></div>
-
-          <div class="menu-label">Figures</div>
-          <button data-menu-item data-figure-pick="image">Image…</button>
-          <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
-          <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
-          <button data-menu-item data-figure-pick="media">Video or audio…</button>
-
-          <div class="menu-sep"></div>
-
-          <button data-menu-item data-cmd="undo">Undo</button>
-          <button data-menu-item data-cmd="redo">Redo</button>
-
-          <div class="menu-sep"></div>
-
-          <div class="menu-label" data-zoom-label>Zoom · 100%</div>
-          <div class="menu-field">
-            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
-              spellcheck="false" value="100" aria-label="Zoom percentage">
-            <span class="zoom-unit" aria-hidden="true">%</span>
-          </div>
-          <button data-menu-item data-zoom="out">Zoom out</button>
-          <button data-menu-item data-zoom="reset">Actual size (100%)</button>
-          <button data-menu-item data-zoom="in">Zoom in</button>
-          <button data-menu-item data-zoom="fit">Fit page width</button>
-
-          <div class="menu-sep"></div>
-
-          <div class="menu-label">Text size</div>
-          <button data-menu-item data-font="10pt">10 pt</button>
-          <button data-menu-item data-font="11pt">11 pt</button>
-          <button data-menu-item data-font="12pt">12 pt</button>
-          <button data-menu-item data-font="13pt">13 pt</button>
-
-          <div class="menu-sep"></div>
-
-          <button data-menu-item data-shortcuts>Keyboard shortcuts</button>
-        </div>
-      </span>
-
-      <button data-chrome-toggle aria-label="Full toolbar" title="Full toolbar"><svg class="i">
-          <use href="#i-paneltop" />
-        </svg></button>
-      <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
-          <use href="#i-keyboard" />
-        </svg></button>
-
-      <button class="save-text" data-save title="Save">Save</button>
-    </header>
-
-    <input type="file" data-figure-input hidden multiple>
-  </header>
-
-  <div id="figure-tools" data-chrome hidden contenteditable="false">
-    <span class="figure-dim" data-dim="w">
-      <span class="figure-dim-label">W</span>
-      <button data-figure-dim="w" data-figure-step="-" title="Narrower figure">−</button>
-      <span class="figure-dim-value" data-figure-w-value>100%</span>
-      <button data-figure-dim="w" data-figure-step="+" title="Wider figure">+</button>
-    </span>
-    <span class="figure-dim" data-dim="h">
-      <span class="figure-dim-label">H</span>
-      <button data-figure-dim="h" data-figure-step="-" title="Shorter figure">−</button>
-      <span class="figure-dim-value" data-figure-h-value>auto</span>
-      <button data-figure-dim="h" data-figure-step="+" title="Taller figure">+</button>
-    </span>
-    <button data-figure-reset title="Reset figure size">Fit</button>
-    <button data-figure-remove title="Remove figure">Remove</button>
-  </div>
 
   <main id="viewport">
     <div id="stage">
@@ -664,7 +192,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","editable":true,"toolbar":true,"saveThresholdBytes":2097152}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"online","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"online","requiredBy":["edit"],"bytes":15610,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":12996},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"online","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"online","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"online","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"online","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"online","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"online","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"online","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"online","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"online","requiredBy":["edit"],"bytes":13036,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/policy.js","integrity":"sha384-q2W4gqccXuJx63OmuDZUCkEvODqI/CNBu7DqK3g9K0Epc9c3EQ0Nfh3jkJwAz24l"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"online","requiredBy":["edit"],"bytes":32618,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-sKP2Rx9xcBea7hqw9RjnQ3R6ZXgV14i3oOOKuZai6pfMT9pI6HdxsdQlGqrfgeJt"},{"id":"export","kind":"js","role":"module","order":100,"mode":"online","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"online","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"online","requiredBy":["edit"],"bytes":15610,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-QAIqrpeuWvI8I/XEzpi+R7ZNIcIG0jy7j/eW+hTmJDNViRXVXlE+8br1/EzRSH19"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"online","requiredBy":["edit"],"bytes":4610,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/sprite.html","integrity":"sha384-y+yz7qA0tRecgjUNZTuUW6xqaZPCygg9jExhfiIAEEnc+LICTA93jcM3zNpbdgZq"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"online","requiredBy":["edit"],"bytes":14010,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-markup.html","integrity":"sha384-q2sZIbOri3AkYkeLuYKYLzFtPVpsyGQJWTDiN/M9LDRHRkg5OqSOj7Q91p3xKCor"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"online","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":14955},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"online","requiredBy":["*"],"bytes":1121,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/apply-settings.js","integrity":"sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"online","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"online","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"online","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"online","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"online","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"online","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"online","requiredBy":["*"],"bytes":42354,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-3CDpokYFxuAJVKVDMlje2/7VTdlAWzGV/srOMEUdlF864RXZM6kl//NvEIGruc7V"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"online","requiredBy":["edit"],"bytes":14359,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/policy.js","integrity":"sha384-86ryQFRPgnQZlQq97N6RQzCf/m5nb55OrIzGHNx2DBWPsUk0h1LgDKc4rp6GhYes"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"online","requiredBy":["edit"],"bytes":32856,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-8LhbFf6oYuVyLuix48787u/TIJr1II2+X/B4WoRGVBHRU12aEGoK7/wf3xqvpU5C"},{"id":"export","kind":"js","role":"module","order":100,"mode":"online","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"online","requiredBy":["edit"],"bytes":1266,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/dialogs.html","integrity":"sha384-SYZ6ET+T3hvyz7OwS+B4DBw3ONyUnv/bjpMpSQBfaVhByAm8T4rbwGFVpgzzhWmR"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -862,6 +390,7 @@
          load phase can run in parallel without reordering anything. */
       async function evaluate(asset, text) {
         if (asset.kind === "css") return { css: text };
+        if (asset.kind === "html") return { html: text };
         const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
         let namespace;
         try {
@@ -901,6 +430,34 @@
         return text;
       }
 
+      /**
+       * Put a fetched fragment where its manifest entry says. Chrome goes in front of
+       * `#viewport` because the body is a flex column and its position is the layout;
+       * a plugin fragment can name its own host with `append:<selector>`.
+       */
+      function insertFragment(asset, markup) {
+        const instruction = asset.insert || "before:#viewport";
+        const split = instruction.indexOf(":");
+        const place = split < 0 ? "before" : instruction.slice(0, split);
+        const selector = split < 0 ? instruction : instruction.slice(split + 1);
+        const anchor = document.querySelector(selector);
+
+        /* A fragment is published as its *body*, so the element has to be rebuilt from
+           the open tag the manifest carries. That is what keeps a fetched fragment
+           identical to the inline one. */
+        const open = asset.open || "<div>";
+        const tag = (/^<([a-zA-Z][\w-]*)/.exec(open) || [null, "div"])[1];
+        const template = document.createElement("template");
+        template.innerHTML = `${open}${markup}</${tag}>`;
+        const nodes = template.content;
+        /* Tag the roots: a fetched fragment is session state, and the save path has to be
+           able to tell it from a block that belongs to the file. */
+        for (const node of nodes.children) node.setAttribute("data-asset", asset.id);
+        if (place === "append" && anchor) anchor.append(nodes);
+        else if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(nodes, anchor);
+        else document.body.append(nodes);
+      }
+
       async function boot() {
         if (state !== "declared") return modules;
         setState("booting");
@@ -929,6 +486,15 @@
         let index = 0;
         for (const asset of assets) {
           if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
+
+          /* Fragments and stylesheets are not modules. An inline fragment is already in
+             the document (that is the point of shipping markup); a fetched one is
+             inserted here, in manifest order, before anything that reads it. */
+          if (asset.kind === "html") {
+            const fetched = loaded.get(asset.id);
+            if (fetched?.html != null) insertFragment(asset, fetched.html);
+            continue;
+          }
 
           /* Stylesheets are not modules: inline ones are already in the document,
              online ones are injected here, in manifest order, so cascade order is
@@ -1320,40 +886,6 @@
   <!-- Static export / print. Captures HTML islands only when an export asks
        for it; normal rendering never runs the serializer. -->
 
-  <dialog id="shortcuts-dialog">
-    <form method="dialog">
-      <h2>Keyboard shortcuts</h2>
-      <div id="keylist"></div>
-      <div class="dialog-actions">
-        <button class="primary" value="close" autofocus>Done</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="progress-dialog" aria-labelledby="progress-title">
-    <h2 id="progress-title" data-progress-title>Working…</h2>
-    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <i data-progress-bar></i>
-    </div>
-    <p data-progress-text aria-live="polite">Starting…</p>
-    <div class="dialog-actions">
-      <button type="button" data-progress-cancel>Cancel</button>
-    </div>
-  </dialog>
-
-  <dialog id="save-policy-dialog" aria-labelledby="save-policy-title">
-    <div class="sp-body">
-      <h2 id="save-policy-title" data-save-title>This document is large</h2>
-      <p class="sp-sub" data-save-sub>Choose what travels inside the file. Nothing is written until you save.</p>
-      <div data-save-rows></div>
-      <p class="sp-note" data-save-note></p>
-    </div>
-    <div class="dialog-actions">
-      <button type="button" data-save-cancel>Cancel</button>
-      <span class="spacer"></span>
-      <button type="button" class="primary" data-save-confirm>Save</button>
-    </div>
-  </dialog>
 
 <!-- @asset id="bootstrap" kind="js" order="120" -->
   <script type="module" id="bootstrap">

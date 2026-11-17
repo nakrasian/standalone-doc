@@ -146,6 +146,21 @@ export function createPolicy(deps = {}) {
     return true;
   }
 
+  /** The element an asset block wraps, found by its marker (fragments have no id). */
+  function blockOf(root, id) {
+    const doc = docOf(root);
+    const walker = doc.createTreeWalker(root, 128 /* SHOW_COMMENT */);
+    const wanted = new RegExp(`id="${id}"`);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!startMarker(node) || !wanted.test(node.nodeValue || "")) continue;
+      let sibling = node.nextSibling;
+      while (sibling && sibling.nodeType !== 1 /* ELEMENT_NODE */) sibling = sibling.nextSibling;
+      return sibling;
+    }
+    return null;
+  }
+
   /** The first @asset marker whose order is greater than `order`, for a tidy insert. */
   function markerAfter(root, order) {
     const doc = docOf(root);
@@ -166,10 +181,11 @@ export function createPolicy(deps = {}) {
    * build-produced block has, minus the build-provenance comment line, which exists
    * for `verify` on the repository's own file and means nothing in a saved document.
    */
-  function insertBlock(root, {id, order, kind, factory, text}) {
+  function insertBlock(root, {id, order, kind, factory, open, text}) {
     const doc = docOf(root);
     const isCss = kind === "css";
-    const body = isCss
+    const isHtml = kind === "html";
+    const body = isCss || isHtml
       ? text.replace(/\n$/, "")
       : `${text.replace(/\n$/, "")}\nStandaloneDoc.register(${JSON.stringify(id)}, ${factory});`;
     /* Two spaces for the element, two more for its body — the same shape the build
@@ -180,16 +196,29 @@ export function createPolicy(deps = {}) {
       .join("\n");
 
     const fragment = doc.createDocumentFragment();
+    const markerKind = isCss ? "css" : isHtml ? "html" : "js";
     fragment.append(
       doc.createTextNode("\n"),
-      doc.createComment(` @asset id="${id}" kind="${isCss ? "css" : "js"}" order="${order}" `),
+      doc.createComment(` @asset id="${id}" kind="${markerKind}" order="${order}" `),
       doc.createTextNode("\n  "),
     );
-    const el = doc.createElement(isCss ? "style" : "script");
-    if (!isCss) el.type = "module";
-    el.id = id;
-    el.textContent = isCss ? `\n${indented}\n  ` : `\n${indented}\n  `;
-    fragment.append(el, doc.createTextNode("\n"), doc.createComment(" /@asset "), doc.createTextNode("\n"));
+
+    let el;
+    if (isHtml) {
+      /* A fragment is an element, not a script: rebuild it from the open tag the
+         manifest recorded, so the saved block is shaped like the original. */
+      const holder = doc.createElement("template");
+      holder.innerHTML = `${open || "<div>"}${body}${open ? `</${/^<([a-zA-Z][\w-]*)/.exec(open)[1]}>` : "</div>"}`;
+      const nodes = [...holder.content.childNodes];
+      for (const node of nodes) fragment.append(node);
+    } else {
+      el = doc.createElement(isCss ? "style" : "script");
+      if (!isCss) el.type = "module";
+      el.id = id;
+      el.textContent = `\n${indented}\n  `;
+      fragment.append(el);
+    }
+    fragment.append(doc.createTextNode("\n"), doc.createComment(" /@asset "), doc.createTextNode("\n"));
 
     const ref = markerAfter(root, order);
     if (ref && ref.parentNode) ref.parentNode.insertBefore(fragment, ref);
@@ -235,12 +264,12 @@ export function createPolicy(deps = {}) {
     for (const decision of planned.decisions) {
       const entry = byIdEntry.get(decision.id);
 
-      /* A stylesheet that arrived from the CDN was injected at boot. That is session
-         state: the saved file must not carry both a fetched copy and the markup that
-         says to fetch it. */
-      for (const injected of root.querySelectorAll(`style[data-asset="${decision.id}"]`)) injected.remove();
+      /* Anything that arrived from the CDN was injected at boot — a stylesheet, a
+         fragment. That is session state: the saved file must not carry both a fetched
+         copy and the markup that says to fetch it. */
+      for (const injected of root.querySelectorAll(`[data-asset="${decision.id}"]`)) injected.remove();
 
-      const el = byId(root, decision.id);
+      const el = blockOf(root, decision.id);
       const present = Boolean(el);
 
       if (decision.to === "inline") {
@@ -248,7 +277,8 @@ export function createPolicy(deps = {}) {
           /* Stylesheets have no factory; modules need one to register. Both need a
              pinned url, because that is the only place their bytes come from. */
           const needsFactory = entry && entry.kind === "js";
-          if (!entry || !entry.url || (needsFactory && !entry.factory)) {
+          const needsOpen = entry && entry.kind === "html";
+          if (!entry || !entry.url || (needsFactory && !entry.factory) || (needsOpen && !entry.open)) {
             problems.push(`${decision.id}: this document has no pinned url for it, so it cannot be inlined`);
             continue;
           }
@@ -259,6 +289,7 @@ export function createPolicy(deps = {}) {
               order: entry.order,
               kind: entry.kind,
               factory: entry.factory,
+              open: entry.open,
               text,
             });
             changed.push(decision.id);
@@ -334,5 +365,5 @@ export function createPolicy(deps = {}) {
     });
   }
 
-  return {plan, apply, persist, presetFor, resolve, planned, target, usage, PRESETS};
+  return {plan, apply, persist, presetFor, resolve, planned, target, usage, blockOf, PRESETS};
 }

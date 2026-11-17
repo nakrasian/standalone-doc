@@ -150,6 +150,9 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
       missing,
       unregistered,
       missingStyles: styles,
+      toolbar: !!html.includes('id="app-toolbar"'),
+      symbols: (html.match(/<symbol /g) || []).length,
+      fragmentMarkers: (html.match(/@asset id=\"(sprite|toolbar-markup|figure-tools|dialogs)\"/g) || []).length,
       injectedStylesLeft: parsed.querySelectorAll("style[data-asset]").length,
       stillOnline: /"mode":"online"/.test(html),
       policy: /"policy":"inline"/.test(html),
@@ -164,6 +167,10 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
   expect(result.injectedStylesLeft).toBe(0);
   expect(result.stillOnline).toBe(false);
   expect(result.policy).toBe(true);
+  /* The chrome came back as markup, from the verified fragment plus its open tag. */
+  expect(result.toolbar).toBe(true);
+  expect(result.symbols).toBe(23);
+  expect(result.fragmentMarkers).toBe(4);
   expect(result.validate).toEqual([]);
 });
 
@@ -232,25 +239,26 @@ test("nothing paints behind the dialog until boot finishes", async ({ page }) =>
   });
   await page.goto(URL_PATH);
 
-  const during = await page.evaluate(async () => {
-    const el = document.getElementById("app-toolbar");
-    return {
-      boot: document.documentElement.dataset.bootState,
-      app: getComputedStyle(el).visibility,
-      dialogOpen: document.getElementById("boot-dialog").open,
-      background: getComputedStyle(document.documentElement).backgroundColor,
-    };
-  });
+  const during = await page.evaluate(async () => ({
+    boot: document.documentElement.dataset.bootState,
+    /* The chrome is a fetched fragment, so before boot settles it does not exist at
+       all — stronger than "present but hidden", and no half-styled toolbar. */
+    toolbar: document.getElementById("app-toolbar") ? "present" : "absent",
+    stage: getComputedStyle(document.getElementById("viewport")).visibility,
+    background: getComputedStyle(document.documentElement).backgroundColor,
+  }));
   expect(during.boot).toBe("booting");
-  expect(during.app).toBe("hidden");
+  expect(during.toolbar).toBe("absent");
+  expect(during.stage).toBe("hidden");
   /* the stage colour, not the app: no sprite flash, no half-styled toolbar */
   expect(during.background).toBe("rgb(224, 224, 224)");
 
   await page.waitForFunction(() => window.StandaloneDoc?.state === "ready", null, { timeout: 20_000 });
   const after = await page.evaluate(() => ({
     boot: document.documentElement.dataset.bootState,
-    app: getComputedStyle(document.getElementById("app-toolbar")).visibility,
+    toolbar: document.getElementById("app-toolbar") ? getComputedStyle(document.getElementById("app-toolbar")).visibility : "absent",
+    symbols: document.querySelectorAll("symbol").length,
     dialogOpen: document.getElementById("boot-dialog").open,
   }));
-  expect(after).toEqual({ boot: "ready", app: "visible", dialogOpen: false });
+  expect(after).toEqual({ boot: "ready", toolbar: "visible", symbols: 23, dialogOpen: false });
 });
