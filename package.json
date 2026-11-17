@@ -1,6 +1,6 @@
 {
   "name": "standalone-doc",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "A self-saving, single-file HTML document editor with a declarative asset system.",
   "type": "module",

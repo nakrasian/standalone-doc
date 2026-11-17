@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 420534
+    "bytes": 421103
   },
   "assets": [
     {
@@ -76,7 +76,7 @@
     {
       "id": "viewer-bar-styles",
       "kind": "css",
-      "bytes": 5235
+      "bytes": 5401
     },
     {
       "id": "zoom",
@@ -109,6 +109,11 @@
       "bytes": 1997
     },
     {
+      "id": "apply-settings",
+      "kind": "js",
+      "bytes": 1994
+    },
+    {
       "id": "signals",
       "kind": "js",
       "bytes": 1749
@@ -117,11 +122,6 @@
       "id": "viewer-bar-markup",
       "kind": "html",
       "bytes": 1642
-    },
-    {
-      "id": "apply-settings",
-      "kind": "js",
-      "bytes": 1591
     },
     {
       "id": "figure-tools",
@@ -135,8 +135,8 @@
     }
   ],
   "flavors": {
-    "index.html": 420534,
-    "asset-bodies": 404525,
+    "index.html": 421103,
+    "asset-bodies": 405094,
     "markup-and-runtime": 16009,
     "dist/slim.html": 78934
   }
