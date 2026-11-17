@@ -105,8 +105,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 15235,
-      "sha384": "sha384-TCDkPbZK3J+8FpwlB6zYwdmNAOaq/BE4oQ9GlafDSLDMFgb+VbRZkVwx/w+TujvO",
+      "bytes": 20507,
+      "sha384": "sha384-5X7U/5D3bdpcgf6Tdaw6guMhGkEg3EMfswHx57VtdRpsIphngZH8F3OGH4AQpw46",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -119,8 +119,8 @@
       "order": 6,
       "tag": "script",
       "file": "src/boot-ui.js",
-      "bytes": 9896,
-      "sha384": "sha384-7OKcZlHaGyEPeJpCYfWYjtOkwdx56uPTtq+hoOrgBHr2hFchpy4s2+uDNCWUtplm",
+      "bytes": 10094,
+      "sha384": "sha384-iMbQ5qAHanTJvPaXm+Xcw7HVkE+T8tnc8OIusuV4quwPHxAzS/uhc9V7jucot0Pf",
       "mode": "inline",
       "requiredBy": [
         "*"

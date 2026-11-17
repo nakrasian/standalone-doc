@@ -278,6 +278,22 @@ function buildManifest(assets, previous) {
       requiredBy,
     };
     entry.role = INFRA.has(a.id) ? "infra" : "module";
+    /* Author-editable fields that cannot be derived from src/. buildManifest rebuilds
+       every entry from scratch, so a field omitted here disappears on the next
+       combine — this list is what stops a plugin's grouping, label or category from
+       being silently dropped. */
+    for (const key of ["category", "plugin", "label"]) {
+      if (before?.[key] != null) entry[key] = before[key];
+    }
+    /* A pinned plugin's bytes live wherever its author publishes them, so its url and
+       hash are the pin itself and must survive a split. For everything this repository
+       ships they stay derived, so a hand-edited hash cannot outlive the file it
+       describes. */
+    if (before?.category === "plugin") {
+      for (const key of ["url", "integrity"]) {
+        if (before[key] != null) entry[key] = before[key];
+      }
+    }
     if (a.kind === "html") entry.open = a.open;
     if (isConverted(a.id)) {
       const contract = extractContract(text, { globals: LEGACY_GLOBAL_TO_ID });
@@ -300,6 +316,9 @@ function buildManifest(assets, previous) {
     settings: previous?.settings ?? DEFAULT_SETTINGS,
     assets: entries,
   };
+  /* The plugin index is authored, like `settings`: the build cannot derive a label,
+     an isolation profile or a contribution list. It travels verbatim. */
+  if (previous?.plugins) manifest.plugins = previous.plugins;
   return { manifest, preserved };
 }
 
@@ -312,7 +331,7 @@ function buildManifest(assets, previous) {
  */
 function docManifest(manifest, overrides = {}) {
   const base = String(manifest.cdnBase || "").replace(/\/$/, "");
-  return {
+  const doc = {
     schema: 1,
     cdnBase: base,
     assets: manifest.assets.map((a) => {
@@ -327,6 +346,9 @@ function docManifest(manifest, overrides = {}) {
         requiredBy: a.requiredBy || ["*"],
         bytes: a.bytes,
       };
+      if (a.category) entry.category = a.category;
+      if (a.plugin) entry.plugin = a.plugin;
+      if (a.label) entry.label = a.label;
       if (a.deps?.length) entry.deps = a.deps;
       if (a.late?.length) entry.late = a.late;
       if (a.optional?.length) entry.optional = a.optional;
@@ -343,12 +365,19 @@ function docManifest(manifest, overrides = {}) {
          known. Infrastructure has no url on purpose — see inMode()'s sibling rule
          in check(): the loader and its failure UI cannot be fetched. */
       if (a.role !== "infra") {
-        entry.url = `${base}/${a.id}.${ext}`;
-        entry.integrity = a.sha384;
+        /* A pinned plugin's bytes live wherever its author publishes them, so an
+           explicit url/integrity wins over the cdnBase-derived pair. Everything this
+           repository ships keeps the derived one. */
+        entry.url = a.url || `${base}/${a.id}.${ext}`;
+        entry.integrity = a.integrity || a.sha384;
       }
       return entry;
     }),
   };
+  /* Only when there is something to say: an empty index in every document would be
+     bytes spent on saying nothing. */
+  if (manifest.plugins && Object.keys(manifest.plugins).length) doc.plugins = manifest.plugins;
+  return doc;
 }
 
 const manifestBlock = (doc) =>
@@ -760,9 +789,37 @@ async function cmdCheck() {
     }
     for (const asset of m.assets) {
       if (asset.role === "infra") continue;
+      const docEntry = docManifest(m).assets.find((candidate) => candidate.id === asset.id);
+      /* Bytes published by someone else are not in dist/cdn, and this repository is
+         not their publisher. A pinned plugin is still hash-checked — by the catalog
+         job, against the url its own manifest names. */
+      if (!String(docEntry?.url || "").startsWith(`${String(m.cdnBase || "").replace(/\/$/, "")}/`)) continue;
       const published = `${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`;
       if (!exists(published)) all.push(`${published} is missing — run: node build.mjs build`);
       else if (sha384(read(published)) !== asset.sha384) all.push(`${published} does not match the manifest hash — run: node build.mjs build`);
+    }
+    /* A plugin is a bundle, and the two halves of the claim have to agree in both
+       directions: require() builds from the index, policy.usage() prices from the
+       per-asset grouping, and neither can see the other's mistakes. */
+    const doc = docManifest(m);
+    const groups = doc.plugins || {};
+    for (const [id, entry] of Object.entries(groups)) {
+      const isolation = entry.isolation || "sealed";
+      if (!["sealed", "sandboxed", "trusted"].includes(isolation)) all.push(`plugin "${id}": unknown isolation "${entry.isolation}"`);
+      if (!Array.isArray(entry.assets) || !entry.assets.length) {
+        all.push(`plugin "${id}": assets must be a non-empty array (require() has nothing to build)`);
+      } else {
+        for (const assetId of entry.assets) {
+          if (!doc.assets.some((asset) => asset.id === assetId)) all.push(`plugin "${id}" lists "${assetId}", which is not an asset`);
+        }
+      }
+      if (entry.entry && !doc.assets.some((asset) => asset.id === entry.entry)) {
+        all.push(`plugin "${id}": entry "${entry.entry}" is not an asset`);
+      }
+    }
+    for (const asset of doc.assets) {
+      if (asset.category === "plugin" && !asset.plugin) all.push(`${asset.id}: category "plugin" needs a plugin group`);
+      if (asset.plugin && !groups[asset.plugin]) all.push(`${asset.id}: belongs to plugin "${asset.plugin}", which is not in the plugin index`);
     }
   } catch (err) {
     all.push(`manifest: ${err.message}`);
@@ -780,6 +837,9 @@ async function cmdCheck() {
       }
     }
     for (const a of m.assets) {
+      /* A plugin is never a marker region in index.html: it is pinned into a document
+         by the installer, and the repository's own file is just one such document. */
+      if (a.category === "plugin") continue;
       if (!REGIONS.some((r) => r.id === a.id)) all.push(`${a.id} is missing from REGIONS (marker recovery would skip it)`);
     }
   } catch (err) {
@@ -792,6 +852,7 @@ async function cmdCheck() {
     if (m.schema !== 1) all.push(`manifest.json schema is ${m.schema}, expected 1`);
     for (const a of m.assets) {
       if (!["css", "js", "html"].includes(a.kind)) all.push(`${a.id}: unknown kind "${a.kind}"`);
+      if (a.category != null && a.category !== "plugin") all.push(`${a.id}: unknown category "${a.category}"`);
       if (!["inline", "online", "disabled"].includes(a.mode)) all.push(`${a.id}: unknown mode "${a.mode}"`);
       if (!Array.isArray(a.requiredBy) || !a.requiredBy.length) all.push(`${a.id}: requiredBy must be a non-empty array`);
     }

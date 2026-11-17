@@ -6,6 +6,8 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
 
   const factories = Object.create(null);
   const modules = Object.create(null);
+  /* In-flight lazy builds, so two figures asking for one plugin share a fetch. */
+  const pending = new Map();
   const errors = [];
   const listeners = Object.create(null);
   const injected = [];
@@ -30,6 +32,32 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
        twice. The first registration wins, so the module is built only once. */
     if (factories[id]) return;
     factories[id] = factory;
+  }
+
+  /* A plugin is a bundle of assets, not a file. `category` is what the save policy
+     reads; `plugin` is the group an asset belongs to. Either one is enough to keep an
+     asset out of boot, so a document written before both existed still behaves. */
+  function isPlugin(asset) {
+    return Boolean(asset && (asset.category === "plugin" || asset.plugin));
+  }
+
+  /** The `plugins` index: identity, label, isolation, and the asset list. */
+  function plugins() {
+    return manifest().plugins || {};
+  }
+
+  function assetById(id) {
+    return (manifest().assets || []).find((asset) => asset.id === id) || null;
+  }
+
+  /* The assets a plugin pins, in build order. A single-file plugin may name none:
+     then its id is the asset id. */
+  function pluginAssets(entry, id) {
+    const ids = Array.isArray(entry?.assets) && entry.assets.length ? entry.assets : [id];
+    return ids
+      .map((assetId) => assetById(assetId))
+      .filter(Boolean)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
   function manifest() {
@@ -124,6 +152,15 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return false;
   }
 
+  /* The lazy counterpart of fail(): recorded and emitted, but the document stays
+     readable. A missing plugin is a missing capability, not a missing file — the
+     reader's content is already on screen and must stay there. */
+  function record(record) {
+    errors.push(record);
+    emit("error", { error: record, errors: errors.slice() });
+    return record;
+  }
+
   /* A document declares the mode it was saved for (edit | view | comment), and an
      asset declares the modes that need it. "*" means all of them, so a view-mode
      document never even fetches the editor. */
@@ -132,11 +169,12 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return requiredBy.includes("*") || requiredBy.includes(mode);
   }
 
-  /* Only constructed modules: infrastructure is already running. */
+  /* Only constructed modules: infrastructure is already running, and a plugin is
+     built by require(), not by boot. */
   function order() {
     const mode = settings().mode;
     return manifest()
-      .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode))
+      .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode) && !isPlugin(asset))
       .sort((a, b) => a.order - b.order)
       .map((asset) => asset.id);
   }
@@ -205,6 +243,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     } catch (error) {
       throw failure("import", asset.id, error && error.message ? error.message : "module failed to evaluate", { url: asset.url });
     }
+    /* An asset with no `factory` is a plain ES module — the namespace *is* the
+       module. That is how a third-party library (an npm package pinned as a plugin)
+       differs from one of ours, without a wrapper. */
+    if (!asset.factory) return { namespace };
     const factory = namespace[asset.factory];
     if (typeof factory !== "function") {
       throw failure("import", asset.id, `module does not export ${asset.factory}`, { url: asset.url });
@@ -265,14 +307,88 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     else document.body.append(nodes);
   }
 
+  /* A stylesheet that arrived by reference. Injected in manifest order so the
+     cascade is the same in both flavours. */
+  function injectStyle(asset, css) {
+    const style = document.createElement("style");
+    style.textContent = css;
+    style.dataset.asset = asset.id;
+    document.head.append(style);
+    injected.push(style);
+  }
+
+  /**
+   * Build exactly one asset.
+   *
+   * Throws a failure record rather than failing the document: boot() decides that a
+   * throw means this file cannot start, while require() decides that only the plugin
+   * cannot. The steps are the same either way — a lazy plugin and a boot-time asset
+   * must not be able to drift apart.
+   */
+  async function constructOne(asset, { loaded, index = 0, total = 1, lazy = false } = {}) {
+    /* Fragments and stylesheets are not modules: an inline one is already in the
+       document (that is the point of shipping markup), a fetched one is inserted
+       here, before anything that reads it. */
+    if (asset.kind === "html") {
+      const fetched = loaded?.get(asset.id);
+      if (fetched?.html != null) insertFragment(asset, fetched.html);
+      return "skipped";
+    }
+    if (asset.kind === "css") {
+      const result = loaded?.get(asset.id);
+      if (result?.css != null) injectStyle(asset, result.css);
+      return "skipped";
+    }
+    if (asset.role === "infra" && asset.kind === "js") return "skipped"; /* already running */
+
+    emit("construct", { id: asset.id, state: "active", index, total, lazy });
+
+    const deps = { env: globalThis, settings: settings(), late, optional };
+    for (const name of asset.deps || []) {
+      if (!(name in modules)) {
+        throw failure("construct", asset.id, `requires "${name}", which is not built`);
+      }
+      deps[name] = modules[name];
+    }
+
+    const result = loaded?.get(asset.id);
+    const factory = factories[asset.id] || result?.factory;
+    if (!factory && !result?.namespace) {
+      throw failure(
+        "missing",
+        asset.id,
+        asset.mode === "inline"
+          ? "not loaded (its block is missing from this document)"
+          : "not loaded from the CDN",
+      );
+    }
+
+    try {
+      modules[asset.id] = factory ? factory(deps) : result.namespace;
+    } catch (error) {
+      throw failure("construct", asset.id, error && error.message ? error.message : String(error), {
+        stack: error && error.stack ? String(error.stack) : null,
+      });
+    }
+
+    /* No global is published: the manifest's dependency list is the only way one
+       module reaches another, and boot injects it. */
+    emit("construct", { id: asset.id, state: "ok", index, total, lazy });
+    return "built";
+  }
+
   async function boot() {
     if (state !== "declared") return modules;
     setState("booting");
     errors.length = 0;
+    pending.clear();
 
     const mode = settings().mode;
+    /* Plugins are never built here. A document must open when a plugin is missing,
+       damaged or switched off, and keeping them out of this list is what keeps boot's
+       fail-closed contract about *this document's own* assets. */
     const assets = manifest()
-      .assets.filter((asset) => inMode(asset, mode))
+      .assets.filter((asset) => inMode(asset, mode) && !isPlugin(asset))
       .sort((a, b) => a.order - b.order);
     const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
     emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
@@ -292,72 +408,77 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     /* 2. Construct in order: side effects are order-bound. */
     let index = 0;
     for (const asset of assets) {
-      if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
-
-      /* Fragments and stylesheets are not modules. An inline fragment is already in
-         the document (that is the point of shipping markup); a fetched one is
-         inserted here, in manifest order, before anything that reads it. */
-      if (asset.kind === "html") {
-        const fetched = loaded.get(asset.id);
-        if (fetched?.html != null) insertFragment(asset, fetched.html);
-        continue;
-      }
-
-      /* Stylesheets are not modules: inline ones are already in the document,
-         online ones are injected here, in manifest order, so cascade order is
-         the same in both flavours. */
-      if (asset.kind === "css") {
-        const result = loaded.get(asset.id);
-        if (result?.css != null) {
-          const style = document.createElement("style");
-          style.textContent = result.css;
-          style.dataset.asset = asset.id;
-          document.head.append(style);
-          injected.push(style);
-        }
-        continue;
-      }
-
-      const position = index++;
-      emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
-
-      const deps = { env: globalThis, settings: settings(), late, optional };
-      for (const name of asset.deps || []) {
-        if (!(name in modules)) {
-          return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
-        }
-        deps[name] = modules[name];
-      }
-
-      const factory = factories[asset.id] || loaded.get(asset.id)?.factory;
-      if (!factory) {
-        return fail(
-          failure(
-            "missing",
-            asset.id,
-            asset.mode === "inline" ? "not loaded (its block is missing from this document)" : "not loaded from the CDN",
-          ),
-        );
-      }
-
+      const isModule = asset.kind === "js" && asset.role !== "infra";
       try {
-        modules[asset.id] = factory(deps);
+        await constructOne(asset, { loaded, index: isModule ? index : 0, total: jsAssets.length });
       } catch (error) {
-        return fail(
-          failure("construct", asset.id, error && error.message ? error.message : String(error), {
-            stack: error && error.stack ? String(error.stack) : null,
-          }),
-        );
+        return fail(error);
       }
-
-      /* No global is published: the manifest's dependency list is the only way
-         one module reaches another, and boot injects it. */
-      emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
+      if (isModule) index++;
     }
 
     setState("ready");
     emit("ready", { count: Object.keys(modules).length });
     return modules;
+  }
+
+  /**
+   * Load and build one plugin, on demand.
+   *
+   * The document carries the pin (`url` + `integrity` in its own manifest), so this
+   * is a verified fetch and a construct — never a lookup by name and never a
+   * resolution against a catalog. Concurrent callers share one build; a build plugin
+   * returns immediately.
+   *
+   * A failure is recorded, emitted as "error" and re-thrown to the caller, but the
+   * document stays as it was. `unresolved` means this file has no pinned copy;
+   * `disabled` means its author switched it off here.
+   */
+  function requirePlugin(id) {
+    if (modules[id]) return Promise.resolve(modules[id]);
+    if (pending.has(id)) return pending.get(id);
+    const promise = buildPlugin(id).finally(() => pending.delete(id));
+    /* The caller renders the failure (a figure shows it); this only stops an
+       unhandled rejection when the first caller is not listening. */
+    promise.catch(() => {});
+    pending.set(id, promise);
+    return promise;
+  }
+
+  async function buildPlugin(id) {
+    const entry = plugins()[id];
+    if (!entry) throw record(failure("unresolved", id, "this document needs it but has no pinned copy of it"));
+    if (entry.enabled === false) throw record(failure("disabled", id, "is turned off in this document"));
+
+    const assets = pluginAssets(entry, id);
+    if (!assets.length) throw record(failure("missing", id, "has no assets in this document's manifest"));
+
+    /* Same two phases as boot, for one bundle. Inline assets are already in the
+       document and need no fetch. */
+    const online = assets.filter((asset) => asset.mode === "online" && !factories[asset.id]);
+    const loaded = new Map();
+    const outcomes = await Promise.allSettled(
+      online.map(async (asset) => {
+        loaded.set(asset.id, await fetchAsset(asset));
+      }),
+    );
+    for (const outcome of outcomes) {
+      if (outcome.status === "rejected") throw record(outcome.reason);
+    }
+
+    for (const [position, asset] of assets.entries()) {
+      try {
+        await constructOne(asset, { loaded, index: position, total: assets.length, lazy: true });
+      } catch (error) {
+        throw record(error);
+      }
+    }
+
+    /* The entry asset is what the plugin *is*; everything else it pinned is there to
+       support it. Fall back to the last built asset rather than guessing by name. */
+    const main = modules[entry.entry] || modules[assets[assets.length - 1].id] || null;
+    emit("plugin", { id, label: entry.label || id, state: "ready" });
+    return main;
   }
 
   /* Tear the graph down and build it again. Registered factories survive, so a
@@ -367,6 +488,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     for (const id of Object.keys(modules)) delete modules[id];
     for (const node of injected.splice(0)) node.remove();
     for (const id of Object.keys(sources)) delete sources[id];
+    pending.clear();
     errors.length = 0;
     setState("declared");
     return boot();
@@ -379,6 +501,8 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     settings,
     optional,
     source,
+    require: requirePlugin,
+    plugins,
     boot,
     retry,
     order,

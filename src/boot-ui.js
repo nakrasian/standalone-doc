@@ -251,6 +251,9 @@
   registry.on("construct", (detail) => {
     const el = ensure();
     if (!el) return;
+    /* A plugin builds long after the dialog closed, with its own small asset list.
+       The boot progress is about this document's modules, so it stays out of it. */
+    if (detail.lazy) return;
     const row = el.rows.querySelector(`.boot-row[data-id="${detail.id}"]`);
     if (row) {
       row.dataset.state = detail.state;

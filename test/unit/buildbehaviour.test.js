@@ -41,6 +41,58 @@ test("split preserves hand-edited mode and requiredBy", () => {
   }
 });
 
+/* A plugin's grouping, label and category are authored, not derived: buildManifest
+   rebuilds every entry from scratch, so the only thing that keeps them alive is the
+   preservation list. This asserts both halves of the trip — manifest.json → split, and
+   manifest.json → the document's own #asset-manifest on combine. */
+test("a plugin's authored fields survive split, and reach the document on combine", () => {
+  const manifestFile = path.join(ROOT, "manifest.json");
+  const htmlFile = path.join(ROOT, "index.html");
+  const manifestOriginal = fs.readFileSync(manifestFile, "utf8");
+  const htmlOriginal = fs.readFileSync(htmlFile, "utf8");
+  try {
+    const manifest = JSON.parse(manifestOriginal);
+    const target = manifest.assets.find((a) => a.id === "signals");
+    target.category = "plugin";
+    target.plugin = "demo";
+    target.label = "Signals";
+    target.url = "https://example.invalid/signals.js";
+    target.integrity = target.sha384;
+    manifest.plugins = {
+      demo: {
+        label: "Demo",
+        version: "1.0.0",
+        isolation: "sealed",
+        enabled: true,
+        entry: "signals",
+        assets: ["signals"],
+        contributes: { insert: [{ id: "demo", label: "Demo" }] },
+      },
+    };
+    fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + "\n");
+
+    run(["split"]);
+    const afterSplit = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+    const kept = afterSplit.assets.find((a) => a.id === "signals");
+    assert.equal(kept.category, "plugin", "category must survive split");
+    assert.equal(kept.plugin, "demo", "the plugin group must survive split");
+    assert.equal(kept.label, "Signals", "the label must survive split");
+    assert.equal(afterSplit.plugins?.demo?.entry, "signals", "the plugin index must survive split");
+
+    run(["combine"]);
+    const html = fs.readFileSync(htmlFile, "utf8");
+    assert.match(html, /"category":"plugin"/, "the document manifest must carry the category");
+    assert.match(html, /"plugins":\{"demo"/, "the document manifest must carry the plugin index");
+    /* A pinned url wins over the cdnBase-derived one, or a saved document would
+       rewrite a third-party pin into a path this repository publishes. */
+    assert.match(html, /"url":"https:\/\/example\.invalid\/signals\.js"/);
+  } finally {
+    fs.writeFileSync(manifestFile, manifestOriginal);
+    fs.writeFileSync(htmlFile, htmlOriginal);
+    run(["split"]);
+  }
+});
+
 test("an orphan file in src/ fails verify", () => {
   const orphan = path.join(ROOT, "src/__orphan_probe.js");
   try {
