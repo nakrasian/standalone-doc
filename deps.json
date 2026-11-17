@@ -199,6 +199,7 @@
         "snapshot",
         "captureAll",
         "pluginUsage",
+        "insertHTML",
         "setScale",
         "setDimension",
         "resetSize",
@@ -261,6 +262,25 @@
         "serialize",
         "validate",
         "settings"
+      ]
+    },
+    {
+      "id": "plugins",
+      "order": 95,
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "deps": [
+        "signals",
+        "figures"
+      ],
+      "late": [],
+      "optional": [],
+      "provides": [
+        "activateUi",
+        "wire",
+        "unwire"
       ]
     },
     {

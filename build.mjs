@@ -92,6 +92,7 @@ const REGIONS = [
   { id: "editor", kind: "js", order: 70, requiredBy: ["edit"] },
   { id: "figures", kind: "js", order: 80, requiredBy: ["*"] },
   { id: "policy", kind: "js", order: 85, requiredBy: ["edit"] },
+  { id: "plugins", kind: "js", order: 95, requiredBy: ["edit"] },
   { id: "toolbar", kind: "js", order: 90, requiredBy: ["edit"] },
   { id: "export", kind: "js", order: 100, requiredBy: ["edit"] },
   { id: "bootstrap", kind: "js", order: 120, requiredBy: ["*"] },

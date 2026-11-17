@@ -1068,6 +1068,37 @@ export function createFigures(deps = {}) {
     return ids;
   }
 
+  /**
+   * Insert a figure from markup the host supplies (a plugin's insert contribution, or a
+   * preset). The store entry records the plugin it came from and the island profile its
+   * content mounts into, so the figure can be reopened without the plugin and can say
+   * so — and a later plugin version cannot widen the island.
+   */
+  function insertHTML(html, {caption = "", pin = null, island = null} = {}) {
+    if (!html) return null;
+    const entry = {
+      id: uid(),
+      kind: "html",
+      name: caption || "Figure",
+      mime: "text/html",
+      bytes: byteLength(html),
+      hash: hashString(html),
+      src: html,
+      width: 0,
+      height: 0,
+    };
+    if (pin && pin.id) entry.plugin = pin;
+    if (island) entry.island = island;
+    store.figures[entry.id] = entry;
+    syncStore();
+    const figure = createFigure(entry);
+    editor()?.insertBlock(figure);
+    scan();
+    pagination.schedule();
+    status()?.markDirty();
+    return figure;
+  }
+
   /* Called on the save clone only. The live store keeps entries for an
      undo/redo stack that can still put a deleted figure back. */
   function prepareClone(clone) {
@@ -1278,11 +1309,18 @@ export function createFigures(deps = {}) {
 
   const api = {
     init, pick, insertFiles, scan, mount, unmount, unmountAll, pause, resume,
-    suspendObserver, resumeObserver, snapshot, captureAll, pluginUsage,
+    suspendObserver, resumeObserver, snapshot, captureAll, pluginUsage, insertHTML,
     setScale, setDimension, resetSize, remove, select, prepareClone, storeJSON, storeBytes, savedStoreBytes,
     get store() {return store;},
     get selected() {return selected;},
   };
+
+  /* The capability a plugin may resolve with host.use("figures"). Deliberately narrow:
+     inserting is a host operation, and reading usage is what a panel wants. */
+  const registry = env && env.StandaloneDoc;
+  if (registry && typeof registry.provide === "function") {
+    registry.provide("figures", {insertHTML, scan, usage: pluginUsage});
+  }
 
   /* Construction-time, exactly where the IIFE's trailing Figures.init() ran. */
   init();

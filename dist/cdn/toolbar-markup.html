@@ -55,6 +55,10 @@
               </div>
             </div>
 
+            <!-- A plugin's export entries land here, in both bars: the host element is
+                 markup, the entries are its contribution declaration, rendered on load. -->
+            <div data-plugin-exports hidden></div>
+
           </div>
         </div>
       </div>
@@ -82,6 +86,7 @@
         <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
         <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
         <button data-menu-item data-figure-pick="media">Video or audio…</button>
+        <div data-plugin-inserts hidden></div>
       </div>
     </span>
 
@@ -256,6 +261,8 @@
             title="The browser print dialog controls headers and footers.">Captured figures</button>
         </div>
       </div>
+
+      <div data-plugin-exports hidden></div>
       <div class="menu-sep"></div>
       <div class="menu-label">Block</div>
       <button data-menu-item data-block-set="p">Paragraph</button>
@@ -291,6 +298,7 @@
       <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
       <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
       <button data-menu-item data-figure-pick="media">Video or audio…</button>
+      <div data-plugin-inserts hidden></div>
 
       <div class="menu-sep"></div>
 

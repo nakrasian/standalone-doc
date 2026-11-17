@@ -106,7 +106,7 @@ test("construction follows the manifest order, not document order", async ({ pag
   /* Manifest order, even though the blocks were reversed in the file. */
   expect(state.built).toEqual([
     "apply-settings", "signals", "zoom", "progress", "pagination",
-    "status", "editor", "figures", "policy", "toolbar", "export",
+    "status", "editor", "figures", "policy", "toolbar", "plugins", "export",
   ]);
   expect(state.signals).toBe("object");
   expect(state.figures).toBe("object");
@@ -270,7 +270,7 @@ test.describe("boot dialog", () => {
     const seen = await dialog(page);
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
-    expect(seen.rows).toBe(11);
+    expect(seen.rows).toBe(12);
     expect(seen.barNow).toBe("100");
   });
 

@@ -15,9 +15,10 @@ edit by hand; `npm run check` fails if this file is stale.
 | pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `refresh` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
-| figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
+| figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `usage`, `blockOf`, `settingsFragment`, `PRESETS` | edit |
 | toolbar | 90 | zoom, editor, figures, status, policy | export | `save`, `serialize`, `validate`, `settings` | edit |
+| plugins | 95 | signals, figures | — | `activateUi`, `wire`, `unwire` | edit |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
 | bootstrap | 120 | — | — | _infrastructure_ | * |
 ```
@@ -43,6 +44,8 @@ graph LR
   status --> toolbar
   policy --> toolbar
   export -.->|late| toolbar
+  signals --> plugins
+  figures --> plugins
   figures --> export
   toolbar --> export
   progress --> export

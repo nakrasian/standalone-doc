@@ -166,7 +166,8 @@ function makeDoc(options = {}) {
         enabled,
         entry: "whiteboard",
         assets: ["whiteboard-styles", "whiteboard"],
-        contributes: { insert: [{ id: "whiteboard", label: "Whiteboard" }] },
+        /* No `contributes`: this file is about loading, and a plugin with no UI is
+           deliberately not built at boot (contributions.spec covers the other case). */
         ...(api ? { api } : {}),
       },
     };

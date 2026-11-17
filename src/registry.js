@@ -646,10 +646,11 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
        wires its contributions, and it is allowed to be async. */
     const scope = makeScope();
     let deactivate = null;
+    let activation = null;
     if (main && typeof main.activate === "function") {
       try {
-        const instance = await main.activate(makeHost(id, entry, assets, scope));
-        if (instance && typeof instance.deactivate === "function") deactivate = () => instance.deactivate();
+        activation = await main.activate(makeHost(id, entry, assets, scope));
+        if (activation && typeof activation.deactivate === "function") deactivate = () => activation.deactivate();
       } catch (error) {
         scope.dispose();
         unbuild(assets);
@@ -668,7 +669,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       throw record(failure("stale", id, "was unloaded while it was loading"));
     }
 
-    live[id] = { id, entry, assets, api, scope, deactivate };
+    /* `activation` is kept because the implementations live on it: `insert`, `export`
+       and the rest. The registry does not interpret them; the host modules do. */
+    live[id] = { id, entry, assets, api, scope, deactivate, activation };
     emit("plugin", { id, label: entry.label || id, state: "ready" });
     return main;
   }
@@ -723,6 +726,8 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     source,
     require: requirePlugin,
     deactivate: deactivatePlugin,
+    /** What a plugin's activate() returned, or null when it is not built. */
+    instance: (id) => live[id]?.activation || null,
     provide,
     hostApi: HOST_API,
     plugins,

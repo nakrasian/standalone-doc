@@ -71,7 +71,7 @@ test("boots entirely from the CDN", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(info.state).toBe("ready");
-  expect(info.built).toHaveLength(11);
+  expect(info.built).toHaveLength(12);
   expect(info.signals).toBe("object");
   expect(info.figures).toBe("object");
   expect(info.inlineBlocks).toBe(0);
@@ -139,7 +139,7 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
   const result = await page.evaluate(async () => {
     const toolbar = StandaloneDoc.modules.toolbar;
     const {html} = await toolbar.serialize({policy: "inline"});
-    const ids = ["apply-settings", "signals", "zoom", "pagination", "progress", "status", "editor", "figures", "policy", "toolbar", "export"];
+    const ids = ["apply-settings", "signals", "zoom", "pagination", "progress", "status", "editor", "figures", "policy", "toolbar", "plugins", "export"];
     const missing = ids.filter((id) => !html.includes(`id="${id}"`));
     const unregistered = ids.filter((id) => !new RegExp(`StandaloneDoc\\.register\\("${id}"`).test(html));
     const styles = ["page-styles", "toolbar-styles"].filter((id) => !new RegExp(`<style id="${id}"`).test(html));
