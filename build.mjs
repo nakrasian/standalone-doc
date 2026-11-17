@@ -33,8 +33,7 @@ import {
   compileBody,
   isConverted,
   MODULES,
-  moduleExportNames,
-  syntaxError,
+  parseProblem,
   uncompileBody,
 } from "./lib/compile.mjs";
 import { dedentCode as dedent, indentCode as reindent } from "./lib/indent.mjs";
@@ -253,7 +252,6 @@ function buildManifest(assets, previous) {
     };
     entry.role = INFRA.has(a.id) ? "infra" : "module";
     if (isConverted(a.id)) {
-      entry.exports = moduleExportNames(text);
       const contract = extractContract(text, { globals: LEGACY_GLOBAL_TO_ID });
       entry.deps = contract.deps;
       entry.late = contract.late;
@@ -398,8 +396,8 @@ function previousManifest() {
 }
 
 /** The src/ text for an asset: an ES module for converted assets. */
-function sourceTextFor(a, entry) {
-  return isConverted(a.id) ? uncompileBody(a.id, a.fileText, entry?.exports) : a.fileText + "\n";
+function sourceTextFor(a) {
+  return isConverted(a.id) ? uncompileBody(a.id, a.fileText) : a.fileText + "\n";
 }
 
 /**
@@ -432,7 +430,7 @@ function cmdSplit() {
   for (const a of assets) {
     if (seen.has(a.id)) throw new Error(`split: duplicate asset id "${a.id}"`);
     seen.add(a.id);
-    write(a.file, sourceTextFor(a, keep.get(a.id)));
+    write(a.file, sourceTextFor(a));
   }
 
   const { manifest, preserved } = buildManifest(assets, previous);
@@ -522,8 +520,6 @@ function verify({ quiet = false } = {}) {
     if (reproduced !== null && reproduced !== a.body) {
       problems.push(`${a.id}: ${a.file} does not reproduce the body in index.html`);
     }
-    if (isConverted(a.id) && JSON.stringify(entry.exports ?? []) !== JSON.stringify(moduleExportNames(disk))) {      problems.push(`${a.id}: manifest exports do not match ${a.file} (run "npm run combine")`);
-    }
     if (entry.order !== a.order) problems.push(`${a.id}: order ${entry.order} in manifest vs ${a.order} in index.html`);
   }
 
@@ -585,16 +581,18 @@ function firstDiff(a, b) {
   return n;
 }
 
-function cmdCheck() {
+async function cmdCheck() {
   const { problems, html } = verify({ quiet: true });
   const all = [...problems];
 
-  /* every asset body in index.html must at least parse. Compiles, never runs. */
+  /* Every js asset must parse as what it ships as: an ES module for converted
+     assets (imported from a data: URL, which also proves the top level does
+     nothing), an async function body for pass-through assets (bootstrap awaits). */
   try {
     for (const a of parseSource(html)) {
       if (a.kind !== "js") continue;
-      const err = syntaxError(a.body);
-      if (err) all.push(`${a.id}: body does not parse — ${err}`);
+      const err = await parseProblem(a.id, read(a.file));
+      if (err) all.push(`${a.id}: ${a.file} does not parse — ${err}`);
     }
   } catch (err) {
     all.push(err.message);
@@ -604,6 +602,13 @@ function cmdCheck() {
      itself cannot run if verify refuses while dist is stale. */
   if (exists(`${DIST}/editor.html`) && read(`${DIST}/editor.html`) !== html) {
     all.push(`${DIST}/editor.html is stale — run: node build.mjs build`);
+  }
+  try {
+    if (exists(`${DIST}/slim.html`) && read(`${DIST}/slim.html`) !== buildSlim(html, readManifest())) {
+      all.push(`${DIST}/slim.html is stale — run: node build.mjs build`);
+    }
+  } catch (err) {
+    all.push(`manifest: ${err.message}`);
   }
 
   /* dependency-graph audit: order constraints, late-vs-plain, drift against the
@@ -703,6 +708,21 @@ function measure() {
   };
 }
 
+/** The slim flavour: every non-infra asset fetched from the CDN. Infrastructure
+ *  (registry, boot UI, bootstrap) stays inline, because it does the fetching.
+ *  Phase 4's save-time policies reuse this, so the flavour and the policy cannot
+ *  drift apart. */
+function buildSlim(html, manifest) {
+  const online = Object.fromEntries(
+    manifest.assets.filter((asset) => asset.role !== "infra").map((asset) => [asset.id, "online"]),
+  );
+  let slim = withDocManifest(html, docManifest(manifest, online));
+  for (const asset of manifest.assets) {
+    if (asset.role !== "infra") slim = withoutAsset(slim, asset.id);
+  }
+  return slim;
+}
+
 function cmdBuild() {
   const { problems, html } = verify({ quiet: true });
   if (problems.length) {
@@ -720,28 +740,13 @@ function cmdBuild() {
     write(`${DIST}/cdn/${asset.id}.${ext}`, read(asset.file));
   }
 
-  /* Slim: the same document with every module and stylesheet fetched from the
-     CDN. Infrastructure (registry, boot UI, bootstrap) stays inline, because it
-     is the thing doing the fetching. */
-  const online = Object.fromEntries(
-    manifest.assets.filter((asset) => asset.role !== "infra").map((asset) => [asset.id, "online"]),
-  );
-  let slim = withDocManifest(html, docManifest(manifest, online));
-  for (const asset of manifest.assets) {
-    if (asset.role !== "infra") slim = withoutAsset(slim, asset.id);
-  }
-  write(`${DIST}/slim.html`, slim);
+  write(`${DIST}/slim.html`, buildSlim(html, manifest));
 
   const m = measure();
   const report = {
     schema: 1,
     /* no timestamp: dist/ is committed, so output must be deterministic */
     ...m,
-    notes: [
-      "dist/cdn/ is intentionally absent until Phase 2: the published module shape",
-      "(export function createX(deps)) does not exist yet, so serving the current",
-      "classic-script bodies from a CDN would publish a shape that is about to change.",
-    ],
   };
   write(`${DIST}/size-report.json`, JSON.stringify(report, null, 2) + "\n");
   console.log(`build: dist/editor.html (${kb(m.flavors["index.html"])} KB, byte-identical to ${SOURCE})`);
@@ -805,7 +810,7 @@ switch (cmd) {
     process.exit(verify().problems.length ? 1 : 0);
     break;
   case "check":
-    cmdCheck();
+    await cmdCheck();
     break;
   case "build":
     cmdBuild();

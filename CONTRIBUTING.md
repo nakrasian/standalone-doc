@@ -56,8 +56,7 @@ Rules the build enforces:
    The signature *is* the dependency declaration: the build derives the graph from it
    and `boot()` injects exactly that list;
 9. never write `"use strict"` in a factory. It is illegal beside a non-simple
-   parameter list (`deps = {}` counts), and the envelope already applies it to the
-   whole block. ES modules are strict regardless;
+   parameter list (`deps = {}` counts), and a module block is strict anyway;
 10. never reach another module through a global (`window.Figures`, `globalThis.Export`).
    Take it as a dependency or via `deps.late("id")`. Since Phase 3 nothing is
    published, and `lib/deps.mjs`'s `LEGACY_GLOBALS` map turns any such reference into a
@@ -65,26 +64,39 @@ Rules the build enforces:
 
 ### The envelope
 
-Converted assets are compiled into a classic script, because `export` is a syntax error
-there and because a classic script keeps its parse-time position:
+A converted asset ships as a `<script type="module">` block whose body is the source
+verbatim. The build adds one comment line above it and one registration line below it,
+and nothing else:
 
 ```html
-/*@compiled-from src/signals.js — envelope is build-owned; edit the body or src/*/
-(function () {
-"use strict";
-function createSignals(deps = {}) { … }      ← `export ` stripped
-StandaloneDoc.register("signals", createSignals);
-})();
+<script type="module" id="signals">
+  /*@compiled-from src/signals.js — envelope is build-owned; edit the body or src/*/
+  export function createSignals(deps = {}) { … }      ← identical to src/signals.js
+  StandaloneDoc.register("signals", createSignals);
+</script>
 ```
 
-The envelope lines are **build-owned**: change them by editing `src/` and running
-`npm run combine`, or `split` will refuse with a message telling you so. The body is
-yours, from either side. The IIFE keeps a duplicated block from clashing with the first
-copy's declarations; `register()` is idempotent by id, so the first copy wins.
+That is why `verify` is an equality check: `split` strips those two lines, `combine`
+re-adds them, and anything else means the two sides disagree. Both lines are
+**build-owned** — edit `src/` and run `npm run combine`, or `split` refuses with a message
+telling you so.
+
+A module block gives three things a classic script did not: `export` is legal (so no
+transform), each block has its own scope (so no IIFE, and a duplicated block cannot clash
+— `register()` is idempotent by id anyway), and top-level `await` is available, which is
+what `bootstrap` uses.
 
 The registration carries **no metadata**. Order, dependencies, late edges and mode live
 in the in-document `#asset-manifest`, derived from the signature at build time — one
 source of truth instead of two that can disagree.
+
+Two consequences worth knowing:
+
+- `check` imports every converted source from a `data:` URL. That parses the module
+  grammar *and* proves the top level only declares things, so rule 6 above is enforced
+  rather than requested.
+- module blocks are deferred: they run after parsing, in document order, and only
+  `register()`. `boot()` — awaited at the end of `bootstrap` — is what constructs them.
 
 Assets with no `MODULES` entry pass through verbatim, so the transform can ship before
 any asset changes shape.

@@ -89,9 +89,6 @@
         "*"
       ],
       "role": "module",
-      "exports": [
-        "createSignals"
-      ],
       "deps": [],
       "late": [],
       "provides": [
@@ -114,17 +111,6 @@
         "*"
       ],
       "role": "module",
-      "exports": [
-        "STEPS",
-        "MIN",
-        "MAX",
-        "TYPE_MIN",
-        "TYPE_MAX",
-        "clamp",
-        "nearest",
-        "parsePercent",
-        "createZoom"
-      ],
       "deps": [],
       "late": [],
       "provides": [
@@ -152,9 +138,6 @@
         "*"
       ],
       "role": "module",
-      "exports": [
-        "createPagination"
-      ],
       "deps": [
         "signals",
         "zoom"
@@ -180,9 +163,6 @@
         "*"
       ],
       "role": "module",
-      "exports": [
-        "createProgress"
-      ],
       "deps": [],
       "late": [],
       "provides": [
@@ -207,9 +187,6 @@
         "edit"
       ],
       "role": "module",
-      "exports": [
-        "createStatus"
-      ],
       "deps": [
         "signals",
         "pagination"
@@ -235,9 +212,6 @@
         "edit"
       ],
       "role": "module",
-      "exports": [
-        "createEditor"
-      ],
       "deps": [
         "signals",
         "status",
@@ -275,9 +249,6 @@
         "*"
       ],
       "role": "module",
-      "exports": [
-        "createFigures"
-      ],
       "deps": [
         "signals",
         "status",
@@ -325,9 +296,6 @@
         "comment"
       ],
       "role": "module",
-      "exports": [
-        "createToolbar"
-      ],
       "deps": [
         "zoom",
         "editor",
@@ -356,9 +324,6 @@
         "edit"
       ],
       "role": "module",
-      "exports": [
-        "createExport"
-      ],
       "deps": [
         "figures",
         "toolbar",
@@ -383,8 +348,8 @@
       "order": 120,
       "tag": "script",
       "file": "src/bootstrap.js",
-      "bytes": 99,
-      "sha384": "sha384-493weeL6Bd0J0sPiw/Bx1hfBsajByRz1HHFB9jTsbaAMNGkgTD38EryD+Ot0IiVy",
+      "bytes": 283,
+      "sha384": "sha384-IsXnJ679X+VPpwpJX1l7EhK2Y+z/4fhzFa9mvcRxR1mcafdJveCNZ7dxfo2UGyT4",
       "mode": "inline",
       "requiredBy": [
         "*"

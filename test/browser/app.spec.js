@@ -133,16 +133,24 @@ test.describe("file:// (the archival case)", () => {
     const problems = await load(page, fileUrl());
     const result = await page.evaluate(async () => {
       const before = StandaloneDoc.modules.signals;
+      const factory = StandaloneDoc.factories.signals;
+      /* The block is a module script now (it keeps its `export`), so the copy
+         has to be a module too. The trailing flag makes execution observable. */
       const dup = document.createElement("script");
-      dup.textContent = document.getElementById("signals").textContent;
+      dup.type = "module";
+      dup.textContent = document.getElementById("signals").textContent + "\nglobalThis.__dupRan = true;\n";
       document.body.append(dup);
-      await new Promise((r) => setTimeout(r, 100));
+      for (let i = 0; i < 100 && !globalThis.__dupRan; i++) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
       return {
+        ran: globalThis.__dupRan === true,
         sameInstance: StandaloneDoc.modules.signals === before,
+        sameFactory: StandaloneDoc.factories.signals === factory,
         api: Object.keys(StandaloneDoc.modules.signals).length,
       };
     });
-    expect(result).toEqual({ sameInstance: true, api: 4 });
+    expect(result).toEqual({ ran: true, sameInstance: true, sameFactory: true, api: 4 });
     expect(problems).toEqual([]);
   });
 });

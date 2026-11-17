@@ -109,22 +109,28 @@ test("each src file exists, is hashed correctly, and reproduces its body", () =>
     const region = marked.find((r) => r.id === asset.id);
     const body = region.bodyLines.join("\n");
 
-    /* Converted assets are compiled into a classic-script envelope, so src is
-       ESM and the body is not a re-indentation of it. Assert the envelope
-       invariants instead (deliberately without importing lib/compile.mjs, so
-       this test stays independent of the implementation it checks). */
+    /* Converted assets are module blocks: `export` survives, so the compiled
+       body is the source verbatim between a generated header and the one
+       registration line. Assert that identity directly (deliberately without
+       importing lib/compile.mjs, so this test stays independent of it). */
     if (body.includes("@compiled-from")) {
       assert.match(disk, /^export function create[A-Za-z0-9_$]*\(/m, `${asset.id}: src must be ESM`);
-      assert.match(body, /^\s*StandaloneDoc\.register\("/m, `${asset.id}: registration line missing`);
       const factory = /^export function (create[A-Za-z0-9_$]*)\s*\(/m.exec(disk)?.[1];
       assert.ok(factory, `${asset.id}: no create<Name> export`);
-      assert.ok(
-        body.includes(`StandaloneDoc.register("${asset.id}", ${factory});`),
-        `${asset.id}: registration does not name ${factory}`,
+      assert.match(region.openLine, /type="module"/, `${asset.id}: converted assets are module blocks`);
+
+      /* Strip the element's indent, then the body must be exactly: generated
+         header, src/ verbatim, registration line. */
+      const lines = body.split("\n");
+      const indent = /^[ \t]*/.exec(lines[1])[0];
+      const inner = lines.map((line) => (line.startsWith(indent) ? line.slice(indent.length) : line));
+      assert.match(inner[0], /^\/\*@compiled-from src\/[^ ]+\.js/, `${asset.id}: the header must be line 1`);
+      assert.equal(
+        inner[inner.length - 1],
+        `StandaloneDoc.register("${asset.id}", ${factory});`,
+        `${asset.id}: the registration must be the last line`,
       );
-      for (const m of disk.matchAll(/^export function ([A-Za-z_$][\w$]*)\s*\(/gm)) {
-        assert.ok(body.includes(`function ${m[1]}(`), `${asset.id}: ${m[1]} is not present in the compiled body`);
-      }
+      assert.equal(inner.slice(1, -1).join("\n"), disk.replace(/\n$/, ""), `${asset.id}: the compiled body must be src/ verbatim`);
       return;
     }
     const srcLines = disk.replace(/\n$/, "").split("\n");

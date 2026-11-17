@@ -5,13 +5,12 @@ import {
   assertConvertible,
   compileBody,
   isConverted,
-  moduleExportNames,
-  syntaxError,
+  parseProblem,
   uncompileBody,
 } from "../../lib/compile.mjs";
 
-/* MODULES is empty until an asset is converted; these tests register a fixture
-   module so the transform is exercised before any real asset changes shape. */
+/* MODULES is a table of converted assets; these tests register a fixture module
+   so the transform is exercised without touching a real asset. */
 
 const ENTRY = { factory: "createDemo", file: "src/demo.js" };
 
@@ -24,8 +23,16 @@ function withModule(fn) {
   }
 }
 
-/* No deps parameter, so the contract extractor requires no destructuring.
-   (Strictness lives in the envelope now, not in the factory.) */
+async function withModuleAsync(fn) {
+  MODULES.demo = ENTRY;
+  try {
+    return await fn();
+  } finally {
+    delete MODULES.demo;
+  }
+}
+
+/* No deps parameter, so the contract extractor requires no destructuring. */
 const SRC = `export function createDemo() {
   return {ok: true};
 }
@@ -35,47 +42,54 @@ export function double(n) {
 }
 `;
 
+const HEADER = "/*@compiled-from src/demo.js — envelope is build-owned; edit the body or src/*/";
+const REGISTER = '\nStandaloneDoc.register("demo", createDemo);';
+
 test("an asset absent from MODULES is a pass-through", () => {
   assert.equal(isConverted("not-converted-yet"), false);
-  assert.deepEqual(compileBody("not-converted-yet", "const X = 1;"), { body: "const X = 1;", exports: [] });
+  assert.deepEqual(compileBody("not-converted-yet", "const X = 1;"), { body: "const X = 1;" });
   assert.equal(uncompileBody("not-converted-yet", "anything"), "anything");
 });
 
-test("compile produces the envelope and records the export list", () => {
+test("compile is the source plus one line at each end", () => {
   withModule(() => {
-    const { body, exports } = compileBody("demo", 'export function createDemo(deps = {}) {\n  const {signals} = deps;\n  return {a};\n}\n');
-    assert.deepEqual(exports, ["createDemo"]);
-    assert.ok(body.startsWith("/*@compiled-from src/demo.js"), "envelope header first");
-    assert.match(body, /^\(function \(\) \{$/m);
-    assert.ok(body.includes('"use strict";'), "strictness is the envelope's job");
-    assert.ok(body.includes("function createDemo(deps = {}) {"), "export keyword stripped");
-    assert.ok(!/^export /m.test(body), "no export keyword survives");
-    assert.ok(
-      body.includes('StandaloneDoc.register("demo", createDemo);'),
-      "the registration carries no metadata: the manifest is the plan",
-    );
-    assert.ok(body.endsWith("})();"), "the block ends with the registration");
+    const { body } = compileBody("demo", SRC);
+    assert.equal(body, `${HEADER}\n${SRC.trimEnd()}${REGISTER}`);
+    assert.ok(body.includes("export function createDemo()"), "module blocks keep `export`");
+    assert.ok(!body.includes("use strict"), "module blocks are strict without a directive");
+    assert.ok(!body.includes("(function ()"), "module scope makes the IIFE unnecessary");
   });
 });
 
 test("uncompile is the exact inverse", () => {
   withModule(() => {
-    const { body, exports } = compileBody("demo", SRC);
-    assert.equal(uncompileBody("demo", body, exports), SRC);
+    const { body } = compileBody("demo", SRC);
+    assert.equal(uncompileBody("demo", body), SRC);
   });
 });
 
 test("compile(uncompile(compile(x))) is stable", () => {
   withModule(() => {
     const first = compileBody("demo", SRC).body;
-    const back = uncompileBody("demo", first, ["createDemo", "double"]);
+    const back = uncompileBody("demo", first);
+    assert.equal(back, SRC);
     assert.equal(compileBody("demo", back).body, first);
   });
 });
 
-test("moduleExportNames preserves source order", () => {
+test("uncompile refuses when the envelope anchors are gone, and says what to do", () => {
   withModule(() => {
-    assert.deepEqual(moduleExportNames(SRC), ["createDemo", "double"]);
+    assert.throws(
+      () => uncompileBody("demo", "function createDemo() {}"),
+      /Edit src\/demo\.js and run "npm run combine"/,
+    );
+  });
+});
+
+test("uncompile refuses a body whose registration line was renamed", () => {
+  withModule(() => {
+    const { body } = compileBody("demo", SRC);
+    assert.throws(() => uncompileBody("demo", body.replace(", createDemo)", ", createDemo2)")), /envelope anchors/);
   });
 });
 
@@ -124,62 +138,31 @@ test("rejects a factory whose name does not match the module table", () => {
   });
 });
 
-test("uncompile refuses when the envelope anchors are gone, and says what to do", () => {
+test("assertConvertible accepts a valid module", () => {
   withModule(() => {
-    assert.throws(() => uncompileBody("demo", "function createDemo() {}", ["createDemo"]), /Edit src\/demo\.js and run "npm run combine"/);
+    assert.equal(assertConvertible("demo", SRC), true);
   });
 });
 
-test("uncompile refuses when the manifest export list is missing", () => {
-  withModule(() => {
-    const { body } = compileBody("demo", SRC);
-    assert.throws(() => uncompileBody("demo", body), /no exports list/);
+test("parseProblem parses a module asset and reports a real syntax error", async () => {
+  await withModuleAsync(async () => {
+    assert.equal(await parseProblem("demo", SRC), null);
+    assert.match(await parseProblem("demo", "export function createDemo() { return 1 +; }\n"), /Unexpected token|SyntaxError/);
   });
 });
 
-test("uncompile refuses a body that declares something the manifest does not list", () => {
-  withModule(() => {
-    const { body } = compileBody("demo", SRC);
-    /* Simulate a hand edit inside index.html: a new top-level declaration. */
-    const edited = body.replace("\nStandaloneDoc.register(", "\nfunction sneaky() {}\nStandaloneDoc.register(");
-    assert.throws(() => uncompileBody("demo", edited, ["createDemo", "double"]), /declares "sneaky"/);
+test("parseProblem catches a DOM read at module evaluation time", async () => {
+  /* CONTRIBUTING rule 6, made executable: the block's top level only declares.
+     Importing the source is what turns a silent ordering assumption into a
+     build failure. */
+  await withModuleAsync(async () => {
+    const bad = 'export function createDemo() {}\nconst title = document.title;\n';
+    assert.match(await parseProblem("demo", bad), /document is not defined/);
   });
 });
 
-test("a column-0 declaration inside a template literal is refused at compile time", () => {
-  withModule(() => {
-    const source = `export function createDemo() {
-  const text = \`
-function fake() {}
-\`;
-  return text;
-}
-`;
-    assert.throws(() => compileBody("demo", source), /top-level declaration of "fake"/);
-  });
-});
-
-test("an export at the start of a template literal line is refused", () => {
-  withModule(() => {
-    const source = `export function createDemo() {
-  const text = \`
-export function fake() {}
-\`;
-  return text;
-}
-`;
-    assert.throws(() => compileBody("demo", source), /inside a template literal/);
-  });
-});
-
-test("assertConvertible returns the export names for a valid module", () => {
-  withModule(() => {
-    assert.deepEqual(assertConvertible("demo", SRC), ["createDemo", "double"]);
-  });
-});
-
-test("syntaxError parses without executing", () => {
-  assert.equal(syntaxError("var x = 1;"), null);
-  assert.match(syntaxError("var x = ;"), /Unexpected token/);
-  assert.match(syntaxError("export function f() {}"), /Unexpected token 'export'/);
+test("parseProblem accepts top-level await in a pass-through asset", async () => {
+  /* bootstrap is a pass-through classic script that awaits boot(). */
+  assert.equal(await parseProblem("bootstrap", "const x = 1;\nawait Promise.resolve(x);\n"), null);
+  assert.match(await parseProblem("bootstrap", "await (\n"), /Unexpected|SyntaxError/);
 });

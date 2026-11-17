@@ -16,8 +16,9 @@ and hash-verified).
 > SHA-384 `integrity` hash. Running code never changes under a saved document unless its
 > owner explicitly chooses to update it.
 
-The manifest carries `"schema": 1`. Any change to that schema is a breaking change and
-requires a major version bump.
+The manifest carries `"schema": 1`. The format is still preliminary: fields are added as
+phases land, and there is no migration contract yet. Once the editor is stable, `schema`
+is what will identify a document that needs upgrading, and a bump will mean exactly that.
 
 ## Quick start
 
@@ -85,16 +86,18 @@ export function createFigures({ store, progress, loader }) { /* … */ }
 ```
 
 That shape is valid as a CDN module (the loader `import()`s it and passes dependencies)
-*and* as an inline classic script (the build strips `export` and wraps the body in a
-closure — no bundler, no module graph, nothing to resolve). `file://` therefore never
-needs to fetch a module. The only shared global is `globalThis.StandaloneDoc`.
+*and* as an inline `<script type="module">` block: the build adds one comment line above
+the body and one `StandaloneDoc.register(...)` line below it, so the block is the source
+verbatim. Each block has its own scope, and `export` is legal — no bundler, no module
+graph, nothing to resolve. `file://` therefore never needs to fetch a module. The only
+shared global is `globalThis.StandaloneDoc`.
 
 ## Status
 
-Phase 0–1 complete (repository, markers, split/combine/verify). Phases 2–7 — module
-conversion, the bootstrap loader and error diagnostics, save-time materialization, the
-plugin manager, CDN publishing and the update flow — are specified in
-`docs/` (private) and land incrementally.
+Phases 0–3 are complete: repository and markers, module conversion, the dependency
+contract, the registry and `boot()`, the boot shell with diagnostics, and the CDN loader
+with `dist/slim.html`. Next are save-time materialization, the plugin manager and the
+`v0.1.0` publication. The editor is usable today; the file format is not frozen.
 
 ## License
 
