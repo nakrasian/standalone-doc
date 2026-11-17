@@ -75,7 +75,9 @@ curl -s https://purge.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime
 A `view`-mode document builds `viewer-bar`: a 34 px bar with a folio, the title, *Save a copy*
 and a settings popover (mode, pages, pinned runtime, zoom). It is the reason a repaired viewer
 can keep its repair — the repair card promises "save the file" only when a `[data-save]` exists.
-Its save is a download, because a read-only document cannot write the file it came from.
+Its save is a download, because a read-only document cannot write the file it came from. A
+reader can hide the bar while reading: it collapses to a restore button, and the choice is the
+session's — a saved copy carries the bar back.
 
 `settings.toolbar` decides whether that chrome shows (`"toolbar": true` in `#doc-settings`);
 `buildViewer()` authors it, and a viewer saved before v0.5.0 never did, so it stays bar-less.
@@ -95,6 +97,16 @@ retry. Nothing is written to disk until you save, and the card says so; a docume
 cannot save (a viewer) is told the repair lasts for this session. If the new release does not
 load either, the document's own pin is restored and the card says so — a failed update
 changes nothing.
+
+### Moving a document to a newer release, on purpose
+
+The same move as the repair below, made from a document that works: **Document settings →
+Runtime → Check for updates…**. It reads the release index, finds the newest release, and
+offers it as a draft. Nothing is written until you press **Done**; fetching a release that
+does not parse changes nothing. The pin moves for the *file*, not the window: this session
+keeps the runtime it booted with, and the note says which is which. Only assets the document
+fetches are re-pinned — an inline asset's hash describes bytes the file already has, and a
+plugin's bytes stay its author's.
 
 ## Quick start
 
@@ -122,6 +134,7 @@ dist/runtime.json   releases a document may re-pin to; one manifest per tag in d
 test/unit/          node:test suites
 test/browser/       playwright suites (chromium, webkit, firefox)
 docs/PLUGINS.md     the plugin contract: host API, contributions, islands, pinning
+docs/MANIFEST.md    the three JSON blocks in a document: every field, authored vs derived
 plugins.json        curated plugin catalog, published as dist/registry.json
 ```
 
