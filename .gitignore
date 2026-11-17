@@ -17,3 +17,7 @@ playwright-report/
 !/README.md
 !/CONTRIBUTING.md
 /*.txt
+
+# Editor swap files
+*.swp
+*.swo

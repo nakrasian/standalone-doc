@@ -2083,7 +2083,11 @@
   <!-- Document status: pages, words, dirty -->
 <!-- @asset id="status" kind="js" order="60" -->
   <script id="status">
-    const Status = (() => {
+    /*@compiled-from src/status.js — envelope is build-owned; edit the body or src/*/
+    var Status = globalThis.Status || (function () {
+    "use strict";
+    function createStatus(deps = {}) {
+      const {signals, pagination} = deps;
       const content = document.getElementById("content");
       const storeEl = document.getElementById("figure-store");
       const baseBytes = document.documentElement.outerHTML.length
@@ -2126,7 +2130,7 @@
 
       function refresh() {
         const words = wordCount(content);
-        const pages = Pagination.pageCount();
+        const pages = pagination.pageCount();
         const html = contentHtml();
         const storeBytes = window.Figures && Figures.savedStoreBytes
           ? Figures.savedStoreBytes()
@@ -2164,11 +2168,11 @@
         refresh();
       }
 
-      Signals.on("mutation", schedule);
-      Signals.on("edit", schedule);
-      Signals.on("compositionend", schedule);
-      Signals.on("layout", refresh);
-      Signals.on("figures", () => {
+      signals.on("mutation", schedule);
+      signals.on("edit", schedule);
+      signals.on("compositionend", schedule);
+      signals.on("layout", refresh);
+      signals.on("figures", () => {
         lastSavedBytes = null;
         schedule();
       });
@@ -2176,6 +2180,8 @@
       refresh();
 
       return {refresh, save, markDirty};
+    }
+    return createStatus({signals: Signals, pagination: Pagination});
     })();
   </script>
 <!-- /@asset -->
@@ -4828,7 +4834,10 @@
 
 <!-- @asset id="progress" kind="js" order="110" -->
   <script id="progress">
-    const ProgressDialog = (() => {
+    /*@compiled-from src/progress.js — envelope is build-owned; edit the body or src/*/
+    var ProgressDialog = globalThis.ProgressDialog || (function () {
+    "use strict";
+    function createProgress() {
       const dialog = document.getElementById("progress-dialog");
       const title = dialog.querySelector("[data-progress-title]");
       const track = dialog.querySelector(".progress");
@@ -4883,9 +4892,9 @@
       });
 
       return {open, update, setText, setCancel, close, get isOpen() {return dialog.open;}};
+    }
+    return createProgress();
     })();
-
-    window.ProgressDialog = ProgressDialog;
   </script>
 <!-- /@asset -->
 </body>

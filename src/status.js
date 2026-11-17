@@ -1,4 +1,5 @@
-const Status = (() => {
+export function createStatus(deps = {}) {
+  const {signals, pagination} = deps;
   const content = document.getElementById("content");
   const storeEl = document.getElementById("figure-store");
   const baseBytes = document.documentElement.outerHTML.length
@@ -41,7 +42,7 @@ const Status = (() => {
 
   function refresh() {
     const words = wordCount(content);
-    const pages = Pagination.pageCount();
+    const pages = pagination.pageCount();
     const html = contentHtml();
     const storeBytes = window.Figures && Figures.savedStoreBytes
       ? Figures.savedStoreBytes()
@@ -79,11 +80,11 @@ const Status = (() => {
     refresh();
   }
 
-  Signals.on("mutation", schedule);
-  Signals.on("edit", schedule);
-  Signals.on("compositionend", schedule);
-  Signals.on("layout", refresh);
-  Signals.on("figures", () => {
+  signals.on("mutation", schedule);
+  signals.on("edit", schedule);
+  signals.on("compositionend", schedule);
+  signals.on("layout", refresh);
+  signals.on("figures", () => {
     lastSavedBytes = null;
     schedule();
   });
@@ -91,4 +92,4 @@ const Status = (() => {
   refresh();
 
   return {refresh, save, markDirty};
-})();
+}

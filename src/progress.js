@@ -1,4 +1,4 @@
-const ProgressDialog = (() => {
+export function createProgress() {
   const dialog = document.getElementById("progress-dialog");
   const title = dialog.querySelector("[data-progress-title]");
   const track = dialog.querySelector(".progress");
@@ -53,6 +53,4 @@ const ProgressDialog = (() => {
   });
 
   return {open, update, setText, setCancel, close, get isOpen() {return dialog.open;}};
-})();
-
-window.ProgressDialog = ProgressDialog;
+}

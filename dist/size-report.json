@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 191688
+    "bytes": 192138
   },
   "assets": [
     {
@@ -32,7 +32,7 @@
     {
       "id": "status",
       "kind": "js",
-      "bytes": 3626
+      "bytes": 3913
     },
     {
       "id": "editor",
@@ -57,12 +57,12 @@
     {
       "id": "progress",
       "kind": "js",
-      "bytes": 1897
+      "bytes": 2060
     }
   ],
   "flavors": {
-    "index.html": 191688,
-    "asset-bodies": 166430,
+    "index.html": 192138,
+    "asset-bodies": 166880,
     "markup-and-runtime": 25258
   },
   "notes": [

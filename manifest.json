@@ -92,11 +92,14 @@
       "order": 60,
       "tag": "script",
       "file": "src/status.js",
-      "bytes": 3291,
-      "sha384": "sha384-Fpy7s1kcF8zAxy49fQsQ41MekAbdLJcSTaX1HZzz7vVrBysPlul4/3M/7Wx5VTDP",
+      "bytes": 3343,
+      "sha384": "sha384-qcDpHAikxzXD249tUyiB2oY8th5s7e8Aecw7tQE2dufZ8jg3Vb78c7Cg4RIBCPve",
       "mode": "inline",
       "requiredBy": [
         "edit"
+      ],
+      "exports": [
+        "createStatus"
       ]
     },
     {
@@ -158,11 +161,14 @@
       "order": 110,
       "tag": "script",
       "file": "src/progress.js",
-      "bytes": 1702,
-      "sha384": "sha384-PNpcYpcLOEbTuJ0YbyzRnr4EF2/RAoTiMO0dYUDdBtuL/+VtuIVMI9FnccAm38E1",
+      "bytes": 1660,
+      "sha384": "sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI",
       "mode": "inline",
       "requiredBy": [
         "*"
+      ],
+      "exports": [
+        "createProgress"
       ]
     }
   ]
