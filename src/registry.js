@@ -8,6 +8,18 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   const modules = Object.create(null);
   /* In-flight lazy builds, so two figures asking for one plugin share a fetch. */
   const pending = new Map();
+  /* The contract a plugin is written against. Bumped only when it breaks; a plugin
+     declares the version it needs and the registry refuses a mismatch. */
+  const HOST_API = 1;
+  /* Capabilities other modules offer to plugins. A module puts itself in this table
+     when it is built, so a plugin can only use what this document really has: a
+     viewer has no editor, and a file with the toolbar absent has no menus. */
+  const providers = Object.create(null);
+  /* Built plugins: their bundle, their scope, and their own deactivate(). */
+  const live = Object.create(null);
+  /* Bumped on unload, so a build that was in flight cannot resurrect what the
+     author just switched off. */
+  const generations = Object.create(null);
   const errors = [];
   const listeners = Object.create(null);
   const injected = [];
@@ -159,6 +171,133 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     errors.push(record);
     emit("error", { error: record, errors: errors.slice() });
     return record;
+  }
+
+  /* ------------------------------------------------------------- host contract */
+
+  /**
+   * Offer a capability to plugins. Called by the module that can actually do the
+   * work (figures, editor, toolbar), never by a plugin; the returned function
+   * withdraws it, which retry() and unload rely on.
+   */
+  function provide(name, impl) {
+    providers[name] = impl;
+    return function withdraw() {
+      if (providers[name] === impl) delete providers[name];
+    };
+  }
+
+  function capability(name) {
+    if (!providers[name]) {
+      throw failure("unavailable", name, "is not available in this document");
+    }
+    return providers[name];
+  }
+
+  /* Everything the host hands a plugin is tracked here. A plugin's own deactivate()
+     is advisory — nothing can prove it released anything — but this list is not: the
+     host withdraws its own menus, styles, panels and listeners on unload regardless. */
+  function makeScope() {
+    const disposals = [];
+    return {
+      add(dispose) {
+        if (typeof dispose === "function") disposals.push(dispose);
+        return dispose;
+      },
+      dispose() {
+        for (const dispose of disposals.splice(0).reverse()) {
+          try {
+            dispose();
+          } catch (error) {
+            console.warn("plugin cleanup failed:", error);
+          }
+        }
+      },
+    };
+  }
+
+  function bump(id) {
+    generations[id] = (generations[id] || 0) + 1;
+  }
+
+  /** What "unbuilt" means: the modules, and any stylesheet the bundle injected. */
+  function unbuild(assets) {
+    const ids = new Set(assets.map((asset) => asset.id));
+    for (const id of ids) delete modules[id];
+    for (const node of [...injected]) {
+      if (ids.has(node.dataset && node.dataset.asset)) {
+        node.remove();
+        injected.splice(injected.indexOf(node), 1);
+      }
+    }
+  }
+
+  /**
+   * Text of one of a plugin's own assets.
+   *
+   * Bytes that arrived by reference are the verified ones. Bytes the file carries are
+   * read back out of their block, so "content inline, runtime online" needs no second
+   * copy — the content is what the document already has.
+   */
+  async function assetText(assetId) {
+    const asset = assetById(assetId);
+    if (!asset) throw failure("missing", assetId, "is not in the manifest");
+    if (asset.mode !== "inline") return source(assetId);
+    if (asset.kind === "css") {
+      const el = document.querySelector(`style[id="${assetId}"]`);
+      return el ? el.textContent : "";
+    }
+    if (asset.kind === "html") {
+      const el = inlineElement(assetId);
+      return el ? el.innerHTML : "";
+    }
+    const el = document.querySelector(`script[id="${assetId}"]`);
+    return el ? el.textContent : "";
+  }
+
+  /* The element of a block carried by the file, found through its marker: a
+     fragment's element does not carry the asset id itself. */
+  function inlineElement(assetId) {
+    if (typeof document === "undefined") return null;
+    const walker = document.createTreeWalker(document.body, 128 /* SHOW_COMMENT */);
+    const wanted = new RegExp(`id="${assetId}"`);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!/^\s*@asset\b/.test(node.nodeValue || "") || !wanted.test(node.nodeValue || "")) continue;
+      let sibling = node.nextSibling;
+      while (sibling && sibling.nodeType !== 1 /* ELEMENT_NODE */) sibling = sibling.nextSibling;
+      return sibling;
+    }
+    return null;
+  }
+
+  /* The host object a plugin's activate() receives. Deliberately small: everything
+     here is either data the document already owns or a capability that was actually
+     built, so a plugin cannot reach past this document's own configuration. */
+  function makeHost(id, entry, assets, scope) {
+    const own = new Set(assets.map((asset) => asset.id));
+    return {
+      api: HOST_API,
+      plugin: {
+        id,
+        label: entry.label || id,
+        version: entry.version || null,
+        isolation: entry.isolation || "sealed",
+      },
+      /** Text of one of its *own* assets; another plugin's bytes are not readable. */
+      async text(assetId) {
+        if (!own.has(assetId)) throw failure("forbidden", assetId, `is not part of plugin "${id}"`);
+        return assetText(assetId);
+      },
+      /** A capability this document built (figures, editor, toolbar), or a refusal. */
+      use: (name) => capability(name),
+      /** Host-owned cleanup: withdraws things even if the plugin never does. */
+      track: (dispose) => scope.add(dispose),
+      on: (event, fn) => scope.add(on(event, fn)),
+      /* A copy: a plugin reading settings is fine, editing the live snapshot is not. */
+      settings: () => ({ ...settings() }),
+      manifest: () => manifest(),
+    };
   }
 
   /* A document declares the mode it was saved for (edit | view | comment), and an
@@ -364,7 +503,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     }
 
     try {
-      modules[asset.id] = factory ? factory(deps) : result.namespace;
+      const built = factory ? factory(deps) : result.namespace;
+      /* A factory may be async — a plugin that has to await its own template or wasm
+         is. Boot's factories are sync, so this only costs a typeof per asset. */
+      modules[asset.id] = built && typeof built.then === "function" ? await built : built;
     } catch (error) {
       throw failure("construct", asset.id, error && error.message ? error.message : String(error), {
         stack: error && error.stack ? String(error.stack) : null,
@@ -437,7 +579,15 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   function requirePlugin(id) {
     if (modules[id]) return Promise.resolve(modules[id]);
     if (pending.has(id)) return pending.get(id);
-    const promise = buildPlugin(id).finally(() => pending.delete(id));
+    const generation = generations[id] || 0;
+    const promise = buildPlugin(id, generation)
+      .catch((error) => {
+        /* One place emits the failure, whatever the reason: the figure that asked
+           shows it, and the sheet shows it on the row. */
+        emit("plugin", { id, state: "failed", error });
+        throw error;
+      })
+      .finally(() => pending.delete(id));
     /* The caller renders the failure (a figure shows it); this only stops an
        unhandled rejection when the first caller is not listening. */
     promise.catch(() => {});
@@ -445,7 +595,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return promise;
   }
 
-  async function buildPlugin(id) {
+  async function buildPlugin(id, generation) {
     const entry = plugins()[id];
     if (!entry) throw record(failure("unresolved", id, "this document needs it but has no pinned copy of it"));
     if (entry.enabled === false) throw record(failure("disabled", id, "is turned off in this document"));
@@ -466,6 +616,12 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       if (outcome.status === "rejected") throw record(outcome.reason);
     }
 
+    /* Unloaded while the bytes were in flight: do not construct and do not activate.
+       The same check runs again after activate(), for an unload that lands during it. */
+    if ((generations[id] || 0) !== generation) {
+      throw record(failure("stale", id, "was unloaded while it was loading"));
+    }
+
     for (const [position, asset] of assets.entries()) {
       try {
         await constructOne(asset, { loaded, index: position, total: assets.length, lazy: true });
@@ -477,17 +633,79 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     /* The entry asset is what the plugin *is*; everything else it pinned is there to
        support it. Fall back to the last built asset rather than guessing by name. */
     const main = modules[entry.entry] || modules[assets[assets.length - 1].id] || null;
+
+    const api = Number(entry.api ?? HOST_API) || HOST_API;
+    if (api > HOST_API) {
+      unbuild(assets);
+      throw record(failure("api", id, `needs host API ${api}; this document provides ${HOST_API}`));
+    }
+
+    /* Two-phase, like boot: bytes, then side effects. activate() is where a plugin
+       wires its contributions, and it is allowed to be async. */
+    const scope = makeScope();
+    let deactivate = null;
+    if (main && typeof main.activate === "function") {
+      try {
+        const instance = await main.activate(makeHost(id, entry, assets, scope));
+        if (instance && typeof instance.deactivate === "function") deactivate = () => instance.deactivate();
+      } catch (error) {
+        scope.dispose();
+        unbuild(assets);
+        throw record(
+          failure("construct", id, `activate() failed: ${error && error.message ? error.message : String(error)}`, {
+            stack: error && error.stack ? String(error.stack) : null,
+          }),
+        );
+      }
+    }
+
+    /* Unloaded while it was loading: nothing may survive this build. */
+    if ((generations[id] || 0) !== generation) {
+      scope.dispose();
+      unbuild(assets);
+      throw record(failure("stale", id, "was unloaded while it was loading"));
+    }
+
+    live[id] = { id, entry, assets, api, scope, deactivate };
     emit("plugin", { id, label: entry.label || id, state: "ready" });
     return main;
+  }
+
+  /**
+   * Unload a plugin.
+   *
+   * Best effort by design: `deactivate()` is a promise the plugin makes and nothing
+   * can verify it, so the host withdraws what it handed out (the scope) and removes
+   * the built modules either way. Figures already mounted keep running until the
+   * file is reopened — that is the honest limit of an unload in a live document.
+   */
+  async function deactivatePlugin(id) {
+    const rec = live[id];
+    bump(id); /* first, so a build in flight cannot undo this */
+    delete live[id];
+    if (!rec) return false;
+    try {
+      if (rec.deactivate) await rec.deactivate();
+    } catch (error) {
+      record(
+        failure("construct", id, `deactivate() failed: ${error && error.message ? error.message : String(error)}`),
+      );
+    }
+    rec.scope.dispose();
+    unbuild(rec.assets);
+    emit("plugin", { id, label: rec.entry.label || id, state: "deactivated" });
+    return true;
   }
 
   /* Tear the graph down and build it again. Registered factories survive, so a
      failure that was environmental can be retried without reloading the file. */
   async function retry() {
     if (state === "booting") return modules;
+    for (const id of Object.keys(live)) await deactivatePlugin(id);
     for (const id of Object.keys(modules)) delete modules[id];
     for (const node of injected.splice(0)) node.remove();
     for (const id of Object.keys(sources)) delete sources[id];
+    for (const name of Object.keys(providers)) delete providers[name];
     pending.clear();
     errors.length = 0;
     setState("declared");
@@ -502,6 +720,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     optional,
     source,
     require: requirePlugin,
+    deactivate: deactivatePlugin,
+    provide,
+    hostApi: HOST_API,
     plugins,
     boot,
     retry,

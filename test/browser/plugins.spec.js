@@ -4,14 +4,18 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-/* Plugins are lazy. The contract this file pins down:
+/* Plugins are lazy, and they run against a host the registry owns. The contract this
+   file pins down:
+
      - boot() never builds one, whatever its requiredBy says
-     - require() fetches, verifies, then constructs the whole bundle in order
+     - require() fetches, verifies, constructs the bundle, then activates it
      - two concurrent requires share one build
      - a tampered plugin is never evaluated, and the document stays readable
-     - a missing or switched-off plugin refuses with a reason, not a crash
+     - a missing, switched-off or wrong-API plugin refuses with a reason
+     - unload withdraws what the host handed out even when deactivate() lies or throws
+     - a build that was in flight during an unload cannot resurrect the plugin
 
-   The plugin's bytes are served from .test-tmp/, so these specs exercise the same
+   The plugin's bytes are served from .test-tmp/, so these exercise the same
    fetch → SHA-384 → blob-import path a real pinned plugin takes. */
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -20,9 +24,13 @@ const CDN = "http://127.0.0.1:8080/dist/cdn";
 const STAGE = "http://127.0.0.1:8080/.test-tmp";
 const SLIM = fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8");
 
-/* A plugin bundle shaped like ours: an entry that takes deps, a stylesheet, and one
-   deliberate top-level side effect so the spec can count evaluations. */
-const PLUGIN_JS = `globalThis.__evalCount = (globalThis.__evalCount || 0) + 1;
+const sha384 = (text) => "sha384-" + createHash("sha384").update(text, "utf8").digest("base64");
+const byteLength = (text) => Buffer.byteLength(text, "utf8");
+const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s\S]*?)(<\/script>)/;
+
+/* The minimum plausible plugin: a factory, deps, and one deliberate top-level side
+   effect so the spec can count evaluations. */
+const BASIC_JS = `globalThis.__evalCount = (globalThis.__evalCount || 0) + 1;
 
 export function createWhiteboard(deps = {}) {
   return {
@@ -33,68 +41,123 @@ export function createWhiteboard(deps = {}) {
 }
 `;
 
-const PLUGIN_CSS = `.whiteboard-chrome { outline: 1px solid rgb(1, 2, 3); }\n`;
+/* A plugin that actually uses the host: reads its own bytes, asks for a capability,
+   asks for one this document does not have, and registers cleanup two ways. */
+const HOST_JS = `globalThis.__evalCount = (globalThis.__evalCount || 0) + 1;
 
-const sha384 = (text) => "sha384-" + createHash("sha384").update(text, "utf8").digest("base64");
-const bytes = (text) => Buffer.byteLength(text, "utf8");
+export async function createHarness() {
+  return {
+    kind: "harness",
+    async activate(host) {
+      /* own bytes, then a refusal from a module it does not own, then a capability
+         this document has no provider for. All three are awaited: host.text() is
+         async by design (bytes may have to be fetched). */
+      const own = await host.text("whiteboard");
+      let borrowed = "read a module it does not own";
+      try { await host.text("signals"); } catch (error) { borrowed = error.kind; }
+      let missing = "resolved";
+      try { host.use("editor"); } catch (error) { missing = error.kind; }
+      let demo = "unavailable";
+      try { demo = host.use("demo").value; } catch (error) { demo = error.kind; }
+      globalThis.__host = {
+        api: host.api,
+        id: host.plugin.id,
+        label: host.plugin.label,
+        isolation: host.plugin.isolation,
+        own: own.includes("createHarness"),
+        borrowed,
+        demo,
+        missing,
+      };
+      host.track(() => { globalThis.__tracked = (globalThis.__tracked || 0) + 1; });
+      return {
+        deactivate() {
+          globalThis.__deactivated = (globalThis.__deactivated || 0) + 1;
+          /* Deliberately does not undo the tracked disposal: the point is that the
+             host does not need it to. */
+        },
+      };
+    },
+  };
+}
 
-const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s\S]*?)(<\/script>)/;
+export async function createLiar() {
+  return {
+    async activate(host) {
+      host.track(() => { globalThis.__tracked = (globalThis.__tracked || 0) + 1; });
+      return {
+        deactivate() {
+          throw new Error("deactivate is a lie");
+        },
+      };
+    },
+  };
+}
+`;
 
-const PLUGIN_FILES = {
-  entry: "plugin-whiteboard.js",
-  styles: "plugin-whiteboard.css",
-};
+const CSS = `.whiteboard-chrome { outline: 1px solid rgb(1, 2, 3); }\n`;
 
-function writePluginFiles() {
+function writeFixtureFiles() {
   fs.mkdirSync(TMP, { recursive: true });
-  fs.writeFileSync(path.join(TMP, PLUGIN_FILES.entry), PLUGIN_JS);
-  fs.writeFileSync(path.join(TMP, PLUGIN_FILES.styles), PLUGIN_CSS);
+  fs.writeFileSync(path.join(TMP, "plugin-basic.js"), BASIC_JS);
+  fs.writeFileSync(path.join(TMP, "plugin-host.js"), HOST_JS);
+  fs.writeFileSync(path.join(TMP, "plugin-styles.css"), CSS);
 }
 
 /**
  * A slim document plus one pinned plugin bundle.
  *
  * `integrity` is wrong on purpose in the tampered fixture; `enabled: false` is the
- * switched-off case. Both must still boot the document.
+ * switched-off case; `api` above the host's is the version-mismatch case. All of them
+ * must still boot the document.
  */
-function makeDoc({ tampered = false, enabled = true, withBundle = true } = {}) {
-  writePluginFiles();
+function makeDoc(options = {}) {
+  const {
+    tampered = false,
+    enabled = true,
+    withBundle = true,
+    api,
+    source = BASIC_JS,
+    factory = "createWhiteboard",
+  } = options;
+  writeFixtureFiles();
+
   const published = /"cdnBase":"([^"]*)"/.exec(SLIM)[1];
   let html = SLIM.split(published).join(CDN);
-
-  const found = MANIFEST_RE.exec(html);
-  const manifest = JSON.parse(found[2]);
+  const manifest = JSON.parse(MANIFEST_RE.exec(html)[2]);
 
   if (withBundle) {
-    manifest.assets.push({
-      id: "whiteboard-styles",
-      kind: "css",
-      role: "module",
-      order: 200,
-      mode: "online",
-      category: "plugin",
-      plugin: "whiteboard",
-      requiredBy: ["*"],
-      bytes: bytes(PLUGIN_CSS),
-      url: `${STAGE}/${PLUGIN_FILES.styles}`,
-      integrity: sha384(PLUGIN_CSS),
-    });
-    manifest.assets.push({
-      id: "whiteboard",
-      kind: "js",
-      role: "module",
-      order: 210,
-      mode: "online",
-      category: "plugin",
-      plugin: "whiteboard",
-      requiredBy: ["*"],
-      bytes: bytes(PLUGIN_JS),
-      factory: "createWhiteboard",
-      url: `${STAGE}/${PLUGIN_FILES.entry}`,
-      /* The whole point of the tampered fixture: the bytes at that url no longer
-         match what the document pinned. */
-      integrity: tampered ? sha384(PLUGIN_JS + "\n// different bytes\n") : sha384(PLUGIN_JS),
-    });
+    manifest.assets.push(
+      {
+        id: "whiteboard-styles",
+        kind: "css",
+        role: "module",
+        order: 200,
+        mode: "online",
+        category: "plugin",
+        plugin: "whiteboard",
+        requiredBy: ["*"],
+        bytes: byteLength(CSS),
+        url: `${STAGE}/plugin-styles.css`,
+        integrity: sha384(CSS),
+      },
+      {
+        id: "whiteboard",
+        kind: "js",
+        role: "module",
+        order: 210,
+        mode: "online",
+        category: "plugin",
+        plugin: "whiteboard",
+        requiredBy: ["*"],
+        bytes: byteLength(source),
+        factory,
+        url: `${STAGE}/${source === BASIC_JS ? "plugin-basic.js" : "plugin-host.js"}`,
+        /* The point of the tampered fixture: the bytes at that url no longer match
+           what the document pinned. */
+        integrity: tampered ? sha384(source + "\n// different bytes\n") : sha384(source),
+      },
+    );
     manifest.plugins = {
       whiteboard: {
         label: "Whiteboard",
@@ -104,13 +167,17 @@ function makeDoc({ tampered = false, enabled = true, withBundle = true } = {}) {
         entry: "whiteboard",
         assets: ["whiteboard-styles", "whiteboard"],
         contributes: { insert: [{ id: "whiteboard", label: "Whiteboard" }] },
+        ...(api ? { api } : {}),
       },
     };
   }
 
   html = html.replace(MANIFEST_RE, (_, open, _json, close) => open + JSON.stringify(manifest) + close);
 
-  const name = `.test-tmp/plugins-${process.pid}-${tampered ? "tampered" : enabled ? "on" : "off"}.html`;
+  const slug = [tampered && "tampered", !enabled && "off", !withBundle && "bare", api && `api${api}`, source === HOST_JS && "host", factory]
+    .filter(Boolean)
+    .join("-") || "base";
+  const name = `.test-tmp/plugins-${process.pid}-${slug}.html`;
   fs.writeFileSync(path.join(ROOT, name), html);
   return "/" + name;
 }
@@ -126,7 +193,7 @@ async function load(page, url) {
   return problems;
 }
 
-test.beforeAll(() => writePluginFiles());
+test.beforeAll(() => writeFixtureFiles());
 
 test("boot builds every module but never a plugin", async ({ page }) => {
   const problems = await load(page, makeDoc());
@@ -136,7 +203,6 @@ test("boot builds every module but never a plugin", async ({ page }) => {
     plugins: StandaloneDoc.plugins(),
     styles: Boolean(document.querySelector('style[data-asset="whiteboard-styles"]')),
     errors: StandaloneDoc.errors.length,
-    /* the plugin is on the manifest, and out of the boot order */
     inManifest: StandaloneDoc.manifest().assets.some((a) => a.id === "whiteboard"),
     inOrder: StandaloneDoc.order().includes("whiteboard"),
     evalCount: globalThis.__evalCount ?? 0,
@@ -163,7 +229,6 @@ test("require() fetches, verifies and constructs the whole bundle", async ({ pag
       kind: mod?.kind,
       deps: { mode: mod?.mode, env: mod?.hasEnv },
       styles: Boolean(document.querySelector('style[data-asset="whiteboard-styles"]')),
-      /* a second call is the same module, not a rebuild */
       same: (await StandaloneDoc.require("whiteboard")) === mod,
       state: StandaloneDoc.state,
       errors: StandaloneDoc.errors.length,
@@ -195,6 +260,139 @@ test("two concurrent require() calls construct once", async ({ page }) => {
   expect(count.same).toBe(true);
 });
 
+test("activate() receives a host scoped to its own bundle", async ({ page }) => {
+  const problems = await load(page, makeDoc({ source: HOST_JS, factory: "createHarness" }));
+  const host = await page.evaluate(async () => {
+    StandaloneDoc.provide("demo", { value: 42 });
+    await StandaloneDoc.require("whiteboard");
+    return globalThis.__host;
+  });
+  expect(host.api).toBe(1);
+  expect(host.id).toBe("whiteboard");
+  /* The label and isolation come from the manifest — that is where the document's
+     own description of the plugin lives. */
+  expect(host.label).toBe("Whiteboard");
+  expect(host.isolation).toBe("sealed");
+  /* It can read its own bytes… */
+  expect(host.own).toBe(true);
+  /* …cannot read another plugin's, and cannot reach a capability this document has
+     no module for. Both refuse with a kind, not a stack trace. */
+  expect(host.borrowed).toBe("forbidden");
+  expect(host.demo).toBe(42);
+  expect(host.missing).toBe("unavailable");
+  expect(problems).toEqual([]);
+});
+
+test("unload withdraws host-tracked effects even when deactivate() is not called", async ({ page }) => {
+  await load(page, makeDoc({ source: HOST_JS, factory: "createHarness" }));
+  const result = await page.evaluate(async () => {
+    globalThis.__tracked = 0;
+    globalThis.__deactivated = 0;
+    await StandaloneDoc.require("whiteboard");
+    const built = {
+      module: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
+      styles: Boolean(document.querySelector('style[data-asset="whiteboard-styles"]')),
+    };
+    const events = [];
+    StandaloneDoc.on("plugin", (detail) => events.push(detail.state));
+    const unloaded = await StandaloneDoc.deactivate("whiteboard");
+    return {
+      built,
+      unloaded,
+      module: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
+      styles: Boolean(document.querySelector('style[data-asset="whiteboard-styles"]')),
+      tracked: globalThis.__tracked,
+      deactivated: globalThis.__deactivated,
+      events,
+      state: StandaloneDoc.state,
+    };
+  });
+  expect(result.built).toEqual({ module: true, styles: true });
+  expect(result.unloaded).toBe(true);
+  expect(result.module).toBe(false);
+  expect(result.styles).toBe(false);
+  expect(result.tracked).toBe(1);
+  expect(result.deactivated).toBe(1);
+  expect(result.events).toEqual(["deactivated"]);
+  expect(result.state).toBe("ready");
+});
+
+test("a deactivate() that throws is recorded, and the host still cleans up", async ({ page }) => {
+  const problems = await load(page, makeDoc({ source: HOST_JS, factory: "createLiar" }));
+  const result = await page.evaluate(async () => {
+    globalThis.__tracked = 0;
+    await StandaloneDoc.require("whiteboard");
+    await StandaloneDoc.deactivate("whiteboard");
+    return {
+      tracked: globalThis.__tracked,
+      module: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
+      kinds: StandaloneDoc.errors.map((e) => e.kind),
+      message: StandaloneDoc.errors[0]?.message,
+      state: StandaloneDoc.state,
+    };
+  });
+  expect(result.tracked).toBe(1);
+  expect(result.module).toBe(false);
+  expect(result.kinds).toEqual(["construct"]);
+  expect(result.message).toContain("deactivate is a lie");
+  expect(result.state).toBe("ready");
+  /* The plugin's own error is reported through the registry, not the console. */
+  expect(problems.some((line) => line.includes("deactivate is a lie"))).toBe(false);
+});
+
+test("a plugin that needs a newer host API is refused before activate", async ({ page }) => {
+  await load(page, makeDoc({ source: HOST_JS, factory: "createHarness", api: 2 }));
+  const result = await page.evaluate(async () => {
+    globalThis.__host = null;
+    try {
+      await StandaloneDoc.require("whiteboard");
+      return { threw: false };
+    } catch (error) {
+      return {
+        threw: true,
+        kind: error?.kind,
+        message: error?.message,
+        activated: Boolean(globalThis.__host),
+        module: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
+        styles: Boolean(document.querySelector('style[data-asset="whiteboard-styles"]')),
+        state: StandaloneDoc.state,
+      };
+    }
+  });
+  expect(result.threw).toBe(true);
+  expect(result.kind).toBe("api");
+  expect(result.message).toContain("host API 2");
+  expect(result.activated).toBe(false);
+  expect(result.module).toBe(false);
+  expect(result.styles).toBe(false);
+  expect(result.state).toBe("ready");
+});
+
+test("an unload during a build cannot be undone by that build", async ({ page }) => {
+  await load(page, makeDoc({ source: HOST_JS, factory: "createHarness" }));
+  const result = await page.evaluate(async () => {
+    globalThis.__host = null;
+    const building = StandaloneDoc.require("whiteboard");
+    /* Unloading before the fetch finishes bumps the generation. */
+    await StandaloneDoc.deactivate("whiteboard");
+    try {
+      await building;
+      return { threw: false, activated: Boolean(globalThis.__host) };
+    } catch (error) {
+      return {
+        threw: true,
+        kind: error?.kind,
+        activated: Boolean(globalThis.__host),
+        module: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
+      };
+    }
+  });
+  expect(result.threw).toBe(true);
+  expect(result.kind).toBe("stale");
+  expect(result.activated).toBe(false);
+  expect(result.module).toBe(false);
+});
+
 test("a tampered plugin is never evaluated, and the document survives", async ({ page }) => {
   const problems = await load(page, makeDoc({ tampered: true }));
   const result = await page.evaluate(async () => {
@@ -206,7 +404,6 @@ test("a tampered plugin is never evaluated, and the document survives", async ({
       return {
         threw: true,
         kind: error?.kind,
-        message: error?.message,
         built: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
         styles: Boolean(document.querySelector('style[data-asset="whiteboard-styles"]')),
         state: StandaloneDoc.state,

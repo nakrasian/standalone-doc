@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 299426
+    "bytes": 309058
   },
   "assets": [
     {
@@ -37,7 +37,7 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 22374
+      "bytes": 32006
     },
     {
       "id": "boot-ui",
@@ -111,9 +111,9 @@
     }
   ],
   "flavors": {
-    "index.html": 299426,
-    "asset-bodies": 286748,
+    "index.html": 309058,
+    "asset-bodies": 296380,
     "markup-and-runtime": 12678,
-    "dist/slim.html": 50178
+    "dist/slim.html": 59810
   }
 }
