@@ -10,7 +10,10 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const TMP = path.join(ROOT, ".test-tmp");
 const CDN = "http://127.0.0.1:8080/dist/cdn";
-const URL_PATH = "/.test-tmp/slim.html";
+/* One fixture per worker: the specs run in parallel and mutate this file (the
+   timeout spec lowers timeoutMs), so a shared name races between workers. */
+const FILE = `.test-tmp/slim-${process.pid}.html`;
+const URL_PATH = "/" + FILE;
 
 const SLIM = fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8");
 
@@ -23,7 +26,7 @@ function makeSlim({ timeoutMs } = {}) {
   let html = SLIM.split(published).join(CDN);
   if (timeoutMs) html = html.replace(/"timeoutMs":\d+/, `"timeoutMs":${timeoutMs}`);
   fs.mkdirSync(TMP, { recursive: true });
-  fs.writeFileSync(path.join(TMP, "slim.html"), html);
+  fs.writeFileSync(path.join(ROOT, FILE), html);
 }
 
 async function load(page) {
