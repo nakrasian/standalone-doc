@@ -198,3 +198,40 @@ test("a wrapped base64 body is refused, because it could not round-trip", () => 
     run(["split"]);
   }
 });
+
+/* The catalog is authored in plugins.json and published as dist/registry.json. It is
+   advisory — a document embeds its own pins — so the gate's job is to refuse a proposal
+   that could not work, and to notice when the published copy drifts from the authored one. */
+test("a catalog proposal must be absolute, hashed, and an identifier factory", () => {
+  const file = path.join(ROOT, "plugins.json");
+  const original = fs.readFileSync(file, "utf8");
+  try {
+    const catalog = JSON.parse(original);
+    const broken = JSON.parse(original);
+    broken.assets.bad = {
+      label: "",
+      island: "whatever",
+      versions: [{ version: "", url: "./relative.js", sha384: "sha384-nope", bytes: 0, factory: "not an identifier" }],
+    };
+    fs.writeFileSync(file, JSON.stringify(broken));
+    const output = runFailing(["check"]);
+    assert.ok(output, "check should have failed");
+    assert.match(output, /catalog "bad": label is required/);
+    assert.match(output, /url must be absolute https:\/\//);
+    assert.match(output, /sha384 must be/);
+    assert.match(output, /bytes must be a positive integer/);
+    assert.match(output, /factory must be an identifier/);
+    assert.match(output, /island must be sealed, sandboxed or trusted/);
+
+    /* And the published copy must match what the authored file would emit. */
+    fs.writeFileSync(file, JSON.stringify(catalog));
+    run(["combine"]);
+    assert.match(JSON.parse(fs.readFileSync(path.join(ROOT, "dist/registry.json"), "utf8")).generated, /advisory only/);
+    fs.appendFileSync(path.join(ROOT, "dist/registry.json"), "\n");
+    const stale = runFailing(["check"]);
+    assert.match(stale, /dist\/registry\.json is stale/);
+  } finally {
+    fs.writeFileSync(file, original);
+    run(["combine"]);
+  }
+});

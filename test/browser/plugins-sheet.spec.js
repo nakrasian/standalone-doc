@@ -32,6 +32,9 @@ const PLUGIN_JS = `export function createWidget() {
         command: {
           ping: () => { globalThis.__pinged = (globalThis.__pinged || 0) + 1; },
         },
+        insert: {
+          tile: async () => ({ html: "<body>a widget tile</body>", caption: "Widget tile" }),
+        },
       };
     },
   };
@@ -95,7 +98,16 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false } = {}) {
           label: "Widgets",
           island: "trusted",
           description: "A widget from the catalog.",
-          versions: [{ version: "2.0.0", url: `${LOCAL}/widget-plugin.js`, sha384: sha384(PLUGIN_JS), bytes: byteLength(PLUGIN_JS), factory: "createWidget" }],
+          versions: [{
+            version: "2.0.0",
+            url: `${LOCAL}/widget-plugin.js`,
+            sha384: sha384(PLUGIN_JS),
+            bytes: byteLength(PLUGIN_JS),
+            factory: "createWidget",
+            /* what the plugin offers travels with the proposal: an installed plugin that
+               contributed a menu must keep contributing it */
+            contributes: { insert: [{ id: "tile", label: "Widget tile", island: "sealed" }] },
+          }],
         },
       },
     }));
@@ -198,6 +210,9 @@ test("install from the catalog pins the version's own hash", async ({ page }) =>
 
   await page.evaluate(() => document.querySelector("[data-install]").click());
   await page.waitForFunction(() => Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}).includes("widget"));
+  /* The pin lands first; the menu entry appears when activate() resolves. Both are part
+     of "installed", so wait for both rather than racing the second. */
+  await page.waitForFunction(() => document.querySelectorAll("[data-plugin-insert]").length > 0);
 
   const state = await page.evaluate(() => {
     const manifest = JSON.parse(document.getElementById("asset-manifest").textContent);
@@ -209,6 +224,8 @@ test("install from the catalog pins the version's own hash", async ({ page }) =>
       island: manifest.plugins.widget.island,
       dirty: !document.querySelector("[data-dirty]")?.hidden,
       loaded: Boolean(StandaloneDoc.instance("widget")),
+      insertEntries: document.querySelectorAll("[data-plugin-insert]").length,
+      manifestContributes: manifest.plugins.widget.contributes,
     };
   });
   expect(state.plugin.label).toBe("Widgets");
@@ -224,6 +241,9 @@ test("install from the catalog pins the version's own hash", async ({ page }) =>
   expect(state.dirty).toBe(true);
   /* the capability resolves and the plugin is built: a catalog install is usable now */
   expect(state.loaded).toBe(true);
+  /* and its declaration came with it: the menu entry exists without a reload */
+  expect(state.insertEntries).toBeGreaterThan(0);
+  expect(state.manifestContributes).toEqual({ insert: [{ id: "tile", label: "Widget tile", island: "sealed" }] });
 });
 
 test("install from a url fetches, hashes and pins; a relative url is refused", async ({ page }) => {

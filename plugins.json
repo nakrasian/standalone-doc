@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "about": "Curated plugins this runtime can propose. Advisory only: a document embeds the url + sha384 it installed, so a catalog that disappears costs convenience, not correctness. A version's url MUST serve one self-contained ES module — the loader evaluates verified bytes from a blob:, where bare and relative specifiers cannot resolve (see docs/PLUGINS.md).",
+  "assets": {
+    "nanoid": {
+      "label": "Nano ID",
+      "island": "sandboxed",
+      "description": "Tiny id generator (477 bytes, no imports). Useful to a plugin that needs stable ids: nanoid(), customAlphabet().",
+      "versions": [
+        {
+          "version": "5.0.9",
+          "url": "https://cdn.jsdelivr.net/npm/nanoid@5.0.9/non-secure/index.js",
+          "sha384": "sha384-wwBLZZpnvmPOSGnCOisD21YYinivprcjihsafrzx6nCWn3q+dGlt2iemnIl5Tydl",
+          "bytes": 477
+        }
+      ]
+    }
+  }
+}

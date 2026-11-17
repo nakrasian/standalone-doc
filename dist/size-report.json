@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 368307
+    "bytes": 369042
   },
   "assets": [
     {
@@ -97,7 +97,7 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 31250
+      "bytes": 31985
     },
     {
       "id": "export",
@@ -116,8 +116,8 @@
     }
   ],
   "flavors": {
-    "index.html": 368307,
-    "asset-bodies": 354721,
+    "index.html": 369042,
+    "asset-bodies": 355456,
     "markup-and-runtime": 13586,
     "dist/slim.html": 66209
   }

@@ -369,7 +369,9 @@ export function createPlugins(deps = {}) {
       element("span", "ps-name", asset.label || id),
       element("span", "ps-version", latest.version ? `v${latest.version}` : ""),
       island,
-      element("span", "ps-used", latest.bytes ? `${Math.round(latest.bytes / 1024)} KB` : ""),
+      /* Bytes under a kilobyte are common in a catalog (a 477-byte module) and "0 KB" is
+         a lie the eye reads as empty. */
+      element("span", "ps-used", latest.bytes ? (latest.bytes < 2048 ? `${latest.bytes} bytes` : `${Math.round(latest.bytes / 1024)} KB`) : ""),
       element("span", "ps-grow"),
     );
     const install = element("button", "ps-btn ps-primary", "Install");
@@ -596,7 +598,7 @@ export function createPlugins(deps = {}) {
     renderSheet();
   }
 
-  async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null }) {
+  async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null, contributes = null }) {
     const next = manifestJSON();
     if (!next) return say("this document has no asset manifest");
     if (next.plugins?.[id]) return say(`${label || id} is already in this file.`);
@@ -613,7 +615,10 @@ export function createPlugins(deps = {}) {
       enabled: true,
       entry: id,
       assets: [id],
-      contributes: {},
+      /* A catalog entry carries what the plugin offers, because an installed plugin that
+         once contributed a menu must keep contributing it. A pasted url offers nothing:
+         no declarations were published with it. */
+      contributes: contributes && typeof contributes === "object" ? contributes : {},
     };
     next.assets = next.assets || [];
     next.assets.push({
@@ -650,6 +655,9 @@ export function createPlugins(deps = {}) {
       factory: latest.factory || null,
       island: asset.island || latest.island || "sealed",
       version: latest.version,
+      /* Contributions may be per version (a plugin can start contributing something new),
+         so the version wins over the asset. */
+      contributes: latest.contributes || asset.contributes || null,
     });
   }
 
