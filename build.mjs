@@ -255,6 +255,7 @@ function buildManifest(assets, previous) {
       entry.provides = contract.provides;
       if (contract.usesEnv) entry.env = true;
       if (contract.implicitGlobals.length) entry.implicit = contract.implicitGlobals;
+      entry.role = "module";
     }
     return entry;
   });
@@ -291,7 +292,7 @@ function depsMarkdown(manifest) {
   const rows = js.map((a) => {
     const deps = (a.deps ?? []).join(", ") || "—";
     const late = (a.late ?? []).join(", ") || "—";
-    const provides = a.provides ? a.provides.map((n) => `\`${n}\``).join(", ") : "_not derived_";
+    const provides = a.role === "infra" ? "_infrastructure_" : a.provides ? a.provides.map((n) => `\`${n}\``).join(", ") : "_not derived_";
     const modes = (a.requiredBy ?? []).join(", ");
     return `| ${a.id} | ${a.order} | ${deps} | ${late} | ${provides} | ${modes} |`;
   });
@@ -346,7 +347,7 @@ function sourceTextFor(a, entry) {
  * itself, so this must NOT be pre-indented.
  */
 function readBodyFor(a, source) {
-  return isConverted(a.id) ? compileBody(a.id, source).body : source.replace(/\n$/, "");
+  return isConverted(a.id) ? compileBody(a.id, source, { order: a.order }).body : source.replace(/\n$/, "");
 }
 
 /** The body index.html should contain, given the src/ text for that asset. */
@@ -550,7 +551,7 @@ function cmdCheck() {
   try {
     const m = readManifest();
     const index = new Map(m.assets.map((a) => [a.id, a]));
-    for (const a of m.assets.filter((x) => x.kind === "js")) {
+    for (const a of m.assets.filter((x) => x.kind === "js" && x.role === "module")) {
       const contract = {
         deps: a.deps ?? [],
         late: a.late ?? [],

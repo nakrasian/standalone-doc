@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 194785
+    "bytes": 197657
   },
   "assets": [
     {
@@ -15,55 +15,65 @@
       "bytes": 15718
     },
     {
+      "id": "registry",
+      "kind": "js",
+      "bytes": 2493
+    },
+    {
       "id": "signals",
       "kind": "js",
-      "bytes": 1799
+      "bytes": 1842
     },
     {
       "id": "zoom",
       "kind": "js",
-      "bytes": 5172
+      "bytes": 5215
     },
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 7990
-    },
-    {
-      "id": "status",
-      "kind": "js",
-      "bytes": 3913
-    },
-    {
-      "id": "editor",
-      "kind": "js",
-      "bytes": 18006
-    },
-    {
-      "id": "figures",
-      "kind": "js",
-      "bytes": 45879
-    },
-    {
-      "id": "toolbar",
-      "kind": "js",
-      "bytes": 25047
-    },
-    {
-      "id": "export",
-      "kind": "js",
-      "bytes": 35445
+      "bytes": 8019
     },
     {
       "id": "progress",
       "kind": "js",
-      "bytes": 2060
+      "bytes": 2097
+    },
+    {
+      "id": "status",
+      "kind": "js",
+      "bytes": 3936
+    },
+    {
+      "id": "editor",
+      "kind": "js",
+      "bytes": 18022
+    },
+    {
+      "id": "figures",
+      "kind": "js",
+      "bytes": 45899
+    },
+    {
+      "id": "toolbar",
+      "kind": "js",
+      "bytes": 25062
+    },
+    {
+      "id": "export",
+      "kind": "js",
+      "bytes": 35279
+    },
+    {
+      "id": "bootstrap",
+      "kind": "js",
+      "bytes": 106
     }
   ],
   "flavors": {
-    "index.html": 194785,
-    "asset-bodies": 169527,
-    "markup-and-runtime": 25258
+    "index.html": 197657,
+    "asset-bodies": 172186,
+    "markup-and-runtime": 25471
   },
   "notes": [
     "dist/cdn/ is intentionally absent until Phase 2: the published module shape",

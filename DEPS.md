@@ -6,15 +6,17 @@ edit by hand; `npm run check` fails if this file is stale.
 ```
 | id | order | requires | late | provides | needed by |
 | --- | --- | --- | --- | --- | --- |
+| registry | 5 | — | — | _not derived_ | * |
 | signals | 30 | — | — | `on`, `emit`, `mute`, `composing` | * |
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
+| progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | * |
 | pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `refresh` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty` | edit |
 | editor | 70 | signals, status, pagination | — | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, status, editor | — | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | toolbar | 90 | zoom, editor, figures, status | — | `save`, `serialize`, `validate` | edit, comment |
-| export | 100 | figures, toolbar | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
-| progress | 110 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | * |
+| export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
+| bootstrap | 120 | — | — | _not derived_ | * |
 ```
 
 ```mermaid
@@ -35,6 +37,7 @@ graph LR
   status --> toolbar
   figures --> export
   toolbar --> export
+  progress --> export
 ```
 
 ## Implicit edges
@@ -42,4 +45,3 @@ graph LR
 - **status** reaches `figures` through a global (becomes `deps.late()` in Phase 3).
 - **editor** reaches `figures` through a global (becomes `deps.late()` in Phase 3).
 - **toolbar** reaches `export` through a global (becomes `deps.late()` in Phase 3).
-- **export** reaches `progress` through a global (becomes `deps.late()` in Phase 3).

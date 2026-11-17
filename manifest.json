@@ -31,6 +31,19 @@
       ]
     },
     {
+      "id": "registry",
+      "kind": "js",
+      "order": 5,
+      "tag": "script",
+      "file": "src/registry.js",
+      "bytes": 2254,
+      "sha384": "sha384-mJpAjjkfLjHcTlpr/qNgwN/sS6igO5tCyVVfoUhoI1LVeUGUohDBGr6of8qgtSrA",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
       "id": "signals",
       "kind": "js",
       "order": 30,
@@ -52,7 +65,8 @@
         "emit",
         "mute",
         "composing"
-      ]
+      ],
+      "role": "module"
     },
     {
       "id": "zoom",
@@ -89,7 +103,8 @@
         "fit",
         "syncUI",
         "value"
-      ]
+      ],
+      "role": "module"
     },
     {
       "id": "pagination",
@@ -116,7 +131,35 @@
         "pageCount",
         "refresh"
       ],
-      "env": true
+      "env": true,
+      "role": "module"
+    },
+    {
+      "id": "progress",
+      "kind": "js",
+      "order": 45,
+      "tag": "script",
+      "file": "src/progress.js",
+      "bytes": 1660,
+      "sha384": "sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "exports": [
+        "createProgress"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": [
+        "open",
+        "update",
+        "setText",
+        "setCancel",
+        "close",
+        "isOpen"
+      ],
+      "role": "module"
     },
     {
       "id": "status",
@@ -145,7 +188,8 @@
       ],
       "implicit": [
         "figures"
-      ]
+      ],
+      "role": "module"
     },
     {
       "id": "editor",
@@ -185,7 +229,8 @@
       ],
       "implicit": [
         "figures"
-      ]
+      ],
+      "role": "module"
     },
     {
       "id": "figures",
@@ -233,7 +278,8 @@
         "savedStoreBytes",
         "store",
         "selected"
-      ]
+      ],
+      "role": "module"
     },
     {
       "id": "toolbar",
@@ -265,7 +311,8 @@
       ],
       "implicit": [
         "export"
-      ]
+      ],
+      "role": "module"
     },
     {
       "id": "export",
@@ -273,8 +320,8 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 34073,
-      "sha384": "sha384-Jichm8p/iIANL44g3a2r8e7Vv7K9m/kTtfE0FboaQmBA1SuMBIepnnJwIDnqm2QV",
+      "bytes": 33881,
+      "sha384": "sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -284,7 +331,8 @@
       ],
       "deps": [
         "figures",
-        "toolbar"
+        "toolbar",
+        "progress"
       ],
       "late": [],
       "provides": [
@@ -298,34 +346,19 @@
         "printLive",
         "printCaptured"
       ],
-      "implicit": [
-        "progress"
-      ]
+      "role": "module"
     },
     {
-      "id": "progress",
+      "id": "bootstrap",
       "kind": "js",
-      "order": 110,
+      "order": 120,
       "tag": "script",
-      "file": "src/progress.js",
-      "bytes": 1660,
-      "sha384": "sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI",
+      "file": "src/bootstrap.js",
+      "bytes": 99,
+      "sha384": "sha384-493weeL6Bd0J0sPiw/Bx1hfBsajByRz1HHFB9jTsbaAMNGkgTD38EryD+Ot0IiVy",
       "mode": "inline",
       "requiredBy": [
         "*"
-      ],
-      "exports": [
-        "createProgress"
-      ],
-      "deps": [],
-      "late": [],
-      "provides": [
-        "open",
-        "update",
-        "setText",
-        "setCancel",
-        "close",
-        "isOpen"
       ]
     }
   ]

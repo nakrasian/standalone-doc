@@ -24,9 +24,10 @@ function withModule(fn) {
   }
 }
 
-const SRC = `export function createDemo(deps = {}) {
-  "use strict";
-  return {ok: true, deps};
+/* No deps parameter, so the contract extractor requires no destructuring.
+   (Strictness lives in the envelope now, not in the factory.) */
+const SRC = `export function createDemo() {
+  return {ok: true};
 }
 
 export function double(n) {
@@ -42,13 +43,18 @@ test("an asset absent from MODULES is a pass-through", () => {
 
 test("compile produces the envelope and records the export list", () => {
   withModule(() => {
-    const { body, exports } = compileBody("demo", SRC);
-    assert.deepEqual(exports, ["createDemo", "double"]);
+    const { body, exports } = compileBody("demo", 'export function createDemo(deps = {}) {\n  const {signals} = deps;\n  return {a};\n}\n', { order: 7 });
+    assert.deepEqual(exports, ["createDemo"]);
     assert.ok(body.startsWith("/*@compiled-from src/demo.js"), "envelope header first");
-    assert.match(body, /^var Demo = globalThis\.Demo \|\| \(function \(\) \{$/m);
+    assert.match(body, /^\(function \(\) \{$/m);
+    assert.ok(body.includes('"use strict";'), "strictness is the envelope's job");
     assert.ok(body.includes("function createDemo(deps = {}) {"), "export keyword stripped");
     assert.ok(!/^export /m.test(body), "no export keyword survives");
-    assert.ok(body.endsWith("return createDemo();\n})();"), "invocation is last");
+    assert.ok(
+      body.includes('StandaloneDoc.register("demo", createDemo, {"order":7,"deps":["signals"],"late":[],"global":"Demo"});'),
+      "registration carries the derived contract",
+    );
+    assert.ok(body.endsWith("})();"), "the block ends with the registration");
   });
 });
 
@@ -135,7 +141,7 @@ test("uncompile refuses a body that declares something the manifest does not lis
   withModule(() => {
     const { body } = compileBody("demo", SRC);
     /* Simulate a hand edit inside index.html: a new top-level declaration. */
-    const edited = body.replace("\nreturn createDemo();", "\nfunction sneaky() {}\nreturn createDemo();");
+    const edited = body.replace("\nStandaloneDoc.register(", "\nfunction sneaky() {}\nStandaloneDoc.register(");
     assert.throws(() => uncompileBody("demo", edited, ["createDemo", "double"]), /declares "sneaky"/);
   });
 });
