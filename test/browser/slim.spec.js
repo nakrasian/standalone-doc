@@ -80,6 +80,28 @@ test("boots entirely from the CDN", async ({ page }) => {
   expect(info.toolbar).toBe(true);
 });
 
+test("source() returns the bytes the manifest pins, cached", async ({ page }) => {
+  /* The seam Phase 4's save policies use: an asset that booted from the CDN can be
+     embedded in a saved file, and what gets embedded is exactly what was verified. */
+  await load(page);
+  const result = await page.evaluate(async () => {
+    const entry = StandaloneDoc.manifest().assets.find((asset) => asset.id === "figures");
+    const text = await StandaloneDoc.source("figures");
+    const digest = await crypto.subtle.digest("SHA-384", new TextEncoder().encode(text));
+    let binary = "";
+    for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
+    return {
+      actual: "sha384-" + btoa(binary),
+      expected: entry.integrity,
+      head: text.slice(0, 40),
+      cached: (await StandaloneDoc.source("figures")) === text,
+    };
+  });
+  expect(result.actual).toBe(result.expected);
+  expect(result.head).toContain("export function createFigures(deps = {})");
+  expect(result.cached).toBe(true);
+});
+
 test("an HTTP error is reported as a missing asset", async ({ page }) => {
   await page.route("**/dist/cdn/signals.js", (route) => route.fulfill({ status: 404, body: "not found" }));
   await load(page);

@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 226196
+    "bytes": 227676
   },
   "assets": [
     {
@@ -29,14 +29,14 @@
       "bytes": 15718
     },
     {
+      "id": "registry",
+      "kind": "js",
+      "bytes": 11654
+    },
+    {
       "id": "boot-ui",
       "kind": "js",
       "bytes": 10895
-    },
-    {
-      "id": "registry",
-      "kind": "js",
-      "bytes": 10175
     },
     {
       "id": "page-styles",
@@ -80,9 +80,9 @@
     }
   ],
   "flavors": {
-    "index.html": 226196,
-    "asset-bodies": 196894,
-    "markup-and-runtime": 29302,
-    "dist/slim.html": 57101
+    "index.html": 227676,
+    "asset-bodies": 198373,
+    "markup-and-runtime": 29303,
+    "dist/slim.html": 58581
   }
 }

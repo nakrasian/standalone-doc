@@ -9,6 +9,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   const errors = [];
   const listeners = Object.create(null);
   const injected = [];
+  const sources = Object.create(null);
   let state = "declared";
   let parsed = null;
 
@@ -92,11 +93,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return "sha384-" + btoa(binary);
   }
 
-  /* The only flavour-specific step in the whole architecture. Pure: it returns a
-     factory or stylesheet text and leaves every side effect to the construct
-     phase, so loading can run in parallel without reordering anything. */
-  async function fetchAsset(asset) {
-    if (factories[asset.id]) return { factory: factories[asset.id] };
+  /* Bytes from the CDN, verified, not yet evaluated. Split out from fetchAsset so
+     the save path can embed exactly what it verified (Phase 4): "verified before
+     it runs" and "verified before it is written into a file" are the same rule. */
+  async function fetchVerified(asset) {
     if (asset.mode !== "online") {
       throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
     }
@@ -135,9 +135,13 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       });
     }
 
-    const text = new TextDecoder().decode(bytes);
-    if (asset.kind === "css") return { css: text };
+    return { text: new TextDecoder().decode(bytes) };
+  }
 
+  /* Evaluate verified bytes. Side effects stay here, never in the fetch, so the
+     load phase can run in parallel without reordering anything. */
+  async function evaluate(asset, text) {
+    if (asset.kind === "css") return { css: text };
     const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
     let namespace;
     try {
@@ -150,6 +154,31 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       throw failure("import", asset.id, `module does not export ${asset.factory}`, { url: asset.url });
     }
     return { factory };
+  }
+
+  async function fetchAsset(asset) {
+    if (factories[asset.id]) return { factory: factories[asset.id] };
+    if (asset.mode !== "online") {
+      throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
+    }
+    const { text } = await fetchVerified(asset);
+    return evaluate(asset, text);
+  }
+
+  /* Verified CDN text for an asset, which is what a saved document embeds when a
+     policy decides to inline an asset that was loaded by reference. Cached: the
+     bytes at a pinned url + hash cannot change. An inline asset does not need
+     this — its text is already the block in the document. */
+  async function source(id) {
+    if (sources[id] != null) return sources[id];
+    const asset = manifest().assets.find((candidate) => candidate.id === id);
+    if (!asset) throw failure("missing", id, "is not in the manifest");
+    if (asset.mode === "inline") {
+      throw failure("missing", id, "is inline, so its text is the block in this document, not a CDN file");
+    }
+    const { text } = await fetchVerified(asset);
+    sources[id] = text;
+    return text;
   }
 
   async function boot() {
@@ -241,6 +270,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     if (state === "booting") return modules;
     for (const id of Object.keys(modules)) delete modules[id];
     for (const node of injected.splice(0)) node.remove();
+    for (const id of Object.keys(sources)) delete sources[id];
     errors.length = 0;
     setState("declared");
     return boot();
@@ -250,6 +280,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     register,
     on,
     late,
+    source,
     boot,
     retry,
     order,
