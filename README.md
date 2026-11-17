@@ -41,6 +41,27 @@ open .test-tmp/build/slim.html                                  # from disk, no 
 not a tag: a local or branch base must never be committed, because every fetch from it
 would promise bytes no server keeps.
 
+### Finding a newer release
+
+A saved document runs the release it was saved with and never changes under its reader. To
+*find* a newer release it needs one address that is allowed to move, because the tag it is
+pinned to can only describe itself. `npm run catalog` writes exactly that pair:
+
+```
+dist/runtime.json          the index — latest, and one entry per release (advisory)
+dist/runtime/v0.3.1.json   that release's assets: id, kind, bytes, sha384, url, requiredBy
+```
+
+Both are generated from the **tags themselves** (`git show <tag>:manifest.json`), never from
+the working tree, so an entry cannot advertise bytes its tag never shipped. The one entry
+that comes from the tree is the release being prepared (`package.json`'s version has no tag
+yet); once the tag exists both routes produce the same bytes. A shallow clone has no tags,
+so `catalog` leaves the files alone and `check` says it could not verify them.
+
+The catalog is advisory in the same sense as `dist/registry.json`: it costs convenience if it
+lies or disappears, never correctness — whatever it names is still verified against the
+hashes the document carries after re-pinning.
+
 ## Quick start
 
 No dependencies to install. Node 20+.
@@ -60,9 +81,10 @@ npm run report      # size table, per asset
 ```
 index.html          canonical editor. Hand-editable. Assets marked with @asset comments.
 manifest.json       asset registry: id, kind, order, file, bytes, sha384, mode, requiredBy
-build.mjs           split | combine | verify | check | build | report | dev  (zero deps)
+build.mjs           split | combine | verify | check | build | report | catalog | dev  (zero deps)
 src/                one file per asset, generated from index.html by `split`
 dist/               build output (committed: the CDN serves these at a tag)
+dist/runtime.json   releases a document may re-pin to; one manifest per tag in dist/runtime/
 test/unit/          node:test suites
 test/browser/       playwright suites (chromium, webkit, firefox)
 docs/PLUGINS.md     the plugin contract: host API, contributions, islands, pinning

@@ -11,6 +11,13 @@
   The flag refuses to write into `dist/`, because a committed document is a *release pair*:
   its base is a tag and its hashes are that tag's bytes. `check` now enforces the same rule
   from the other side — a `cdnBase` that is not `@vX.Y.Z` fails the gate.
+- **A runtime catalog** (`dist/runtime.json` + `dist/runtime/<tag>.json`, `npm run catalog`),
+  generated from the tags themselves: for every release, the `id`/`kind`/`bytes`/`sha384`/`url`
+  of each reusable asset. This is what a document diffs against to find a newer runtime, so it
+  needs no 381 KB `editor.html` fetch and no HTML parsing in the trust path. Reading it from
+  tags rather than the working tree is what keeps an entry from advertising bytes its tag
+  never shipped. `check` fails on a stale or hand-edited entry, and on a file that describes
+  no tag.
 
 ## v0.3.1 — 2026-11-17
 

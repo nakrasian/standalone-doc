@@ -11,6 +11,7 @@
  *                             the same documents re-pointed at another base (dev);
  *                             never writes dist/, since only a tag is a release pair
  *   node build.mjs report     size table; --baseline rewrites size-baseline.json
+ *   node build.mjs catalog    dist/runtime.json + one manifest per release, from the tags
  *   node build.mjs verify-cdn fetch every published asset and check its hash
  *   node build.mjs dev        static server on :8080
  *
@@ -28,6 +29,7 @@
  * everything outside the markers stay byte-identical.
  */
 
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
@@ -842,6 +844,7 @@ function firstDiff(a, b) {
 async function cmdCheck() {
   const { problems, html } = verify({ quiet: true });
   const all = [...problems];
+  const depWarnings = [];
 
   /* Every js asset must parse as what it ships as: an ES module for converted
      assets (imported from a data: URL, which also proves the top level does
@@ -886,9 +889,38 @@ async function cmdCheck() {
     all.push(`manifest: ${err.message}`);
   }
 
+  /* The runtime catalog is what an older document reads to find a newer release, so its
+     entries are read out of the tags themselves and must stay that way: a hand-edited
+     entry would advertise bytes its tag never shipped, which is the one lie this repo
+     cannot afford. A shallow clone has no tags; say so instead of failing. */
+  try {
+    const { index, releases, tags } = runtimeCatalog();
+    if (!tags.length) {
+      depWarnings.push("no release tags in this clone — dist/runtime.json was not verified");
+    } else {
+      const indexPath = `${DIST}/runtime.json`;
+      if (!exists(indexPath) || read(indexPath) !== JSON.stringify(index, null, 2) + "\n") {
+        all.push(`${indexPath} is stale — run: node build.mjs catalog`);
+      }
+      const known = new Set(releases.map(([tag]) => `${tag}.json`));
+      for (const [tag, entry] of releases) {
+        const file = `${RUNTIME}/${tag}.json`;
+        if (!exists(file) || read(file) !== JSON.stringify(entry, null, 2) + "\n") {
+          all.push(`${file} is stale — run: node build.mjs catalog`);
+        }
+      }
+      if (exists(RUNTIME)) {
+        for (const name of fs.readdirSync(abs(RUNTIME))) {
+          if (!known.has(name)) all.push(`${RUNTIME}/${name} describes no tag — run: node build.mjs catalog`);
+        }
+      }
+    }
+  } catch (err) {
+    all.push(`catalog: ${err.message}`);
+  }
+
   /* dependency-graph audit: order constraints, late-vs-plain, drift against the
      MODULES table, and freshness of the generated reference artifacts */
-  const depWarnings = [];
   try {
     const m = readManifest();
     const index = new Map(m.assets.map((a) => [a.id, a]));
@@ -1104,6 +1136,132 @@ function buildViewer(html, manifest) {
   return out;
 }
 
+/* ------------------------------------------------------- runtime catalog */
+
+const RUNTIME = `${DIST}/runtime`;
+
+/** Every release tag in the clone, oldest first. Empty on a shallow checkout. */
+function releaseTags() {
+  try {
+    return execFileSync("git", ["tag", "--list", "v*", "--sort=v:refname"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((tag) => /^v\d+\.\d+\.\d+$/.test(tag));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * One release, described by the manifest that release shipped. This is what
+ * `update-runtime` will diff against — `{id, kind, bytes, sha384, url}` per reusable
+ * asset — so a document can re-pin without downloading and parsing an `editor.html`
+ * to find the same table.
+ */
+function runtimeEntry(tag, manifest) {
+  const base = String(manifest.cdnBase || "").replace(/\/$/, "");
+  return {
+    schema: 1,
+    tag,
+    base,
+    assets: (manifest.assets || [])
+      .filter((asset) => asset.role !== "infra")
+      .map((asset) => {
+        const entry = {
+          id: asset.id,
+          kind: asset.kind,
+          bytes: asset.bytes,
+          sha384: asset.sha384,
+          /* A pinned plugin's bytes live wherever its author publishes them. */
+          url: asset.url || `${base}/${asset.id}.${extensionFor(asset.kind)}`,
+          requiredBy: asset.requiredBy || ["*"],
+        };
+        if (asset.plugin) entry.plugin = asset.plugin;
+        return entry;
+      }),
+  };
+}
+
+const semverOf = (tag) => tag.replace(/^v/, "").split(".").map(Number);
+const newer = (a, b) => {
+  const [x, y] = [semverOf(a), semverOf(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
+  return false;
+};
+
+/**
+ * The catalog is a view of *history*, not of the working tree: every entry is read
+ * out of the tag it describes, so an entry can never claim bytes its tag did not
+ * ship — the failure mode this repository spent a release learning (see v0.3.1).
+ *
+ * The one exception is the release being prepared: `package.json`'s version has no tag
+ * yet, so its entry is built from the tree that is about to be tagged. `release`
+ * refuses a dirty tree, and once the tag exists both routes produce the same bytes.
+ */
+function runtimeCatalog() {
+  const tags = releaseTags();
+  const pending = `v${JSON.parse(read("package.json")).version}`;
+  const releases = [];
+  for (const tag of tags) {
+    try {
+      const manifest = JSON.parse(execFileSync("git", ["show", `${tag}:${MANIFEST}`], {
+        cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 26,
+      }));
+      releases.push([tag, runtimeEntry(tag, manifest)]);
+    } catch {
+      /* A tag without a manifest cannot be described; it is not a release of this
+         runtime shape (or the clone is partial). Skip it rather than invent one. */
+    }
+  }
+  if (!releases.some(([tag]) => tag === pending)) releases.push([pending, runtimeEntry(pending, readManifest())]);
+  releases.sort((a, b) => (newer(a[0], b[0]) ? 1 : newer(b[0], a[0]) ? -1 : 0));
+
+  const index = {
+    schema: 1,
+    generated: "generated by node build.mjs catalog from the tags themselves — advisory only; a document embeds its own pins",
+    latest: releases.length ? releases[releases.length - 1][0] : null,
+    releases: releases.map(([tag, entry]) => ({
+      tag,
+      date: tagDate(tag),
+      base: entry.base,
+      assets: entry.assets.length,
+      manifest: `runtime/${tag}.json`,
+    })),
+  };
+  return { index, releases, tags };
+}
+
+function tagDate(tag) {
+  try {
+    return execFileSync("git", ["for-each-ref", `refs/tags/${tag}`, "--format=%(taggerdate:short)"], {
+      cwd: ROOT, encoding: "utf8",
+    }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Write `dist/runtime.json` + one file per release. Returns what it wrote. */
+function writeCatalog() {
+  const { index, releases, tags } = runtimeCatalog();
+  if (!tags.length) {
+    /* A shallow clone (CI's default) has no tags: writing here would replace the
+       catalog with the pending release alone, and pruning would delete the rest. */
+    console.warn("catalog: no release tags in this clone — left as-is (fetch tags to regenerate)");
+    return null;
+  }
+  fs.rmSync(abs(RUNTIME), { recursive: true, force: true });
+  for (const [tag, entry] of releases) write(`${RUNTIME}/${tag}.json`, JSON.stringify(entry, null, 2) + "\n");
+  write(`${DIST}/runtime.json`, JSON.stringify(index, null, 2) + "\n");
+  return { latest: index.latest, count: releases.length };
+}
+
+function cmdCatalog() {
+  const done = writeCatalog();
+  if (!done) process.exit(1);
+  console.log(`catalog: ${done.count} releases, latest ${done.latest} → ${DIST}/runtime.json`);
+}
+
 function cmdBuild({ base = null, out = null } = {}) {
   const { problems, html } = verify({ quiet: true });
   if (problems.length) {
@@ -1152,6 +1310,8 @@ function cmdBuild({ base = null, out = null } = {}) {
     ...m,
   };
   write(`${DIST}/size-report.json`, JSON.stringify(report, null, 2) + "\n");
+  const catalog = writeCatalog();
+  if (catalog) console.log(`build: catalog ${catalog.count} releases, latest ${catalog.latest}`);
   console.log(`build: dist/editor.html (${kb(m.flavors["index.html"])} KB, byte-identical to ${SOURCE})`);
   console.log(`build: ${kb(m.flavors["asset-bodies"])} KB assets + ${kb(m.flavors["markup-and-runtime"])} KB markup/runtime`);
 }
@@ -1349,6 +1509,9 @@ switch (cmd) {
     break;
   case "report":
     cmdReport({ baseline: flags.includes("--baseline") });
+    break;
+  case "catalog":
+    cmdCatalog();
     break;
   case "verify-cdn":
     await cmdVerifyCdn({ tag: flags.find((flag) => flag.startsWith("--tag="))?.slice("--tag=".length) ?? null });

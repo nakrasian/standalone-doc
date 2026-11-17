@@ -292,3 +292,84 @@ test("check refuses a document base that is not a release tag", () => {
 function manifestOf(html) {
   return JSON.parse(/<script id="asset-manifest" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1]);
 }
+
+test("the runtime catalog describes each tag and nothing newer than the tree", () => {
+  try {
+    run(["catalog"]);
+    const indexFile = path.join(ROOT, "dist/runtime.json");
+    const first = fs.readFileSync(indexFile, "utf8");
+    const index = JSON.parse(first);
+
+    /* Deterministic: a view of the tags, so regenerating cannot drift. */
+    run(["catalog"]);
+    assert.equal(fs.readFileSync(indexFile, "utf8"), first);
+
+    const tags = execFileSync("git", ["tag", "--list", "v*"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n").map((t) => t.trim()).filter((t) => /^v\d+\.\d+\.\d+$/.test(t));
+    for (const tag of tags) assert.ok(index.releases.some((r) => r.tag === tag), `${tag} must be listed`);
+
+    /* Every entry names its own tag's base, and its hashes are that tag's hashes. */
+    for (const release of index.releases) {
+      const entry = JSON.parse(fs.readFileSync(path.join(ROOT, "dist", release.manifest), "utf8"));
+      assert.equal(entry.tag, release.tag);
+      assert.ok(entry.base.includes(`@${release.tag}/`), `${release.tag}: base names its own tag`);
+      assert.ok(entry.assets.length > 0);
+      /* 6a's input: an address, a hash and a size for every reusable asset. */
+      for (const asset of entry.assets) {
+        assert.ok(asset.url.startsWith(entry.base + "/"), `${asset.id}: url is under the base`);
+        assert.match(asset.sha384, /^sha384-[A-Za-z0-9+/=]+$/);
+        assert.ok(asset.bytes > 0);
+      }
+    }
+  } finally {
+    run(["catalog"]);
+  }
+});
+
+test("a hand-edited runtime catalog entry fails check", () => {
+  const file = path.join(ROOT, "dist/runtime/v0.3.1.json");
+  const original = fs.readFileSync(file, "utf8");
+  try {
+    const entry = JSON.parse(original);
+    entry.assets.find((a) => a.id === "editor").sha384 = "sha384-" + "A".repeat(64);
+    fs.writeFileSync(file, JSON.stringify(entry, null, 2) + "\n");
+    const output = runFailing(["check"]);
+    assert.ok(output, "check should have failed");
+    assert.match(output, /dist\/runtime\/v0\.3\.1\.json is stale/);
+  } finally {
+    fs.writeFileSync(file, original);
+  }
+});
+
+test("a catalog file for no tag fails check", () => {
+  const extra = path.join(ROOT, "dist/runtime/v9.9.9.json");
+  try {
+    fs.writeFileSync(extra, "{}\n");
+    const output = runFailing(["check"]);
+    assert.ok(output, "check should have failed");
+    assert.match(output, /v9\.9\.9\.json describes no tag/);
+  } finally {
+    fs.rmSync(extra, { force: true });
+  }
+});
+
+test("an unreleased package version becomes the pending catalog entry", () => {
+  const file = path.join(ROOT, "package.json");
+  const original = fs.readFileSync(file, "utf8");
+  try {
+    const pkg = JSON.parse(original);
+    pkg.version = "0.3.99";
+    fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
+    run(["catalog"]);
+    const index = JSON.parse(fs.readFileSync(path.join(ROOT, "dist/runtime.json"), "utf8"));
+    assert.equal(index.latest, "v0.3.99", "the release being prepared is the newest entry");
+    const pending = JSON.parse(fs.readFileSync(path.join(ROOT, "dist/runtime/v0.3.99.json"), "utf8"));
+    /* Built from the tree, because the tag does not exist yet: exactly the release
+       commit's own manifest, once `release` bumps cdnBase. */
+    assert.equal(pending.tag, "v0.3.99");
+    assert.ok(pending.assets.length > 0);
+  } finally {
+    fs.writeFileSync(file, original);
+    run(["catalog"]);
+  }
+});
