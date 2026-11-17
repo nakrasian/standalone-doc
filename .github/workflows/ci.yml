@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: check (split/combine integrity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node build.mjs check
+
+  test:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test test/unit/*.test.js
+
+  # Phase 2+ adds:
+  #   browser: Playwright on chromium / webkit / firefox (blocking on chromium first)
+  #   size:    budgets from size-baseline.json
+  #   nightly: CDN link health + sha384 verification (scheduled, non-blocking)

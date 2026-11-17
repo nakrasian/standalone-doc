@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "source": {
+    "bytes": 190658
+  },
+  "assets": [
+    {
+      "id": "page-styles",
+      "kind": "css",
+      "bytes": 8498
+    },
+    {
+      "id": "toolbar-styles",
+      "kind": "css",
+      "bytes": 15718
+    },
+    {
+      "id": "signals",
+      "kind": "js",
+      "bytes": 1601
+    },
+    {
+      "id": "zoom",
+      "kind": "js",
+      "bytes": 4968
+    },
+    {
+      "id": "pagination",
+      "kind": "js",
+      "bytes": 7185
+    },
+    {
+      "id": "status",
+      "kind": "js",
+      "bytes": 3653
+    },
+    {
+      "id": "editor",
+      "kind": "js",
+      "bytes": 17694
+    },
+    {
+      "id": "figures",
+      "kind": "js",
+      "bytes": 45598
+    },
+    {
+      "id": "toolbar",
+      "kind": "js",
+      "bytes": 23390
+    },
+    {
+      "id": "export",
+      "kind": "js",
+      "bytes": 35198
+    },
+    {
+      "id": "progress",
+      "kind": "js",
+      "bytes": 1897
+    }
+  ],
+  "flavors": {
+    "index.html": 190658,
+    "asset-bodies": 165400,
+    "markup-and-runtime": 25258
+  },
+  "notes": [
+    "dist/cdn/ is intentionally absent until Phase 2: the published module shape",
+    "(export function createX(deps)) does not exist yet, so serving the current",
+    "classic-script bodies from a CDN would publish a shape that is about to change."
+  ]
+}

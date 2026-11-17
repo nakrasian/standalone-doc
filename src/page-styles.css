@@ -1,0 +1,350 @@
+:root {
+  --sheet-w: 8.5in;
+  --sheet-h: 11in;
+  --pad: 0.9in;
+  --sheet-gap: 26px;
+
+  --content-w: calc(var(--sheet-w) - 2 * var(--pad));
+  --content-h: calc(var(--sheet-h) - 2 * var(--pad));
+  --pitch: calc(var(--sheet-h) + var(--sheet-gap));
+  /* distance from one sheet's top to the next */
+
+  --block-gap: 0.55em;
+  /* distance between text blocks */
+  --lead: 0.3em;
+  --doc-size: 11pt;
+  /* additional padding above headers  */
+
+  --zoom: 1;
+  /* document zoom: page geometry scales, the chrome does not */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #e0e0e0;
+  color: #1b1f24;
+  font: var(--doc-size)/1.5 Charter, "Iowan Old Style", Georgia, serif;
+}
+
+#viewport {
+  flex: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  /* not hidden: a 200% sheet is wider than the window */
+}
+
+#stage {
+  position: relative;
+  width: var(--sheet-w);
+  margin-inline: auto;
+  padding-block: var(--pad);
+  zoom: var(--zoom, 1);
+  /* the whole feature: pages + text scale, toolbar and backdrop do not */
+}
+
+#sheets {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.sheet {
+  position: absolute;
+  left: 0;
+  width: var(--sheet-w);
+  height: var(--sheet-h);
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(16, 22, 30, .15);
+}
+
+.sheet-margin {
+  position: absolute;
+  font: 500 10.5px/1 system-ui, -apple-system, sans-serif;
+  color: #9aa1ab;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: .01em;
+}
+
+.sheet-margin[data-slot="head"] {
+  top: calc(var(--pad) * .42);
+}
+
+.sheet-margin[data-slot="folio"] {
+  bottom: calc(var(--pad) * .42);
+}
+
+.sheet[data-side="recto"] .sheet-margin[data-slot="head"],
+.sheet[data-side="recto"] .sheet-margin[data-slot="folio"] {
+  right: var(--pad);
+}
+
+.sheet[data-side="verso"] .sheet-margin[data-slot="head"],
+.sheet[data-side="verso"] .sheet-margin[data-slot="folio"] {
+  left: var(--pad);
+}
+
+.sheet[data-first] .sheet-margin[data-slot="head"] {
+  display: none;
+}
+
+#content {
+  position: relative;
+  z-index: 1;
+  max-width: var(--content-w);
+  margin-inline: auto;
+  min-height: var(--content-h);
+  outline: none;
+}
+
+#content>* {
+  margin: 0;
+  padding-block-end: var(--block-gap);
+}
+
+#content> :is(h1, h2, h3) {
+  padding-block-start: var(--lead);
+}
+
+#content>.page-spacer {
+  padding: 0;
+  margin: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ===== Figures (images, standalone HTML, media) =====
+   A figure is one block in the flow. Its frame has a deterministic
+   height before any bytes decode or any iframe loads, so the pagination
+   plan never depends on a late image/iframe resize. */
+#content>figure.figure {
+  --figure-w: 1;
+  --figure-h: .72;
+  position: relative;
+  display: block;
+  width: calc(var(--figure-w) * 100%);
+  margin: 0;
+  padding: 0 0 var(--block-gap);
+  border: 1px solid #d9dde4;
+  border-radius: 5px;
+  background: #fff;
+  overflow: hidden;
+  cursor: default;
+}
+
+#content>figure.figure[data-selected] {
+  outline: 2px solid #2f6fed;
+  outline-offset: 2px;
+}
+
+figure.figure .figure-frame {
+  position: relative;
+  width: 100%;
+  min-height: 2.5rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* HTML islands: independent width and height fractions of the text area.
+   The embedded document scrolls inside if it needs more room. */
+figure.figure[data-kind="html"] .figure-frame {
+  width: 100%;
+  height: calc(var(--content-h) * var(--figure-h, .72));
+  margin-inline: 0;
+}
+
+/* Raster/SVG images: width is the scaled content width; aspect-ratio
+   reserves the correct height before decode. When data-h is explicit,
+   the frame becomes a fixed window and object-fit: contain letterboxes
+   the image inside it. */
+figure.figure[data-kind="image"] .figure-frame {
+  width: 100%;
+  aspect-ratio: var(--figure-aspect, 16 / 9);
+  max-height: calc(var(--content-h) * .92);
+  margin-inline: 0;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+figure.figure[data-kind="image"][data-h]:not([data-h="auto"]) .figure-frame {
+  height: calc(var(--content-h) * var(--figure-h, .72));
+  aspect-ratio: auto;
+  max-height: calc(var(--content-h) * var(--figure-h, .72));
+}
+
+figure.figure[data-kind="image"] img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Video gets the same page-height contract as an HTML island. */
+figure.figure[data-kind="media"][data-media="video"] .figure-frame {
+  width: 100%;
+  height: calc(var(--content-h) * var(--figure-h, .6));
+  margin-inline: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d1117;
+}
+
+figure.figure[data-kind="media"][data-media="video"] video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+figure.figure[data-kind="media"][data-media="audio"] .figure-frame {
+  width: 100%;
+  margin-inline: 0;
+  padding: 18px 14px;
+  background: #f7f8fa;
+}
+
+figure.figure[data-kind="media"][data-media="audio"] audio {
+  display: block;
+  width: 100%;
+}
+
+figure.figure iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+figure.figure figcaption {
+  padding: 6px 10px 7px;
+  border-top: 1px solid #e8eaef;
+  background: #fff;
+  font: 500 9.5pt/1.35 system-ui, -apple-system, sans-serif;
+  color: #555c66;
+  outline: none;
+}
+
+figure.figure figcaption:empty::before {
+  content: "Add a caption";
+  color: #a8adb6;
+  font-weight: 400;
+}
+
+figure.figure figcaption:focus {
+  background: #fffdf3;
+}
+
+figure.figure[data-missing] .figure-frame::after {
+  content: "Figure source is missing from #figure-store";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  color: #b3261e;
+  font: 500 11px/1.4 system-ui, sans-serif;
+  text-align: center;
+}
+
+#content.is-drop-target {
+  outline: 3px dashed #2f6fed;
+  outline-offset: 8px;
+}
+
+/* Floating controls for the selected figure. Lives in app chrome, never
+   in the document; serialize() removes it from the clone. */
+#figure-tools {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid #d9dde4;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 6px 22px rgba(16, 22, 30, .18);
+  font: 500 11px/1 system-ui, -apple-system, sans-serif;
+}
+
+#figure-tools[hidden] {
+  display: none;
+}
+
+#figure-tools button {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #31363d;
+  font: inherit;
+  cursor: pointer;
+}
+
+#figure-tools button:hover {
+  background: #eef1f6;
+}
+
+#figure-tools .figure-dim {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 2px;
+}
+
+#figure-tools .figure-dim-label {
+  padding: 0 3px;
+  color: #8a919b;
+  font-size: 10px;
+  letter-spacing: .04em;
+}
+
+#figure-tools .figure-dim-value {
+  min-width: 38px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: #5b626c;
+}
+
+#figure-tools [data-figure-remove] {
+  color: #b3261e;
+}
+
+#probe {
+  position: absolute;
+  top: 0;
+  left: -99999px;
+  width: 1px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#probe>* {
+  display: block;
+}
+
+#probe-content-h {
+  height: var(--content-h);
+}
+
+#probe-pitch {
+  height: var(--pitch);
+}
+
+#probe-pad {
+  height: var(--pad);
+}

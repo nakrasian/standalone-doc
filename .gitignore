@@ -15,3 +15,9 @@ lab/
 # Playwright output
 test-results/
 playwright-report/
+
+# Private planning notes at the repo root (never published)
+/*.md
+!/README.md
+!/CONTRIBUTING.md
+/*.txt

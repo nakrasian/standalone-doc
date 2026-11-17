@@ -1,0 +1,4874 @@
+<!doctype html>
+<html lang="en-US">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Standalone HTML Doc</title>
+  <!-- CORE STYLES: CSS, Typography, and Pagination -->
+<!-- @asset id="page-styles" kind="css" order="10" -->
+  <style id="page-styles">
+    :root {
+      --sheet-w: 8.5in;
+      --sheet-h: 11in;
+      --pad: 0.9in;
+      --sheet-gap: 26px;
+
+      --content-w: calc(var(--sheet-w) - 2 * var(--pad));
+      --content-h: calc(var(--sheet-h) - 2 * var(--pad));
+      --pitch: calc(var(--sheet-h) + var(--sheet-gap));
+      /* distance from one sheet's top to the next */
+
+      --block-gap: 0.55em;
+      /* distance between text blocks */
+      --lead: 0.3em;
+      --doc-size: 11pt;
+      /* additional padding above headers  */
+
+      --zoom: 1;
+      /* document zoom: page geometry scales, the chrome does not */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #e0e0e0;
+      color: #1b1f24;
+      font: var(--doc-size)/1.5 Charter, "Iowan Old Style", Georgia, serif;
+    }
+
+    #viewport {
+      flex: auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: auto;
+      /* not hidden: a 200% sheet is wider than the window */
+    }
+
+    #stage {
+      position: relative;
+      width: var(--sheet-w);
+      margin-inline: auto;
+      padding-block: var(--pad);
+      zoom: var(--zoom, 1);
+      /* the whole feature: pages + text scale, toolbar and backdrop do not */
+    }
+
+    #sheets {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 0;
+      width: var(--sheet-w);
+      height: var(--sheet-h);
+      background: #fff;
+      box-shadow: 0 1px 6px rgba(16, 22, 30, .15);
+    }
+
+    .sheet-margin {
+      position: absolute;
+      font: 500 10.5px/1 system-ui, -apple-system, sans-serif;
+      color: #9aa1ab;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      letter-spacing: .01em;
+    }
+
+    .sheet-margin[data-slot="head"] {
+      top: calc(var(--pad) * .42);
+    }
+
+    .sheet-margin[data-slot="folio"] {
+      bottom: calc(var(--pad) * .42);
+    }
+
+    .sheet[data-side="recto"] .sheet-margin[data-slot="head"],
+    .sheet[data-side="recto"] .sheet-margin[data-slot="folio"] {
+      right: var(--pad);
+    }
+
+    .sheet[data-side="verso"] .sheet-margin[data-slot="head"],
+    .sheet[data-side="verso"] .sheet-margin[data-slot="folio"] {
+      left: var(--pad);
+    }
+
+    .sheet[data-first] .sheet-margin[data-slot="head"] {
+      display: none;
+    }
+
+    #content {
+      position: relative;
+      z-index: 1;
+      max-width: var(--content-w);
+      margin-inline: auto;
+      min-height: var(--content-h);
+      outline: none;
+    }
+
+    #content>* {
+      margin: 0;
+      padding-block-end: var(--block-gap);
+    }
+
+    #content> :is(h1, h2, h3) {
+      padding-block-start: var(--lead);
+    }
+
+    #content>.page-spacer {
+      padding: 0;
+      margin: 0;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    /* ===== Figures (images, standalone HTML, media) =====
+       A figure is one block in the flow. Its frame has a deterministic
+       height before any bytes decode or any iframe loads, so the pagination
+       plan never depends on a late image/iframe resize. */
+    #content>figure.figure {
+      --figure-w: 1;
+      --figure-h: .72;
+      position: relative;
+      display: block;
+      width: calc(var(--figure-w) * 100%);
+      margin: 0;
+      padding: 0 0 var(--block-gap);
+      border: 1px solid #d9dde4;
+      border-radius: 5px;
+      background: #fff;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    #content>figure.figure[data-selected] {
+      outline: 2px solid #2f6fed;
+      outline-offset: 2px;
+    }
+
+    figure.figure .figure-frame {
+      position: relative;
+      width: 100%;
+      min-height: 2.5rem;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    /* HTML islands: independent width and height fractions of the text area.
+       The embedded document scrolls inside if it needs more room. */
+    figure.figure[data-kind="html"] .figure-frame {
+      width: 100%;
+      height: calc(var(--content-h) * var(--figure-h, .72));
+      margin-inline: 0;
+    }
+
+    /* Raster/SVG images: width is the scaled content width; aspect-ratio
+       reserves the correct height before decode. When data-h is explicit,
+       the frame becomes a fixed window and object-fit: contain letterboxes
+       the image inside it. */
+    figure.figure[data-kind="image"] .figure-frame {
+      width: 100%;
+      aspect-ratio: var(--figure-aspect, 16 / 9);
+      max-height: calc(var(--content-h) * .92);
+      margin-inline: 0;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    figure.figure[data-kind="image"][data-h]:not([data-h="auto"]) .figure-frame {
+      height: calc(var(--content-h) * var(--figure-h, .72));
+      aspect-ratio: auto;
+      max-height: calc(var(--content-h) * var(--figure-h, .72));
+    }
+
+    figure.figure[data-kind="image"] img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Video gets the same page-height contract as an HTML island. */
+    figure.figure[data-kind="media"][data-media="video"] .figure-frame {
+      width: 100%;
+      height: calc(var(--content-h) * var(--figure-h, .6));
+      margin-inline: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d1117;
+    }
+
+    figure.figure[data-kind="media"][data-media="video"] video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    figure.figure[data-kind="media"][data-media="audio"] .figure-frame {
+      width: 100%;
+      margin-inline: 0;
+      padding: 18px 14px;
+      background: #f7f8fa;
+    }
+
+    figure.figure[data-kind="media"][data-media="audio"] audio {
+      display: block;
+      width: 100%;
+    }
+
+    figure.figure iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    figure.figure figcaption {
+      padding: 6px 10px 7px;
+      border-top: 1px solid #e8eaef;
+      background: #fff;
+      font: 500 9.5pt/1.35 system-ui, -apple-system, sans-serif;
+      color: #555c66;
+      outline: none;
+    }
+
+    figure.figure figcaption:empty::before {
+      content: "Add a caption";
+      color: #a8adb6;
+      font-weight: 400;
+    }
+
+    figure.figure figcaption:focus {
+      background: #fffdf3;
+    }
+
+    figure.figure[data-missing] .figure-frame::after {
+      content: "Figure source is missing from #figure-store";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      color: #b3261e;
+      font: 500 11px/1.4 system-ui, sans-serif;
+      text-align: center;
+    }
+
+    #content.is-drop-target {
+      outline: 3px dashed #2f6fed;
+      outline-offset: 8px;
+    }
+
+    /* Floating controls for the selected figure. Lives in app chrome, never
+       in the document; serialize() removes it from the clone. */
+    #figure-tools {
+      position: fixed;
+      z-index: 70;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+      border: 1px solid #d9dde4;
+      border-radius: 7px;
+      background: #fff;
+      box-shadow: 0 6px 22px rgba(16, 22, 30, .18);
+      font: 500 11px/1 system-ui, -apple-system, sans-serif;
+    }
+
+    #figure-tools[hidden] {
+      display: none;
+    }
+
+    #figure-tools button {
+      min-width: 26px;
+      height: 26px;
+      padding: 0 7px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #31363d;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    #figure-tools button:hover {
+      background: #eef1f6;
+    }
+
+    #figure-tools .figure-dim {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      padding: 0 2px;
+    }
+
+    #figure-tools .figure-dim-label {
+      padding: 0 3px;
+      color: #8a919b;
+      font-size: 10px;
+      letter-spacing: .04em;
+    }
+
+    #figure-tools .figure-dim-value {
+      min-width: 38px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      color: #5b626c;
+    }
+
+    #figure-tools [data-figure-remove] {
+      color: #b3261e;
+    }
+
+    #probe {
+      position: absolute;
+      top: 0;
+      left: -99999px;
+      width: 1px;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    #probe>* {
+      display: block;
+    }
+
+    #probe-content-h {
+      height: var(--content-h);
+    }
+
+    #probe-pitch {
+      height: var(--pitch);
+    }
+
+    #probe-pad {
+      height: var(--pad);
+    }
+  </style>
+<!-- /@asset -->
+<!-- @asset id="toolbar-styles" kind="css" order="20" -->
+  <style id="toolbar-styles">
+    :root {
+      --chrome-bg: #fbfbfc;
+      --ink: #1b1f24;
+      --muted: #6b7280;
+      --line: #dfe1e6;
+      --paper: #fff;
+      --backdrop: #e0e0e0;
+      --hover: #eef0f4;
+      --accent: #2f6fed;
+      --accent-soft: rgba(47, 111, 237, .12);
+
+      --chrome-h: 79px;
+    }
+
+    body[data-ui="ribbon"] {
+      --chrome-h: 79px;
+    }
+
+    body[data-ui="minimal"] {
+      --chrome-h: 34px;
+    }
+
+    /* ---- chrome container ---- */
+    /* body is a column flexbox here (the lab uses a grid because it also has a
+       rail); the toolbar must never shrink, and it owns the stacking context
+       so dropdown menus paint above the page. */
+    #app-toolbar {
+      flex: 0 0 auto;
+      height: var(--chrome-h, 44px);
+      transition: height 200ms cubic-bezier(.4, 0, .2, 1);
+      position: relative;
+      z-index: 40;
+    }
+
+    #app-toolbar.is-resizing {
+      overflow: hidden;
+    }
+
+    [data-ui-panel] {
+      display: none;
+    }
+
+    body[data-ui="ribbon"] [data-ui-panel="ribbon"],
+    body[data-ui="minimal"] [data-ui-panel="minimal"] {
+      display: flex;
+      animation: chromeIn 200ms ease-out backwards;
+    }
+
+    @keyframes chromeIn {
+      from {
+        opacity: .9;
+        transform: translateY(-1px);
+      }
+    }
+
+    /* ---- shared chrome controls ---- */
+    .bar,
+    .ribbon {
+      align-items: center;
+      gap: 4px;
+      padding: 0 10px;
+      background: var(--chrome-bg);
+      border-bottom: 1px solid var(--line);
+      font: 500 12px/1 system-ui, -apple-system, sans-serif;
+      color: var(--muted);
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .bar button,
+    .ribbon button,
+    .bubble button,
+    .menu button,
+    .rail button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 6px;
+      font: inherit;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .bar button:hover,
+    .ribbon button:hover,
+    .menu button:hover,
+    .rail button:hover {
+      background: var(--hover);
+    }
+
+    button[aria-pressed="true"] {
+      background: var(--accent) !important;
+      color: #fff;
+    }
+
+    /* Toggled controls: strong for toolbar icons, soft inside menus. */
+    button[aria-pressed="true"]:hover {
+      filter: brightness(1.06);
+    }
+
+    .menu button[aria-pressed="true"] {
+      background: var(--accent-soft) !important;
+      color: var(--accent) !important;
+    }
+
+    .menu button[aria-pressed="true"] kbd {
+      color: var(--accent) !important;
+      opacity: .7;
+    }
+
+    button:disabled {
+      opacity: .38;
+      cursor: default;
+      background: transparent !important;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .sep {
+      width: 1px;
+      height: 18px;
+      margin: 0 5px;
+      background: var(--line);
+      flex: 0 0 auto;
+    }
+
+    .grow {
+      flex: 1 1 auto;
+    }
+
+    .i {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .i.sm {
+      width: 13px;
+      height: 13px;
+      stroke-width: 2.4;
+    }
+
+    .favicon {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      font-size: 15px;
+      line-height: 1;
+      border-radius: 7px;
+    }
+
+    .favicon:hover {
+      background: var(--hover);
+    }
+
+    .title-input {
+      height: 28px;
+      padding: 0 6px;
+      min-width: 8em;
+      max-width: 22em;
+      font: inherit;
+      font-weight: 650;
+      font-size: 12.5px;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      user-select: text;
+    }
+
+    .title-input:hover {
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .title-input:focus {
+      background: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Native <select>: leave the platform arrow and padding alone. */
+    .select {
+      height: 28px;
+      padding: 0 4px;
+      font: inherit;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .select:hover {
+      background: var(--hover);
+    }
+
+    .stats {
+      color: #8a929e;
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dirty-dot {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .dirty-dot[hidden] {
+      display: none;
+    }
+
+    .status {
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .status.is-error {
+      color: #b3261e;
+    }
+
+    .primary {
+      background: var(--accent) !important;
+      color: #fff !important;
+      font-weight: 600;
+      padding: 0 12px !important;
+    }
+
+    .primary:hover {
+      filter: brightness(1.06);
+    }
+
+    .ghost {
+      color: var(--muted) !important;
+    }
+
+    /* ---- ribbon panel (two rows) ---- */
+    #ui-ribbon {
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      padding: 0;
+      height: 79px;
+    }
+
+    body[data-ui="ribbon"] #ui-ribbon {
+      display: flex;
+    }
+
+    .ribbon-top,
+    .ribbon-tools {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 10px;
+    }
+
+    .ribbon-top {
+      height: 36px;
+      border-bottom: 1px solid #eef0f4;
+    }
+
+    .ribbon-tools {
+      height: 42px;
+      overflow-x: auto;
+      /* narrow windows scroll instead of clipping the zoom cluster */
+      scrollbar-width: none;
+    }
+
+    .ribbon-tools::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Text menus are neutral: no icon-button padding, chevron close to label. */
+    .menu-trigger {
+      gap: 3px !important;
+      padding: 0 8px !important;
+      color: var(--ink) !important;
+    }
+
+    /* ---- zoom cluster ---- */
+    .zoom-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      flex: 0 0 auto;
+    }
+
+    .zoom-box {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 1px;
+      height: 28px;
+      padding: 0 4px;
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .zoom-box:hover {
+      background: var(--hover);
+    }
+
+    .zoom-box:focus-within {
+      background: #fff;
+      border-color: var(--accent);
+    }
+
+    .zoom-value {
+      width: 3.4ch;
+      height: 26px;
+      padding: 0;
+      font: inherit;
+      font-size: 11.5px;
+      color: var(--ink);
+      text-align: right;
+      background: transparent;
+      border: 0;
+    }
+
+    .zoom-unit {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* The same field, as a row inside a dropdown menu. */
+    .menu-field {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px 6px;
+    }
+
+    .menu-field .zoom-value {
+      flex: 1 1 auto;
+      width: auto;
+      height: 26px;
+      padding: 0 6px;
+      text-align: left;
+      background: #fff;
+      border-radius: 6px;
+    }
+
+    .menu-field .zoom-value:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    /* ---- menu (shared by every variant) ---- */
+    .menu-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 60;
+      min-width: 232px;
+      padding: 5px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(16, 22, 30, .16);
+      font-weight: 450;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .menu[hidden] {
+      display: none;
+    }
+
+    .menu button {
+      display: flex;
+      width: 100%;
+      height: 30px;
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 0 8px;
+      border-radius: 6px;
+      text-align: left;
+    }
+
+    .menu button kbd,
+    .menu kbd {
+      margin-left: auto;
+      padding-left: 14px;
+      font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #9aa1ab;
+    }
+
+    .menu-sep {
+      height: 1px;
+      margin: 5px 6px;
+      background: var(--line);
+    }
+
+    .menu-label {
+      padding: 6px 8px 3px;
+      font-size: 10.5px;
+      font-weight: 650;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #9aa1ab;
+    }
+
+    .menu-wrap[data-menu-align="right"] > .menu {
+      left: auto;
+      right: 0;
+    }
+
+    .menu-wrap .menu.menu-flip {
+      top: auto;
+      bottom: calc(100% + 6px);
+    }
+
+    /* Cascading submenus use fixed positioning so the parent menu's
+       overflow-y:auto cannot clip them. Positions are set from JS. */
+    .menu-sub {
+      position: relative;
+    }
+
+    .menu-sub > .menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      min-width: 220px;
+    }
+
+    .menu-sub-trigger .i {
+      margin-left: auto;
+      transform: rotate(-90deg);
+    }
+
+    .menu-sub-trigger[aria-expanded="true"] {
+      background: var(--hover);
+    }
+
+    /* ---- minimal panel ---- */
+    #ui-minimal {
+      height: 34px;
+      background: #fff;
+      border-bottom-color: #eceef2;
+    }
+
+    #ui-minimal .folio {
+      font-variant-numeric: tabular-nums;
+      color: #9aa1ab;
+      min-width: 4.5em;
+    }
+
+    #ui-minimal .title-input {
+      text-align: center;
+      font-weight: 500;
+      font-size: 12px;
+      max-width: 26em;
+    }
+
+    #ui-minimal .save-text {
+      color: var(--accent) !important;
+      font-weight: 600;
+      padding: 0 8px !important;
+    }
+
+    /* ---- toggle button ---- */
+    [data-chrome-toggle] {
+      background: transparent !important;
+      border: 1px solid transparent;
+    }
+
+    [data-chrome-toggle]:hover {
+      background: var(--hover) !important;
+    }
+
+    [data-chrome-toggle][aria-pressed="true"] {
+      background: var(--hover) !important;
+      color: var(--ink) !important;
+    }
+
+
+    /* ---- shortcuts dialog ---- */
+    dialog#shortcuts-dialog {
+      width: min(440px, 90vw);
+      max-height: min(78dvh, 640px);
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+      font: 13px/1.4 system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+    }
+
+    dialog#shortcuts-dialog::backdrop {
+      background: rgba(16, 22, 30, .34);
+    }
+
+    #shortcuts-dialog form {
+      display: flex;
+      flex-direction: column;
+      max-height: min(78dvh, 640px);
+      padding: 18px;
+    }
+
+    #shortcuts-dialog h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+    }
+
+    #keylist {
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+
+    #keylist h3 {
+      margin: 12px 0 4px;
+      font-size: 10.5px;
+      font-weight: 650;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #9aa1ab;
+    }
+
+    #keylist h3:first-child {
+      margin-top: 0;
+    }
+
+    #keylist>div {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 3px 0;
+    }
+
+    #keylist kbd {
+      flex: 0 0 auto;
+      font: 500 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #f2f3f5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--muted);
+    }
+
+    #shortcuts-dialog:focus,
+    #keylist:focus,
+    #keylist:focus-visible {
+      outline: none;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    #shortcuts-dialog .dialog-actions button {
+      height: 30px;
+      padding: 0 14px;
+      font: inherit;
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      cursor: pointer;
+    }
+
+    .primary:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: -4px;
+    }
+
+    /* ---- progress dialog ---- */
+    #progress-dialog {
+      width: min(460px, calc(100vw - 32px));
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 18px 60px rgba(16, 22, 30, .24);
+      font: 13px/1.4 system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+    }
+
+    #progress-dialog::backdrop {
+      background: rgba(16, 22, 30, .28);
+    }
+
+    #progress-dialog h2 {
+      margin: 0 0 14px;
+      font-size: 16px;
+    }
+
+    .progress {
+      height: 8px;
+      border-radius: 4px;
+      background: #e9edf2;
+      overflow: hidden;
+    }
+
+    .progress i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #2f6fed, #7aa2ff, #2f6fed);
+      background-size: 200% 100%;
+      animation: sweep 1.6s linear infinite;
+      transition: width .18s ease;
+    }
+
+    @keyframes sweep {
+      from { background-position: 0% 0; }
+      to { background-position: 200% 0; }
+    }
+
+    #progress-dialog [data-progress-text] {
+      min-height: 1.5em;
+      margin: 10px 0 14px;
+      color: var(--muted);
+    }
+
+    #progress-dialog .dialog-actions button {
+      height: 30px;
+      padding: 0 14px;
+      font: inherit;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    #progress-dialog .dialog-actions button:disabled {
+      opacity: .55;
+      cursor: default;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .progress i {
+        animation: none;
+      }
+    }
+
+    /* ---- @media (prefers-reduced-motion) ---- */
+    @media (prefers-reduced-motion: reduce) {
+
+      body,
+      #app-toolbar {
+        transition: none;
+      }
+
+      body[data-ui] [data-ui-panel] {
+        animation: none;
+      }
+    }
+
+    /* ---- print ----
+       Page starts are preserved from the screen planner: every .page-spacer
+       is followed by the first block of the next page. Hide the spacer's
+       height, keep the node, and force the break before its sibling. */
+    @media print {
+      body {
+        display: block;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+      }
+
+      #app-toolbar,
+      #statusline,
+      #bubble,
+      #blockhandle,
+      #figure-tools,
+      #probe,
+      #progress-dialog,
+      #shortcuts-dialog {
+        display: none !important;
+      }
+
+      #sheets {
+        display: none !important;
+      }
+
+      .page-spacer {
+        display: none !important;
+      }
+
+      .page-spacer + * {
+        break-before: page;
+      }
+
+      #viewport {
+        overflow: visible;
+      }
+
+      /* Zoom is a screen affordance. No !important: the zoom value lives in
+         an inline --zoom custom property, so this rule is the only declaration
+         of `zoom` and wins on source order. */
+      #stage {
+        zoom: 1;
+        padding-block: 0;
+        /* The live app leaves an inline min-height on #stage. */
+        height: auto !important;
+        min-height: 0 !important;
+      }
+
+      #content {
+        max-width: none;
+        min-height: 0;
+      }
+
+      #content > * {
+        break-inside: avoid;
+      }
+
+      figure.figure {
+        break-inside: avoid;
+      }
+
+      /* Folios: Chromium supports margin boxes; other browsers ignore them. */
+      @page:right {
+        @bottom-right {
+          content: counter(page) " / " counter(pages);
+          font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+          color: #9aa1ab;
+        }
+      }
+
+      @page:left {
+        @bottom-left {
+          content: counter(page) " / " counter(pages);
+          font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+          color: #9aa1ab;
+        }
+      }
+    }
+  </style>
+<!-- /@asset -->
+  <style id="user-theme"></style>
+  <style id="print-page"></style>
+  <!-- Favicon for sheet -->
+  <link id="favicon" rel="icon"
+    href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%A7%AC%3C%2Ftext%3E%3C%2Fsvg%3E" />
+</head>
+<!-- BODY: Toolbar and Content UI -->
+
+<body data-ui="ribbon">
+
+  <!-- SVG icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-bold" viewBox="0 0 24 24">
+      <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />
+    </symbol>
+    <symbol id="i-italic" viewBox="0 0 24 24">
+      <line x1="19" x2="10" y1="4" y2="4" />
+      <line x1="14" x2="5" y1="20" y2="20" />
+      <line x1="15" x2="9" y1="4" y2="20" />
+    </symbol>
+    <symbol id="i-underline" viewBox="0 0 24 24">
+      <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+      <line x1="4" x2="20" y1="20" y2="20" />
+    </symbol>
+    <symbol id="i-strike" viewBox="0 0 24 24">
+      <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+      <path d="M14 12a4 4 0 0 1 0 8H6" />
+      <line x1="4" x2="20" y1="12" y2="12" />
+    </symbol>
+    <symbol id="i-list" viewBox="0 0 24 24">
+      <line x1="8" x2="21" y1="6" y2="6" />
+      <line x1="8" x2="21" y1="12" y2="12" />
+      <line x1="8" x2="21" y1="18" y2="18" />
+      <line x1="3" x2="3.01" y1="6" y2="6" />
+      <line x1="3" x2="3.01" y1="12" y2="12" />
+      <line x1="3" x2="3.01" y1="18" y2="18" />
+    </symbol>
+    <symbol id="i-list-ol" viewBox="0 0 24 24">
+      <line x1="10" x2="21" y1="6" y2="6" />
+      <line x1="10" x2="21" y1="12" y2="12" />
+      <line x1="10" x2="21" y1="18" y2="18" />
+      <path d="M4 6h1v4" />
+      <path d="M4 10h2" />
+      <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
+    </symbol>
+    <symbol id="i-link" viewBox="0 0 24 24">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </symbol>
+    <symbol id="i-unlink" viewBox="0 0 24 24">
+      <path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      <line x1="8" x2="8" y1="2" y2="5" />
+      <line x1="2" x2="5" y1="8" y2="8" />
+      <line x1="16" x2="16" y1="19" y2="22" />
+      <line x1="19" x2="22" y1="16" y2="16" />
+    </symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24">
+      <path d="M4 7V4h16v3" />
+      <path d="M5 20h6" />
+      <path d="M13 4 8 20" />
+      <path d="m15 15 5 5" />
+      <path d="m20 15-5 5" />
+    </symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24">
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+    </symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24">
+      <path
+        d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+      <path
+        d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+    </symbol>
+    <symbol id="i-code" viewBox="0 0 24 24">
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </symbol>
+    <symbol id="i-sup" viewBox="0 0 24 24">
+      <path d="m4 19 8-8" />
+      <path d="m12 19-8-8" />
+      <path
+        d="M20 12h-4c0-1.5.44-2 1.5-2.5S20 8.33 20 7c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
+    </symbol>
+    <symbol id="i-sub" viewBox="0 0 24 24">
+      <path d="m4 5 8 8" />
+      <path d="m12 5-8 8" />
+      <path
+        d="M20 19h-4c0-1.5.44-2 1.5-2.5S20 15.33 20 14c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
+    </symbol>
+    <symbol id="i-save" viewBox="0 0 24 24">
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+      <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+    </symbol>
+    <symbol id="i-more" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+      <circle cx="5" cy="12" r="1" />
+    </symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24">
+      <path d="M10 8h.01" />
+      <path d="M12 12h.01" />
+      <path d="M14 8h.01" />
+      <path d="M16 12h.01" />
+      <path d="M18 8h.01" />
+      <path d="M6 8h.01" />
+      <path d="M7 16h10" />
+      <path d="M8 12h.01" />
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+    </symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24">
+      <path d="m6 9 6 6 6-6" />
+    </symbol>
+    <symbol id="i-paneltop" viewBox="0 0 24 24">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M3 9h18" />
+    </symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+      <line x1="11" x2="11" y1="8" y2="14" />
+      <line x1="8" x2="14" y1="11" y2="11" />
+    </symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+      <line x1="8" x2="14" y1="11" y2="11" />
+    </symbol>
+    <symbol id="i-zoom-reset" viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </symbol>
+  </svg>
+
+  <header id="app-toolbar" data-chrome contenteditable="false">
+
+    <!-- ===== RIBBON: two rows ===== -->
+    <header id="ui-ribbon" class="ribbon" data-ui-panel="ribbon">
+
+      <!-- Row 1: title, file menu, save, toggle -->
+      <div class="ribbon-top">
+        <button class="favicon" data-favicon title="Change favicon">🧬</button>
+        <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false"
+          aria-label="Document title">
+        <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+        <span class="sep"></span>
+
+        <!-- File Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>File <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <button data-menu-item data-save><svg class="i sm">
+                <use href="#i-save" />
+              </svg>Save</button>
+
+            <div class="menu-sub" data-submenu>
+              <button type="button" data-menu-item data-submenu-trigger
+                aria-haspopup="menu" aria-expanded="false">Save as…
+                <svg class="i sm">
+                  <use href="#i-chev" />
+                </svg></button>
+              <div class="menu" data-menu-panel hidden>
+
+                <div class="menu-sub" data-submenu>
+                  <button type="button" data-menu-item data-submenu-trigger
+                    aria-haspopup="menu" aria-expanded="false">HTML
+                    <svg class="i sm">
+                      <use href="#i-chev" />
+                    </svg></button>
+                  <div class="menu" data-menu-panel hidden>
+                    <button data-menu-item data-export="html-interactive"
+                      data-save>Interactive (.html)</button>
+                    <button data-menu-item data-export="html-static">Static with captured figures…</button>
+                  </div>
+                </div>
+
+                <div class="menu-sub" data-submenu>
+                  <button type="button" data-menu-item data-submenu-trigger
+                    aria-haspopup="menu" aria-expanded="false">PDF
+                    <svg class="i sm">
+                      <use href="#i-chev" />
+                    </svg></button>
+                  <div class="menu" data-menu-panel hidden>
+                    <button data-menu-item data-export="print-live"
+                      title="The browser print dialog controls headers and footers.">Standard print</button>
+                    <button data-menu-item data-export="print-captured"
+                      title="The browser print dialog controls headers and footers.">Captured figures</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </span>
+
+        <!-- Insert Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>Insert <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <div class="menu-label">Blocks</div>
+            <button data-menu-item data-block-set="p">Paragraph</button>
+            <button data-menu-item data-block-set="h1">Heading 1</button>
+            <button data-menu-item data-block-set="h2">Heading 2</button>
+            <button data-menu-item data-block-set="h3">Heading 3</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Inline</div>
+            <button data-menu-item data-link>Link</button>
+            <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+            <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Figures</div>
+            <button data-menu-item data-figure-pick="image">Image…</button>
+            <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+            <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+            <button data-menu-item data-figure-pick="media">Video or audio…</button>
+          </div>
+        </span>
+
+        <!-- Style Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>Style <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <div class="menu-label">Text size</div>
+            <button data-menu-item data-font="10pt">10 pt</button>
+            <button data-menu-item data-font="11pt">11 pt</button>
+            <button data-menu-item data-font="12pt">12 pt</button>
+            <button data-menu-item data-font="13pt">13 pt</button>
+          </div>
+        </span>
+
+        <!-- Spacing between left and right tools -->
+        <span class="grow"></span>
+
+        <span class="stats" data-stats>—</span>
+        <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
+            <use href="#i-paneltop" />
+          </svg></button>
+        <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+            <use href="#i-keyboard" />
+          </svg></button>
+        <button class="primary" data-save title="Save">Save</button>
+      </div>
+
+      <!-- Row 2: formatting toolbar -->
+      <div class="ribbon-tools">
+        <button data-cmd="undo" title="Undo"><svg class="i">
+            <use href="#i-undo" />
+          </svg></button>
+        <button data-cmd="redo" title="Redo"><svg class="i">
+            <use href="#i-redo" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <!-- Zoom: scales the pages only, never this toolbar -->
+        <span class="zoom-field" role="group" aria-label="Zoom">
+          <button data-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="i">
+              <use href="#i-zoom-out" />
+            </svg></button>
+          <label class="zoom-box">
+            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+              spellcheck="false" value="100" aria-label="Zoom percentage" title="Type a percentage, then Enter">
+            <span class="zoom-unit" aria-hidden="true">%</span>
+          </label>
+          <button data-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="i">
+              <use href="#i-zoom-in" />
+            </svg></button>
+          <button data-zoom="reset" aria-label="Reset zoom to 100%" title="Reset zoom to 100%"><svg class="i sm">
+              <use href="#i-zoom-reset" />
+            </svg></button>
+        </span>
+
+        <span class="sep"></span>
+
+        <select class="select" data-block aria-label="Block style">
+          <option value="p">Paragraph</option>
+          <option value="h1">Heading 1</option>
+          <option value="h2">Heading 2</option>
+          <option value="h3">Heading 3</option>
+          <option value="blockquote">Quote</option>
+          <option value="pre">Code</option>
+        </select>
+
+        <span class="sep"></span>
+
+        <button data-cmd="bold" aria-pressed="false" title="Bold"><svg class="i">
+            <use href="#i-bold" />
+          </svg></button>
+        <button data-cmd="italic" aria-pressed="false" title="Italic"><svg class="i">
+            <use href="#i-italic" />
+          </svg></button>
+        <button data-cmd="underline" aria-pressed="false" title="Underline"><svg class="i">
+            <use href="#i-underline" />
+          </svg></button>
+        <button data-cmd="strikeThrough" aria-pressed="false" title="Strikethrough"><svg class="i">
+            <use href="#i-strike" />
+          </svg></button>
+        <button data-cmd="superscript" aria-pressed="false" title="Superscript"><svg class="i">
+            <use href="#i-sup" />
+          </svg></button>
+        <button data-cmd="subscript" aria-pressed="false" title="Subscript"><svg class="i">
+            <use href="#i-sub" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <button data-cmd="insertUnorderedList" aria-pressed="false" title="Bulleted list"><svg class="i">
+            <use href="#i-list" />
+          </svg></button>
+        <button data-cmd="insertOrderedList" aria-pressed="false" title="Numbered list"><svg class="i">
+            <use href="#i-list-ol" />
+          </svg></button>
+        <button data-block-set="blockquote" title="Quote"><svg class="i">
+            <use href="#i-quote" />
+          </svg></button>
+        <button data-block-set="pre" title="Code block"><svg class="i">
+            <use href="#i-code" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <button data-link title="Insert link"><svg class="i">
+            <use href="#i-link" />
+          </svg></button>
+        <button data-cmd="unlink" title="Remove link"><svg class="i">
+            <use href="#i-unlink" />
+          </svg></button>
+        <button data-cmd="removeFormat" title="Clear formatting"><svg class="i">
+            <use href="#i-eraser" />
+          </svg></button>
+
+        <span class="grow"></span>
+
+        <select class="select" data-fontsize aria-label="Text size">
+          <option value="10pt">10 pt</option>
+          <option value="10.5pt">10.5 pt</option>
+          <option value="11pt" selected>11 pt</option>
+          <option value="12pt">12 pt</option>
+          <option value="13pt">13 pt</option>
+        </select>
+
+      </div>
+    </header>
+
+    <!-- ===== MINIMAL: thin bar ===== -->
+    <header id="ui-minimal" class="bar" data-ui-panel="minimal">
+      <span class="folio" data-folio>p. 1</span>
+      <span class="stats" data-stats>—</span>
+      <span class="grow"></span>
+      <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false" aria-label="Document title">
+      <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+      <span class="grow"></span>
+      <span class="menu-wrap" data-menu-align="right">
+        <button data-menu title="All commands"><svg class="i">
+            <use href="#i-more" />
+          </svg></button>
+        <div class="menu" data-menu-panel hidden>
+          <div class="menu-label">File</div>
+          <button data-menu-item data-save>Save</button>
+          <div class="menu-sub" data-submenu>
+            <button type="button" data-menu-item data-submenu-trigger
+              aria-haspopup="menu" aria-expanded="false">Save as…
+              <svg class="i sm">
+                <use href="#i-chev" />
+              </svg></button>
+            <div class="menu" data-menu-panel hidden>
+              <div class="menu-label">HTML</div>
+              <button data-menu-item data-export="html-interactive" data-save>Interactive (.html)</button>
+              <button data-menu-item data-export="html-static">Static with captured figures…</button>
+              <div class="menu-sep"></div>
+              <div class="menu-label">PDF</div>
+              <button data-menu-item data-export="print-live"
+                title="The browser print dialog controls headers and footers.">Standard print</button>
+              <button data-menu-item data-export="print-captured"
+                title="The browser print dialog controls headers and footers.">Captured figures</button>
+            </div>
+          </div>
+          <div class="menu-sep"></div>
+          <div class="menu-label">Block</div>
+          <button data-menu-item data-block-set="p">Paragraph</button>
+          <button data-menu-item data-block-set="h1">Heading 1</button>
+          <button data-menu-item data-block-set="h2">Heading 2</button>
+          <button data-menu-item data-block-set="h3">Heading 3</button>
+          <button data-menu-item data-block-set="blockquote">Quote</button>
+          <button data-menu-item data-block-set="pre">Code block</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Inline</div>
+          <button data-menu-item data-cmd="bold">Bold</button>
+          <button data-menu-item data-cmd="italic">Italic</button>
+          <button data-menu-item data-cmd="underline">Underline</button>
+          <button data-menu-item data-cmd="strikeThrough">Strikethrough</button>
+          <button data-menu-item data-cmd="superscript">Superscript</button>
+          <button data-menu-item data-cmd="subscript">Subscript</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Lists & links</div>
+          <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+          <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+          <button data-menu-item data-link>Link…</button>
+          <button data-menu-item data-cmd="unlink">Unlink</button>
+          <button data-menu-item data-cmd="removeFormat">Clear formatting</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Figures</div>
+          <button data-menu-item data-figure-pick="image">Image…</button>
+          <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+          <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+          <button data-menu-item data-figure-pick="media">Video or audio…</button>
+
+          <div class="menu-sep"></div>
+
+          <button data-menu-item data-cmd="undo">Undo</button>
+          <button data-menu-item data-cmd="redo">Redo</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label" data-zoom-label>Zoom · 100%</div>
+          <div class="menu-field">
+            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+              spellcheck="false" value="100" aria-label="Zoom percentage">
+            <span class="zoom-unit" aria-hidden="true">%</span>
+          </div>
+          <button data-menu-item data-zoom="out">Zoom out</button>
+          <button data-menu-item data-zoom="reset">Actual size (100%)</button>
+          <button data-menu-item data-zoom="in">Zoom in</button>
+          <button data-menu-item data-zoom="fit">Fit page width</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Text size</div>
+          <button data-menu-item data-font="10pt">10 pt</button>
+          <button data-menu-item data-font="11pt">11 pt</button>
+          <button data-menu-item data-font="12pt">12 pt</button>
+          <button data-menu-item data-font="13pt">13 pt</button>
+
+          <div class="menu-sep"></div>
+
+          <button data-menu-item data-shortcuts>Keyboard shortcuts</button>
+        </div>
+      </span>
+
+      <button data-chrome-toggle aria-label="Full toolbar" title="Full toolbar"><svg class="i">
+          <use href="#i-paneltop" />
+        </svg></button>
+      <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+          <use href="#i-keyboard" />
+        </svg></button>
+
+      <button class="save-text" data-save title="Save">Save</button>
+    </header>
+
+    <input type="file" data-figure-input hidden multiple>
+  </header>
+
+  <div id="figure-tools" data-chrome hidden contenteditable="false">
+    <span class="figure-dim" data-dim="w">
+      <span class="figure-dim-label">W</span>
+      <button data-figure-dim="w" data-figure-step="-" title="Narrower figure">−</button>
+      <span class="figure-dim-value" data-figure-w-value>100%</span>
+      <button data-figure-dim="w" data-figure-step="+" title="Wider figure">+</button>
+    </span>
+    <span class="figure-dim" data-dim="h">
+      <span class="figure-dim-label">H</span>
+      <button data-figure-dim="h" data-figure-step="-" title="Shorter figure">−</button>
+      <span class="figure-dim-value" data-figure-h-value>auto</span>
+      <button data-figure-dim="h" data-figure-step="+" title="Taller figure">+</button>
+    </span>
+    <button data-figure-reset title="Reset figure size">Fit</button>
+    <button data-figure-remove title="Remove figure">Remove</button>
+  </div>
+
+  <main id="viewport">
+    <div id="stage">
+      <div id="sheets" data-generated aria-hidden="true"></div>
+      <article id="content" contenteditable="true" spellcheck="true">
+        <h1>Standalone HTML Doc</h1>
+        <p> Testing </p>
+      </article>
+    </div>
+  </main>
+
+  <!-- PROBE: A stable page size for pagination -->
+  <div id="probe" aria-hidden="true">
+    <i id="probe-content-h"></i>
+    <i id="probe-pitch"></i>
+    <i id="probe-pad"></i>
+  </div>
+
+  <!-- ZONE 5: inert figure data. Sources live here as escaped JSON strings,
+       never as DOM. A saved file can be re-mounted without any HTML parsing. -->
+  <script id="figure-store" type="application/json">{"version":1,"figures":{}}</script>
+
+
+  <!-- Shared content signals -->
+<!-- @asset id="signals" kind="js" order="30" -->
+  <script id="signals">
+    const Signals = (() => {
+      const target = document.getElementById("content");
+      const listeners = new Map();
+      let muted = 0;
+      let composing = false;
+
+      function on(type, fn) {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type).add(fn);
+        return () => listeners.get(type).delete(fn);
+      }
+
+      function emit(type, detail) {
+        for (const fn of listeners.get(type) || []) fn(detail);
+      }
+
+      // Suppress observer notifications for programmatic changes. Release in a
+      // microtask so the MutationObserver callback still sees muted > 0.
+      function mute(fn) {
+        muted++;
+        try {return fn();}
+        finally {queueMicrotask(() => {muted--;});}
+      }
+
+      new MutationObserver(() => {
+        if (muted) return;
+        emit("mutation");
+      }).observe(target, {childList: true, subtree: true, characterData: true});
+
+      new ResizeObserver(() => {
+        if (muted) return;
+        emit("resize");
+      }).observe(target);
+
+      target.addEventListener("beforeinput", () => emit("beforeinput"));
+      target.addEventListener("input", (e) => {
+        if (e.isComposing || composing) return;
+        emit("edit", {inputType: e.inputType});
+      });
+      target.addEventListener("compositionstart", () => {
+        composing = true;
+        emit("compositionstart");
+      });
+      target.addEventListener("compositionend", () => {
+        composing = false;
+        emit("compositionend");
+      });
+
+      return {on, emit, mute, get composing() {return composing;} };
+    })();
+  </script>
+<!-- /@asset -->
+
+  <!-- Document zoom: scales #stage only (pages + text), never the chrome.
+       Must be declared before the pagination script, which divides measured
+       block heights by Zoom.value. -->
+<!-- @asset id="zoom" kind="js" order="40" -->
+  <script id="zoom">
+    const Zoom = (() => {
+      /* Buttons and Mod+= / Mod+- walk this list; typed values may sit
+         between stops. */
+      const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+      const MIN = STEPS[0];
+      const MAX = STEPS[STEPS.length - 1];
+      const TYPE_MIN = 0.1;
+      const TYPE_MAX = 4;
+
+      const stage = document.getElementById("stage");
+      const viewport = document.getElementById("viewport");
+      let value = 1;
+
+      const clamp = (v) => Math.min(TYPE_MAX, Math.max(TYPE_MIN, v));
+
+      /* Nearest stop, compared in log space so the steps feel even. */
+      function nearest(v) {
+        let best = STEPS[0];
+        for (const s of STEPS) {
+          if (Math.abs(Math.log(s / v)) < Math.abs(Math.log(best / v))) best = s;
+        }
+        return best;
+      }
+
+      /* Change zoom without losing the reading spot. The anchor is a CLIENT y
+         (the same space as MouseEvent.clientY). The scroll correction is the
+         anchor's change in client position, so content that grew below the
+         anchor scrolls further down. */
+      function apply(next, anchorY) {
+        const z1 = clamp(next);
+        const vr = viewport.getBoundingClientRect();
+        const bottom = vr.top + viewport.clientHeight;
+        const ay = anchorY == null
+          ? vr.top + viewport.clientHeight / 2
+          : Math.min(bottom, Math.max(vr.top, anchorY));
+
+        if (z1 === value) {
+          syncUI();
+          return value;
+        }
+
+        const top0 = stage.getBoundingClientRect().top;
+        const stageY = (ay - top0) / value; // anchor in stage layout px
+
+        value = z1;
+        /* A custom property, not `zoom` itself: the inline style only ever sets
+           --zoom, so the print rule can reset `zoom` without !important. */
+        stage.style.setProperty("--zoom", String(value));
+
+        const top1 = stage.getBoundingClientRect().top;
+        viewport.scrollTop += top1 + stageY * value - ay;
+
+        syncUI();
+        return value;
+      }
+
+      function step(dir, anchorY) {
+        const i = STEPS.indexOf(nearest(value));
+        const j = Math.max(0, Math.min(STEPS.length - 1, i + dir));
+        /* At an end of the list (or past it, e.g. after a fit), stay put rather
+           than jumping back to the last stop. */
+        if (j === i) return apply(value, anchorY);
+        return apply(STEPS[j], anchorY);
+      }
+
+      /* "150", "150%", " 150 % " → 150. Anything unparseable → null. */
+      function parsePercent(text) {
+        const n = parseFloat(String(text).replace(/[%\s]/g, "").replace(",", "."));
+        return Number.isFinite(n) ? n : null;
+      }
+
+      /* Commit a typed percentage; false means "restore the field". */
+      function setPercent(text, anchorY) {
+        const pct = parsePercent(text);
+        if (pct == null) return false;
+        apply(clamp(pct / 100), anchorY);
+        return true;
+      }
+
+      /* One-shot: the fitted value becomes an ordinary zoom, so it neither
+         re-fits on resize nor survives a save. The computed width is layout
+         px, which makes this idempotent. */
+      function fit() {
+        const sheetW = parseFloat(getComputedStyle(stage).width);
+        if (!sheetW) return value;
+        return apply(viewport.clientWidth / sheetW, 0);
+      }
+
+      function syncUI() {
+        const pct = Math.round(value * 100) + "%";
+        /* Always refresh the fields, including a focused one: an explicit zoom
+           command (button, shortcut, fit) must win over a half-typed value,
+           otherwise the stale text would be committed on blur. Type-then-Enter
+           is unaffected because syncUI only runs when zoom actually moves. */
+        document.querySelectorAll("[data-zoom-input]").forEach((el) => {
+          el.value = String(Math.round(value * 100));
+        });
+        document.querySelectorAll("[data-zoom-label]").forEach((el) => {
+          el.textContent = "Zoom · " + pct;
+        });
+        document.querySelectorAll('[data-zoom="in"]').forEach((el) => {
+          el.disabled = value >= MAX;
+        });
+        document.querySelectorAll('[data-zoom="out"]').forEach((el) => {
+          el.disabled = value <= MIN;
+        });
+        document.querySelectorAll('[data-zoom="reset"]').forEach((el) => {
+          el.setAttribute("aria-label", `Zoom ${pct}. Reset to 100%`);
+          el.title = `Zoom ${pct} — reset to 100%`;
+        });
+      }
+
+      function command(name, anchorY) {
+        if (name === "in") return step(1, anchorY);
+        if (name === "out") return step(-1, anchorY);
+        if (name === "reset") return apply(1, anchorY);
+        if (name === "fit") return fit();
+        return value;
+      }
+
+      return {
+        command,
+        set: apply,
+        setPercent,
+        in: () => step(1),
+        out: () => step(-1),
+        reset: () => apply(1),
+        fit,
+        syncUI,
+        get value() {return value},
+      };
+    })();
+  </script>
+<!-- /@asset -->
+
+  <!-- Javascript for Pagination -->
+<!-- @asset id="pagination" kind="js" order="50" -->
+  <script id="pagination">
+    const content = document.getElementById("content");
+    const sheets = document.getElementById("sheets");
+    const stage = document.getElementById("stage");
+
+    /* Calculate the height, pitch, and padding of the probe element */
+    const prContent = document.getElementById("probe-content-h");
+    const prPitch = document.getElementById("probe-pitch");
+    const prPad = document.getElementById("probe-pad");
+
+    function geometry() {
+      const px = (el) => el.getBoundingClientRect().height;
+
+      const contentH = px(prContent);
+      const pitch = px(prPitch);
+      const pad = px(prPad);
+
+      return {
+        contentH,
+        pitch,
+        pad,
+        chromeGap: pitch - contentH,
+      };
+    }
+
+    function collectBlocks() {
+      return [...content.children].filter(
+        (el) => !el.classList.contains("page-spacer")
+      );
+    }
+
+    /* Page geometry is measured in layout pixels. The probe elements live
+       OUTSIDE #stage, so geometry() is never zoomed; blocks live inside it, so
+       getBoundingClientRect() returns zoomed pixels and must be divided by the
+       zoom factor. Skipping this makes the plan shrink with the zoom (a 200%
+       view would re-paginate to twice the pages). */
+    function measureH(el) {
+      return el.getBoundingClientRect().height / (Zoom.value || 1);
+    }
+
+    function plan() {
+      const g = geometry();
+      const blocks = collectBlocks();
+
+      const pages = [{top: 0, avail: g.contentH, items: []}];
+      const spacers = [];
+      const oversize = [];
+      let cursor = 0;
+
+      for (let i = 0; i < blocks.length; i++) {
+        const el = blocks[i];
+        const h = measureH(el);
+        const tall = h > g.contentH; // Check if larger than page height
+        let page = pages[pages.length - 1];
+
+        // Check if block overflows and adds page + spacer
+        if (page.items.length && cursor + h > page.top + page.avail) {
+          const nextTop = page.top + page.avail + g.chromeGap;
+
+          spacers.push({
+            before: el,
+            height: nextTop - cursor,
+          });
+
+          page = {top: nextTop, avail: g.contentH, items: []};
+          pages.push(page);
+          cursor = nextTop;
+        }
+        // Resizes page size to size of oversized block
+        if (tall) {
+          page.avail = h;
+          oversize.push(i);
+        }
+
+        page.items.push({block: i, from: 0, to: null});
+        cursor += h;
+
+        if (tall && i < blocks.length - 1) {
+          const nextTop = page.top + page.avail + g.chromeGap;
+          page = {top: nextTop, avail: g.contentH, items: []};
+          pages.push(page);
+          cursor = nextTop;
+        }
+      }
+
+      return {blocks, pages, spacers, oversize, ...g};
+    }
+
+    // Adds empty space from last text block to the end of the page to the DOM
+    function applySpacers(p) {
+      const wanted = new Map(
+        p.spacers.map((s) => [s.before, Math.round(s.height)])
+      );
+
+      //
+      for (const sp of [...content.querySelectorAll(".page-spacer")]) {
+        const next = sp.nextElementSibling;
+
+        // Remove spacer element if not wanted.
+        if (!next || !wanted.has(next)) {
+          sp.remove();
+          continue;
+        }
+
+        const want = wanted.get(next);
+        wanted.delete(next);
+        // If two spacers are next to each other and difference > 0.5, merge and use next element's height
+        if (Math.abs(parseFloat(sp.style.height || "0") - want) > 0.5) {
+          sp.style.height = want + "px";
+        }
+      }
+
+      // Insert ones that are missing
+      for (const [block, height] of wanted) {
+        const sp = document.createElement("div");
+        sp.className = "page-spacer";
+        sp.dataset.generated = "";
+        sp.setAttribute("contenteditable", "false");
+        sp.style.height = height + "px";
+        block.before(sp);
+      }
+    }
+
+    // Use the plan to create sheets, pages, and blocks
+    function buildModel(p) {
+      return p.pages.map((page, k) => {
+        const first = page.items[0];
+
+        return {
+          head: "", // intentionally empty for now; not derived from headings
+          folio: `${k + 1} / ${p.pages.length}`,
+          recto: k % 2 === 0,
+          continued: !!first && first.from > 0,
+        };
+      });
+    }
+
+    // Render sheets based off of plan
+    function renderSheets(p, model) {
+      const need = p.pages.length;
+      const cells = [...sheets.children];
+
+      // Removes sheets that don't have page content
+      while (cells.length > need) cells.pop().remove();
+
+      while (cells.length < need) {
+        const sheet = document.createElement("div");
+        sheet.className = "sheet";
+
+        // Adds elements for headers and footers
+        for (const slot of ["head", "folio"]) {
+          const box = document.createElement("div");
+          box.className = "sheet-margin";
+          box.dataset.slot = slot;
+          sheet.append(box);
+        }
+
+        sheets.append(sheet);
+        cells.push(sheet);
+      }
+
+      cells.forEach((sheet, k) => {
+        const pg = p.pages[k];
+        const m = model[k];
+
+        sheet.style.top = pg.top + "px";
+        sheet.style.height = (pg.avail + 2 * p.pad) + "px"; // Pages height + padding
+
+        sheet.dataset.page = String(k + 1);
+        sheet.dataset.side = m.recto ? "recto" : "verso";
+        sheet.toggleAttribute("data-first", k === 0);
+        sheet.toggleAttribute("data-continued", m.continued);
+
+        sheet.querySelector('[data-slot="head"]').textContent = m.head || "";
+        sheet.querySelector('[data-slot="folio"]').textContent = m.folio || "";
+      });
+
+      const last = p.pages[need - 1];
+      stage.style.minHeight = (last.top + last.avail + 2 * p.pad) + "px";
+    }
+
+    // Rendering/reformatting logic:
+    let applying = false;
+    let timer = null;
+    let queued = false;
+    let lastRun = 0;
+
+    // Queue up the replanning and page change event
+    function schedule() {
+      if (queued || applying || Signals.composing) return;
+
+      queued = true;
+      const idle = performance.now() - lastRun > 350;
+
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          queued = false;
+          lastRun = performance.now();
+          refresh();
+        });
+      }, idle ? 0 : 120);
+    }
+
+    Signals.on("mutation", () => schedule());
+    Signals.on("resize", schedule);
+    Signals.on("compositionend", schedule);
+
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(schedule);
+
+    // Refresh setup starting from Plan to rendering sheets
+    let lastPlan = null;
+
+    function pageCount() {
+      return lastPlan && lastPlan.p ? lastPlan.p.pages.length : 1;
+    }
+
+    function refresh() {
+      if (applying) return;
+
+      applying = true;
+      try {
+        Signals.mute(() => {
+          const p = plan();
+          applySpacers(p);
+          const model = buildModel(p);
+          renderSheets(p, model);
+          lastPlan = {p};
+        });
+      } finally {
+        applying = false;
+      }
+      Signals.emit("layout", {pages: pageCount()});
+    }
+
+    // Render once immediately, then again after fonts settle.
+    refresh();
+
+
+  </script>
+<!-- /@asset -->
+
+
+  <!-- Document status: pages, words, dirty -->
+<!-- @asset id="status" kind="js" order="60" -->
+  <script id="status">
+    const Status = (() => {
+      const content = document.getElementById("content");
+      const storeEl = document.getElementById("figure-store");
+      const baseBytes = document.documentElement.outerHTML.length
+        - content.outerHTML.length
+        - (storeEl ? storeEl.textContent.length : 0);
+      let baseline = contentHtml();
+      let forced = false;
+      let lastSavedBytes = null;
+      let timer = null;
+
+      function contentHtml() {
+        const clone = content.cloneNode(true);
+        clone.querySelectorAll(".page-spacer").forEach((n) => n.remove());
+        // Runtime frames are derived; they must not make a saved document look
+        // dirty the moment a lazy island mounts.
+        clone.querySelectorAll("[data-runtime='ephemeral']").forEach((n) => n.replaceChildren());
+        clone.querySelectorAll("figure.figure").forEach((n) => {
+          n.removeAttribute("data-selected");
+          n.removeAttribute("data-mounted");
+          n.removeAttribute("data-missing");
+        });
+        return clone.innerHTML;
+      }
+
+      // Add a space at every text-node boundary so block-level elements do not
+      // merge adjacent words ("line 0line 1").
+      function wordCount(el) {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let text = "";
+        let node;
+        while ((node = walker.nextNode())) text += node.data + " ";
+        return text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean).length;
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1048576) return `${Math.round(bytes / 1024)} KB`;
+        return `${(bytes / 1048576).toFixed(1)} MB`;
+      }
+
+      function refresh() {
+        const words = wordCount(content);
+        const pages = typeof pageCount === "function" ? pageCount() : 1;
+        const html = contentHtml();
+        const storeBytes = window.Figures && Figures.savedStoreBytes
+          ? Figures.savedStoreBytes()
+          : (storeEl ? storeEl.textContent.length : 0);
+        // Approximation, not a serialize: the app chrome + styles + store +
+        // current canonical content. Cheap enough to run on the status debounce.
+        const estimated = baseBytes + html.length + storeBytes + 13;
+        const dirty = forced || html !== baseline;
+        const shown = !dirty && lastSavedBytes != null ? lastSavedBytes : estimated;
+        const exact = !dirty && lastSavedBytes != null;
+        document.querySelectorAll("[data-stats]").forEach((el) => {
+          el.textContent = `${pages} ${pages === 1 ? "page" : "pages"} · ${words} ${words === 1 ? "word" : "words"} · ${exact ? "" : "~"}${formatBytes(shown)}`;
+          el.title = exact ? "Size of the last saved file" : "Estimated saved file size";
+        });
+        document.querySelectorAll("[data-dirty]").forEach((el) => {
+          el.hidden = !dirty;
+        });
+      }
+
+      function schedule() {
+        clearTimeout(timer);
+        timer = setTimeout(refresh, 120);
+      }
+
+      function save(bytes = null) {
+        baseline = contentHtml();
+        forced = false;
+        lastSavedBytes = Number.isFinite(bytes) ? bytes : null;
+        refresh();
+      }
+
+      function markDirty() {
+        forced = true;
+        lastSavedBytes = null;
+        refresh();
+      }
+
+      Signals.on("mutation", schedule);
+      Signals.on("edit", schedule);
+      Signals.on("compositionend", schedule);
+      Signals.on("layout", refresh);
+      Signals.on("figures", () => {
+        lastSavedBytes = null;
+        schedule();
+      });
+
+      refresh();
+
+      return {refresh, save, markDirty};
+    })();
+  </script>
+<!-- /@asset -->
+
+  <!-- Rich text editing -->
+<!-- @asset id="editor" kind="js" order="70" -->
+  <script id="editor">
+    "use strict";
+
+    const Editor = (() => {
+      const content = document.getElementById("content");
+      const STATE = ["bold", "italic", "underline", "strikeThrough",
+        "superscript", "subscript", "insertUnorderedList", "insertOrderedList"];
+      const BLOCKS = ["h1", "h2", "h3", "blockquote", "pre"];
+      let saved = null;
+
+      const inside = (node) => !!node && content.contains(node);
+      const isSpacer = (n) => n.nodeType === Node.ELEMENT_NODE
+        && n.classList.contains("page-spacer");
+
+      // Resolve a block even when anchorNode is #content (Cmd+A, triple-click,
+      // or a caret in the empty area below the last block).
+      function blockAt(node, offset) {
+        if (!node) return null;
+        if (node === content) {
+          const kids = [...content.childNodes].filter((n) => !isSpacer(n));
+          const index = Math.max(0, Math.min(offset, kids.length - 1));
+          const child = kids[index];
+          if (!child) return null;
+          if (child.nodeType === Node.ELEMENT_NODE) return child;
+          const el = child.parentElement;
+          return el && el.closest("#content > *");
+        }
+        const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        if (!el || !inside(el)) return null;
+        return el.closest("#content > *");
+      }
+
+      function blockAtCaret() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return null;
+        const range = sel.getRangeAt(0);
+        return blockAt(range.startContainer, range.startOffset)
+          || blockAt(range.endContainer, range.endOffset);
+      }
+
+      function blocksInRange(range) {
+        return [...content.children].filter((el) => {
+          if (isSpacer(el)) return false;
+          try {return range.intersectsNode(el);} catch {return false;}
+        });
+      }
+
+      function listItemsInRange(range) {
+        const list = listAtCaret();
+        if (!list) return [];
+        return [...list.children].filter((li) => {
+          if (li.localName !== "li") return false;
+          try {return range.intersectsNode(li);} catch {return false;}
+        });
+      }
+
+      function remember() {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount && inside(sel.anchorNode)) {
+          saved = sel.getRangeAt(0).cloneRange();
+        }
+      }
+
+      function restore() {
+        if (!saved || !inside(saved.commonAncestorContainer)) return false;
+        content.focus();
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(saved);
+        return true;
+      }
+
+      function caretToEnd() {
+        content.focus();
+        const range = document.createRange();
+        range.selectNodeContents(content);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      function ensureSelection() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || !inside(sel.anchorNode)) {
+          if (!restore()) caretToEnd();
+        }
+      }
+
+      function selectNode(node) {
+        const range = document.createRange();
+        range.selectNode(node);
+        const sel = window.getSelection();
+        content.focus();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      function listAtCaret() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return null;
+        const range = sel.getRangeAt(0);
+        for (const [node, offset] of [
+          [range.startContainer, range.startOffset],
+          [range.endContainer, range.endOffset],
+        ]) {
+          const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+          if (!el || !inside(el)) continue;
+          const direct = el.closest("ul, ol");
+          if (direct) return direct;
+          const block = blockAt(node, offset);
+          if (block && (block.localName === "ul" || block.localName === "ol")) return block;
+          const nested = block && block.querySelector(":scope > ul, :scope > ol");
+          if (nested) return nested;
+        }
+        return null;
+      }
+
+      // Chrome nests a native list inside the current <p>/<h*>/<blockquote>.
+      // Switching the block to <div> first yields a valid list block instead.
+      function setList(type) {
+        ensureSelection();
+        history.syncSelection();
+        const cmd = type === "ul" ? "insertUnorderedList" : "insertOrderedList";
+        const sel = window.getSelection();
+        const range = sel.getRangeAt(0);
+        const list = listAtCaret();
+
+        if (list) {
+          const items = listItemsInRange(range);
+          if (list.localName === type) {
+            // A direct DOM transform is clean and history makes it undoable.
+            unwrapItems(items.length ? items : [...list.children]);
+          } else {
+            // ul <-> ol is native and mutually exclusive. A partial selection
+            // converts the whole list so markers stay consistent.
+            selectNode(list);
+            document.execCommand("styleWithCSS", false, false);
+            document.execCommand(cmd);
+          }
+        } else {
+          const blocks = blocksInRange(range);
+          if (blocks.length > 1) {
+            const full = document.createRange();
+            full.setStartBefore(blocks[0]);
+            full.setEndAfter(blocks[blocks.length - 1]);
+            sel.removeAllRanges();
+            sel.addRange(full);
+          }
+          const block = blockAtCaret();
+          if (!block) return;
+          if (block.localName !== "div") {
+            document.execCommand("formatBlock", false, "<div>");
+          }
+          document.execCommand("styleWithCSS", false, false);
+          document.execCommand(cmd);
+        }
+        remember();
+        flushTyping();
+        history.record();
+        syncToolbar();
+      }
+
+      const BLOCK_TAGS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6",
+        "BLOCKQUOTE", "PRE", "UL", "OL", "DIV", "TABLE", "FIGURE", "HR"]);
+
+      // Remove one <li> while keeping the surrounding items in lists.
+      function unwrapListItem(li) {
+        const list = li.parentElement;
+        if (!list) return null;
+        const items = [...list.children].filter((n) => n.localName === "li");
+        const index = items.indexOf(li);
+        const before = items.slice(0, index);
+        const after = items.slice(index + 1);
+        // <p> cannot legally contain a nested list; use <div> in that case.
+        const hasBlock = [...li.children].some((n) => BLOCK_TAGS.has(n.nodeName));
+        const block = document.createElement(hasBlock ? "div" : "p");
+        while (li.firstChild) block.append(li.firstChild);
+        const fragment = document.createDocumentFragment();
+        if (before.length) {
+          const ul = list.cloneNode(false);
+          before.forEach((item) => ul.append(item));
+          fragment.append(ul);
+        }
+        fragment.append(block);
+        if (after.length) {
+          const ul = list.cloneNode(false);
+          after.forEach((item) => ul.append(item));
+          fragment.append(ul);
+        }
+        list.replaceWith(fragment);
+        return block;
+      }
+
+      function unwrapItems(items) {
+        const blocks = [];
+        for (const li of [...items].reverse()) {
+          if (li.localName !== "li" || !li.parentElement) continue;
+          const block = unwrapListItem(li);
+          if (block) blocks.unshift(block);
+        }
+        if (!blocks.length) return;
+        const first = blocks[0];
+        const last = blocks[blocks.length - 1];
+        const range = document.createRange();
+        range.setStart(first, 0);
+        range.setEnd(last, last.childNodes.length);
+        const sel = window.getSelection();
+        content.focus();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      /* ---- undo/redo -------------------------------------------------- */
+
+      function childIndex(node) {
+        let index = 0;
+        for (let n = node.previousSibling; n; n = n.previousSibling) {
+          if (!isSpacer(n)) index++;
+        }
+        return index;
+      }
+
+      // Paths ignore generated spacers, so they match the snapshot HTML
+      // (which strips them) and survive a pagination pass.
+      function pathOf(node) {
+        const path = [];
+        let n = node;
+        while (n && n !== content) {
+          const parent = n.parentNode;
+          if (!parent) return null;
+          path.unshift(childIndex(n));
+          n = parent;
+        }
+        return n === content ? path : null;
+      }
+
+      function nodeAt(path) {
+        let n = content;
+        for (const index of path) {
+          let count = 0;
+          let next = null;
+          for (const child of n.childNodes) {
+            if (isSpacer(child)) continue;
+            if (count === index) {next = child; break;}
+            count++;
+          }
+          if (!next) return null;
+          n = next;
+        }
+        return n;
+      }
+
+      function spacerAncestor(node) {
+        if (!node) return null;
+        const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        return el && el.closest ? el.closest(".page-spacer") : null;
+      }
+
+      function captureSelection() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return null;
+        const range = sel.getRangeAt(0);
+        if (!inside(range.startContainer) || !inside(range.endContainer)) return null;
+        if (spacerAncestor(range.startContainer) || spacerAncestor(range.endContainer)) return null;
+        const a = pathOf(sel.anchorNode);
+        const f = pathOf(sel.focusNode);
+        if (!a || !f) return null;
+        return {a, ao: sel.anchorOffset, f, fo: sel.focusOffset};
+      }
+
+      function applySelection(saved) {
+        if (!saved) return;
+        const a = nodeAt(saved.a);
+        const f = nodeAt(saved.f);
+        if (!a || !f) return;
+        const clamp = (node, offset) => Math.max(0, Math.min(offset,
+          node.nodeType === Node.TEXT_NODE ? node.data.length : node.childNodes.length));
+        content.focus();
+        const live = window.getSelection();
+        live.setBaseAndExtent(a, clamp(a, saved.ao), f, clamp(f, saved.fo));
+      }
+
+      const history = (() => {
+        const stack = [];
+        const LIMIT = 50;
+        let index = -1;
+
+        function snapshot() {
+          const clone = content.cloneNode(true);
+          clone.querySelectorAll(".page-spacer").forEach((n) => n.remove());
+          // Runtime bytes are derived. Keeping an iframe (or its blob: URL) in
+          // an undo snapshot would restore a dead frame and pin the blob.
+          clone.querySelectorAll("[data-runtime='ephemeral']").forEach((n) => n.replaceChildren());
+          clone.querySelectorAll("figure.figure").forEach((n) => {
+            n.removeAttribute("data-selected");
+            n.removeAttribute("data-mounted");
+            n.removeAttribute("data-missing");
+          });
+          return {html: clone.innerHTML, sel: captureSelection()};
+        }
+
+        function record() {
+          const snap = snapshot();
+          if (index >= 0 && stack[index].html === snap.html) {
+            stack[index].sel = snap.sel;
+            return false;
+          }
+          stack.splice(index + 1);
+          stack.push(snap);
+          if (stack.length > LIMIT) stack.shift();
+          index = stack.length - 1;
+          return true;
+        }
+
+        // Keep the current snapshot's caret fresh without creating an entry.
+        function syncSelection() {
+          if (index < 0) return;
+          const sel = captureSelection();
+          if (sel) stack[index].sel = sel;
+        }
+
+        function restore(snap) {
+          if (window.Figures && window.Figures.unmountAll) window.Figures.unmountAll();
+          Signals.mute(() => {content.innerHTML = snap.html;});
+          applySelection(snap.sel);
+          remember();
+          syncToolbar();
+          Status.refresh();
+          if (typeof schedule === "function") schedule();
+          if (window.Figures && window.Figures.scan) window.Figures.scan();
+        }
+
+        function undo() {
+          if (index <= 0) return false;
+          index--;
+          restore(stack[index]);
+          return true;
+        }
+
+        function redo() {
+          if (index >= stack.length - 1) return false;
+          index++;
+          restore(stack[index]);
+          return true;
+        }
+
+        return {
+          reset() {stack.length = 0; index = -1; record();},
+          record,
+          syncSelection,
+          undo,
+          redo,
+          get canUndo() {return index > 0;},
+          get canRedo() {return index < stack.length - 1;},
+        };
+      })();
+
+      // A typing burst is one undo step: record only after 400ms of no input.
+      let typingTimer = null;
+
+      function flushTyping() {
+        if (typingTimer) {
+          clearTimeout(typingTimer);
+          typingTimer = null;
+        }
+      }
+
+      function scheduleTyping() {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+          typingTimer = null;
+          history.record();
+        }, 400);
+      }
+
+      function exec(name, value = null) {
+        if (name === "insertUnorderedList") return setList("ul");
+        if (name === "insertOrderedList") return setList("ol");
+        if (name === "undo") return history.undo();
+        if (name === "redo") return history.redo();
+        ensureSelection();
+        history.syncSelection();
+        document.execCommand("styleWithCSS", false, false);
+        let ok = false;
+        try {ok = document.execCommand(name, false, value);}
+        catch (err) {console.warn("execCommand failed:", name, err);}
+        remember();
+        flushTyping();
+        history.record();
+        syncToolbar();
+        return ok;
+      }
+
+      function setBlock(tag) {
+        exec("formatBlock", `<${tag}>`);
+      }
+
+      /* Insert an atomic block after the block at the caret. Never split the
+         current text node: that is the caret rule the pagination engine is
+         built on. Returns the inserted node. */
+      function insertBlock(node, {after = null, select = false} = {}) {
+        if (!node) return null;
+        const current = after || blockAtCaret();
+        if (current && current.parentElement === content) current.after(node);
+        else content.append(node);
+
+        flushTyping();
+        history.record();
+        syncToolbar();
+        Status.markDirty();
+        if (select && node.nodeType === Node.ELEMENT_NODE) selectNode(node);
+        if (typeof schedule === "function") schedule();
+        return node;
+      }
+
+      function syncToolbar() {
+        for (const cmd of STATE) {
+          let on = false;
+          try {on = document.queryCommandState(cmd);} catch { }
+          document.querySelectorAll(`[data-cmd="${cmd}"]`).forEach((btn) => {
+            btn.setAttribute("aria-pressed", String(on));
+          });
+        }
+
+        document.querySelectorAll('[data-cmd="undo"]').forEach((btn) => {
+          btn.disabled = !history.canUndo;
+        });
+        document.querySelectorAll('[data-cmd="redo"]').forEach((btn) => {
+          btn.disabled = !history.canRedo;
+        });
+
+        const block = blockAtCaret();
+        if (!block) return;
+        const value = BLOCKS.includes(block.localName) ? block.localName : "p";
+        document.querySelectorAll("[data-block]").forEach((el) => {
+          if (el.value !== value) el.value = value;
+        });
+        document.querySelectorAll("[data-block-set]").forEach((btn) => {
+          btn.setAttribute("aria-pressed", String(btn.dataset.blockSet === value));
+        });
+      }
+
+      function setFontSize(size) {
+        document.getElementById("user-theme").textContent = `:root{--doc-size:${size}}`;
+        document.querySelectorAll("[data-fontsize]").forEach((el) => {el.value = size;});
+        Status.markDirty();
+        if (typeof schedule === "function") schedule();
+      }
+
+      function openLink() {
+        if (!restore()) caretToEnd();
+        history.syncSelection();
+        const sel = window.getSelection();
+        let node = sel.anchorNode;
+        if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+        const anchor = node && node.closest ? node.closest("a") : null;
+        const url = window.prompt("Link URL", anchor ? anchor.getAttribute("href") || "" : "");
+        if (url === null) return;
+        if (!restore()) caretToEnd();
+        if (!url.trim()) document.execCommand("unlink");
+        else if (anchor) anchor.setAttribute("href", url.trim());
+        else document.execCommand("createLink", false, url.trim());
+        remember();
+        flushTyping();
+        history.record();
+        syncToolbar();
+      }
+
+      function init() {
+        try {document.execCommand("defaultParagraphSeparator", false, "p");} catch { }
+        document.addEventListener("selectionchange", () => {
+          remember();
+          syncToolbar();
+          history.syncSelection();
+        });
+        Signals.on("beforeinput", () => history.syncSelection());
+        Signals.on("edit", scheduleTyping);
+        Signals.on("compositionend", () => {
+          flushTyping();
+          history.record();
+        });
+        content.addEventListener("blur", () => {
+          flushTyping();
+          history.record();
+        });
+        history.reset();
+      }
+
+      return {init, exec, setBlock, setList, syncToolbar, setFontSize, openLink, remember, restore, history, blockAt, blockAtCaret, insertBlock};
+    })();
+
+    Editor.init();
+  </script>
+<!-- /@asset -->
+
+  <!-- Figures: import, inert storage, lazy mounting, scaling.
+       Data lives in #figure-store as escaped JSON; the DOM holds only an
+       id and an empty frame. -->
+<!-- @asset id="figures" kind="js" order="80" -->
+  <script id="figures">
+    "use strict";
+
+    const Figures = (() => {
+      const content = document.getElementById("content");
+      const viewport = document.getElementById("viewport");
+      const storeEl = document.getElementById("figure-store");
+      const input = document.querySelector("[data-figure-input]");
+      const tools = document.getElementById("figure-tools");
+      const toolsW = tools && tools.querySelector("[data-figure-w-value]");
+      const toolsH = tools && tools.querySelector("[data-figure-h-value]");
+
+      const VERSION = 1;
+      const STORE_EMPTY_BYTES = JSON.stringify({version: VERSION, figures: {}})
+        .replace(/</g, "\\u003c").length;
+      const MAX_EDGE = 1600;
+      const WARN_BYTES = 12 * 1024 * 1024;
+      const MIN_SCALE = 0.2;
+      const MAX_SCALE = 1;
+      const DEFAULT_SIZE = {
+        image: {w: 0.8, h: "auto"},
+        html: {w: 1, h: 0.72},
+        media: {w: 1, h: 0.6},
+      };
+      /* srcdoc + opaque origin: the figure's module scripts and WebAssembly
+         still run, its export buttons still download, and it cannot touch
+         parent.document. blob: + allow-same-origin was the old recipe; it
+         forces every imported figure to be same-origin with the app. */
+      const SANDBOX = "allow-scripts allow-downloads";
+
+      /* Export-only snapshot support. The shim only TAGS WebGL canvases; it
+         never changes their context attributes. The bridge is a message
+         listener; the serializer itself is sent only when an export asks for
+         it. */
+      const SNAPSHOT_SHIM = `(function(){
+  var orig = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function(type, attrs){
+    var ctx = orig.call(this, type, attrs);
+    if (ctx && (type === "webgl" || type === "webgl2" || type === "experimental-webgl")) {
+      this.setAttribute("data-webgl", "");
+    }
+    return ctx;
+  };
+})();`;
+      const SNAPSHOT_BRIDGE = `(function(){
+  function reply(id, msg){
+    parent.postMessage(Object.assign({type:"figure-snapshot-result", id:id}, msg), "*");
+  }
+  addEventListener("message", async function(e){
+    var d = e.data || {};
+    if (!d.id || !d.type || d.type.indexOf("figure-") !== 0) return;
+    if (d.type === "figure-ping") {
+      reply(d.id, {ok:true, pong:true, width:innerWidth, height:innerHeight});
+      return;
+    }
+    if (d.type !== "figure-snapshot") return;
+    var started = performance.now();
+    var note = function(step, ms){
+      parent.postMessage({type:"figure-snapshot-progress", id:d.id, step:step,
+        ms: ms == null ? performance.now() - started : ms}, "*");
+    };
+    var realRaf = window.requestAnimationFrame;
+    var realToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    try {
+      note("start");
+      if (!window.htmlToImage && d.lib) (0, eval)(d.lib);
+      var lib = window.htmlToImage;
+      if (!lib) throw new Error("html-to-image did not install");
+      note("lib");
+      if (document.readyState !== "complete") {
+        await Promise.race([
+          new Promise(function(res){ addEventListener("load", res, {once:true}); }),
+          new Promise(function(res){ setTimeout(res, 3000); }),
+        ]);
+      }
+      note("load");
+      if (document.fonts && document.fonts.ready) {
+        await Promise.race([document.fonts.ready, new Promise(function(res){ setTimeout(res, 800); })]);
+      }
+      note("fonts");
+      var pending = [];
+      for (var img of document.images) {
+        if (!img.complete) pending.push(new Promise(function(res){
+          img.addEventListener("load", res, {once:true});
+          img.addEventListener("error", res, {once:true});
+        }));
+      }
+      if (pending.length) await Promise.race([
+        Promise.all(pending), new Promise(function(res){ setTimeout(res, 1500); })
+      ]);
+      note("images");
+      await new Promise(function(res){ setTimeout(res, 50); });
+
+      /* Without preserveDrawingBuffer, toDataURL is blank from a task but
+         valid inside requestAnimationFrame after the app's draw. Capture the
+         WebGL canvases there, then make html-to-image reuse those URLs. */
+      var glCanvases = Array.prototype.slice.call(document.querySelectorAll("canvas[data-webgl]"));
+      var glUrls = new Map();
+      if (glCanvases.length) {
+        note("webgl");
+        await new Promise(function(res){
+          var done = false;
+          var finish = function(){ if (!done) { done = true; res(); } };
+          realRaf.call(window, function(){
+            for (var i = 0; i < glCanvases.length; i++) {
+              try {
+                var u = glCanvases[i].toDataURL();
+                if (u && u !== "data:,") glUrls.set(glCanvases[i], u);
+              } catch (err) { /* leave to html-to-image */ }
+            }
+            finish();
+          });
+          setTimeout(finish, 1200);
+        });
+      }
+
+      var opts = {
+        width: Math.max(1, innerWidth),
+        height: Math.max(1, innerHeight),
+        pixelRatio: d.pixelRatio || 2,
+        backgroundColor: d.background || "#ffffff",
+        cacheBust: false,
+      };
+      note("tocanvas");
+      /* html-to-image waits one rAF before decoding; a timer works in
+         offscreen/throttled islands. */
+      window.requestAnimationFrame = function(cb){
+        return setTimeout(function(){ cb(performance.now()); }, 16);
+      };
+      if (glUrls.size) {
+        HTMLCanvasElement.prototype.toDataURL = function(){
+          if (glUrls.has(this)) return glUrls.get(this);
+          return realToDataURL.apply(this, arguments);
+        };
+      }
+      var canvas = await Promise.race([
+        lib.toCanvas(document.body, opts),
+        new Promise(function(_, rej){ setTimeout(function(){ rej(new Error("toCanvas timeout")); }, 20000); }),
+      ]);
+      var dataUrl = canvas.toDataURL(d.format === "png" ? "image/png" : "image/webp", d.quality || 0.9);
+      note("done");
+      reply(d.id, {ok:true, dataUrl:dataUrl, width:opts.width, height:opts.height,
+        pixelRatio:opts.pixelRatio, ms:performance.now() - started});
+    } catch (err) {
+      note("error");
+      reply(d.id, {ok:false, error:String(err && err.stack || err), ms:performance.now() - started});
+    } finally {
+      window.requestAnimationFrame = realRaf;
+      HTMLCanvasElement.prototype.toDataURL = realToDataURL;
+    }
+  });
+})();`;
+      const SNAPSHOT_TAG = "<script>" + SNAPSHOT_SHIM + "</" + "script><script>" + SNAPSHOT_BRIDGE + "</" + "script>";
+
+      let store = {version: VERSION, figures: {}};
+      let observer = null;
+      let observing = true;
+      let selected = null;
+      let pickKind = "any";
+      let pickTrusted = false;
+      let scanTimer = null;
+      const mounted = new Map(); // <figure> -> {url, el}
+      const sizeCache = new Map(); // store-id -> serialized entry length
+      const snapshotWaiters = new Map(); // request id -> {resolve, timer, onProgress}
+      let snapshotSeq = 0;
+
+      function blank() {
+        return {version: VERSION, figures: {}};
+      }
+
+      function readStore() {
+        if (!storeEl) return blank();
+        try {
+          const parsed = JSON.parse(storeEl.textContent || "{}");
+          if (!parsed || typeof parsed !== "object") return blank();
+          if (!parsed.figures || typeof parsed.figures !== "object") parsed.figures = {};
+          parsed.version = Number(parsed.version) || VERSION;
+          return parsed;
+        } catch (err) {
+          console.warn("figure-store is not valid JSON; starting empty", err);
+          return blank();
+        }
+      }
+
+      /* Escape `<` so an island containing the literal end-of-script tag cannot
+         terminate its own JSON container. JSON.parse restores it on load. */
+      function syncStore() {
+        if (storeEl) storeEl.textContent = JSON.stringify(store).replace(/</g, "\\u003c");
+        Signals.emit("figures");
+      }
+
+      function storeJSON() {
+        return JSON.stringify(store).replace(/</g, "\\u003c");
+      }
+
+      function storeBytes() {
+        return byteLength(storeJSON());
+      }
+
+      function entryBytes(entry) {
+        if (!entry) return 0;
+        let size = sizeCache.get(entry.id);
+        if (size == null) {
+          size = byteLength(JSON.stringify(entry).replace(/</g, "\\u003c"));
+          sizeCache.set(entry.id, size);
+        }
+        return size;
+      }
+
+      /* Size of what a save would actually contain: only figures currently in
+         the document, plus the sources they reference. This walks the figures
+         and sums cached per-entry sizes; it does not stringify the store. A
+         deleted figure therefore drops out of the estimate immediately, while
+         its source remains in the live store for undo. */
+      function savedStoreBytes() {
+        const seen = new Set();
+        let total = STORE_EMPTY_BYTES;
+        let count = 0;
+        const add = (id) => {
+          if (!id || seen.has(id)) return;
+          const entry = store.figures[id];
+          if (!entry) return;
+          seen.add(id);
+          total += entryBytes(entry) + byteLength(JSON.stringify(entry.id)) + 1 + (count ? 1 : 0);
+          count++;
+          if (entry.sourceId) add(entry.sourceId);
+        };
+        content.querySelectorAll("figure[data-figure-id]").forEach((figure) => {
+          add(figure.dataset.figureId);
+        });
+        return total;
+      }
+
+      function byteLength(str) {
+        try {return new Blob([str]).size;} catch {return str.length;}
+      }
+
+      function hashString(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 0x01000193);
+        }
+        return (h >>> 0).toString(16).padStart(8, "0");
+      }
+
+      function uid() {
+        let id;
+        do {
+          const rnd = globalThis.crypto && crypto.randomUUID
+            ? crypto.randomUUID().replace(/-/g, "").slice(0, 10)
+            : Math.random().toString(36).slice(2, 12);
+          id = "fig-" + rnd;
+        } while (store.figures[id]);
+        return id;
+      }
+
+      function readDataURL(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error || new Error("read failed"));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function dataUrlText(src) {
+        const comma = src.indexOf(",");
+        if (comma < 0) return "";
+        const meta = src.slice(0, comma);
+        const data = src.slice(comma + 1);
+        if (/;base64/i.test(meta)) {
+          const binary = atob(data);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          return new TextDecoder().decode(bytes);
+        }
+        return decodeURIComponent(data);
+      }
+
+      function dataUrlBytes(src) {
+        const comma = src.indexOf(",");
+        if (comma < 0) return byteLength(src);
+        const meta = src.slice(0, comma);
+        const data = src.slice(comma + 1);
+        if (/;base64/i.test(meta)) {
+          const padding = data.endsWith("==") ? 2 : data.endsWith("=") ? 1 : 0;
+          return Math.max(0, Math.floor((data.length * 3) / 4) - padding);
+        }
+        return byteLength(decodeURIComponent(data));
+      }
+
+      function resolveEntry(entry) {
+        if (!entry) return null;
+        if (entry.src) return entry;
+        return store.figures[entry.sourceId] || entry;
+      }
+
+      function findSource(entry) {
+        for (const candidate of Object.values(store.figures)) {
+          if (candidate.src && candidate.kind === entry.kind && candidate.hash === entry.hash) {
+            return candidate;
+          }
+        }
+        return null;
+      }
+
+      function guessMime(name) {
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        return ({
+          png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
+          webp: "image/webp", avif: "image/avif", svg: "image/svg+xml", bmp: "image/bmp",
+          html: "text/html", htm: "text/html",
+          mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+          mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", m4a: "audio/mp4",
+        })[ext] || "";
+      }
+
+      function kindOf(file) {
+        const mime = file.type || guessMime(file.name || "");
+        const name = (file.name || "").toLowerCase();
+        if (mime.startsWith("image/")) return "image";
+        if (mime === "text/html" || /\.html?$/.test(name)) return "html";
+        if (mime.startsWith("video/") || mime.startsWith("audio/")) return "media";
+        return null;
+      }
+
+      function svgSize(text) {
+        try {
+          const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+          const svg = doc.documentElement;
+          if (!svg || svg.localName.toLowerCase() !== "svg") return null;
+          const w = parseFloat(svg.getAttribute("width"));
+          const h = parseFloat(svg.getAttribute("height"));
+          if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+            return {width: w, height: h};
+          }
+          const vb = (svg.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(Number);
+          if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) {
+            return {width: vb[2], height: vb[3]};
+          }
+        } catch { /* malformed SVG */ }
+        return null;
+      }
+
+      function dataUrlSize(src) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve({
+            width: img.naturalWidth || 1200,
+            height: img.naturalHeight || 800,
+          });
+          img.onerror = () => resolve({width: 1200, height: 800});
+          img.src = src;
+        });
+      }
+
+      function loadImage(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("image decode failed"));
+          img.src = src;
+        });
+      }
+
+      /* Images are downscaled before storage. GIF stays untouched so animation
+         survives; SVG stays vector and is never rasterised. Decoding goes
+         through <img> rather than createImageBitmap: the latter can reject or
+         stall on some file/worker combinations, and it gains us nothing here. */
+      async function imagePayload(file) {
+        const mime = file.type || guessMime(file.name || "") || "image/png";
+        const isSvg = mime === "image/svg+xml" || /\.svg$/i.test(file.name || "");
+        if (isSvg) {
+          const src = await readDataURL(file);
+          const size = svgSize(dataUrlText(src)) || {width: 1200, height: 800};
+          return {src, mime: "image/svg+xml", ...size, storedBytes: dataUrlBytes(src), encoded: false};
+        }
+
+        const original = await readDataURL(file);
+        let img = null;
+        try {img = await loadImage(original);} catch { /* size fallback below */ }
+        let width = img ? img.naturalWidth : 0;
+        let height = img ? img.naturalHeight : 0;
+        let bestSrc = original;
+        let bestMime = mime;
+        let bestBytes = dataUrlBytes(original);
+        let encoded = false;
+
+        const tooBig = width > MAX_EDGE || height > MAX_EDGE;
+        const worthEncoding = bestBytes > 24 * 1024;
+        if (img && mime !== "image/gif" && (tooBig || worthEncoding)) {
+          const ratio = tooBig ? Math.min(1, MAX_EDGE / Math.max(width, height)) : 1;
+          const cw = Math.max(1, Math.round(width * ratio));
+          const ch = Math.max(1, Math.round(height * ratio));
+          const canvas = document.createElement("canvas");
+          canvas.width = cw;
+          canvas.height = ch;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, cw, ch);
+
+            // PNG may carry alpha, so never flatten it to JPEG. WebP keeps
+            // alpha and is usually much smaller. Opaque sources try both.
+            const candidates = mime === "image/png"
+              ? [["image/webp", 0.9]]
+              : [["image/webp", 0.82], ["image/jpeg", 0.82]];
+            for (const [format, quality] of candidates) {
+              const candidate = canvas.toDataURL(format, quality);
+              if (!candidate.startsWith(`data:${format}`)) continue;
+              const bytes = dataUrlBytes(candidate);
+              if (bytes < bestBytes) {
+                bestSrc = candidate;
+                bestMime = format;
+                bestBytes = bytes;
+                encoded = true;
+              }
+            }
+            if (encoded) {
+              width = cw;
+              height = ch;
+            }
+          }
+        }
+
+        if (!width || !height) {
+          const size = await dataUrlSize(bestSrc);
+          width = size.width;
+          height = size.height;
+        }
+        return {
+          src: bestSrc,
+          mime: bestMime,
+          width: width || 1200,
+          height: height || 800,
+          storedBytes: bestBytes,
+          encoded,
+        };
+      }
+
+      async function makeEntry(file, kind, {trusted = false} = {}) {
+        const name = file.name || `${kind}-${Date.now()}`;
+        const entry = {
+          id: uid(),
+          kind,
+          name,
+          mime: file.type || guessMime(name),
+          bytes: file.size || 0,
+          hash: "",
+          src: "",
+          width: 0,
+          height: 0,
+        };
+        if (trusted) entry.trusted = true;
+
+        if (kind === "image") {
+          Object.assign(entry, await imagePayload(file));
+        } else if (kind === "html") {
+          entry.src = dataUrlText(await readDataURL(file));
+          entry.mime = "text/html";
+          entry.storedBytes = byteLength(entry.src);
+        } else if (kind === "media") {
+          entry.src = await readDataURL(file);
+          entry.media = (file.type || "").startsWith("audio/") ? "audio" : "video";
+          entry.storedBytes = dataUrlBytes(entry.src);
+        }
+
+        entry.hash = hashString(entry.src);
+        entry.bytes = file.size || byteLength(entry.src);
+        if (entry.bytes > WARN_BYTES) {
+          console.warn(`Figure ${name} is ${(entry.bytes / 1048576).toFixed(1)} MB; saved files will grow by about that much.`);
+        }
+
+        // Share the bytes of an identical source. The second figure keeps its
+        // own id, caption and size, but points at the first entry's src.
+        const shared = findSource(entry);
+        if (shared) {
+          entry.sourceId = shared.id;
+          entry.mime = shared.mime;
+          entry.width = shared.width;
+          entry.height = shared.height;
+          entry.bytes = shared.bytes;
+          entry.storedBytes = 0;
+          delete entry.src;
+        } else {
+          if (!entry.storedBytes) entry.storedBytes = byteLength(entry.src);
+        }
+
+        store.figures[entry.id] = entry;
+        syncStore();
+        return entry;
+      }
+
+      function defaultCaption(entry) {
+        const base = (entry.name || "").replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+        return base || (entry.kind === "image" ? "Image" : "Figure");
+      }
+
+      function createFigure(entry) {
+        const figure = document.createElement("figure");
+        figure.className = "figure";
+        figure.dataset.figureId = entry.id;
+        figure.dataset.kind = entry.kind;
+        if (entry.media) figure.dataset.media = entry.media;
+        if (entry.trusted) figure.dataset.trusted = "1";
+        figure.setAttribute("contenteditable", "false");
+
+        const defaults = DEFAULT_SIZE[entry.kind] || {w: 1, h: 0.72};
+        const width = defaults.w;
+        const height = entry.kind === "media" && entry.media === "audio" ? "auto" : defaults.h;
+        figure.dataset.w = String(width);
+        figure.dataset.h = String(height);
+        figure.dataset.scale = String(width);
+        figure.style.setProperty("--figure-w", String(width));
+        figure.style.setProperty("--figure-scale", String(width));
+        if (height !== "auto") figure.style.setProperty("--figure-h", String(height));
+        if (entry.kind === "image") {
+          const source = resolveEntry(entry);
+          figure.style.setProperty("--figure-aspect", `${source.width || 16} / ${source.height || 9}`);
+        }
+
+        const frame = document.createElement("div");
+        frame.className = "figure-frame";
+        frame.dataset.runtime = "ephemeral";
+
+        const caption = document.createElement("figcaption");
+        caption.setAttribute("contenteditable", "true");
+        caption.textContent = defaultCaption(entry);
+
+        figure.append(frame, caption);
+        return figure;
+      }
+
+      /* data-w/data-h are the persisted size. data-scale is kept as the old
+         width alias so files saved before this change still load. */
+      function normaliseScale(figure) {
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const kind = (stored && stored.kind) || figure.dataset.kind;
+        const defaults = DEFAULT_SIZE[kind] || {w: 1, h: 0.72};
+        const legacy = parseFloat(figure.dataset.scale);
+        const rawW = parseFloat(figure.dataset.w);
+        const width = Math.max(MIN_SCALE, Math.min(MAX_SCALE,
+          Number.isFinite(rawW) ? rawW : Number.isFinite(legacy) ? legacy : defaults.w));
+
+        const rawH = figure.dataset.h;
+        let height = rawH === "auto" ? "auto" : parseFloat(rawH);
+        if (height !== "auto" && !Number.isFinite(height)) height = defaults.h;
+
+        figure.dataset.w = String(width);
+        figure.dataset.scale = String(width);
+        figure.style.setProperty("--figure-w", String(width));
+        figure.style.setProperty("--figure-scale", String(width));
+
+        if (height === "auto") {
+          figure.dataset.h = "auto";
+          figure.style.removeProperty("--figure-h");
+        } else {
+          const h = Math.max(MIN_SCALE, Math.min(MAX_SCALE, height));
+          figure.dataset.h = String(h);
+          figure.style.setProperty("--figure-h", String(h));
+        }
+
+        if (entry && entry.kind === "image") {
+          figure.style.setProperty("--figure-aspect", `${entry.width || 16} / ${entry.height || 9}`);
+        }
+      }
+
+      function htmlDocument(src) {
+        const html = /<html[\s>]/i.test(src) ? src
+          : `<!doctype html><html><head><meta charset="utf-8">`
+            + `<style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif}</style>`
+            + `</head><body>${src}</body></html>`;
+        if (html.includes("data-figure-bridge")) return html;
+        const tag = SNAPSHOT_TAG.replace("<script>", "<script data-figure-bridge>", 1);
+        const head = html.match(/<head[^>]*>/i);
+        if (head) {
+          const at = head.index + head[0].length;
+          return html.slice(0, at) + tag + html.slice(at);
+        }
+        const doctype = html.match(/<!doctype[^>]*>/i);
+        if (doctype) {
+          const at = doctype.index + doctype[0].length;
+          return html.slice(0, at) + tag + html.slice(at);
+        }
+        return tag + html;
+      }
+
+      function mount(figure) {
+        if (!figure || !figure.isConnected) return;
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const frame = figure.querySelector(".figure-frame");
+        if (!entry || !frame) {
+          figure.dataset.missing = "";
+          return;
+        }
+        figure.removeAttribute("data-missing");
+        if (frame.firstElementChild) {
+          figure.dataset.mounted = "";
+          return;
+        }
+
+        if (entry.kind === "image") {
+          const img = new Image();
+          img.decoding = "async";
+          img.alt = (figure.querySelector("figcaption")?.textContent || entry.name || "").trim();
+          img.src = entry.src;
+          frame.append(img);
+        } else if (entry.kind === "html") {
+          const iframe = document.createElement("iframe");
+          /* Mounting is already gated by IntersectionObserver. Native
+             loading=lazy on srcdoc can defer the very island we just decided
+             to mount, so it is deliberately not used here. */
+          iframe.setAttribute("sandbox", stored && stored.trusted ? `${SANDBOX} allow-same-origin` : SANDBOX);
+          iframe.setAttribute("title", entry.name || "Embedded figure");
+          iframe.setAttribute("referrerpolicy", "no-referrer");
+          iframe.srcdoc = htmlDocument(entry.src);
+          frame.append(iframe);
+          mounted.set(figure, {el: iframe});
+        } else if (entry.kind === "media") {
+          const el = document.createElement(entry.media === "audio" ? "audio" : "video");
+          el.controls = true;
+          el.preload = "metadata";
+          el.src = entry.src;
+          if (entry.media === "video") el.playsInline = true;
+          frame.append(el);
+        }
+        figure.dataset.mounted = "";
+      }
+
+      function unmount(figure) {
+        const rec = mounted.get(figure);
+        if (rec) {
+          if (rec.url) URL.revokeObjectURL(rec.url);
+          rec.el.remove();
+          mounted.delete(figure);
+        }
+        const media = figure && figure.querySelector(".figure-frame video, .figure-frame audio");
+        if (media) {
+          try {media.pause();} catch { }
+          media.removeAttribute("src");
+          try {media.load();} catch { }
+          media.remove();
+        }
+        if (figure) delete figure.dataset.mounted;
+      }
+
+      function unmountAll() {
+        for (const figure of [...mounted.keys()]) unmount(figure);
+        if (observer) observer.disconnect();
+      }
+
+      /* ---- export-only snapshots ----------------------------------------
+         The bridge is injected into every HTML island's srcdoc. It answers
+         ping/snapshot messages. The serializer source is supplied by the
+         Export module only when a static export starts. */
+      function onSnapshotMessage(event) {
+        const data = event.data;
+        if (!data || !data.id) return;
+        const waiter = snapshotWaiters.get(data.id);
+        if (!waiter) return;
+        if (data.type === "figure-snapshot-progress") {
+          if (waiter.onProgress) waiter.onProgress(data);
+          return;
+        }
+        if (data.type !== "figure-snapshot-result") return;
+        snapshotWaiters.delete(data.id);
+        clearTimeout(waiter.timer);
+        waiter.resolve(data);
+      }
+      window.addEventListener("message", onSnapshotMessage);
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function requestSnapshot(win, message, timeout = 30000, onProgress = null) {
+        return new Promise((resolve) => {
+          const id = "snap-" + (++snapshotSeq) + "-" + Math.random().toString(36).slice(2);
+          const timer = setTimeout(() => {
+            snapshotWaiters.delete(id);
+            resolve({ok: false, timeout: true, error: "snapshot timed out"});
+          }, timeout);
+          snapshotWaiters.set(id, {resolve, timer, onProgress});
+          try {
+            win.postMessage(Object.assign({id}, message), "*");
+          } catch (err) {
+            snapshotWaiters.delete(id);
+            clearTimeout(timer);
+            resolve({ok: false, error: String(err)});
+          }
+        });
+      }
+
+      async function waitForBridge(win, tries = 60) {
+        for (let i = 0; i < tries; i++) {
+          const res = await requestSnapshot(win, {type: "figure-ping"}, 400);
+          if (res.ok) return res;
+          await sleep(100);
+        }
+        return {ok: false, error: "snapshot bridge did not answer"};
+      }
+
+      function videoSnapshot(figure) {
+        const video = figure.querySelector(".figure-frame video");
+        if (!video || !video.videoWidth) return null;
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+          return canvas.toDataURL("image/webp", 0.9);
+        } catch (err) {
+          return null;
+        }
+      }
+
+      async function snapshot(figure, options = {}) {
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const kind = (stored && stored.kind) || figure.dataset.kind;
+        if (!entry) return {ok: false, error: "figure source is missing"};
+
+        if (kind === "image") {
+          return {ok: true, dataUrl: entry.src, width: entry.width, height: entry.height,
+            engine: "image-src"};
+        }
+
+        if (kind === "media") {
+          if (entry.media === "audio") {
+            return {ok: false, error: "audio has no visual snapshot"};
+          }
+          const dataUrl = videoSnapshot(figure);
+          return dataUrl
+            ? {ok: true, dataUrl, engine: "video-frame"}
+            : {ok: false, error: "video frame is not ready"};
+        }
+
+        const iframe = figure.querySelector(".figure-frame iframe");
+        if (!iframe) return {ok: false, error: "island is not mounted"};
+        const ping = await waitForBridge(iframe.contentWindow);
+        if (!ping.ok) return {ok: false, error: ping.error || "island did not answer"};
+        return requestSnapshot(iframe.contentWindow, {
+          type: "figure-snapshot",
+          lib: options.lib || "",
+          pixelRatio: options.pixelRatio || 2,
+          format: options.format || "webp",
+          quality: options.quality == null ? 0.9 : options.quality,
+          background: options.background || "#ffffff",
+        }, options.timeout || 30000, options.onProgress);
+      }
+
+      function suspendObserver() {
+        observing = false;
+        if (observer) observer.disconnect();
+      }
+
+      function resumeObserver() {
+        observing = true;
+        scan();
+      }
+
+      function scrollIntoViewForCapture(figure) {
+        const rect = figure.getBoundingClientRect();
+        if (rect.top >= 0 && rect.bottom <= window.innerHeight) return null;
+        const previous = viewport.scrollTop;
+        viewport.scrollTop += rect.top - 80;
+        return previous;
+      }
+
+      async function captureAll(options = {}) {
+        const figures = [...content.querySelectorAll("figure.figure")];
+        const out = [];
+        const mountedForExport = new Set();
+        suspendObserver();
+        try {
+          for (let i = 0; i < figures.length; i++) {
+            if (options.signal && options.signal.aborted) break;
+            const figure = figures[i];
+            const kind = figure.dataset.kind;
+            const progress = options.onProgress;
+            if (progress) progress({phase: "mount", index: i + 1, total: figures.length, figure});
+
+            const wasMounted = !!figure.querySelector(".figure-frame iframe, .figure-frame video");
+            if ((kind === "html" || kind === "media") && !wasMounted) {
+              mount(figure);
+              mountedForExport.add(figure);
+            }
+
+            let previousScroll = null;
+            if (kind === "html") {
+              previousScroll = scrollIntoViewForCapture(figure);
+              if (previousScroll != null) await sleep(120);
+            }
+
+            let capture;
+            try {
+              capture = await snapshot(figure, {
+                lib: options.lib,
+                pixelRatio: options.pixelRatio,
+                format: options.format,
+                quality: options.quality,
+                onProgress: progress ? (p) => progress({
+                  phase: "capture", index: i + 1, total: figures.length,
+                  step: p.step, ms: p.ms, figure,
+                }) : null,
+              });
+            } catch (err) {
+              capture = {ok: false, error: String(err && err.message || err)};
+            }
+
+            if (previousScroll != null) viewport.scrollTop = previousScroll;
+            out.push(Object.assign({figure, id: figure.dataset.figureId, kind}, capture));
+
+            if (mountedForExport.has(figure)) {
+              unmount(figure);
+              mountedForExport.delete(figure);
+            }
+          }
+        } finally {
+          for (const figure of [...mountedForExport]) unmount(figure);
+          resumeObserver();
+          if (options.onProgress) options.onProgress({phase: "done", total: figures.length});
+        }
+        return out;
+      }
+
+      /* Developer/test switches. Normal operation never calls these; they make
+         a single figure's mount/unmount observable without scroll timing. */
+      function pause() {
+        observing = false;
+        if (observer) observer.disconnect();
+        scan();
+      }
+
+      function resume() {
+        observing = true;
+        scan();
+      }
+
+      function scan() {
+        const figures = [...content.querySelectorAll("figure.figure")];
+        for (const figure of figures) {
+          const entry = store.figures[figure.dataset.figureId];
+          if (!entry) {
+            figure.dataset.missing = "";
+            continue;
+          }
+          figure.removeAttribute("data-missing");
+          normaliseScale(figure);
+
+          if (entry.kind === "image") {
+            mount(figure);
+            continue;
+          }
+          if (!observer || !observing) {
+            mount(figure);
+          } else {
+            observer.observe(figure);
+          }
+        }
+
+        for (const figure of [...mounted.keys()]) {
+          if (!figure.isConnected || !content.contains(figure)) unmount(figure);
+        }
+        if (selected && !selected.isConnected) select(null);
+      }
+
+      function scheduleScan() {
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(scan, 80);
+      }
+
+      function positionTools(figure) {
+        if (!tools || !figure) return;
+        const rect = figure.getBoundingClientRect();
+        const toolbar = document.getElementById("app-toolbar");
+        const toolbarBottom = toolbar ? toolbar.getBoundingClientRect().bottom : 0;
+        const minTop = Math.max(8, toolbarBottom + 8);
+
+        if (rect.bottom < 0 || rect.top > window.innerHeight || rect.bottom <= minTop) {
+          tools.hidden = true;
+          return;
+        }
+
+        const pad = 8;
+        const width = tools.offsetWidth || 260;
+        const maxTop = Math.max(minTop, window.innerHeight - tools.offsetHeight - pad);
+        tools.hidden = false;
+        tools.style.left = `${Math.max(pad, Math.min(window.innerWidth - width - pad, rect.right - width))}px`;
+        tools.style.top = `${Math.min(maxTop, Math.max(minTop, rect.top + 6))}px`;
+
+        if (toolsW) {
+          const w = parseFloat(figure.dataset.w || figure.dataset.scale) || 1;
+          toolsW.textContent = `${Math.round(w * 100)}%`;
+        }
+        if (toolsH) {
+          const h = figure.dataset.h;
+          toolsH.textContent = h === "auto" ? "auto" : `${Math.round((parseFloat(h) || 0.72) * 100)}%`;
+        }
+      }
+
+      function select(figure) {
+        if (selected && selected !== figure) selected.removeAttribute("data-selected");
+        selected = figure || null;
+        if (!selected) {
+          if (tools) tools.hidden = true;
+          return;
+        }
+        selected.setAttribute("data-selected", "");
+        positionTools(selected);
+      }
+
+      function setDimension(figure, dimension, value) {
+        if (!figure) return;
+        const dim = dimension === "h" ? "h" : "w";
+
+        if (dim === "h" && value === "auto") {
+          figure.dataset.h = "auto";
+          figure.style.removeProperty("--figure-h");
+        } else {
+          const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.round(Number(value) * 100) / 100));
+          figure.dataset[dim] = String(next);
+          figure.style.setProperty(`--figure-${dim}`, String(next));
+          if (dim === "w") {
+            figure.dataset.scale = String(next);
+            figure.style.setProperty("--figure-scale", String(next));
+          }
+        }
+
+        if (selected === figure) positionTools(figure);
+        Status.markDirty();
+        if (typeof schedule === "function") schedule();
+      }
+
+      function setScale(figure, scale) {
+        setDimension(figure, "w", scale);
+      }
+
+      function resetSize(figure) {
+        if (!figure) return;
+        const stored = store.figures[figure.dataset.figureId];
+        const entry = resolveEntry(stored);
+        const kind = (stored && stored.kind) || figure.dataset.kind;
+        const defaults = DEFAULT_SIZE[kind] || {w: 1, h: 0.72};
+        const height = kind === "media" && entry && entry.media === "audio" ? "auto" : defaults.h;
+        setDimension(figure, "w", defaults.w);
+        setDimension(figure, "h", height);
+      }
+
+      function remove(figure) {
+        if (!figure) return;
+        unmount(figure);
+        figure.remove();
+        select(null);
+        Editor.history.record();
+        Status.markDirty();
+        if (typeof schedule === "function") schedule();
+        scan();
+      }
+
+      function referencedIds(root) {
+        const ids = new Set();
+        root.querySelectorAll("figure[data-figure-id]").forEach((figure) => {
+          if (figure.dataset.figureId) ids.add(figure.dataset.figureId);
+        });
+        return ids;
+      }
+
+      /* Called on the save clone only. The live store keeps entries for an
+         undo/redo stack that can still put a deleted figure back. */
+      function prepareClone(clone) {
+        clone.querySelectorAll("[data-runtime='ephemeral']").forEach((el) => el.replaceChildren());
+        clone.querySelectorAll("figure.figure").forEach((figure) => {
+          figure.removeAttribute("data-selected");
+          figure.removeAttribute("data-mounted");
+          figure.removeAttribute("data-missing");
+        });
+        clone.querySelector("#figure-tools")?.remove();
+
+        const out = {version: VERSION, figures: {}};
+        const add = (id) => {
+          const entry = store.figures[id];
+          if (!entry || out.figures[id]) return;
+          out.figures[id] = entry;
+          if (entry.sourceId) add(entry.sourceId);
+        };
+        for (const id of referencedIds(clone)) add(id);
+        const target = clone.querySelector("#figure-store");
+        if (target) target.textContent = JSON.stringify(out).replace(/</g, "\\u003c");
+      }
+
+      function blockAtPoint(x, y) {
+        const el = document.elementFromPoint(x, y);
+        if (!el || !content.contains(el)) return null;
+        return el.closest("#content > *");
+      }
+
+      function pick(kind = "any") {
+        if (!input) return;
+        pickTrusted = kind === "html-trusted";
+        pickKind = pickTrusted ? "html" : kind;
+        input.accept = pickKind === "image" ? "image/*,.svg"
+          : pickKind === "html" ? "text/html,.html,.htm"
+          : pickKind === "media" ? "video/*,audio/*"
+          : "image/*,.svg,text/html,.html,.htm,video/*,audio/*";
+        input.value = "";
+        input.click();
+      }
+
+      async function insertFiles(fileList, {after = null, kindHint = "any", trusted = false} = {}) {
+        const files = [...(fileList || [])].filter(Boolean);
+        if (!files.length) return [];
+        const created = [];
+        let anchor = after;
+
+        for (const file of files) {
+          try {
+            const kind = kindOf(file);
+            if (!kind) {
+              console.warn(`Unsupported figure type: ${file.name || file.type}`);
+              continue;
+            }
+            if (kindHint !== "any" && kind !== kindHint) {
+              console.warn(`Skipping ${file.name}: expected ${kindHint}, got ${kind}`);
+              continue;
+            }
+            const entry = await makeEntry(file, kind, {trusted});
+            const figure = createFigure(entry);
+            Editor.insertBlock(figure, {after: anchor});
+            anchor = figure;
+            created.push(figure);
+          } catch (err) {
+            console.error("Figure import failed", file.name, err);
+          }
+        }
+
+        if (created.length) {
+          syncStore();
+          scan();
+          if (typeof schedule === "function") schedule();
+          Status.markDirty();
+        }
+        return created;
+      }
+
+      function onPaste(event) {
+        const dt = event.clipboardData;
+        if (!dt) return;
+        const files = [];
+        for (const item of dt.items || []) {
+          if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+        if (!files.length) return; // leave ordinary text/HTML paste native
+        event.preventDefault();
+        insertFiles(files);
+      }
+
+      function onDragOver(event) {
+        if (!event.dataTransfer || ![...event.dataTransfer.types].includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        content.classList.add("is-drop-target");
+      }
+
+      function onDragLeave(event) {
+        if (!content.contains(event.relatedTarget)) content.classList.remove("is-drop-target");
+      }
+
+      function onDrop(event) {
+        if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+        event.preventDefault();
+        content.classList.remove("is-drop-target");
+        const after = blockAtPoint(event.clientX, event.clientY);
+        insertFiles(event.dataTransfer.files, {after});
+      }
+
+      function init() {
+        if (!storeEl) {
+          console.warn("No #figure-store found; figure import disabled");
+          return;
+        }
+        store = readStore();
+        syncStore();
+
+        if ("IntersectionObserver" in window) {
+          observer = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+              const figure = entry.target;
+              if (!figure.isConnected) {
+                unmount(figure);
+                continue;
+              }
+              if (entry.isIntersecting) mount(figure);
+              else unmount(figure);
+            }
+          }, {root: viewport, rootMargin: "100% 0px 100% 0px", threshold: 0.01});
+        }
+
+        if (input) {
+          input.addEventListener("change", async () => {
+            const files = [...(input.files || [])];
+            const hint = pickKind;
+            const useTrusted = pickTrusted;
+            pickKind = "any";
+            pickTrusted = false;
+            input.value = "";
+            await insertFiles(files, {kindHint: hint, trusted: useTrusted});
+          });
+        }
+
+        content.addEventListener("paste", onPaste);
+        content.addEventListener("dragover", onDragOver);
+        content.addEventListener("dragleave", onDragLeave);
+        content.addEventListener("drop", onDrop);
+
+        document.addEventListener("click", (event) => {
+          const figure = event.target.closest && event.target.closest("figure.figure");
+          if (figure && content.contains(figure)) {
+            select(figure);
+            return;
+          }
+          if (event.target.closest && event.target.closest("#figure-tools")) return;
+          select(null);
+        });
+
+        if (tools) {
+          tools.addEventListener("mousedown", (event) => event.preventDefault());
+          tools.addEventListener("click", (event) => {
+            const button = event.target.closest("button");
+            if (!button || !selected) return;
+            if (button.hasAttribute("data-figure-remove")) {
+              remove(selected);
+              return;
+            }
+            if (button.hasAttribute("data-figure-reset")) {
+              resetSize(selected);
+              return;
+            }
+            const dimButton = button.closest("[data-figure-dim]");
+            if (dimButton) {
+              const dim = dimButton.dataset.figureDim;
+              const direction = button.dataset.figureStep;
+              const step = direction === "+" ? 0.1 : -0.1;
+              const entry = store.figures[selected.dataset.figureId];
+              const kind = (entry && entry.kind) || selected.dataset.kind;
+              const defaults = DEFAULT_SIZE[kind] || {w: 1, h: 0.72};
+              let current = parseFloat(dim === "h" ? selected.dataset.h : selected.dataset.w);
+              if (!Number.isFinite(current)) {
+                current = dim === "h" && defaults.h === "auto" ? 0.7 : defaults[dim];
+              }
+              setDimension(selected, dim, current + step);
+            }
+          });
+        }
+
+        viewport.addEventListener("scroll", () => {
+          if (selected) positionTools(selected);
+        }, {passive: true});
+        window.addEventListener("resize", () => {
+          if (selected) positionTools(selected);
+        });
+
+        Signals.on("layout", scan);
+        Signals.on("mutation", scheduleScan);
+        Signals.on("compositionend", scheduleScan);
+        scan();
+        Status.save();
+      }
+
+      return {
+        init, pick, insertFiles, scan, mount, unmount, unmountAll, pause, resume,
+        suspendObserver, resumeObserver, snapshot, captureAll,
+        setScale, setDimension, resetSize, remove, select, prepareClone, storeJSON, storeBytes, savedStoreBytes,
+        get store() {return store;},
+        get selected() {return selected;},
+      };
+    })();
+
+    window.Figures = Figures;
+    Figures.init();
+  </script>
+<!-- /@asset -->
+
+  <!-- Javascript for Toolbar -->
+<!-- @asset id="toolbar" kind="js" order="90" -->
+  <script id="toolbar">
+    const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+
+    function switchUI(name) {
+      if (name !== "ribbon" && name !== "minimal") return;
+
+      document.body.dataset.ui = name;
+      const chromeEl = document.getElementById("app-toolbar");
+      chromeEl.classList.add("is-resizing");
+      closeAllMenus();
+
+      setTimeout(() => chromeEl.classList.remove("is-resizing"), 260);
+
+      document.querySelectorAll("[data-chrome-toggle]").forEach((btn) => {
+        const compact = name === "minimal";
+        btn.setAttribute("aria-label", compact ? "Full toolbar" : "Compact chrome");
+        btn.setAttribute("title", compact ? "Full toolbar" : "Compact chrome");
+        btn.setAttribute("aria-pressed", String(compact));
+      });
+
+      Status.markDirty();
+    }
+
+    function toggleChrome() {
+      switchUI(document.body.dataset.ui === "minimal" ? "ribbon" : "minimal");
+    }
+
+    let submenuCloseTimer = null;
+
+    function cancelSubmenuClose() {
+      clearTimeout(submenuCloseTimer);
+      submenuCloseTimer = null;
+    }
+
+    function closeSubmenu(sub) {
+      cancelSubmenuClose();
+      const trigger = sub.querySelector("[data-submenu-trigger]");
+      const menu = sub.querySelector("[data-menu-panel]");
+      if (trigger) trigger.setAttribute("aria-expanded", "false");
+      if (menu) menu.setAttribute("hidden", "");
+    }
+
+    function scheduleSubmenuClose(sub) {
+      cancelSubmenuClose();
+      submenuCloseTimer = setTimeout(() => closeSubmenu(sub), 140);
+    }
+
+    function closeAllSubmenus() {
+      document.querySelectorAll("[data-submenu]").forEach(closeSubmenu);
+    }
+
+    function closeSiblingSubmenus(sub) {
+      const parent = sub.parentElement;
+      if (!parent) return;
+      for (const child of parent.children) {
+        if (child !== sub && child.matches && child.matches("[data-submenu]")) {
+          closeSubmenu(child);
+        }
+      }
+    }
+
+    function positionSubmenu(trigger, menu) {
+      menu.removeAttribute("hidden");
+      const parentMenu = trigger.closest(".menu");
+      const rightAligned = !!trigger.closest('.menu-wrap[data-menu-align="right"]');
+      const rect = trigger.getBoundingClientRect();
+      const anchor = rightAligned && parentMenu ? parentMenu.getBoundingClientRect() : rect;
+      const width = menu.offsetWidth || 220;
+      const height = menu.offsetHeight || 120;
+
+      /* Right-aligned (minimal) menus cascade to the left of the whole
+         dropdown, not over its rows. Ribbon menus cascade to the right and
+         flip left only when there is no room. */
+      let left;
+      if (rightAligned) {
+        /* Touch/overlap the parent menu: a visible gap makes the submenu
+           close while the pointer crosses it. */
+        left = Math.max(8, anchor.left - width + 4);
+      } else {
+        left = rect.right + 2 + width <= window.innerWidth - 8
+          ? rect.right + 2
+          : Math.max(8, rect.left - width - 2);
+      }
+
+      const topBase = rightAligned ? anchor.top : rect.top - 5;
+      const top = Math.min(Math.max(8, topBase), window.innerHeight - height - 8);
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+    }
+
+    function openSubmenu(sub) {
+      const trigger = sub.querySelector("[data-submenu-trigger]");
+      const menu = sub.querySelector("[data-menu-panel]");
+      if (!trigger || !menu) return;
+      closeSiblingSubmenus(sub);
+      trigger.setAttribute("aria-expanded", "true");
+      positionSubmenu(trigger, menu);
+    }
+
+    function toggleSubmenu(trigger) {
+      const sub = trigger.closest("[data-submenu]");
+      if (!sub) return;
+      const open = trigger.getAttribute("aria-expanded") === "true";
+      if (open) closeSubmenu(sub);
+      else openSubmenu(sub);
+    }
+
+    function closeAllMenus() {
+      document.querySelectorAll("[data-menu-panel]").forEach((menu) => {
+        menu.setAttribute("hidden", "");
+      });
+      closeAllSubmenus();
+    }
+
+    function initTitle() {
+      const inputs = [...document.querySelectorAll("[data-title]")];
+      const apply = (value) => {
+        inputs.forEach((el) => {if (el.value !== value) el.value = value;});
+        document.title = value.trim() || "Standalone HTML Doc";
+      };
+      inputs.forEach((el) => el.addEventListener("input", () => {
+        apply(el.value);
+        Status.markDirty();
+      }));
+      const first = inputs.find((el) => el.value) || inputs[0];
+      if (first) apply(first.value);
+    }
+
+    function setFavicon(emoji) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`
+        + `<text y=".9em" font-size="90">${emoji}</text></svg>`;
+      document.getElementById("favicon").href = "data:image/svg+xml," + encodeURIComponent(svg);
+      document.querySelectorAll("[data-favicon]").forEach((el) => {el.textContent = emoji;});
+      Status.markDirty();
+    }
+
+    function pickFavicon(trigger) {
+      const parent = trigger.parentElement;
+      const existing = parent.querySelector("[data-emoji-menu]");
+      if (existing) {existing.remove(); return;}
+
+      const menu = document.createElement("div");
+      menu.className = "menu";
+      menu.dataset.emojiMenu = "";
+      menu.style.cssText = "min-width:0;display:flex;gap:2px;padding:6px;"
+        + `left:${trigger.offsetLeft}px;top:${trigger.offsetTop + trigger.offsetHeight + 4}px;`;
+
+      for (const emoji of ["🧬", "📄", "📝", "📚", "🧠", "🔬", "🌱", "💡", "🪶", "⚗️"]) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = emoji;
+        b.style.cssText = "width:auto;flex:0 0 auto;font-size:16px;padding:0 4px;";
+        b.addEventListener("click", () => {setFavicon(emoji); menu.remove();});
+        menu.append(b);
+      }
+      parent.append(menu);
+    }
+
+    function serialize() {
+      const clone = document.documentElement.cloneNode(true);
+
+      clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], #figure-tools").forEach((el) => el.remove());
+      clone.querySelectorAll("[data-menu-panel]").forEach((m) => m.setAttribute("hidden", ""));
+      clone.querySelectorAll(".menu").forEach((m) => {
+        m.classList.remove("menu-flip");
+        m.removeAttribute("style");
+      });
+      clone.querySelectorAll("[data-submenu-trigger]").forEach((b) => {
+        b.setAttribute("aria-expanded", "false");
+      });
+      clone.querySelector("#app-toolbar")?.classList.remove("is-resizing");
+      clone.querySelector("#stage")?.removeAttribute("style");
+      clone.querySelectorAll("[data-stats]").forEach((el) => {el.textContent = "—";});
+      clone.querySelectorAll("[data-dirty]").forEach((el) => {el.hidden = true;});
+      clone.querySelector("#progress-dialog")?.removeAttribute("open");
+
+      // Runtime frames out, and the store pruned to the figures still present.
+      if (window.Figures) Figures.prepareClone(clone);
+
+      const size = document.querySelector("[data-fontsize]")?.value || "11pt";
+      const theme = clone.querySelector("#user-theme");
+      if (theme) theme.textContent = `:root{--doc-size:${size}}`;
+
+      const title = (document.querySelector("[data-title]")?.value || "document").trim();
+      clone.querySelector("title").textContent = title;
+
+      return {title, html: "<!doctype html>\n" + clone.outerHTML};
+    }
+
+    /* Validate the parsed output, never the raw string: the runtime source is
+       itself in the file, so a text search for `blob:` or `iframe` matches the
+       checker code. A failed check aborts the download. */
+    function validate(html) {
+      const problems = [];
+      if (!html.startsWith("<!doctype html>")) problems.push("missing doctype");
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      if (doc.querySelector(".page-spacer")) problems.push("a page spacer leaked into the file");
+      if (doc.querySelector("#sheets > *")) problems.push("the sheet layer is not empty");
+      if (!doc.querySelector("#app-runtime, #toolbar")) problems.push("the runtime is missing");
+      if (doc.querySelector("#content iframe, #content script")) {
+        problems.push("a runtime iframe or script leaked into the document body");
+      }
+      if ([...doc.querySelectorAll("[src^='blob:']")].length) {
+        problems.push("a blob: URL leaked into the file");
+      }
+
+      let store = null;
+      const storeEl = doc.querySelector("#figure-store");
+      try {store = JSON.parse(storeEl?.textContent || "{}");}
+      catch {problems.push("#figure-store is not valid JSON");}
+      if (store) {
+        const figures = store.figures || {};
+        const used = new Set();
+        for (const figure of doc.querySelectorAll("figure[data-figure-id]")) {
+          const id = figure.dataset.figureId;
+          const entry = figures[id];
+          if (!entry) {
+            problems.push(`figure ${id} has no store entry`);
+            continue;
+          }
+          used.add(id);
+          if (entry.sourceId) used.add(entry.sourceId);
+          const source = entry.src ? entry : figures[entry.sourceId];
+          if (!source || !source.src) problems.push(`figure ${id} has no source`);
+        }
+        for (const id of Object.keys(figures)) {
+          if (!used.has(id)) problems.push(`unused figure source ${id}`);
+        }
+      }
+      return problems;
+    }
+
+    function save() {
+      const {title, html} = serialize();
+      const problems = validate(html);
+      if (problems.length) {
+        console.error("Save aborted:", problems);
+        Status.markDirty();
+        return;
+      }
+      const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title.replace(/[\\/:*?"<>|]+/g, "-")}.html`;
+      a.click();
+      Status.save(html.length);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    const KEYMAP = [
+      {keys: "Mod+S", label: "Save", group: "File", run: save, global: true},
+      {keys: "Mod+B", label: "Bold", group: "Format", cmd: "bold"},
+      {keys: "Mod+I", label: "Italic", group: "Format", cmd: "italic"},
+      {keys: "Mod+U", label: "Underline", group: "Format", cmd: "underline"},
+      {keys: "Mod+Shift+X", label: "Strikethrough", group: "Format", cmd: "strikeThrough"},
+      {keys: "Mod+.", label: "Superscript", group: "Format", cmd: "superscript"},
+      {keys: "Mod+,", label: "Subscript", group: "Format", cmd: "subscript"},
+      {keys: "Mod+\\", label: "Clear formatting", group: "Format", cmd: "removeFormat"},
+      {keys: "Mod+Alt+0", label: "Paragraph", group: "Blocks", block: "p"},
+      {keys: "Mod+Alt+1", label: "Heading 1", group: "Blocks", block: "h1"},
+      {keys: "Mod+Alt+2", label: "Heading 2", group: "Blocks", block: "h2"},
+      {keys: "Mod+Alt+3", label: "Heading 3", group: "Blocks", block: "h3"},
+      {keys: "Mod+Shift+Q", label: "Quote", group: "Blocks", block: "blockquote"},
+      {keys: "Mod+Shift+C", label: "Code block", group: "Blocks", block: "pre"},
+      {keys: "Mod+Shift+8", label: "Bulleted list", group: "Blocks", cmd: "insertUnorderedList"},
+      {keys: "Mod+Shift+7", label: "Numbered list", group: "Blocks", cmd: "insertOrderedList"},
+      {keys: "Mod+K", label: "Insert link", group: "Insert", run: () => Editor.openLink()},
+      {keys: "Mod+Shift+K", label: "Remove link", group: "Insert", cmd: "unlink"},
+      {keys: "Mod+Z", label: "Undo", group: "History", cmd: "undo"},
+      {keys: "Mod+Shift+Z", label: "Redo", group: "History", cmd: "redo"},
+      {keys: "Mod+Shift+M", label: "Toggle compact chrome", group: "View", run: toggleChrome, global: true},
+      /* native: listed in the shortcut dialog but handled by zoomChord(), which
+         matches on e.code so Mod+= and Mod+Shift++ both work. */
+      {keys: "Mod+=", label: "Zoom in", group: "View", native: true, zoom: "in"},
+      {keys: "Mod+-", label: "Zoom out", group: "View", native: true, zoom: "out"},
+      {keys: "Mod+0", label: "Actual size (100%)", group: "View", native: true, zoom: "reset"},
+      {keys: "Mod+9", label: "Fit page width", group: "View", native: true, zoom: "fit"},
+      {keys: "Mod+/", label: "Keyboard shortcuts", group: "Help", run: showShortcuts, global: true},
+    ];
+
+    const byChord = new Map(
+      KEYMAP.filter((entry) => !entry.native).map((entry) => [entry.keys, entry])
+    );
+
+    function pretty(keys) {
+      if (isMac) {
+        return keys.replaceAll("Mod", "⌘").replaceAll("Alt", "⌥").replaceAll("Shift", "⇧");
+      }
+      return keys.replaceAll("Mod", "Ctrl");
+    }
+
+    function showShortcuts() {
+      const groups = new Map();
+      for (const entry of KEYMAP) {
+        if (!groups.has(entry.group)) groups.set(entry.group, []);
+        groups.get(entry.group).push(entry);
+      }
+
+      const list = document.getElementById("keylist");
+      list.replaceChildren(...[...groups].flatMap(([group, entries]) => {
+        const heading = document.createElement("h3");
+        heading.textContent = group;
+        const rows = entries.map((entry) => {
+          const row = document.createElement("div");
+          const name = document.createElement("span");
+          name.textContent = entry.label;
+          const kbd = document.createElement("kbd");
+          kbd.textContent = pretty(entry.keys);
+          row.append(name, kbd);
+          return row;
+        });
+        return [heading, ...rows];
+      }));
+      document.getElementById("shortcuts-dialog").showModal();
+    }
+
+    function paintKeyHints() {
+      const hints = new Map();
+      for (const entry of KEYMAP) {
+        if (entry.cmd) hints.set(`cmd:${entry.cmd}`, entry.keys);
+        if (entry.block) hints.set(`block:${entry.block}`, entry.keys);
+        if (entry.zoom) hints.set(`zoom:${entry.zoom}`, entry.keys);
+      }
+      hints.set("action:save", "Mod+S");
+      hints.set("action:link", "Mod+K");
+      hints.set("action:shortcuts", "Mod+/");
+
+      document.querySelectorAll(".menu button").forEach((btn) => {
+        if (btn.querySelector("kbd")) return;
+        let keys = null;
+        if (btn.dataset.cmd) keys = hints.get(`cmd:${btn.dataset.cmd}`);
+        else if (btn.dataset.blockSet) keys = hints.get(`block:${btn.dataset.blockSet}`);
+        else if (btn.dataset.zoom) keys = hints.get(`zoom:${btn.dataset.zoom}`);
+        else if (btn.hasAttribute("data-save")) keys = hints.get("action:save");
+        else if (btn.dataset.export === "html-interactive") keys = hints.get("action:save");
+        else if (btn.hasAttribute("data-link")) keys = hints.get("action:link");
+        else if (btn.hasAttribute("data-shortcuts")) keys = hints.get("action:shortcuts");
+        if (!keys) return;
+        const kbd = document.createElement("kbd");
+        kbd.textContent = pretty(keys);
+        btn.append(kbd);
+      });
+    }
+
+    function inEditor() {
+      const sel = window.getSelection();
+      return document.activeElement === content
+        || (!!sel && sel.rangeCount > 0 && content.contains(sel.anchorNode));
+    }
+
+    function keyName(e) {
+      if (e.code && /^Key[A-Z]$/.test(e.code)) return e.code.slice(3);
+      if (e.code && /^Digit\d$/.test(e.code)) return e.code.slice(5);
+      if (e.key.length === 1) return e.key.toUpperCase();
+      return e.key;
+    }
+
+    function chordOf(e) {
+      const parts = [];
+      if (isMac ? e.metaKey : e.ctrlKey) parts.push("Mod");
+      if (e.altKey) parts.push("Alt");
+      if (e.shiftKey) parts.push("Shift");
+      parts.push(keyName(e));
+      return parts.join("+");
+    }
+
+    /* Zoom chords match on e.code, so Mod+=, Mod+Shift+= (where e.key is "+")
+       and the numpad keys all land in the same place. Alt is excluded so
+       Mod+Alt+0 (Paragraph) keeps working. */
+    function zoomChord(e) {
+      if (!(isMac ? e.metaKey : e.ctrlKey)) return null;
+      if (e.altKey) return null;
+      switch (e.code) {
+        case "Equal":
+        case "NumpadAdd": return "in";
+        case "Minus":
+        case "NumpadSubtract": return "out";
+        case "Digit0":
+        case "Numpad0": return "reset";
+        case "Digit9":
+        case "Numpad9": return "fit";
+        default: return null;
+      }
+    }
+
+    /* Typed percentage: commit on Enter / blur, revert on Escape, step on
+       ArrowUp/ArrowDown. The anchor is the viewport centre (anchorY null).
+       The field is rewritten to the normalised value, so typing "0" shows
+       "10" after the clamp. */
+    function commitZoomInput(input) {
+      const ok = Zoom.setPercent(input.value, null);
+      input.value = String(Math.round(Zoom.value * 100));
+      Zoom.syncUI();
+      return ok;
+    }
+
+    // Keep the caret in the editor when a toolbar control is pressed.
+    document.addEventListener("mousedown", (e) => {
+      if (e.target.closest("#app-toolbar button")) e.preventDefault();
+    });
+
+    // Select the whole zoom value on focus, so click + type replaces it.
+    document.addEventListener("focusin", (e) => {
+      const input = e.target.closest && e.target.closest("[data-zoom-input]");
+      if (input) input.select();
+    });
+
+    // blur does not bubble: commit in the capture phase.
+    document.addEventListener("blur", (e) => {
+      const input = e.target.closest && e.target.closest("[data-zoom-input]");
+      if (input) commitZoomInput(input);
+    }, true);
+
+    document.addEventListener("click", (e) => {
+      const toggleBtn = e.target.closest("[data-chrome-toggle]");
+      if (toggleBtn) {toggleChrome(); return;}
+
+      const menuBtn = e.target.closest("[data-menu]");
+      if (menuBtn) {
+        const menu = menuBtn.nextElementSibling;
+        if (menu && menu.classList.contains("menu")) {
+          const isHidden = menu.hasAttribute("hidden");
+          if (isHidden) {
+            closeAllMenus();
+            Zoom.syncUI();
+            menu.removeAttribute("hidden");
+            requestAnimationFrame(() => {
+              menu.classList.remove("menu-flip");
+              menu.style.maxHeight = "";
+              const btn = menuBtn.getBoundingClientRect();
+              const gap = 6;
+              const margin = 8;
+              const below = window.innerHeight - btn.bottom - gap - margin;
+              const above = btn.top - gap - margin;
+              const flip = menu.scrollHeight > below && above > below;
+              menu.classList.toggle("menu-flip", flip);
+              menu.style.maxHeight = `${Math.max(120, flip ? above : below)}px`;
+            });
+          } else {
+            menu.setAttribute("hidden", "");
+            menu.classList.remove("menu-flip");
+          }
+          return;
+        }
+      }
+
+      const submenuBtn = e.target.closest("[data-submenu-trigger]");
+      if (submenuBtn) {toggleSubmenu(submenuBtn); return;}
+
+      const faviconBtn = e.target.closest("[data-favicon]");
+      if (faviconBtn) {pickFavicon(faviconBtn); return;}
+
+      const cmdBtn = e.target.closest("[data-cmd]");
+      const blockBtn = e.target.closest("[data-block-set]");
+      const linkBtn = e.target.closest("[data-link]");
+      const fontBtn = e.target.closest("[data-font]");
+      const figureBtn = e.target.closest("[data-figure-pick]");
+      const exportBtn = e.target.closest("[data-export]");
+      const saveBtn = e.target.closest("[data-save]");
+      const shortcutBtn = e.target.closest("[data-shortcuts]");
+      const zoomBtn = e.target.closest("[data-zoom]");
+
+      /* A field inside a menu must not close it on click: the caret has to
+         land in the input. Every other click inside a menu closes it. */
+      const keepMenu = !!e.target.closest(".menu-field");
+      if (e.target.closest(".menu") && !keepMenu) closeAllMenus();
+
+      if (cmdBtn) {Editor.exec(cmdBtn.dataset.cmd); return;}
+      if (blockBtn) {Editor.setBlock(blockBtn.dataset.blockSet); return;}
+      if (linkBtn) {Editor.openLink(); return;}
+      if (fontBtn) {Editor.setFontSize(fontBtn.dataset.font); return;}
+      if (figureBtn) {Figures.pick(figureBtn.dataset.figurePick); return;}
+      if (zoomBtn) {Zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
+      if (exportBtn) {Export.begin(exportBtn.dataset.export); return;}
+      if (saveBtn) {save(); return;}
+      if (shortcutBtn) {showShortcuts(); return;}
+
+      if (!e.target.closest("[data-emoji-menu]")) {
+        if (!keepMenu) closeAllMenus();
+        document.querySelectorAll("[data-emoji-menu]").forEach((m) => m.remove());
+      }
+    });
+
+    document.addEventListener("change", (e) => {
+      if (e.target.matches("[data-block]")) Editor.setBlock(e.target.value);
+      if (e.target.matches("[data-fontsize]")) Editor.setFontSize(e.target.value);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      /* Zoom fields own Enter / Escape / ArrowUp / ArrowDown. */
+      const field = e.target.closest && e.target.closest("[data-zoom-input]");
+      if (field) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (commitZoomInput(field) && field.closest(".menu")) closeAllMenus();
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          field.value = String(Math.round(Zoom.value * 100));
+          field.blur();
+          closeAllMenus();
+          return;
+        }
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          Zoom.command(e.key === "ArrowUp" ? "in" : "out");
+          field.value = String(Math.round(Zoom.value * 100));
+          return;
+        }
+      }
+
+      if (e.key === "Escape") {
+        closeAllMenus();
+      }
+      if (e.key === "ArrowRight") {
+        const trigger = e.target.closest && e.target.closest("[data-submenu-trigger]");
+        if (trigger) {
+          e.preventDefault();
+          openSubmenu(trigger.closest("[data-submenu]"));
+          const first = trigger.closest("[data-submenu]").querySelector("[data-menu-panel] button");
+          if (first) first.focus();
+          return;
+        }
+      }
+
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (!mod) return;
+
+      /* Zoom before the chord table: it must work with focus in the editor or
+         in one of the fields. */
+      const zoomCmd = zoomChord(e);
+      if (zoomCmd) {
+        e.preventDefault();
+        Zoom.command(zoomCmd, e.clientY || null);
+        return;
+      }
+
+      const entry = byChord.get(chordOf(e));
+      if (!entry) return;
+      if (!entry.global && !inEditor()) return;
+
+      e.preventDefault();
+      if (entry.run) {entry.run(); return;}
+      if (entry.cmd) {Editor.exec(entry.cmd); return;}
+      if (entry.block) {Editor.setBlock(entry.block);}
+    });
+
+    /* Cascading menus open on hover for mouse users; click/toggle covers
+       touch and keyboard. */
+    document.querySelectorAll("[data-submenu]").forEach((sub) => {
+      const trigger = sub.querySelector("[data-submenu-trigger]");
+      if (!trigger) return;
+      trigger.addEventListener("pointerenter", (e) => {
+        if (e.pointerType === "mouse") {
+          cancelSubmenuClose();
+          openSubmenu(sub);
+        }
+      });
+      sub.addEventListener("pointerenter", cancelSubmenuClose);
+      sub.addEventListener("pointerleave", (e) => {
+        if (e.pointerType === "mouse" && !sub.contains(e.relatedTarget)) {
+          scheduleSubmenuClose(sub);
+        }
+      });
+    });
+
+    initTitle();
+    paintKeyHints();
+    Editor.syncToolbar();
+    Zoom.syncUI();
+  </script>
+<!-- /@asset -->
+
+  <!-- Static export / print. Captures HTML islands only when an export asks
+       for it; normal rendering never runs the serializer. -->
+<!-- @asset id="export" kind="js" order="100" -->
+  <script id="export">
+    "use strict";
+
+    /*! html-to-image v1.11.13 | MIT License | Copyright (c) 2017-2025 W.Y.
+        https://github.com/bubkoo/html-to-image
+        The full license text is in experiments/vendor/html-to-image.LICENSE. */
+    const SNAPSHOT_LIB = "!function(t,e){\"object\"==typeof exports&&\"undefined\"!=typeof module?e(exports):\"function\"==typeof define&&define.amd?define([\"exports\"],e):e((t=\"undefined\"!=typeof globalThis?globalThis:t||self).htmlToImage={})}(this,(function(t){\"use strict\";function e(t,e,n,r){return new(n||(n=Promise))((function(i,o){function u(t){try{a(r.next(t))}catch(t){o(t)}}function c(t){try{a(r.throw(t))}catch(t){o(t)}}function a(t){var e;t.done?i(t.value):(e=t.value,e instanceof n?e:new n((function(t){t(e)}))).then(u,c)}a((r=r.apply(t,e||[])).next())}))}function n(t,e){var n,r,i,o,u={label:0,sent:function(){if(1&i[0])throw i[1];return i[1]},trys:[],ops:[]};return o={next:c(0),throw:c(1),return:c(2)},\"function\"==typeof Symbol&&(o[Symbol.iterator]=function(){return this}),o;function c(c){return function(a){return function(c){if(n)throw new TypeError(\"Generator is already executing.\");for(;o&&(o=0,c[0]&&(u=0)),u;)try{if(n=1,r&&(i=2&c[0]?r.return:c[0]?r.throw||((i=r.return)&&i.call(r),0):r.next)&&!(i=i.call(r,c[1])).done)return i;switch(r=0,i&&(c=[2&c[0],i.value]),c[0]){case 0:case 1:i=c;break;case 4:return u.label++,{value:c[1],done:!1};case 5:u.label++,r=c[1],c=[0];continue;case 7:c=u.ops.pop(),u.trys.pop();continue;default:if(!(i=u.trys,(i=i.length>0&&i[i.length-1])||6!==c[0]&&2!==c[0])){u=0;continue}if(3===c[0]&&(!i||c[1]>i[0]&&c[1]<i[3])){u.label=c[1];break}if(6===c[0]&&u.label<i[1]){u.label=i[1],i=c;break}if(i&&u.label<i[2]){u.label=i[2],u.ops.push(c);break}i[2]&&u.ops.pop(),u.trys.pop();continue}c=e.call(t,u)}catch(t){c=[6,t],r=0}finally{n=i=0}if(5&c[0])throw c[1];return{value:c[0]?c[1]:void 0,done:!0}}([c,a])}}}var r,i=(r=0,function(){return r+=1,\"u\".concat(\"0000\".concat((Math.random()*Math.pow(36,4)<<0).toString(36)).slice(-4)).concat(r)});function o(t){for(var e=[],n=0,r=t.length;n<r;n++)e.push(t[n]);return e}var u=null;function c(t){return void 0===t&&(t={}),u||(u=t.includeStyleProperties?t.includeStyleProperties:o(window.getComputedStyle(document.documentElement)))}function a(t,e){var n=(t.ownerDocument.defaultView||window).getComputedStyle(t).getPropertyValue(e);return n?parseFloat(n.replace(\"px\",\"\")):0}function s(t,e){void 0===e&&(e={});var n,r,i,o=e.width||(r=a(n=t,\"border-left-width\"),i=a(n,\"border-right-width\"),n.clientWidth+r+i),u=e.height||function(t){var e=a(t,\"border-top-width\"),n=a(t,\"border-bottom-width\");return t.clientHeight+e+n}(t);return{width:o,height:u}}var l=16384;function f(t,e){return void 0===e&&(e={}),t.toBlob?new Promise((function(n){t.toBlob(n,e.type?e.type:\"image/png\",e.quality?e.quality:1)})):new Promise((function(n){for(var r=window.atob(t.toDataURL(e.type?e.type:void 0,e.quality?e.quality:void 0).split(\",\")[1]),i=r.length,o=new Uint8Array(i),u=0;u<i;u+=1)o[u]=r.charCodeAt(u);n(new Blob([o],{type:e.type?e.type:\"image/png\"}))}))}function h(t){return new Promise((function(e,n){var r=new Image;r.onload=function(){r.decode().then((function(){requestAnimationFrame((function(){return e(r)}))}))},r.onerror=n,r.crossOrigin=\"anonymous\",r.decoding=\"async\",r.src=t}))}function d(t){return e(this,void 0,void 0,(function(){return n(this,(function(e){return[2,Promise.resolve().then((function(){return(new XMLSerializer).serializeToString(t)})).then(encodeURIComponent).then((function(t){return\"data:image/svg+xml;charset=utf-8,\".concat(t)}))]}))}))}function v(t,r,i){return e(this,void 0,void 0,(function(){var e,o,u;return n(this,(function(n){return e=\"http://www.w3.org/2000/svg\",o=document.createElementNS(e,\"svg\"),u=document.createElementNS(e,\"foreignObject\"),o.setAttribute(\"width\",\"\".concat(r)),o.setAttribute(\"height\",\"\".concat(i)),o.setAttribute(\"viewBox\",\"0 0 \".concat(r,\" \").concat(i)),u.setAttribute(\"width\",\"100%\"),u.setAttribute(\"height\",\"100%\"),u.setAttribute(\"x\",\"0\"),u.setAttribute(\"y\",\"0\"),u.setAttribute(\"externalResourcesRequired\",\"true\"),o.appendChild(u),u.appendChild(t),[2,d(o)]}))}))}var p=function(t,e){if(t instanceof e)return!0;var n=Object.getPrototypeOf(t);return null!==n&&(n.constructor.name===e.name||p(n,e))};function g(t,e,n,r){var i=\".\".concat(t,\":\").concat(e),o=n.cssText?function(t){var e=t.getPropertyValue(\"content\");return\"\".concat(t.cssText,\" content: '\").concat(e.replace(/'|\"/g,\"\"),\"';\")}(n):function(t,e){return c(e).map((function(e){var n=t.getPropertyValue(e),r=t.getPropertyPriority(e);return\"\".concat(e,\": \").concat(n).concat(r?\" !important\":\"\",\";\")})).join(\" \")}(n,r);return document.createTextNode(\"\".concat(i,\"{\").concat(o,\"}\"))}function m(t,e,n,r){var o=window.getComputedStyle(t,n),u=o.getPropertyValue(\"content\");if(\"\"!==u&&\"none\"!==u){var c=i();try{e.className=\"\".concat(e.className,\" \").concat(c)}catch(t){return}var a=document.createElement(\"style\");a.appendChild(g(c,n,o,r)),e.appendChild(a)}}var w=\"application/font-woff\",y=\"image/jpeg\",b={woff:w,woff2:w,ttf:\"application/font-truetype\",eot:\"application/vnd.ms-fontobject\",png:\"image/png\",jpg:y,jpeg:y,gif:\"image/gif\",tiff:\"image/tiff\",svg:\"image/svg+xml\",webp:\"image/webp\"};function S(t){var e=function(t){var e=/\\.([^./]*?)$/g.exec(t);return e?e[1]:\"\"}(t).toLowerCase();return b[e]||\"\"}function E(t){return-1!==t.search(/^(data:)/)}function x(t,e){return\"data:\".concat(e,\";base64,\").concat(t)}function C(t,r,i){return e(this,void 0,void 0,(function(){var e,o;return n(this,(function(n){switch(n.label){case 0:return[4,fetch(t,r)];case 1:if(404===(e=n.sent()).status)throw new Error('Resource \"'.concat(e.url,'\" not found'));return[4,e.blob()];case 2:return o=n.sent(),[2,new Promise((function(t,n){var r=new FileReader;r.onerror=n,r.onloadend=function(){try{t(i({res:e,result:r.result}))}catch(t){n(t)}},r.readAsDataURL(o)}))]}}))}))}var P={};function R(t,r,i){return e(this,void 0,void 0,(function(){var e,o,u,c,a;return n(this,(function(n){switch(n.label){case 0:if(e=function(t,e,n){var r=t.replace(/\\?.*/,\"\");return n&&(r=t),/ttf|otf|eot|woff2?/i.test(r)&&(r=r.replace(/.*\\//,\"\")),e?\"[\".concat(e,\"]\").concat(r):r}(t,r,i.includeQueryParams),null!=P[e])return[2,P[e]];i.cacheBust&&(t+=(/\\?/.test(t)?\"&\":\"?\")+(new Date).getTime()),n.label=1;case 1:return n.trys.push([1,3,,4]),[4,C(t,i.fetchRequestInit,(function(t){var e=t.res,n=t.result;return r||(r=e.headers.get(\"Content-Type\")||\"\"),function(t){return t.split(/,/)[1]}(n)}))];case 2:return u=n.sent(),o=x(u,r),[3,4];case 3:return c=n.sent(),o=i.imagePlaceholder||\"\",a=\"Failed to fetch resource: \".concat(t),c&&(a=\"string\"==typeof c?c:c.message),a&&console.warn(a),[3,4];case 4:return P[e]=o,[2,o]}}))}))}function T(t){return e(this,void 0,void 0,(function(){var e;return n(this,(function(n){return\"data:,\"===(e=t.toDataURL())?[2,t.cloneNode(!1)]:[2,h(e)]}))}))}function A(t,r){return e(this,void 0,void 0,(function(){var e,i,o,u;return n(this,(function(n){switch(n.label){case 0:return t.currentSrc?(e=document.createElement(\"canvas\"),i=e.getContext(\"2d\"),e.width=t.clientWidth,e.height=t.clientHeight,null==i||i.drawImage(t,0,0,e.width,e.height),[2,h(e.toDataURL())]):(o=t.poster,u=S(o),[4,R(o,u,r)]);case 1:return[2,h(n.sent())]}}))}))}function k(t,r){var i;return e(this,void 0,void 0,(function(){return n(this,(function(e){switch(e.label){case 0:return e.trys.push([0,3,,4]),(null===(i=null==t?void 0:t.contentDocument)||void 0===i?void 0:i.body)?[4,I(t.contentDocument.body,r,!0)]:[3,2];case 1:return[2,e.sent()];case 2:return[3,4];case 3:return e.sent(),[3,4];case 4:return[2,t.cloneNode(!1)]}}))}))}var L=function(t){return null!=t.tagName&&\"SVG\"===t.tagName.toUpperCase()};function N(t,e,n){return p(e,Element)&&(function(t,e,n){var r=e.style;if(r){var i=window.getComputedStyle(t);i.cssText?(r.cssText=i.cssText,r.transformOrigin=i.transformOrigin):c(n).forEach((function(n){var o=i.getPropertyValue(n);if(\"font-size\"===n&&o.endsWith(\"px\")){var u=Math.floor(parseFloat(o.substring(0,o.length-2)))-.1;o=\"\".concat(u,\"px\")}p(t,HTMLIFrameElement)&&\"display\"===n&&\"inline\"===o&&(o=\"block\"),\"d\"===n&&e.getAttribute(\"d\")&&(o=\"path(\".concat(e.getAttribute(\"d\"),\")\")),r.setProperty(n,o,i.getPropertyPriority(n))}))}}(t,e,n),function(t,e,n){m(t,e,\":before\",n),m(t,e,\":after\",n)}(t,e,n),function(t,e){p(t,HTMLTextAreaElement)&&(e.innerHTML=t.value),p(t,HTMLInputElement)&&e.setAttribute(\"value\",t.value)}(t,e),function(t,e){if(p(t,HTMLSelectElement)){var n=e,r=Array.from(n.children).find((function(e){return t.value===e.getAttribute(\"value\")}));r&&r.setAttribute(\"selected\",\"\")}}(t,e)),e}function I(t,r,i){return e(this,void 0,void 0,(function(){return n(this,(function(u){return i||!r.filter||r.filter(t)?[2,Promise.resolve(t).then((function(t){return function(t,r){return e(this,void 0,void 0,(function(){return n(this,(function(e){return p(t,HTMLCanvasElement)?[2,T(t)]:p(t,HTMLVideoElement)?[2,A(t,r)]:p(t,HTMLIFrameElement)?[2,k(t,r)]:[2,t.cloneNode(L(t))]}))}))}(t,r)})).then((function(i){return function(t,r,i){var u,c;return e(this,void 0,void 0,(function(){var e;return n(this,(function(n){switch(n.label){case 0:return L(r)?[2,r]:(e=[],0===(e=null!=(a=t).tagName&&\"SLOT\"===a.tagName.toUpperCase()&&t.assignedNodes?o(t.assignedNodes()):p(t,HTMLIFrameElement)&&(null===(u=t.contentDocument)||void 0===u?void 0:u.body)?o(t.contentDocument.body.childNodes):o((null!==(c=t.shadowRoot)&&void 0!==c?c:t).childNodes)).length||p(t,HTMLVideoElement)?[2,r]:[4,e.reduce((function(t,e){return t.then((function(){return I(e,i)})).then((function(t){t&&r.appendChild(t)}))}),Promise.resolve())]);case 1:return n.sent(),[2,r]}var a}))}))}(t,i,r)})).then((function(e){return N(t,e,r)})).then((function(t){return function(t,r){return e(this,void 0,void 0,(function(){var e,i,o,u,c,a,s,l,f,h,d,v,p;return n(this,(function(n){switch(n.label){case 0:if(0===(e=t.querySelectorAll?t.querySelectorAll(\"use\"):[]).length)return[2,t];i={},p=0,n.label=1;case 1:return p<e.length?(o=e[p],(u=o.getAttribute(\"xlink:href\"))?(c=t.querySelector(u),a=document.querySelector(u),c||!a||i[u]?[3,3]:(s=i,l=u,[4,I(a,r,!0)])):[3,3]):[3,4];case 2:s[l]=n.sent(),n.label=3;case 3:return p++,[3,1];case 4:if((f=Object.values(i)).length){for(h=\"http://www.w3.org/1999/xhtml\",(d=document.createElementNS(h,\"svg\")).setAttribute(\"xmlns\",h),d.style.position=\"absolute\",d.style.width=\"0\",d.style.height=\"0\",d.style.overflow=\"hidden\",d.style.display=\"none\",v=document.createElementNS(h,\"defs\"),d.appendChild(v),p=0;p<f.length;p++)v.appendChild(f[p]);t.appendChild(d)}return[2,t]}}))}))}(t,r)}))]:[2,null]}))}))}var D=/url\\((['\"]?)([^'\"]+?)\\1\\)/g,H=/url\\([^)]+\\)\\s*format\\(([\"']?)([^\"']+)\\1\\)/g,M=/src:\\s*(?:url\\([^)]+\\)\\s*format\\([^)]+\\)[,;]\\s*)+/g;function F(t,r,i,o,u){return e(this,void 0,void 0,(function(){var e,c,a,s;return n(this,(function(n){switch(n.label){case 0:return n.trys.push([0,5,,6]),e=i?function(t,e){if(t.match(/^[a-z]+:\\/\\//i))return t;if(t.match(/^\\/\\//))return window.location.protocol+t;if(t.match(/^[a-z]+:/i))return t;var n=document.implementation.createHTMLDocument(),r=n.createElement(\"base\"),i=n.createElement(\"a\");return n.head.appendChild(r),n.body.appendChild(i),e&&(r.href=e),i.href=t,i.href}(r,i):r,c=S(r),a=void 0,u?[4,u(e)]:[3,2];case 1:return s=n.sent(),a=x(s,c),[3,4];case 2:return[4,R(e,c,o)];case 3:a=n.sent(),n.label=4;case 4:return[2,t.replace((l=r,f=l.replace(/([.*+?^${}()|\\[\\]\\/\\\\])/g,\"\\\\$1\"),new RegExp(\"(url\\\\(['\\\"]?)(\".concat(f,\")(['\\\"]?\\\\))\"),\"g\")),\"$1\".concat(a,\"$3\"))];case 5:return n.sent(),[3,6];case 6:return[2,t]}var l,f}))}))}function V(t){return-1!==t.search(D)}function q(t,r,i){return e(this,void 0,void 0,(function(){var e,o;return n(this,(function(n){return V(t)?(e=function(t,e){var n=e.preferredFontFormat;return n?t.replace(M,(function(t){for(;;){var e=H.exec(t)||[],r=e[0],i=e[2];if(!i)return\"\";if(i===n)return\"src: \".concat(r,\";\")}})):t}(t,i),o=function(t){var e=[];return t.replace(D,(function(t,n,r){return e.push(r),t})),e.filter((function(t){return!E(t)}))}(e),[2,o.reduce((function(t,e){return t.then((function(t){return F(t,e,r,i)}))}),Promise.resolve(e))]):[2,t]}))}))}function U(t,r,i){var o;return e(this,void 0,void 0,(function(){var e,u;return n(this,(function(n){switch(n.label){case 0:return(e=null===(o=r.style)||void 0===o?void 0:o.getPropertyValue(t))?[4,q(e,null,i)]:[3,2];case 1:return u=n.sent(),r.style.setProperty(t,u,r.style.getPropertyPriority(t)),[2,!0];case 2:return[2,!1]}}))}))}function j(t,r){return e(this,void 0,void 0,(function(){var e,i;return n(this,(function(n){switch(n.label){case 0:return[4,U(\"background\",t,r)];case 1:return n.sent()?[3,3]:[4,U(\"background-image\",t,r)];case 2:n.sent(),n.label=3;case 3:return[4,U(\"mask\",t,r)];case 4:return(i=n.sent())?[3,6]:[4,U(\"-webkit-mask\",t,r)];case 5:i=n.sent(),n.label=6;case 6:return(e=i)?[3,8]:[4,U(\"mask-image\",t,r)];case 7:e=n.sent(),n.label=8;case 8:return e?[3,10]:[4,U(\"-webkit-mask-image\",t,r)];case 9:n.sent(),n.label=10;case 10:return[2]}}))}))}function O(t,r){return e(this,void 0,void 0,(function(){var e,i,o;return n(this,(function(n){switch(n.label){case 0:return(e=p(t,HTMLImageElement))&&!E(t.src)||p(t,SVGImageElement)&&!E(t.href.baseVal)?[4,R(i=e?t.src:t.href.baseVal,S(i),r)]:[2];case 1:return o=n.sent(),[4,new Promise((function(n,i){t.onload=n,t.onerror=r.onImageErrorHandler?function(){for(var t=[],e=0;e<arguments.length;e++)t[e]=arguments[e];try{n(r.onImageErrorHandler.apply(r,t))}catch(t){i(t)}}:i;var u=t;u.decode&&(u.decode=n),\"lazy\"===u.loading&&(u.loading=\"eager\"),e?(t.srcset=\"\",t.src=o):t.href.baseVal=o}))];case 2:return n.sent(),[2]}}))}))}function B(t,r){return e(this,void 0,void 0,(function(){var e,i;return n(this,(function(n){switch(n.label){case 0:return e=o(t.childNodes),i=e.map((function(t){return z(t,r)})),[4,Promise.all(i).then((function(){return t}))];case 1:return n.sent(),[2]}}))}))}function z(t,r){return e(this,void 0,void 0,(function(){return n(this,(function(e){switch(e.label){case 0:return p(t,Element)?[4,j(t,r)]:[3,4];case 1:return e.sent(),[4,O(t,r)];case 2:return e.sent(),[4,B(t,r)];case 3:e.sent(),e.label=4;case 4:return[2]}}))}))}var W={};function $(t){return e(this,void 0,void 0,(function(){var e,r;return n(this,(function(n){switch(n.label){case 0:return null!=(e=W[t])?[2,e]:[4,fetch(t)];case 1:return[4,n.sent().text()];case 2:return r=n.sent(),e={url:t,cssText:r},W[t]=e,[2,e]}}))}))}function G(t,r){return e(this,void 0,void 0,(function(){var i,o,u,c,a=this;return n(this,(function(s){return i=t.cssText,o=/url\\([\"']?([^\"')]+)[\"']?\\)/g,u=i.match(/url\\([^)]+\\)/g)||[],c=u.map((function(u){return e(a,void 0,void 0,(function(){var e;return n(this,(function(n){return(e=u.replace(o,\"$1\")).startsWith(\"https://\")||(e=new URL(e,t.url).href),[2,C(e,r.fetchRequestInit,(function(t){var e=t.result;return i=i.replace(u,\"url(\".concat(e,\")\")),[u,e]}))]}))}))})),[2,Promise.all(c).then((function(){return i}))]}))}))}function _(t){if(null==t)return[];for(var e=[],n=t.replace(/(\\/\\*[\\s\\S]*?\\*\\/)/gi,\"\"),r=new RegExp(\"((@.*?keyframes [\\\\s\\\\S]*?){([\\\\s\\\\S]*?}\\\\s*?)})\",\"gi\");;){if(null===(u=r.exec(n)))break;e.push(u[0])}n=n.replace(r,\"\");for(var i=/@import[\\s\\S]*?url\\([^)]*\\)[\\s\\S]*?;/gi,o=new RegExp(\"((\\\\s*?(?:\\\\/\\\\*[\\\\s\\\\S]*?\\\\*\\\\/)?\\\\s*?@media[\\\\s\\\\S]*?){([\\\\s\\\\S]*?)}\\\\s*?})|(([\\\\s\\\\S]*?){([\\\\s\\\\S]*?)})\",\"gi\");;){var u;if(null===(u=i.exec(n))){if(null===(u=o.exec(n)))break;i.lastIndex=o.lastIndex}else o.lastIndex=i.lastIndex;e.push(u[0])}return e}function J(t,r){return e(this,void 0,void 0,(function(){var e,i;return n(this,(function(n){return e=[],i=[],t.forEach((function(e){if(\"cssRules\"in e)try{o(e.cssRules||[]).forEach((function(t,n){if(t.type===CSSRule.IMPORT_RULE){var o=n+1,u=$(t.href).then((function(t){return G(t,r)})).then((function(t){return _(t).forEach((function(t){try{e.insertRule(t,t.startsWith(\"@import\")?o+=1:e.cssRules.length)}catch(e){console.error(\"Error inserting rule from remote css\",{rule:t,error:e})}}))})).catch((function(t){console.error(\"Error loading remote css\",t.toString())}));i.push(u)}}))}catch(o){var n=t.find((function(t){return null==t.href}))||document.styleSheets[0];null!=e.href&&i.push($(e.href).then((function(t){return G(t,r)})).then((function(t){return _(t).forEach((function(t){n.insertRule(t,n.cssRules.length)}))})).catch((function(t){console.error(\"Error loading remote stylesheet\",t)}))),console.error(\"Error inlining remote css file\",o)}})),[2,Promise.all(i).then((function(){return t.forEach((function(t){if(\"cssRules\"in t)try{o(t.cssRules||[]).forEach((function(t){e.push(t)}))}catch(e){console.error(\"Error while reading CSS rules from \".concat(t.href),e)}})),e}))]}))}))}function Q(t){return t.filter((function(t){return t.type===CSSRule.FONT_FACE_RULE})).filter((function(t){return V(t.style.getPropertyValue(\"src\"))}))}function X(t,r){return e(this,void 0,void 0,(function(){return n(this,(function(e){switch(e.label){case 0:if(null==t.ownerDocument)throw new Error(\"Provided element is not within a Document\");return[4,J(o(t.ownerDocument.styleSheets),r)];case 1:return[2,Q(e.sent())]}}))}))}function K(t){return t.trim().replace(/[\"']/g,\"\")}function Y(t,r){return e(this,void 0,void 0,(function(){var e,i;return n(this,(function(n){switch(n.label){case 0:return[4,X(t,r)];case 1:return e=n.sent(),i=function(t){var e=new Set;return function t(n){(n.style.fontFamily||getComputedStyle(n).fontFamily).split(\",\").forEach((function(t){e.add(K(t))})),Array.from(n.children).forEach((function(e){e instanceof HTMLElement&&t(e)}))}(t),e}(t),[4,Promise.all(e.filter((function(t){return i.has(K(t.style.fontFamily))})).map((function(t){var e=t.parentStyleSheet?t.parentStyleSheet.href:null;return q(t.cssText,e,r)})))];case 2:return[2,n.sent().join(\"\\n\")]}}))}))}function Z(t,r){return e(this,void 0,void 0,(function(){var e,i,o,u,c;return n(this,(function(n){switch(n.label){case 0:return null==r.fontEmbedCSS?[3,1]:(i=r.fontEmbedCSS,[3,5]);case 1:return r.skipFonts?(o=null,[3,4]):[3,2];case 2:return[4,Y(t,r)];case 3:o=n.sent(),n.label=4;case 4:i=o,n.label=5;case 5:return(e=i)&&(u=document.createElement(\"style\"),c=document.createTextNode(e),u.appendChild(c),t.firstChild?t.insertBefore(u,t.firstChild):t.appendChild(u)),[2]}}))}))}function tt(t,r){return void 0===r&&(r={}),e(this,void 0,void 0,(function(){var e,i,o,u;return n(this,(function(n){switch(n.label){case 0:return e=s(t,r),i=e.width,o=e.height,[4,I(t,r,!0)];case 1:return[4,Z(u=n.sent(),r)];case 2:return n.sent(),[4,z(u,r)];case 3:return n.sent(),function(t,e){var n=t.style;e.backgroundColor&&(n.backgroundColor=e.backgroundColor),e.width&&(n.width=\"\".concat(e.width,\"px\")),e.height&&(n.height=\"\".concat(e.height,\"px\"));var r=e.style;null!=r&&Object.keys(r).forEach((function(t){n[t]=r[t]}))}(u,r),[4,v(u,i,o)];case 4:return[2,n.sent()]}}))}))}function et(t,r){return void 0===r&&(r={}),e(this,void 0,void 0,(function(){var e,i,o,u,c,a,f,d,v;return n(this,(function(n){switch(n.label){case 0:return e=s(t,r),i=e.width,o=e.height,[4,tt(t,r)];case 1:return[4,h(n.sent())];case 2:return u=n.sent(),c=document.createElement(\"canvas\"),a=c.getContext(\"2d\"),f=r.pixelRatio||function(){var t,e;try{e=process}catch(t){}var n=e&&e.env?e.env.devicePixelRatio:null;return n&&(t=parseInt(n,10),Number.isNaN(t)&&(t=1)),t||window.devicePixelRatio||1}(),d=r.canvasWidth||i,v=r.canvasHeight||o,c.width=d*f,c.height=v*f,r.skipAutoScale||function(t){(t.width>l||t.height>l)&&(t.width>l&&t.height>l?t.width>t.height?(t.height*=l/t.width,t.width=l):(t.width*=l/t.height,t.height=l):t.width>l?(t.height*=l/t.width,t.width=l):(t.width*=l/t.height,t.height=l))}(c),c.style.width=\"\".concat(d),c.style.height=\"\".concat(v),r.backgroundColor&&(a.fillStyle=r.backgroundColor,a.fillRect(0,0,c.width,c.height)),a.drawImage(u,0,0,c.width,c.height),[2,c]}}))}))}t.getFontEmbedCSS=function(t,r){return void 0===r&&(r={}),e(this,void 0,void 0,(function(){return n(this,(function(e){return[2,Y(t,r)]}))}))},t.toBlob=function(t,r){return void 0===r&&(r={}),e(this,void 0,void 0,(function(){return n(this,(function(e){switch(e.label){case 0:return[4,et(t,r)];case 1:return[4,f(e.sent())];case 2:return[2,e.sent()]}}))}))},t.toCanvas=et,t.toJpeg=function(t,r){return void 0===r&&(r={}),e(this,void 0,void 0,(function(){return n(this,(function(e){switch(e.label){case 0:return[4,et(t,r)];case 1:return[2,e.sent().toDataURL(\"image/jpeg\",r.quality||1)]}}))}))},t.toPixelData=function(t,r){return void 0===r&&(r={}),e(this,void 0,void 0,(function(){var e,i,o,u;return n(this,(function(n){switch(n.label){case 0:return e=s(t,r),i=e.width,o=e.height,[4,et(t,r)];case 1:return u=n.sent(),[2,u.getContext(\"2d\").getImageData(0,0,i,o).data]}}))}))},t.toPng=function(t,r){return void 0===r&&(r={}),e(this,void 0,void 0,(function(){return n(this,(function(e){switch(e.label){case 0:return[4,et(t,r)];case 1:return[2,e.sent().toDataURL()]}}))}))},t.toSvg=tt}));\n";
+
+    const Export = (() => {
+      const content = document.getElementById("content");
+      const SNAPSHOT_STEPS = {
+        start: 0, lib: 0.03, load: 0.08, fonts: 0.12, images: 0.16,
+        raf: 0.2, webgl: 0.22, tocanvas: 0.25, done: 1,
+      };
+      const SNAPSHOT_LABELS = {
+        start: "starting", lib: "loading serializer", load: "waiting for island",
+        fonts: "waiting for fonts", images: "waiting for images", raf: "rendering",
+        webgl: "capturing WebGL", tocanvas: "rasterising", done: "done",
+      };
+      let busy = false;
+      let captureIndex = 0;
+      let captureTotal = 1;
+      let lastStep = 0;
+
+      function slug(value) {
+        return String(value || "document").trim()
+          .replace(/[\\/:*?"<>|]+/g, "-")
+          .replace(/\s+/g, "-")
+          .slice(0, 80) || "document";
+      }
+
+      function stamp() {
+        const d = new Date();
+        const two = (n) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}`;
+      }
+
+      function download(html, name) {
+        const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+
+      function syncPrintPage() {
+        const cs = getComputedStyle(document.documentElement);
+        const width = cs.getPropertyValue("--sheet-w").trim() || "8.5in";
+        const height = cs.getPropertyValue("--sheet-h").trim() || "11in";
+        const margin = cs.getPropertyValue("--pad").trim() || "0.9in";
+        let style = document.getElementById("print-page");
+        if (!style) {
+          style = document.createElement("style");
+          style.id = "print-page";
+          document.head.append(style);
+        }
+        style.textContent = `@page { size: ${width} ${height}; margin: ${margin}; }`;
+      }
+
+      function waitForImages(doc, timeout = 3000) {
+        const pending = [...doc.images].filter((img) => !img.complete).map((img) => new Promise((resolve) => {
+          img.addEventListener("load", resolve, {once: true});
+          img.addEventListener("error", resolve, {once: true});
+        }));
+        return pending.length
+          ? Promise.race([Promise.all(pending), new Promise((r) => setTimeout(r, timeout))])
+          : Promise.resolve();
+      }
+
+      function escapeXml(value) {
+        return String(value || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      }
+
+      function placeholder(caption) {
+        const safe = escapeXml(String(caption || "").slice(0, 80));
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450">`
+          + `<rect width="100%" height="100%" fill="#f3f4f6"/>`
+          + `<text x="50%" y="50%" text-anchor="middle" fill="#b3261e" `
+          + `font-family="system-ui" font-size="20">Figure could not be captured</text>`
+          + (safe ? `<text x="50%" y="56%" text-anchor="middle" fill="#6b7280" `
+            + `font-family="system-ui" font-size="13">${safe}</text>` : "")
+          + `</svg>`;
+        return "data:image/svg+xml," + encodeURIComponent(svg);
+      }
+
+      function buildStatic(captures) {
+        const clone = document.documentElement.cloneNode(true);
+        const figures = [...clone.querySelectorAll("#content figure.figure")];
+        const byId = new Map(captures.map((c) => [c.id, c]));
+
+        figures.forEach((figure, i) => {
+          const capture = captures[i] || byId.get(figure.dataset.figureId) || null;
+          const frame = figure.querySelector(".figure-frame");
+          const caption = (figure.querySelector("figcaption")?.textContent || "").trim();
+          const img = document.createElement("img");
+          img.alt = caption;
+          img.src = capture && capture.ok && capture.dataUrl
+            ? capture.dataUrl
+            : placeholder(caption);
+          img.style.cssText = "display:block;width:100%;height:100%;object-fit:contain";
+          if (frame) {
+            frame.replaceChildren(img);
+            frame.removeAttribute("data-runtime");
+          }
+          figure.removeAttribute("data-selected");
+          figure.removeAttribute("data-mounted");
+          figure.removeAttribute("data-missing");
+          figure.setAttribute("contenteditable", "false");
+          figure.querySelector("figcaption")?.setAttribute("contenteditable", "false");
+        });
+
+        clone.querySelectorAll("script").forEach((n) => n.remove());
+        clone.querySelectorAll("#app-toolbar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog,[data-emoji-menu],[data-menu-panel]").forEach((n) => n.remove());
+        clone.querySelector('body > svg[width="0"]')?.remove();
+        clone.querySelector("#content")?.removeAttribute("contenteditable");
+        clone.querySelector("#content")?.removeAttribute("spellcheck");
+
+        const title = (document.querySelector("[data-title]")?.value || "document").trim();
+        clone.querySelector("title").textContent = title;
+
+        const cs = getComputedStyle(document.documentElement);
+        const sheetW = cs.getPropertyValue("--sheet-w").trim() || "8.5in";
+        const sheetH = cs.getPropertyValue("--sheet-h").trim() || "11in";
+        const pad = cs.getPropertyValue("--pad").trim() || "0.9in";
+
+        const style = document.createElement("style");
+        style.textContent = `
+          html, body { height: auto; }
+          body { display: block; min-height: 100dvh; overflow: auto; background: #e0e0e0; }
+          #viewport { overflow: visible; height: auto; }
+          #content { outline: none; }
+
+          @media print {
+            body { display: block; height: auto; overflow: visible; background: #fff; }
+            #viewport { overflow: visible; }
+            #stage {
+              zoom: 1;
+              padding-block: 0;
+              height: auto !important;
+              min-height: 0 !important;
+            }
+            #sheets { display: none !important; }
+            .page-spacer { display: none !important; }
+            .page-spacer + * { break-before: page; }
+            #content { max-width: none; min-height: 0; }
+            #content > * { break-inside: avoid; }
+            figure.figure { break-inside: avoid; }
+            @page { size: ${sheetW} ${sheetH}; margin: ${pad}; }
+            @page:right {
+              @bottom-right {
+                content: counter(page) " / " counter(pages);
+                font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+                color: #9aa1ab;
+              }
+            }
+            @page:left {
+              @bottom-left {
+                content: counter(page) " / " counter(pages);
+                font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+                color: #9aa1ab;
+              }
+            }
+          }
+        `;
+        clone.querySelector("head")?.append(style);
+
+        return "<!doctype html>\n" + clone.outerHTML;
+      }
+
+      function validateStatic(html) {
+        const problems = [];
+        if (!html.startsWith("<!doctype html>")) problems.push("missing doctype");
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        if (doc.querySelectorAll("script").length) problems.push("a script leaked");
+        if (doc.querySelector("#content iframe")) problems.push("an iframe leaked");
+        if (doc.querySelector('[src^="blob:"], [href^="blob:"]')) problems.push("a blob: URL leaked");
+        const figures = [...doc.querySelectorAll("#content figure.figure")];
+        figures.forEach((figure, i) => {
+          const img = figure.querySelector(".figure-frame img");
+          if (!img) problems.push(`figure ${i + 1} has no image`);
+          else if (!/^data:image\//.test(img.getAttribute("src") || "")) {
+            problems.push(`figure ${i + 1} image is not a data URL`);
+          }
+        });
+        return problems;
+      }
+
+      function progressLabel(step, ms) {
+        const time = ms >= 1000 ? ` · ${(ms / 1000).toFixed(1)} s` : ms ? ` · ${Math.round(ms)} ms` : "";
+        return `Figure ${captureIndex} of ${captureTotal} · ${SNAPSHOT_LABELS[step] || step}${time}`;
+      }
+
+      function startProgress(total) {
+        captureIndex = 0;
+        captureTotal = Math.max(1, total);
+        lastStep = 0;
+        window.ProgressDialog.open({
+          heading: "Preparing export",
+          total,
+          onCancel: () => {
+            window.__exportAbort = true;
+            window.ProgressDialog.setCancel("Finishing current figure…", true);
+            window.ProgressDialog.setText("Cancelling after this figure…");
+          },
+        });
+      }
+
+      function captureProgress(p) {
+        if (!window.ProgressDialog.isOpen) return;
+        if (p.phase === "mount") {
+          captureIndex = p.index;
+          lastStep = 0;
+          window.ProgressDialog.update((p.index - 1) / p.total,
+            `Figure ${p.index} of ${p.total} · mounting`);
+          return;
+        }
+        if (p.phase === "done") {
+          window.ProgressDialog.update(1, "Done");
+          return;
+        }
+        if (p.phase !== "capture") return;
+        const stepFrac = SNAPSHOT_STEPS[p.step] ?? lastStep / 100;
+        lastStep = Math.round(stepFrac * 100);
+        window.ProgressDialog.update((p.index - 1 + stepFrac) / p.total, progressLabel(p.step, p.ms));
+      }
+
+      async function capture() {
+        const controller = new AbortController();
+        window.__exportAbort = false;
+        const total = content.querySelectorAll("figure.figure").length;
+        startProgress(total);
+        try {
+          const captures = await Figures.captureAll({
+            lib: SNAPSHOT_LIB,
+            pixelRatio: 2,
+            format: "webp",
+            quality: 0.9,
+            signal: controller.signal,
+            onProgress: (p) => {
+              if (window.__exportAbort && !controller.signal.aborted) {
+                controller.abort();
+              }
+              captureProgress(p);
+            },
+          });
+          return {captures, aborted: controller.signal.aborted || window.__exportAbort};
+        } finally {
+          window.ProgressDialog.close();
+        }
+      }
+
+      async function captureAndBuild() {
+        const {captures, aborted} = await capture();
+        if (aborted) return null;
+        const html = buildStatic(captures);
+        const problems = validateStatic(html);
+        if (problems.length) throw new Error(problems.join("; "));
+        return {html, captures};
+      }
+
+      async function exportStatic() {
+        const result = await captureAndBuild();
+        if (!result) return;
+        const title = (document.querySelector("[data-title]")?.value || "document").trim();
+        download(result.html, `${slug(title)}-static-${stamp()}.html`);
+      }
+
+      function printLive() {
+        syncPrintPage();
+        console.info("The browser print dialog controls headers and footers; turn them off there for clean pages.");
+        window.print();
+      }
+
+      async function printCaptured() {
+        let win = null;
+        try {
+          win = window.open("", "_blank");
+        } catch (err) {
+          win = null;
+        }
+        if (win) {
+          win.document.write(`<!doctype html><title>Preparing print…</title>`
+            + `<div style="font:14px system-ui;padding:24px">`
+            + `<p>Preparing figures for print…</p>`
+            + `<p style="color:#6b7280">If the print dialog adds headers and footers, turn them off there.</p>`
+            + `</div>`);
+        }
+        try {
+          const result = await captureAndBuild();
+          if (!result) {
+            if (win) win.close();
+            return;
+          }
+          if (!win) {
+            const title = (document.querySelector("[data-title]")?.value || "document").trim();
+            download(result.html, `${slug(title)}-static-${stamp()}.html`);
+            return;
+          }
+          win.document.open();
+          win.document.write(result.html);
+          win.document.close();
+          await waitForImages(win.document, 4000);
+          if (!win.closed) {
+            win.focus();
+            win.print();
+          }
+        } catch (err) {
+          console.error("Print export failed:", err);
+          if (win && !win.closed) win.close();
+          window.ProgressDialog.open({
+            heading: "Export failed",
+            total: 1,
+            onCancel: () => window.ProgressDialog.close(),
+          });
+          window.ProgressDialog.setCancel("Close");
+          window.ProgressDialog.setText(String(err && err.message || err));
+        }
+      }
+
+      async function begin(kind) {
+        if (busy) return;
+        if (kind === "html-interactive") {save(); return;}
+        if (kind === "print-live") {printLive(); return;}
+        busy = true;
+        const buttons = [...document.querySelectorAll("[data-export]")];
+        buttons.forEach((b) => {b.disabled = true;});
+        try {
+          if (kind === "html-static") await exportStatic();
+          else if (kind === "print-captured") await printCaptured();
+        } catch (err) {
+          console.error("Export failed:", err);
+          window.ProgressDialog.open({
+            heading: "Export failed",
+            total: 1,
+            onCancel: () => window.ProgressDialog.close(),
+          });
+          window.ProgressDialog.setCancel("Close");
+          window.ProgressDialog.setText(String(err && err.message || err));
+        } finally {
+          busy = false;
+          buttons.forEach((b) => {b.disabled = false;});
+        }
+      }
+
+      window.addEventListener("beforeprint", syncPrintPage);
+
+      return {begin, capture, captureAndBuild, buildStatic, validateStatic, download,
+        syncPrintPage, printLive, printCaptured};
+    })();
+
+    window.Export = Export;
+  </script>
+<!-- /@asset -->
+
+  <dialog id="shortcuts-dialog">
+    <form method="dialog">
+      <h2>Keyboard shortcuts</h2>
+      <div id="keylist"></div>
+      <div class="dialog-actions">
+        <button class="primary" value="close" autofocus>Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="progress-dialog" aria-labelledby="progress-title">
+    <h2 id="progress-title" data-progress-title>Working…</h2>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <i data-progress-bar></i>
+    </div>
+    <p data-progress-text aria-live="polite">Starting…</p>
+    <div class="dialog-actions">
+      <button type="button" data-progress-cancel>Cancel</button>
+    </div>
+  </dialog>
+
+<!-- @asset id="progress" kind="js" order="110" -->
+  <script id="progress">
+    const ProgressDialog = (() => {
+      const dialog = document.getElementById("progress-dialog");
+      const title = dialog.querySelector("[data-progress-title]");
+      const track = dialog.querySelector(".progress");
+      const bar = dialog.querySelector("[data-progress-bar]");
+      const text = dialog.querySelector("[data-progress-text]");
+      const cancel = dialog.querySelector("[data-progress-cancel]");
+      let onCancel = null;
+
+      function open({heading = "Working…", total = 1, cancelable = true, onCancel: cb = null} = {}) {
+        title.textContent = heading;
+        bar.style.width = "0%";
+        track.setAttribute("aria-valuenow", "0");
+        text.textContent = "Starting…";
+        cancel.hidden = !cancelable;
+        cancel.disabled = false;
+        cancel.textContent = "Cancel";
+        onCancel = cb;
+        if (!dialog.open) dialog.showModal();
+      }
+
+      function update(fraction, label) {
+        const pct = Math.max(0, Math.min(100, Math.round(fraction * 100)));
+        bar.style.width = pct + "%";
+        track.setAttribute("aria-valuenow", pct);
+        if (label) text.textContent = `${label} · ${pct}%`;
+      }
+
+      function setText(label) {
+        text.textContent = label;
+      }
+
+      function setCancel(label, disabled = false) {
+        cancel.textContent = label;
+        cancel.disabled = disabled;
+      }
+
+      function close() {
+        onCancel = null;
+        if (dialog.open) dialog.close();
+      }
+
+      cancel.addEventListener("click", () => {
+        if (!onCancel) return;
+        const cb = onCancel;
+        onCancel = null;
+        cb();
+      });
+
+      dialog.addEventListener("cancel", (e) => {
+        e.preventDefault();
+        cancel.click();
+      });
+
+      return {open, update, setText, setCancel, close, get isOpen() {return dialog.open;}};
+    })();
+
+    window.ProgressDialog = ProgressDialog;
+  </script>
+<!-- /@asset -->
+</body>
+
+</html>

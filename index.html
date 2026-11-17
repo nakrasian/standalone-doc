@@ -5,6 +5,7 @@
   <meta charset="utf-8" />
   <title>Standalone HTML Doc</title>
   <!-- CORE STYLES: CSS, Typography, and Pagination -->
+<!-- @asset id="page-styles" kind="css" order="10" -->
   <style id="page-styles">
     :root {
       --sheet-w: 8.5in;
@@ -357,6 +358,8 @@
       height: var(--pad);
     }
   </style>
+<!-- /@asset -->
+<!-- @asset id="toolbar-styles" kind="css" order="20" -->
   <style id="toolbar-styles">
     :root {
       --chrome-bg: #fbfbfc;
@@ -1108,6 +1111,7 @@
       }
     }
   </style>
+<!-- /@asset -->
   <style id="user-theme"></style>
   <style id="print-page"></style>
   <!-- Favicon for sheet -->
@@ -1617,6 +1621,7 @@
 
 
   <!-- Shared content signals -->
+<!-- @asset id="signals" kind="js" order="30" -->
   <script id="signals">
     const Signals = (() => {
       const target = document.getElementById("content");
@@ -1669,10 +1674,12 @@
       return {on, emit, mute, get composing() {return composing;} };
     })();
   </script>
+<!-- /@asset -->
 
   <!-- Document zoom: scales #stage only (pages + text), never the chrome.
        Must be declared before the pagination script, which divides measured
        block heights by Zoom.value. -->
+<!-- @asset id="zoom" kind="js" order="40" -->
   <script id="zoom">
     const Zoom = (() => {
       /* Buttons and Mod+= / Mod+- walk this list; typed values may sit
@@ -1807,8 +1814,10 @@
       };
     })();
   </script>
+<!-- /@asset -->
 
   <!-- Javascript for Pagination -->
+<!-- @asset id="pagination" kind="js" order="50" -->
   <script id="pagination">
     const content = document.getElementById("content");
     const sheets = document.getElementById("sheets");
@@ -2049,9 +2058,11 @@
 
 
   </script>
+<!-- /@asset -->
 
 
   <!-- Document status: pages, words, dirty -->
+<!-- @asset id="status" kind="js" order="60" -->
   <script id="status">
     const Status = (() => {
       const content = document.getElementById("content");
@@ -2148,8 +2159,10 @@
       return {refresh, save, markDirty};
     })();
   </script>
+<!-- /@asset -->
 
   <!-- Rich text editing -->
+<!-- @asset id="editor" kind="js" order="70" -->
   <script id="editor">
     "use strict";
 
@@ -2644,10 +2657,12 @@
 
     Editor.init();
   </script>
+<!-- /@asset -->
 
   <!-- Figures: import, inert storage, lazy mounting, scaling.
        Data lives in #figure-store as escaped JSON; the DOM holds only an
        id and an empty frame. -->
+<!-- @asset id="figures" kind="js" order="80" -->
   <script id="figures">
     "use strict";
 
@@ -3835,8 +3850,10 @@
     window.Figures = Figures;
     Figures.init();
   </script>
+<!-- /@asset -->
 
   <!-- Javascript for Toolbar -->
+<!-- @asset id="toolbar" kind="js" order="90" -->
   <script id="toolbar">
     const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
@@ -4409,9 +4426,11 @@
     Editor.syncToolbar();
     Zoom.syncUI();
   </script>
+<!-- /@asset -->
 
   <!-- Static export / print. Captures HTML islands only when an export asks
        for it; normal rendering never runs the serializer. -->
+<!-- @asset id="export" kind="js" order="100" -->
   <script id="export">
     "use strict";
 
@@ -4765,6 +4784,7 @@
 
     window.Export = Export;
   </script>
+<!-- /@asset -->
 
   <dialog id="shortcuts-dialog">
     <form method="dialog">
@@ -4787,6 +4807,7 @@
     </div>
   </dialog>
 
+<!-- @asset id="progress" kind="js" order="110" -->
   <script id="progress">
     const ProgressDialog = (() => {
       const dialog = document.getElementById("progress-dialog");
@@ -4847,6 +4868,7 @@
 
     window.ProgressDialog = ProgressDialog;
   </script>
+<!-- /@asset -->
 </body>
 
 </html>

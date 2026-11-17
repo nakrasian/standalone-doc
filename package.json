@@ -1,0 +1,22 @@
+{
+  "name": "standalone-doc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A self-saving, single-file HTML document editor with a declarative asset system.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "split": "node build.mjs split",
+    "combine": "node build.mjs combine",
+    "build": "node build.mjs build",
+    "verify": "node build.mjs verify",
+    "check": "node build.mjs check",
+    "report": "node build.mjs report",
+    "baseline": "node build.mjs report --baseline",
+    "dev": "node build.mjs dev",
+    "test": "node --test test/unit/*.test.js"
+  }
+}
