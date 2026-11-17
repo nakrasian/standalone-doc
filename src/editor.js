@@ -397,14 +397,41 @@ export function createEditor(deps = {}) {
     exec("formatBlock", `<${tag}>`);
   }
 
+  /* An atomic block cannot hold a caret: the browser will not put one inside
+     a contenteditable="false" element, so if nothing editable follows it the
+     space below is unreachable and the document effectively ends there. */
+  const isAtomic = (node) => node.nodeType === Node.ELEMENT_NODE
+    && node.getAttribute("contenteditable") === "false";
+
+  /* The nearest sibling a caret can live in, skipping generated spacers.
+     Nothing after the block counts as unreachable. */
+  function editableAfter(node) {
+    let next = node.nextSibling;
+    while (next && isSpacer(next)) next = next.nextSibling;
+    return next && !isAtomic(next) ? next : null;
+  }
+
+  /* Leave a text block below an atomic block, reusing the paragraph that is
+     already there when the block lands mid-document — so a figure dropped
+     between two paragraphs does not grow an empty one. */
+  function ensureTextAfter(node) {
+    if (!isAtomic(node) || editableAfter(node)) return null;
+    const paragraph = document.createElement("p");
+    paragraph.append(document.createElement("br"));
+    node.after(paragraph);
+    return paragraph;
+  }
+
   /* Insert an atomic block after the block at the caret. Never split the
      current text node: that is the caret rule the pagination engine is
-     built on. Returns the inserted node. */
+     built on. An inserted atomic block keeps a text block below it, so the
+     reader can always type under a figure. Returns the inserted node. */
   function insertBlock(node, {after = null, select = false} = {}) {
     if (!node) return null;
     const current = after || blockAtCaret();
     if (current && current.parentElement === content) current.after(node);
     else content.append(node);
+    ensureTextAfter(node);
 
     flushTyping();
     history.record();

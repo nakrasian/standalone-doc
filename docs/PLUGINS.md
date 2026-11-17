@@ -79,6 +79,11 @@ Capabilities today: `figures` (`insertHTML`, `scan`, `usage`), `editor` (`insert
 `exec`, `setBlock`, `blockAt`), `status` (`refresh`, `markDirty`). A capability exists only
 when the module providing it was built — a view-mode document has no `editor`.
 
+`insertBlock()` leaves a text block below the atomic block it inserted (a contenteditable
+region cannot hold a caret inside `contenteditable="false"` content), reusing the block
+that is already there when the insertion lands mid-document. A plugin inserting its own
+non-editable markup gets the same guarantee for free.
+
 **Rule: a plugin extends the surface, it never occupies it.** Do not write markup into the
 toolbar, the menus or `#content`. Ask the host: `figures.insertHTML()` owns the store, the
 editor and the dirty flag; a panel gets a body to fill; a menu entry is a declaration.

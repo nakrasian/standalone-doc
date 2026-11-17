@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **A figure no longer ends the document.** A figure is `contenteditable="false"`, so with
+  nothing below it the browser had nowhere to put the caret and the reader could not type
+  under the last figure. `editor.insertBlock()` now leaves a text block after every atomic
+  block it inserts, reusing the paragraph already there when the figure lands mid-document.
+
 ## v0.3.0 — 2025-11-23
 
 Documents can carry plugins: code a document pins, loads on demand, verifies before it runs,

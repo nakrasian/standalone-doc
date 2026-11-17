@@ -115,6 +115,63 @@ test.describe("file:// (the archival case)", () => {
     expect(problems).toEqual([]);
   });
 
+  test("a figure at the end leaves a text block below it that takes a caret", async ({ page }) => {
+    /* A figure is contenteditable="false": the browser will not put a caret
+       inside it, so without a block after it the space below is unreachable and
+       the document ends at the figure. */
+    const problems = await load(page, fileUrl());
+    const below = await page.evaluate(async () => {
+      const figures = StandaloneDoc.modules.figures;
+      const file = new File(['<!doctype html><meta charset="utf-8"><p>island</p>'], "island.html", { type: "text/html" });
+      const [figure] = await figures.insertFiles([file], { kindHint: "html" });
+      /* Pagination may drop a generated spacer between blocks. */
+      let next = figure.nextElementSibling;
+      while (next && next.classList.contains("page-spacer")) next = next.nextElementSibling;
+      const out = {
+        tag: next ? next.localName : null,
+        empty: !!next && next.textContent === "",
+        editable: !!next && next.getAttribute("contenteditable") !== "false",
+      };
+      const range = document.createRange();
+      range.selectNodeContents(next);
+      range.collapse(false);
+      const selection = getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.getElementById("content").focus();
+      return out;
+    });
+    expect(below).toEqual({ tag: "p", empty: true, editable: true });
+
+    await page.keyboard.type("below the figure");
+    expect(await page.locator("#content").textContent()).toContain("below the figure");
+    expect(problems).toEqual([]);
+  });
+
+  test("a figure inserted between blocks reuses the block that is already there", async ({ page }) => {
+    /* One empty paragraph per figure would be clutter: a figure that lands
+       mid-document already has somewhere to type below it. */
+    const problems = await load(page, fileUrl());
+    const result = await page.evaluate(async () => {
+      const figures = StandaloneDoc.modules.figures;
+      const content = document.getElementById("content");
+      const heading = content.querySelector("h1");
+      const before = content.querySelectorAll(":scope > p").length;
+      const file = new File(['<!doctype html><meta charset="utf-8"><p>island</p>'], "island.html", { type: "text/html" });
+      const [figure] = await figures.insertFiles([file], { kindHint: "html", after: heading });
+      let next = figure.nextElementSibling;
+      while (next && next.classList.contains("page-spacer")) next = next.nextElementSibling;
+      return {
+        next: next ? next.localName : null,
+        nextText: next ? next.textContent : null,
+        paragraphs: content.querySelectorAll(":scope > p").length,
+        before,
+      };
+    });
+    expect(result).toEqual({ next: "p", nextText: " Testing ", paragraphs: 1, before: 1 });
+    expect(problems).toEqual([]);
+  });
+
   test("a zoom button writes --zoom and updates its label", async ({ page }) => {
     await load(page, fileUrl());
     const zoomIn = page.locator('[data-zoom="in"]:visible').first();

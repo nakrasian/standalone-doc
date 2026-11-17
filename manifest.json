@@ -286,8 +286,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 16405,
-      "sha384": "sha384-e7UmCU5EERe6KSpFuSCGG0oGsqfyf8LyXH5E9w4i2RwfvnGARm15+df6x3c9+rHd",
+      "bytes": 17668,
+      "sha384": "sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8",
       "mode": "inline",
       "requiredBy": [
         "edit"

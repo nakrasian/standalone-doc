@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 380486
+    "bytes": 381845
   },
   "assets": [
     {
@@ -77,7 +77,7 @@
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 18368
+      "bytes": 19727
     },
     {
       "id": "figures",
@@ -116,8 +116,8 @@
     }
   ],
   "flavors": {
-    "index.html": 380486,
-    "asset-bodies": 366900,
+    "index.html": 381845,
+    "asset-bodies": 368259,
     "markup-and-runtime": 13586,
     "dist/slim.html": 66209
   }
