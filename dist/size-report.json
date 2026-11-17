@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 269372
+    "bytes": 269408
   },
   "assets": [
     {
@@ -111,9 +111,9 @@
     }
   ],
   "flavors": {
-    "index.html": 269372,
+    "index.html": 269408,
     "asset-bodies": 256745,
-    "markup-and-runtime": 12627,
-    "dist/slim.html": 43897
+    "markup-and-runtime": 12663,
+    "dist/slim.html": 43933
   }
 }
