@@ -134,3 +134,33 @@ test("a stalled request times out", async ({ page }) => {
   expect(seen.title).toBe("Loading timed out");
   makeSlim();
 });
+
+test("nothing paints behind the dialog until boot finishes", async ({ page }) => {
+  await page.route("**/dist/cdn/**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await route.continue();
+  });
+  await page.goto(URL_PATH);
+
+  const during = await page.evaluate(async () => {
+    const el = document.getElementById("app-toolbar");
+    return {
+      boot: document.documentElement.dataset.bootState,
+      app: getComputedStyle(el).visibility,
+      dialogOpen: document.getElementById("boot-dialog").open,
+      background: getComputedStyle(document.documentElement).backgroundColor,
+    };
+  });
+  expect(during.boot).toBe("booting");
+  expect(during.app).toBe("hidden");
+  /* the stage colour, not the app: no sprite flash, no half-styled toolbar */
+  expect(during.background).toBe("rgb(224, 224, 224)");
+
+  await page.waitForFunction(() => window.StandaloneDoc?.state === "ready", null, { timeout: 20_000 });
+  const after = await page.evaluate(() => ({
+    boot: document.documentElement.dataset.bootState,
+    app: getComputedStyle(document.getElementById("app-toolbar")).visibility,
+    dialogOpen: document.getElementById("boot-dialog").open,
+  }));
+  expect(after).toEqual({ boot: "ready", app: "visible", dialogOpen: false });
+});

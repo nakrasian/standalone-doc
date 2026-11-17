@@ -210,6 +210,26 @@
     });
   }
 
+  /* Never leave the document hidden forever: if boot never settles (a broken
+     registry block, a parse error), reveal it and say so. */
+  setTimeout(() => {
+    if (document.documentElement.dataset.bootState !== "booting") return;
+    document.documentElement.dataset.bootState = "failed";
+    const el = ensure();
+    if (!el) return;
+    el.dialog.dataset.phase = "failed";
+    el.title.textContent = "The editor did not start";
+    el.sub.textContent = "Nothing has been changed on disk";
+    el.error.hidden = false;
+    el.errorTitle.textContent = "Boot never finished";
+    el.errorBody.textContent = "The runtime did not report ready or failed. Copy the diagnostics and send them to the author.";
+    el.retry.hidden = false;
+    el.toggle.hidden = false;
+    el.copy.hidden = false;
+    el.diag.textContent = diagnosticsText();
+    open();
+  }, 20_000);
+
   if (!registry) return;
 
   registry.on("start", (detail) => {
@@ -217,7 +237,14 @@
     reset();
     renderRows(detail.order);
     const el = ensure();
-    if (el) el.sub.textContent = `${detail.total} modules · everything embedded in this file`;
+    if (el) {
+      const assets = registry.manifest().assets || [];
+      const online = assets.filter((asset) => asset.mode === "online").length;
+      const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
+      el.sub.textContent = online
+        ? `${detail.total} modules · ${online} fetched from the CDN${version ? ` · ${version}` : ""}`
+        : `${detail.total} modules · everything embedded in this file`;
+    }
     scheduleOpen();
   });
 

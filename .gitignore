@@ -4,9 +4,14 @@
 # dependencies (the project itself has none; build tooling may add dev-only ones later)
 node_modules/
 
-# Unpublished material: docs, experiments, samples, labs, planning notes.
+# Unpublished material: docs, experiments, samples, planning notes.
 # See archive/README.md. Nothing in archive/ is referenced by the build.
 archive/
+
+# The probe lab and the working documents for AI-human sessions.
+lab/
+/HANDOFF.md
+/WORKFLOW.md
 
 # Playwright output
 test-results/

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-US">
+<html lang="en-US" data-boot-state="booting">
 
 <head>
   <meta charset="utf-8" />
@@ -1117,6 +1117,18 @@
     /* Boot shell styles. Self-contained on purpose: this file must render before
        any other asset exists, so it may not rely on core.css or its variables. */
 
+    /* Nothing behind the dialog until boot says so: this is what stops the markup and
+       the SVG sprite from painting before the stylesheets have arrived. `visibility`
+       keeps layout, so revealing the app later does not reflow. */
+    html[data-boot-state="booting"],
+    html[data-boot-state="failed"] {
+      background: #e0e0e0;
+    }
+    html[data-boot-state="booting"] body > :not(script):not(style):not(link):not(#boot-dialog),
+    html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boot-dialog) {
+      visibility: hidden;
+    }
+
     #boot-dialog {
       --boot-ink: #1b1f24;
       --boot-muted: #6b7280;
@@ -1139,6 +1151,10 @@
     }
 
     #boot-dialog::backdrop { background: rgba(16, 24, 40, .28); }
+    /* The dialog is a container, not a control: a focus ring around the whole card is
+       noise. Focus is moved to Retry (or the first button) on failure. */
+    #boot-dialog:focus,
+    #boot-dialog:focus-visible { outline: none; }
 
     #boot-dialog .boot-head { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px 12px; }
     #boot-dialog .boot-mark {
@@ -1754,7 +1770,7 @@
     </div>
   </dialog>
 
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":4663},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":8386},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":8679},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"global":"Signals","factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"global":"Zoom","factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"global":"Pagination","factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"global":"ProgressDialog","factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3343,"deps":["signals","pagination"],"global":"Status","factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":15972,"deps":["signals","status","pagination"],"global":"Editor","factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":41785,"deps":["signals","status","editor"],"global":"Figures","factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22733,"deps":["zoom","editor","figures","status"],"global":"Toolbar","factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"global":"Export","factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":9497},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"global":"Signals","factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"global":"Zoom","factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"global":"Pagination","factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"global":"ProgressDialog","factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3343,"deps":["signals","pagination"],"global":"Status","factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":15972,"deps":["signals","status","pagination"],"global":"Editor","factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":41785,"deps":["signals","status","editor"],"global":"Figures","factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22733,"deps":["zoom","editor","figures","status"],"global":"Toolbar","factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"global":"Export","factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -1770,6 +1786,13 @@
       const injected = [];
       let state = "declared";
       let parsed = null;
+
+      /* The shell gates the app on this attribute, so it must be set wherever state
+         changes — never by the UI, which only observes. */
+      function setState(next) {
+        state = next;
+        if (typeof document !== "undefined") document.documentElement.dataset.bootState = next;
+      }
 
       /* The manifest is authoritative for order/deps/mode; a registration only
          supplies the factory, which is what makes the inline and CDN flavours the
@@ -1824,7 +1847,7 @@
       }
 
       function fail(record) {
-        state = "failed";
+        setState("failed");
         errors.push(record);
         emit("failed", { error: record, errors: errors.slice() });
         return false;
@@ -1845,9 +1868,11 @@
         return "sha384-" + btoa(binary);
       }
 
-      /* The only flavour-specific step in the whole architecture. */
-      async function resolve(asset) {
-        if (factories[asset.id]) return factories[asset.id];
+      /* The only flavour-specific step in the whole architecture. Pure: it returns a
+         factory or stylesheet text and leaves every side effect to the construct
+         phase, so loading can run in parallel without reordering anything. */
+      async function fetchAsset(asset) {
+        if (factories[asset.id]) return { factory: factories[asset.id] };
         if (asset.mode !== "online") {
           throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
         }
@@ -1887,14 +1912,7 @@
         }
 
         const text = new TextDecoder().decode(bytes);
-        if (asset.kind === "css") {
-          const style = document.createElement("style");
-          style.textContent = text;
-          style.dataset.asset = asset.id;
-          document.head.append(style);
-          injected.push(style);
-          return null;
-        }
+        if (asset.kind === "css") return { css: text };
 
         const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
         let namespace;
@@ -1907,32 +1925,46 @@
         if (typeof factory !== "function") {
           throw failure("import", asset.id, `module does not export ${asset.factory}`, { url: asset.url });
         }
-        return factory;
+        return { factory };
       }
 
       async function boot() {
         if (state !== "declared") return modules;
-        state = "booting";
+        setState("booting");
         errors.length = 0;
 
         const assets = manifest().assets.slice().sort((a, b) => a.order - b.order);
         const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
         emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
 
+        /* 1. Load in parallel: I/O is order-free. */
+        const online = assets.filter((asset) => asset.mode === "online");
+        const loaded = new Map();
+        const outcomes = await Promise.allSettled(
+          online.map(async (asset) => {
+            loaded.set(asset.id, await fetchAsset(asset));
+          }),
+        );
+        for (const [i, outcome] of outcomes.entries()) {
+          if (outcome.status === "rejected") return fail(outcome.reason);
+        }
+
+        /* 2. Construct in order: side effects are order-bound. */
         let index = 0;
         for (const asset of assets) {
           if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
 
           /* Stylesheets are not modules: inline ones are already in the document,
-             online ones are fetched and injected. Either way there is nothing to
-             construct. */
+             online ones are injected here, in manifest order, so cascade order is
+             the same in both flavours. */
           if (asset.kind === "css") {
-            if (asset.mode === "online") {
-              try {
-                await resolve(asset);
-              } catch (record) {
-                return fail(record);
-              }
+            const result = loaded.get(asset.id);
+            if (result?.css != null) {
+              const style = document.createElement("style");
+              style.textContent = result.css;
+              style.dataset.asset = asset.id;
+              document.head.append(style);
+              injected.push(style);
             }
             continue;
           }
@@ -1948,11 +1980,15 @@
             deps[name] = modules[name];
           }
 
-          let factory;
-          try {
-            factory = factories[asset.id] || (await resolve(asset));
-          } catch (record) {
-            return fail(record);
+          const factory = factories[asset.id] || loaded.get(asset.id)?.factory;
+          if (!factory) {
+            return fail(
+              failure(
+                "missing",
+                asset.id,
+                asset.mode === "inline" ? "not loaded (its block is missing from this document)" : "not loaded from the CDN",
+              ),
+            );
           }
 
           try {
@@ -1971,7 +2007,7 @@
           emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
         }
 
-        state = "ready";
+        setState("ready");
         emit("ready", { count: Object.keys(modules).length });
         return modules;
       }
@@ -1986,7 +2022,7 @@
         }
         for (const node of injected.splice(0)) node.remove();
         errors.length = 0;
-        state = "declared";
+        setState("declared");
         return boot();
       }
 
@@ -2222,6 +2258,26 @@
         });
       }
 
+      /* Never leave the document hidden forever: if boot never settles (a broken
+         registry block, a parse error), reveal it and say so. */
+      setTimeout(() => {
+        if (document.documentElement.dataset.bootState !== "booting") return;
+        document.documentElement.dataset.bootState = "failed";
+        const el = ensure();
+        if (!el) return;
+        el.dialog.dataset.phase = "failed";
+        el.title.textContent = "The editor did not start";
+        el.sub.textContent = "Nothing has been changed on disk";
+        el.error.hidden = false;
+        el.errorTitle.textContent = "Boot never finished";
+        el.errorBody.textContent = "The runtime did not report ready or failed. Copy the diagnostics and send them to the author.";
+        el.retry.hidden = false;
+        el.toggle.hidden = false;
+        el.copy.hidden = false;
+        el.diag.textContent = diagnosticsText();
+        open();
+      }, 20_000);
+
       if (!registry) return;
 
       registry.on("start", (detail) => {
@@ -2229,7 +2285,14 @@
         reset();
         renderRows(detail.order);
         const el = ensure();
-        if (el) el.sub.textContent = `${detail.total} modules · everything embedded in this file`;
+        if (el) {
+          const assets = registry.manifest().assets || [];
+          const online = assets.filter((asset) => asset.mode === "online").length;
+          const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
+          el.sub.textContent = online
+            ? `${detail.total} modules · ${online} fetched from the CDN${version ? ` · ${version}` : ""}`
+            : `${detail.total} modules · everything embedded in this file`;
+        }
         scheduleOpen();
       });
 

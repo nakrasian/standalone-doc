@@ -12,6 +12,13 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   let state = "declared";
   let parsed = null;
 
+  /* The shell gates the app on this attribute, so it must be set wherever state
+     changes — never by the UI, which only observes. */
+  function setState(next) {
+    state = next;
+    if (typeof document !== "undefined") document.documentElement.dataset.bootState = next;
+  }
+
   /* The manifest is authoritative for order/deps/mode; a registration only
      supplies the factory, which is what makes the inline and CDN flavours the
      same code path. An extra options argument from the compiled envelope is
@@ -65,7 +72,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   }
 
   function fail(record) {
-    state = "failed";
+    setState("failed");
     errors.push(record);
     emit("failed", { error: record, errors: errors.slice() });
     return false;
@@ -86,9 +93,11 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return "sha384-" + btoa(binary);
   }
 
-  /* The only flavour-specific step in the whole architecture. */
-  async function resolve(asset) {
-    if (factories[asset.id]) return factories[asset.id];
+  /* The only flavour-specific step in the whole architecture. Pure: it returns a
+     factory or stylesheet text and leaves every side effect to the construct
+     phase, so loading can run in parallel without reordering anything. */
+  async function fetchAsset(asset) {
+    if (factories[asset.id]) return { factory: factories[asset.id] };
     if (asset.mode !== "online") {
       throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
     }
@@ -128,14 +137,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     }
 
     const text = new TextDecoder().decode(bytes);
-    if (asset.kind === "css") {
-      const style = document.createElement("style");
-      style.textContent = text;
-      style.dataset.asset = asset.id;
-      document.head.append(style);
-      injected.push(style);
-      return null;
-    }
+    if (asset.kind === "css") return { css: text };
 
     const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
     let namespace;
@@ -148,32 +150,46 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     if (typeof factory !== "function") {
       throw failure("import", asset.id, `module does not export ${asset.factory}`, { url: asset.url });
     }
-    return factory;
+    return { factory };
   }
 
   async function boot() {
     if (state !== "declared") return modules;
-    state = "booting";
+    setState("booting");
     errors.length = 0;
 
     const assets = manifest().assets.slice().sort((a, b) => a.order - b.order);
     const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
     emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
 
+    /* 1. Load in parallel: I/O is order-free. */
+    const online = assets.filter((asset) => asset.mode === "online");
+    const loaded = new Map();
+    const outcomes = await Promise.allSettled(
+      online.map(async (asset) => {
+        loaded.set(asset.id, await fetchAsset(asset));
+      }),
+    );
+    for (const [i, outcome] of outcomes.entries()) {
+      if (outcome.status === "rejected") return fail(outcome.reason);
+    }
+
+    /* 2. Construct in order: side effects are order-bound. */
     let index = 0;
     for (const asset of assets) {
       if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
 
       /* Stylesheets are not modules: inline ones are already in the document,
-         online ones are fetched and injected. Either way there is nothing to
-         construct. */
+         online ones are injected here, in manifest order, so cascade order is
+         the same in both flavours. */
       if (asset.kind === "css") {
-        if (asset.mode === "online") {
-          try {
-            await resolve(asset);
-          } catch (record) {
-            return fail(record);
-          }
+        const result = loaded.get(asset.id);
+        if (result?.css != null) {
+          const style = document.createElement("style");
+          style.textContent = result.css;
+          style.dataset.asset = asset.id;
+          document.head.append(style);
+          injected.push(style);
         }
         continue;
       }
@@ -189,11 +205,15 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
         deps[name] = modules[name];
       }
 
-      let factory;
-      try {
-        factory = factories[asset.id] || (await resolve(asset));
-      } catch (record) {
-        return fail(record);
+      const factory = factories[asset.id] || loaded.get(asset.id)?.factory;
+      if (!factory) {
+        return fail(
+          failure(
+            "missing",
+            asset.id,
+            asset.mode === "inline" ? "not loaded (its block is missing from this document)" : "not loaded from the CDN",
+          ),
+        );
       }
 
       try {
@@ -212,7 +232,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
     }
 
-    state = "ready";
+    setState("ready");
     emit("ready", { count: Object.keys(modules).length });
     return modules;
   }
@@ -227,7 +247,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     }
     for (const node of injected.splice(0)) node.remove();
     errors.length = 0;
-    state = "declared";
+    setState("declared");
     return boot();
   }
 

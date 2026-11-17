@@ -1,6 +1,18 @@
 /* Boot shell styles. Self-contained on purpose: this file must render before
    any other asset exists, so it may not rely on core.css or its variables. */
 
+/* Nothing behind the dialog until boot says so: this is what stops the markup and
+   the SVG sprite from painting before the stylesheets have arrived. `visibility`
+   keeps layout, so revealing the app later does not reflow. */
+html[data-boot-state="booting"],
+html[data-boot-state="failed"] {
+  background: #e0e0e0;
+}
+html[data-boot-state="booting"] body > :not(script):not(style):not(link):not(#boot-dialog),
+html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boot-dialog) {
+  visibility: hidden;
+}
+
 #boot-dialog {
   --boot-ink: #1b1f24;
   --boot-muted: #6b7280;
@@ -23,6 +35,10 @@
 }
 
 #boot-dialog::backdrop { background: rgba(16, 24, 40, .28); }
+/* The dialog is a container, not a control: a focus ring around the whole card is
+   noise. Focus is moved to Retry (or the first button) on failure. */
+#boot-dialog:focus,
+#boot-dialog:focus-visible { outline: none; }
 
 #boot-dialog .boot-head { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px 12px; }
 #boot-dialog .boot-mark {

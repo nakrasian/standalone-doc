@@ -40,8 +40,8 @@
       "order": 25,
       "tag": "style",
       "file": "src/boot-ui-styles.css",
-      "bytes": 4663,
-      "sha384": "sha384-QuB8zcobCEIGq+izwSzi8JW8Qqc0WOddodi4fm4zfdPiqwFV8IuZkJxDN4YUtFR7",
+      "bytes": 5412,
+      "sha384": "sha384-TfWVpqje1Voq28whlcJV1xj2r1kOl9IUuQ7GL0DceNHoJBZ9wB62sINLpQaAX2B6",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -54,8 +54,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 8386,
-      "sha384": "sha384-+E0T7OZZKJTXVUZlbqWcFxMH/FQ1zkWkhJeyuwqurA3+GUnp3EHx54eVRORaKXIH",
+      "bytes": 9497,
+      "sha384": "sha384-mD+hzi0yOyFket7S8f+6YbehYPXMw+J+PumDT0f8dT9ioV74KHRS/x4pCg/myANV",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -68,8 +68,8 @@
       "order": 6,
       "tag": "script",
       "file": "src/boot-ui.js",
-      "bytes": 8679,
-      "sha384": "sha384-ASjh/eLOUKzxKwIOXJIpe5UnUAzu6Kumkd1RjMevFEgP3hWwnJKsA/5h2uWy6ocr",
+      "bytes": 9896,
+      "sha384": "sha384-7OKcZlHaGyEPeJpCYfWYjtOkwdx56uPTtq+hoOrgBHr2hFchpy4s2+uDNCWUtplm",
       "mode": "inline",
       "requiredBy": [
         "*"
