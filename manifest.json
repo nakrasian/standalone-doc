@@ -108,11 +108,14 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 15840,
-      "sha384": "sha384-JWkJMlQGSa/BDZINx1jBHBEdBK79eg+tBXKk9aUNoVC+zfx7xIgtHD4V+Exx+pNB",
+      "bytes": 15972,
+      "sha384": "sha384-Iq8SgBNSOqcXVwp9dCntaaEZ0utsNYgGiyrtsgjZJ1y4S6QCjr4I1MR37bSPDmCW",
       "mode": "inline",
       "requiredBy": [
         "edit"
+      ],
+      "exports": [
+        "createEditor"
       ]
     },
     {

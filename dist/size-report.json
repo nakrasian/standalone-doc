@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 192494
+    "bytes": 192881
   },
   "assets": [
     {
@@ -37,7 +37,7 @@
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 17619
+      "bytes": 18006
     },
     {
       "id": "figures",
@@ -61,8 +61,8 @@
     }
   ],
   "flavors": {
-    "index.html": 192494,
-    "asset-bodies": 167236,
+    "index.html": 192881,
+    "asset-bodies": 167623,
     "markup-and-runtime": 25258
   },
   "notes": [

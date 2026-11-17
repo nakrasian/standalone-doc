@@ -1,6 +1,5 @@
-"use strict";
-
-const Editor = (() => {
+export function createEditor(deps = {}) {
+  const {signals, status, pagination} = deps;
   const content = document.getElementById("content");
   const STATE = ["bold", "italic", "underline", "strikeThrough",
     "superscript", "subscript", "insertUnorderedList", "insertOrderedList"];
@@ -321,12 +320,12 @@ const Editor = (() => {
 
     function restore(snap) {
       if (window.Figures && window.Figures.unmountAll) window.Figures.unmountAll();
-      Signals.mute(() => {content.innerHTML = snap.html;});
+      signals.mute(() => {content.innerHTML = snap.html;});
       applySelection(snap.sel);
       remember();
       syncToolbar();
-      Status.refresh();
-      Pagination.schedule();
+      status.refresh();
+      pagination.schedule();
       if (window.Figures && window.Figures.scan) window.Figures.scan();
     }
 
@@ -407,9 +406,9 @@ const Editor = (() => {
     flushTyping();
     history.record();
     syncToolbar();
-    Status.markDirty();
+    status.markDirty();
     if (select && node.nodeType === Node.ELEMENT_NODE) selectNode(node);
-    Pagination.schedule();
+    pagination.schedule();
     return node;
   }
 
@@ -443,8 +442,8 @@ const Editor = (() => {
   function setFontSize(size) {
     document.getElementById("user-theme").textContent = `:root{--doc-size:${size}}`;
     document.querySelectorAll("[data-fontsize]").forEach((el) => {el.value = size;});
-    Status.markDirty();
-    Pagination.schedule();
+    status.markDirty();
+    pagination.schedule();
   }
 
   function openLink() {
@@ -473,9 +472,9 @@ const Editor = (() => {
       syncToolbar();
       history.syncSelection();
     });
-    Signals.on("beforeinput", () => history.syncSelection());
-    Signals.on("edit", scheduleTyping);
-    Signals.on("compositionend", () => {
+    signals.on("beforeinput", () => history.syncSelection());
+    signals.on("edit", scheduleTyping);
+    signals.on("compositionend", () => {
       flushTyping();
       history.record();
     });
@@ -486,7 +485,9 @@ const Editor = (() => {
     history.reset();
   }
 
-  return {init, exec, setBlock, setList, syncToolbar, setFontSize, openLink, remember, restore, history, blockAt, blockAtCaret, insertBlock};
-})();
+  const api = {init, exec, setBlock, setList, syncToolbar, setFontSize, openLink, remember, restore, history, blockAt, blockAtCaret, insertBlock};
 
-Editor.init();
+  /* Construction-time, exactly where the trailing Editor.init() ran. */
+  init();
+  return api;
+}
