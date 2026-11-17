@@ -34,10 +34,10 @@ export function double(n) {
 }
 `;
 
-test("nothing is converted yet, so the transform is a pass-through", () => {
-  assert.equal(isConverted("signals"), false);
-  assert.deepEqual(compileBody("signals", "const Signals = 1;"), { body: "const Signals = 1;", exports: [] });
-  assert.equal(uncompileBody("signals", "anything"), "anything");
+test("an asset absent from MODULES is a pass-through", () => {
+  assert.equal(isConverted("not-converted-yet"), false);
+  assert.deepEqual(compileBody("not-converted-yet", "const X = 1;"), { body: "const X = 1;", exports: [] });
+  assert.equal(uncompileBody("not-converted-yet", "anything"), "anything");
 });
 
 test("compile produces the envelope and records the export list", () => {

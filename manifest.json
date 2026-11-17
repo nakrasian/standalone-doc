@@ -36,11 +36,14 @@
       "order": 30,
       "tag": "script",
       "file": "src/signals.js",
-      "bytes": 1430,
-      "sha384": "sha384-d0XWvTiRDjRllhK4m3Zj3MrXVJWgG7EBHa0fIJuSGq1Sm65bYEzvIKaPoa2SNos/",
+      "bytes": 1451,
+      "sha384": "sha384-T0L3EIR154eNPG0CdTjNBwd679vowzlQc1tyDhPgVHdUdaydfIOQJRTNWy2ZS5yA",
       "mode": "inline",
       "requiredBy": [
         "*"
+      ],
+      "exports": [
+        "createSignals"
       ]
     },
     {

@@ -285,7 +285,7 @@ function previousManifest() {
 
 /** The src/ text for an asset: an ES module for converted assets. */
 function sourceTextFor(a, entry) {
-  return isConverted(a.id) ? uncompileBody(a.id, a.body, entry?.exports) : a.fileText + "\n";
+  return isConverted(a.id) ? uncompileBody(a.id, a.fileText, entry?.exports) : a.fileText + "\n";
 }
 
 /**
@@ -443,11 +443,6 @@ function verify({ quiet = false } = {}) {
     }
   }
 
-  /* 7. dist/editor.html, when present, must equal index.html */
-  if (exists(`${DIST}/editor.html`) && read(`${DIST}/editor.html`) !== html) {
-    problems.push(`${DIST}/editor.html is stale — run: node build.mjs build`);
-  }
-
   if (!quiet) {
     if (problems.length) {
       console.error(`verify: FAILED (${problems.length})`);
@@ -482,6 +477,12 @@ function cmdCheck() {
     }
   } catch (err) {
     all.push(err.message);
+  }
+
+  /* dist/ must be current. Lives here and not in verify(), because build
+     itself cannot run if verify refuses while dist is stale. */
+  if (exists(`${DIST}/editor.html`) && read(`${DIST}/editor.html`) !== html) {
+    all.push(`${DIST}/editor.html is stale — run: node build.mjs build`);
   }
 
   /* schema sanity */

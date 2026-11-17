@@ -1623,7 +1623,10 @@
   <!-- Shared content signals -->
 <!-- @asset id="signals" kind="js" order="30" -->
   <script id="signals">
-    const Signals = (() => {
+    /*@compiled-from src/signals.js — envelope is build-owned; edit the body or src/*/
+    var Signals = globalThis.Signals || (function () {
+    function createSignals() {
+      "use strict";
       const target = document.getElementById("content");
       const listeners = new Map();
       let muted = 0;
@@ -1672,6 +1675,8 @@
       });
 
       return {on, emit, mute, get composing() {return composing;} };
+    }
+    return createSignals();
     })();
   </script>
 <!-- /@asset -->

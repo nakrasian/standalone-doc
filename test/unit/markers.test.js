@@ -107,6 +107,22 @@ test("each src file exists, is hashed correctly, and reproduces its body", () =>
 
     const region = marked.find((r) => r.id === asset.id);
     const body = region.bodyLines.join("\n");
+
+    /* Converted assets are compiled into a classic-script envelope, so src is
+       ESM and the body is not a re-indentation of it. Assert the envelope
+       invariants instead (deliberately without importing lib/compile.mjs, so
+       this test stays independent of the implementation it checks). */
+    if (body.includes("@compiled-from")) {
+      assert.match(disk, /^export function create[A-Za-z0-9_$]*\(/m, `${asset.id}: src must be ESM`);
+      assert.match(body, /^\s*var [A-Za-z_$][\w$]* = globalThis\./m, `${asset.id}: envelope binding missing`);
+      const factory = /^export function (create[A-Za-z0-9_$]*)\s*\(/m.exec(disk)?.[1];
+      assert.ok(factory, `${asset.id}: no create<Name> export`);
+      assert.ok(body.includes(`return ${factory}();`), `${asset.id}: envelope does not call ${factory}()`);
+      for (const m of disk.matchAll(/^export function ([A-Za-z_$][\w$]*)\s*\(/gm)) {
+        assert.ok(body.includes(`function ${m[1]}(`), `${asset.id}: ${m[1]} is not present in the compiled body`);
+      }
+      return;
+    }
     const srcLines = disk.replace(/\n$/, "").split("\n");
 
     /* Re-add the body's common indent, then compare line for line. */

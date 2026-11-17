@@ -1,26 +1,33 @@
-const Zoom = (() => {
-  /* Buttons and Mod+= / Mod+- walk this list; typed values may sit
-     between stops. */
-  const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
-  const MIN = STEPS[0];
-  const MAX = STEPS[STEPS.length - 1];
-  const TYPE_MIN = 0.1;
-  const TYPE_MAX = 4;
+/* Buttons and Mod+= / Mod+- walk this list; typed values may sit
+   between stops. Exported so the zoom math can be unit-tested without a DOM. */
+export const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+export const MIN = STEPS[0];
+export const MAX = STEPS[STEPS.length - 1];
+export const TYPE_MIN = 0.1;
+export const TYPE_MAX = 4;
 
+export const clamp = (v) => Math.min(TYPE_MAX, Math.max(TYPE_MIN, v));
+
+/* Nearest stop, compared in log space so the steps feel even. */
+export function nearest(v) {
+  let best = STEPS[0];
+  for (const s of STEPS) {
+    if (Math.abs(Math.log(s / v)) < Math.abs(Math.log(best / v))) best = s;
+  }
+  return best;
+}
+
+/* "150", "150%", " 150 % " → 150. Anything unparseable → null. */
+export function parsePercent(text) {
+  const n = parseFloat(String(text).replace(/[%\s]/g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+export function createZoom() {
+  "use strict";
   const stage = document.getElementById("stage");
   const viewport = document.getElementById("viewport");
   let value = 1;
-
-  const clamp = (v) => Math.min(TYPE_MAX, Math.max(TYPE_MIN, v));
-
-  /* Nearest stop, compared in log space so the steps feel even. */
-  function nearest(v) {
-    let best = STEPS[0];
-    for (const s of STEPS) {
-      if (Math.abs(Math.log(s / v)) < Math.abs(Math.log(best / v))) best = s;
-    }
-    return best;
-  }
 
   /* Change zoom without losing the reading spot. The anchor is a CLIENT y
      (the same space as MouseEvent.clientY). The scroll correction is the
@@ -61,12 +68,6 @@ const Zoom = (() => {
        than jumping back to the last stop. */
     if (j === i) return apply(value, anchorY);
     return apply(STEPS[j], anchorY);
-  }
-
-  /* "150", "150%", " 150 % " → 150. Anything unparseable → null. */
-  function parsePercent(text) {
-    const n = parseFloat(String(text).replace(/[%\s]/g, "").replace(",", "."));
-    return Number.isFinite(n) ? n : null;
   }
 
   /* Commit a typed percentage; false means "restore the field". */
@@ -129,4 +130,4 @@ const Zoom = (() => {
     syncUI,
     get value() {return value},
   };
-})();
+}

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 190658
+    "bytes": 190858
   },
   "assets": [
     {
@@ -17,7 +17,7 @@
     {
       "id": "signals",
       "kind": "js",
-      "bytes": 1601
+      "bytes": 1801
     },
     {
       "id": "zoom",
@@ -61,8 +61,8 @@
     }
   ],
   "flavors": {
-    "index.html": 190658,
-    "asset-bodies": 165400,
+    "index.html": 190858,
+    "asset-bodies": 165600,
     "markup-and-runtime": 25258
   },
   "notes": [
