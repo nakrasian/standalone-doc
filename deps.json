@@ -280,7 +280,8 @@
       "provides": [
         "activateUi",
         "wire",
-        "unwire"
+        "unwire",
+        "openPanel"
       ]
     },
     {

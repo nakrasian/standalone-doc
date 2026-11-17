@@ -879,6 +879,35 @@ dialog#shortcuts-dialog::backdrop {
 }
 #doc-settings-dialog .ds-pending { color: #b3261e; font-size: 12px; }
 
+/* ---- plugin panels ----
+   The host owns the box: size, head, close button, the fact that it is a modal. The
+   plugin gets the empty body and may put anything in it. Created at runtime and tagged
+   `data-plugin-ui`, because it is session state and must never reach a saved file. */
+dialog.plugin-panel {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(86dvh, 780px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+dialog.plugin-panel::backdrop { background: rgba(16, 22, 30, .34); }
+dialog.plugin-panel:focus,
+dialog.plugin-panel:focus-visible { outline: none; }
+dialog.plugin-panel .pp-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px 10px; border-bottom: 1px solid var(--line);
+}
+dialog.plugin-panel .pp-head h2 { flex: 1 1 auto; margin: 0; font-size: 15px; letter-spacing: -.01em; }
+dialog.plugin-panel .pp-head button {
+  height: 26px; padding: 0 9px; font: inherit; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink);
+}
+dialog.plugin-panel .pp-body { padding: 14px 18px 18px; overflow-y: auto; max-height: 64dvh; }
+
 /* a clickable size readout: it opens the sheet at Size & loading */
 .stats[data-stats] { cursor: pointer; border-radius: 4px; }
 .stats[data-stats]:hover { background: var(--hover); }

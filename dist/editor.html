@@ -1270,6 +1270,35 @@
     }
     #doc-settings-dialog .ds-pending { color: #b3261e; font-size: 12px; }
 
+    /* ---- plugin panels ----
+       The host owns the box: size, head, close button, the fact that it is a modal. The
+       plugin gets the empty body and may put anything in it. Created at runtime and tagged
+       `data-plugin-ui`, because it is session state and must never reach a saved file. */
+    dialog.plugin-panel {
+      width: min(620px, calc(100vw - 32px));
+      max-height: min(86dvh, 780px);
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+      color: var(--ink);
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    dialog.plugin-panel::backdrop { background: rgba(16, 22, 30, .34); }
+    dialog.plugin-panel:focus,
+    dialog.plugin-panel:focus-visible { outline: none; }
+    dialog.plugin-panel .pp-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px 10px; border-bottom: 1px solid var(--line);
+    }
+    dialog.plugin-panel .pp-head h2 { flex: 1 1 auto; margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    dialog.plugin-panel .pp-head button {
+      height: 26px; padding: 0 9px; font: inherit; font-size: 12px; cursor: pointer;
+      border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink);
+    }
+    dialog.plugin-panel .pp-body { padding: 14px 18px 18px; overflow-y: auto; max-height: 64dvh; }
+
     /* a clickable size readout: it opens the sheet at Size & loading */
     .stats[data-stats] { cursor: pointer; border-radius: 4px; }
     .stats[data-stats]:hover { background: var(--hover); }
@@ -1664,6 +1693,7 @@
             <button data-menu-item data-shortcuts><svg class="i sm">
                 <use href="#i-keyboard" />
               </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
+            <div data-plugin-actions hidden></div>
           </div>
         </span>
         <button class="primary" data-save title="Save">Save</button>
@@ -1889,6 +1919,7 @@
           <button data-menu-item data-shortcuts><svg class="i sm">
               <use href="#i-keyboard" />
             </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
+          <div data-plugin-actions hidden></div>
         </div>
       </span>
 
@@ -1974,7 +2005,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":8351,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/page-styles.css","integrity":"sha384-SWejN7+ENvY5pMbPJ10EKweXiM/o+8BOvpQ35Z//Wgc8r5Asy/G30GQ8NC8Vdn6j"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":19279,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-styles.css","integrity":"sha384-TSkyPLokrGyo5Ko7M5Lp8vYa12ymuKI7Q21//EPMioNtlTg8IkRO8K9h8s+DiDG5"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15438,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-markup.html","integrity":"sha384-a2AWx8W7oEzwmcz0Iqp9YlQVeR/2frdoLoRRY1zyWNNhd4kI3f2KhFc9lWQfktA0"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":29844},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":10094},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1325,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/apply-settings.js","integrity":"sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":48168,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figures.js","integrity":"sha384-ji4OO7Q69Yzt5VGDJ2vWFYPecwmrWUnRLf4pq03al1x87+k2SObcSpX5+C+kgWZt"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":15373,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/policy.js","integrity":"sha384-2kA8kpxfT0d7l882tXd1eB7zhglvEofxdIxiRA14BgAZ/LCWdiFN+wPHkM8tzDIJ"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":44916,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar.js","integrity":"sha384-K6rVanfur2gFwfapcT2K98uqANL2aSElZgfKlocw9UEFjL8fvMXZgDrkayaA0O4Q"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":8020,"deps":["signals","figures"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/plugins.js","integrity":"sha384-kF7rmvWavYrqpvV86IFh26jE0A2GmEx0a1JrYwktCrcGLKMdEXpKSz9G44gb63y/"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4753,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/dialogs.html","integrity":"sha384-8g6mUBg+JRWqy+Bdrv9lwlbd+j5zFDcV91qqI11svB4FL6DyY3p56LjV79lk3Kfj"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":8351,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/page-styles.css","integrity":"sha384-SWejN7+ENvY5pMbPJ10EKweXiM/o+8BOvpQ35Z//Wgc8r5Asy/G30GQ8NC8Vdn6j"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":20587,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-styles.css","integrity":"sha384-iDpHlbd18Zt/gzsLaycRXFzY99jS0JZHLQrrZhDtPixQgwaD7Lfzl5GBq9aNgob3"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15530,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-markup.html","integrity":"sha384-e9HSGpJIJqFmqeGJDf0CnwpnncPes/jsppSVSJH2IR/p/RNg3CvGKdyCfBWl5gNY"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":29844},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":10094},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1325,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/apply-settings.js","integrity":"sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16405,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/editor.js","integrity":"sha384-e7UmCU5EERe6KSpFuSCGG0oGsqfyf8LyXH5E9w4i2RwfvnGARm15+df6x3c9+rHd"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":48168,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figures.js","integrity":"sha384-ji4OO7Q69Yzt5VGDJ2vWFYPecwmrWUnRLf4pq03al1x87+k2SObcSpX5+C+kgWZt"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":15373,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/policy.js","integrity":"sha384-2kA8kpxfT0d7l882tXd1eB7zhglvEofxdIxiRA14BgAZ/LCWdiFN+wPHkM8tzDIJ"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":45188,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar.js","integrity":"sha384-Jz1cqNdAWo9PEKAtD1VVy3X9/o4Qro7TKznhEXBZYm7PLEHvr0q4+8SWvphV06aM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":11439,"deps":["signals","figures"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/plugins.js","integrity":"sha384-Mh28tpD+lhDTw0sQScAQAXmFKiodp8ZkpiZBnkDB2L2ZShRXrgtMXc8fPmZ3Kj2f"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4753,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/dialogs.html","integrity":"sha384-8g6mUBg+JRWqy+Bdrv9lwlbd+j5zFDcV91qqI11svB4FL6DyY3p56LjV79lk3Kfj"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -3558,7 +3589,7 @@
   <script type="module" id="status">
     /*@compiled-from src/status.js — envelope is build-owned; edit the body or src/*/
     export function createStatus(deps = {}) {
-      const {signals, pagination} = deps;
+      const {signals, pagination, env} = deps;
       const content = document.getElementById("content");
       const storeEl = document.getElementById("figure-store");
       /* The exact figure-store size is figures' business, and figures is built after
@@ -3657,6 +3688,13 @@
 
       refresh();
 
+      /* A plugin that changes the document marks it dirty through here, so the dot and the
+         size readout keep telling the truth. */
+      const registry = env && env.StandaloneDoc;
+      if (registry && typeof registry.provide === "function") {
+        registry.provide("status", {refresh, markDirty});
+      }
+
       return {refresh, save, markDirty, setStoreEstimator};
     }
     StandaloneDoc.register("status", createStatus);
@@ -3668,7 +3706,7 @@
   <script type="module" id="editor">
     /*@compiled-from src/editor.js — envelope is build-owned; edit the body or src/*/
     export function createEditor(deps = {}) {
-      const {signals, status, pagination} = deps;
+      const {signals, status, pagination, env} = deps;
       /* A back-edge: figures (80) is built after editor (70). Only restore() reads
          it, and restore() is reachable from undo/redo, never from construction. */
       const figures = deps.late("figures");
@@ -4158,6 +4196,13 @@
       }
 
       const api = {init, exec, setBlock, setList, syncToolbar, setFontSize, openLink, remember, restore, history, blockAt, blockAtCaret, insertBlock};
+
+      /* What a plugin may use as `host.use("editor")`. Editing is the editor's: a plugin
+         asks it to insert, not to write into #content itself. */
+      const registry = env && env.StandaloneDoc;
+      if (registry && typeof registry.provide === "function") {
+        registry.provide("editor", {insertBlock, exec, setBlock, blockAt});
+      }
 
       /* Construction-time, exactly where the trailing Editor.init() ran. */
       init();
@@ -6105,7 +6150,7 @@
         /* Not #figure-tools: its markup is an asset now (the `figure-tools` fragment), so
            whether it travels with the file is the save policy's decision, not a cleanup
            rule. It is `hidden`, so an inline copy costs bytes and nothing else. */
-        clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu]").forEach((el) => el.remove());
+        clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui]").forEach((el) => el.remove());
         clone.querySelectorAll("[data-menu-panel]").forEach((m) => m.setAttribute("hidden", ""));
         clone.querySelectorAll(".menu").forEach((m) => {
           m.classList.remove("menu-flip");
@@ -6154,6 +6199,9 @@
         const doc = new DOMParser().parseFromString(html, "text/html");
         if (doc.querySelector(".page-spacer")) problems.push("a page spacer leaked into the file");
         if (doc.querySelector("#sheets > *")) problems.push("the sheet layer is not empty");
+        /* A plugin's panel is this session's UI. If one is in the file, the cleanup above
+           missed a path — fail the save rather than ship it. */
+        if (doc.querySelector("[data-plugin-ui]")) problems.push("a plugin's UI leaked into the document");
         /* What a reader needs to boot, not what happens to be in the markup: a slim
            document legitimately has no toolbar module, and still works. */
         if (!doc.getElementById("asset-manifest")) problems.push("the asset manifest is missing");
@@ -7037,6 +7085,7 @@
       const UI_KINDS = ["insert", "export", "panel", "command", "toolbar"];
 
       const wiring = new Map(); /* plugin id -> disposals for the DOM we rendered */
+      const dialogs = new Map(); /* "<plugin>:<panel>" -> the open dialog, if any */
 
       const pluginEntries = () => registry.manifest().plugins || {};
 
@@ -7080,6 +7129,10 @@
         const groups = [
           { selector: "[data-plugin-inserts]", kind: "insert", attribute: "pluginInsert" },
           { selector: "[data-plugin-exports]", kind: "export", attribute: "pluginExport" },
+          /* Panels and commands live in the settings menu: they are "do something to the
+             document" entries, not insertions. */
+          { selector: "[data-plugin-actions]", kind: "panel", attribute: "pluginPanel" },
+          { selector: "[data-plugin-actions]", kind: "command", attribute: "pluginCommand" },
         ];
 
         for (const { selector, kind, attribute } of groups) {
@@ -7107,6 +7160,11 @@
       }
 
       function unwire(id) {
+        for (const [key, dialog] of [...dialogs]) {
+          if (!key.startsWith(`${id}:`)) continue;
+          dialog.remove();
+          dialogs.delete(key);
+        }
         const disposals = wiring.get(id);
         if (!disposals) return;
         for (const dispose of disposals.splice(0).reverse()) {
@@ -7141,6 +7199,67 @@
           });
         } catch (error) {
           refuse(id, `insert "${itemId}" failed: ${(error && error.message) || error}`);
+        }
+      }
+
+      /**
+       * Open a plugin's panel.
+       *
+       * The host owns the box — size, head, close button, modality — and hands the plugin an
+       * empty body. The dialog is tagged `data-plugin-ui`, so `serialize()` drops it and a
+       * save can never carry it. Re-opening re-runs the implementation: a panel that wants to
+       * keep state keeps it in the plugin, not in stale DOM.
+       */
+      function openPanel(id, panelId) {
+        const instance = registry.instance(id);
+        const handler = instance && instance.panel && instance.panel[panelId];
+        const entry = pluginEntries()[id];
+        if (!entry || !handler) return refuse(id, `does not implement panel "${panelId}"`);
+        const declared = contribution(entry, "panel", panelId) || {};
+        const key = `${id}:${panelId}`;
+
+        let dialog = dialogs.get(key);
+        if (!dialog) {
+          dialog = document.createElement("dialog");
+          dialog.className = "plugin-panel";
+          dialog.setAttribute("data-plugin-ui", "");
+          const head = document.createElement("div");
+          head.className = "pp-head";
+          const title = document.createElement("h2");
+          title.textContent = declared.label || entry.label || id;
+          const close = document.createElement("button");
+          close.type = "button";
+          close.textContent = "Close";
+          close.addEventListener("click", () => dialog.close());
+          head.append(title, close);
+          const body = document.createElement("div");
+          body.className = "pp-body";
+          dialog.append(head, body);
+          document.body.append(dialog);
+          dialogs.set(key, dialog);
+        }
+
+        const body = dialog.querySelector(".pp-body");
+        body.replaceChildren();
+        try {
+          const rendered = handler(body);
+          if (rendered && typeof rendered.then === "function") {
+            rendered.catch((error) => refuse(id, `panel "${panelId}" failed: ${(error && error.message) || error}`));
+          }
+        } catch (error) {
+          refuse(id, `panel "${panelId}" failed: ${(error && error.message) || error}`);
+        }
+        if (!dialog.open) dialog.showModal();
+      }
+
+      async function runCommand(id, commandId) {
+        const instance = registry.instance(id);
+        const handler = instance && instance.command && instance.command[commandId];
+        if (!handler) return refuse(id, `does not implement command "${commandId}"`);
+        try {
+          await handler();
+        } catch (error) {
+          refuse(id, `command "${commandId}" failed: ${(error && error.message) || error}`);
         }
       }
 
@@ -7188,6 +7307,18 @@
         if (exportButton) {
           const [id, itemId] = exportButton.dataset.pluginExport.split(":");
           runExport(id, itemId);
+          return;
+        }
+        const panelButton = event.target.closest("[data-plugin-panel]");
+        if (panelButton) {
+          const [id, itemId] = panelButton.dataset.pluginPanel.split(":");
+          openPanel(id, itemId);
+          return;
+        }
+        const commandButton = event.target.closest("[data-plugin-command]");
+        if (commandButton) {
+          const [id, itemId] = commandButton.dataset.pluginCommand.split(":");
+          runCommand(id, itemId);
         }
       });
 
@@ -7221,7 +7352,7 @@
 
       activateUi();
 
-      return { activateUi, wire, unwire };
+      return { activateUi, wire, unwire, openPanel };
     }
     StandaloneDoc.register("plugins", createPlugins);
   </script>

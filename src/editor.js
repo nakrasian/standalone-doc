@@ -1,5 +1,5 @@
 export function createEditor(deps = {}) {
-  const {signals, status, pagination} = deps;
+  const {signals, status, pagination, env} = deps;
   /* A back-edge: figures (80) is built after editor (70). Only restore() reads
      it, and restore() is reachable from undo/redo, never from construction. */
   const figures = deps.late("figures");
@@ -489,6 +489,13 @@ export function createEditor(deps = {}) {
   }
 
   const api = {init, exec, setBlock, setList, syncToolbar, setFontSize, openLink, remember, restore, history, blockAt, blockAtCaret, insertBlock};
+
+  /* What a plugin may use as `host.use("editor")`. Editing is the editor's: a plugin
+     asks it to insert, not to write into #content itself. */
+  const registry = env && env.StandaloneDoc;
+  if (registry && typeof registry.provide === "function") {
+    registry.provide("editor", {insertBlock, exec, setBlock, blockAt});
+  }
 
   /* Construction-time, exactly where the trailing Editor.init() ran. */
   init();

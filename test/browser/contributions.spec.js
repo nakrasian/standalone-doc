@@ -27,9 +27,11 @@ const PLUGIN_JS = `export function createTile() {
     async activate(host) {
       const figures = host.use("figures");
       globalThis.__providerOk = typeof figures.insertHTML === "function";
-      let editor = "unavailable";
-      try { editor = typeof host.use("editor").insertBlock; } catch (error) { editor = error.kind; }
-      globalThis.__editorProvider = editor;
+      globalThis.__editorProvider = typeof host.use("editor").insertBlock;
+      globalThis.__statusProvider = typeof host.use("status").markDirty;
+      let absent = "resolved";
+      try { host.use("nothing-offers-this"); } catch (error) { absent = error.kind; }
+      globalThis.__absentProvider = absent;
       return {
         insert: {
           tile: async ({ contribution }) => ({
@@ -40,6 +42,23 @@ const PLUGIN_JS = `export function createTile() {
         },
         export: {
           outline: async () => ({ name: "outline.txt", mime: "text/plain", text: "outline from the plugin" }),
+        },
+        panel: {
+          inspector: (body) => {
+            const line = document.createElement("p");
+            line.className = "tile-inspector";
+            line.textContent = "the plugin filled this body";
+            body.append(line);
+          },
+        },
+        command: {
+          stamp: () => {
+            host.use("editor").insertBlock(Object.assign(document.createElement("p"), {
+              className: "tile-stamp",
+              textContent: "stamped by the plugin",
+            }));
+            host.use("status").markDirty();
+          },
         },
         deactivate() { globalThis.__deactivated = (globalThis.__deactivated || 0) + 1; },
       };
@@ -53,7 +72,12 @@ const byteLength = (text) => Buffer.byteLength(text, "utf8");
 const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s\S]*?)(<\/script>)/;
 
 /** An editor document with one plugin pinned that contributes an insert and an export. */
-function makeDoc({ contributes = { insert: [{ id: "tile", label: "Tile", island: "sealed" }], export: [{ id: "outline", label: "Outline…" }] } } = {}) {
+function makeDoc({ contributes = {
+  insert: [{ id: "tile", label: "Tile", island: "sealed" }],
+  export: [{ id: "outline", label: "Outline…" }],
+  panel: [{ id: "inspector", label: "Tile inspector" }],
+  command: [{ id: "stamp", label: "Stamp a paragraph" }],
+} } = {}) {
   fs.mkdirSync(TMP, { recursive: true });
   fs.writeFileSync(path.join(TMP, "tile-plugin.js"), PLUGIN_JS);
   let html = EDITOR;
@@ -108,6 +132,8 @@ test("a UI plugin is built at boot, and its entries are in both bars", async ({ 
       built: Object.keys(StandaloneDoc.modules).includes("tile"),
       providerOk: globalThis.__providerOk,
       editorProvider: globalThis.__editorProvider,
+      statusProvider: globalThis.__statusProvider,
+      absentProvider: globalThis.__absentProvider,
       insertHosts: inserts.length,
       insertButtons: inserts.map((host) => host.querySelectorAll("[data-plugin-insert]").length),
       insertHidden: inserts.map((host) => host.hidden),
@@ -118,9 +144,11 @@ test("a UI plugin is built at boot, and its entries are in both bars", async ({ 
     };
   });
   expect(state.built).toBe(true);
-  /* figures offers the capability; editor does not (yet) — and the refusal is a kind. */
+  /* three modules offer capabilities now, and asking for one nobody offers is a kind */
   expect(state.providerOk).toBe(true);
-  expect(state.editorProvider).toBe("unavailable");
+  expect(state.editorProvider).toBe("function");
+  expect(state.statusProvider).toBe("function");
+  expect(state.absentProvider).toBe("unavailable");
   /* the host element exists in both the ribbon and the minimal bar */
   expect(state.insertHosts).toBe(2);
   expect(state.insertButtons).toEqual([1, 1]);
@@ -217,6 +245,85 @@ test("unloading withdraws the entries, and loading again restores them once", as
   expect(during.afterReload.buttons).toBe(2);
   expect(during.afterReload.hostsHidden).toBe(true);
   expect(during.afterReload.labels).toBe(2);
+});
+
+test("a panel contribution opens in a host-owned dialog", async ({ page }) => {
+  await load(page, makeDoc());
+  await page.waitForSelector("[data-plugin-panel]", { state: "attached" });
+
+  await page.evaluate(() => document.querySelector("[data-plugin-panel]").click());
+  await page.waitForSelector("dialog.plugin-panel[open] .tile-inspector");
+
+  const open = await page.evaluate(() => {
+    const dialog = document.querySelector("dialog.plugin-panel");
+    return {
+      title: dialog.querySelector("h2")?.textContent,
+      body: dialog.querySelector(".tile-inspector")?.textContent,
+      modal: dialog.open,
+      tagged: dialog.hasAttribute("data-plugin-ui"),
+      onBody: dialog.parentElement === document.body,
+    };
+  });
+  expect(open.title).toBe("Tile inspector");
+  expect(open.body).toBe("the plugin filled this body");
+  expect(open.modal).toBe(true);
+  /* session state: tagged, and outside anything the save path walks as content */
+  expect(open.tagged).toBe(true);
+  expect(open.onBody).toBe(true);
+
+  /* the close button is the host's, not the plugin's */
+  await page.evaluate(() => document.querySelector("dialog.plugin-panel .pp-head button").click());
+  expect(await page.evaluate(() => document.querySelector("dialog.plugin-panel").open)).toBe(false);
+
+  /* unloading removes the dialog and its menu entry */
+  const after = await page.evaluate(async () => {
+    document.querySelector("[data-plugin-panel]").click();
+    await StandaloneDoc.deactivate("tile");
+    return {
+      dialogs: document.querySelectorAll("dialog.plugin-panel").length,
+      entries: document.querySelectorAll("[data-plugin-panel]").length,
+    };
+  });
+  expect(after.dialogs).toBe(0);
+  expect(after.entries).toBe(0);
+});
+
+test("a command contribution acts through the capabilities", async ({ page }) => {
+  await load(page, makeDoc());
+  await page.waitForSelector("[data-plugin-command]", { state: "attached" });
+  await page.evaluate(() => document.querySelector("[data-plugin-command]").click());
+  await page.waitForSelector("#content .tile-stamp");
+
+  const state = await page.evaluate(() => ({
+    text: document.querySelector("#content .tile-stamp")?.textContent,
+    dirty: !document.querySelector("[data-dirty]")?.hidden,
+  }));
+  expect(state.text).toBe("stamped by the plugin");
+  /* the plugin asked status to mark it, rather than reaching for the dot itself */
+  expect(state.dirty).toBe(true);
+});
+
+test("a plugin's panel never reaches a saved file", async ({ page }) => {
+  await load(page, makeDoc());
+  await page.waitForSelector("[data-plugin-panel]", { state: "attached" });
+  const saved = await page.evaluate(async () => {
+    document.querySelector("[data-plugin-panel]").click();
+    const open = document.querySelectorAll("dialog.plugin-panel[open]").length;
+    const serialized = await StandaloneDoc.modules.toolbar.serialize({policy: "inline"});
+    /* Parsed, never text-searched: the plugin-panel CSS is *in* this document as a
+       stylesheet, so a substring match would always be true. */
+    const doc = new DOMParser().parseFromString(serialized.html, "text/html");
+    return {
+      open,
+      leaked: doc.querySelectorAll("dialog.plugin-panel").length,
+      tagged: doc.querySelectorAll("[data-plugin-ui]").length,
+      problems: StandaloneDoc.modules.toolbar.validate(serialized.html),
+    };
+  });
+  expect(saved.open).toBe(1);
+  expect(saved.leaked).toBe(0);
+  expect(saved.tagged).toBe(0);
+  expect(saved.problems).toEqual([]);
 });
 
 test("an export contribution downloads through the host", async ({ page }) => {

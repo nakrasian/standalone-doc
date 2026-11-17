@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 326546
+    "bytes": 332771
   },
   "assets": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 22314
+      "bytes": 23734
     },
     {
       "id": "boot-ui-styles",
@@ -27,7 +27,7 @@
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 16677
+      "bytes": 16777
     },
     {
       "id": "figure-tools",
@@ -72,12 +72,12 @@
     {
       "id": "status",
       "kind": "js",
-      "bytes": 4280
+      "bytes": 4606
     },
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 18009
+      "bytes": 18368
     },
     {
       "id": "figures",
@@ -92,12 +92,12 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 48962
+      "bytes": 49246
     },
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 8914
+      "bytes": 12649
     },
     {
       "id": "export",
@@ -116,9 +116,9 @@
     }
   ],
   "flavors": {
-    "index.html": 326546,
-    "asset-bodies": 313412,
-    "markup-and-runtime": 13134,
-    "dist/slim.html": 60705
+    "index.html": 332771,
+    "asset-bodies": 319636,
+    "markup-and-runtime": 13135,
+    "dist/slim.html": 60706
   }
 }

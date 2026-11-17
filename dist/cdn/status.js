@@ -1,5 +1,5 @@
 export function createStatus(deps = {}) {
-  const {signals, pagination} = deps;
+  const {signals, pagination, env} = deps;
   const content = document.getElementById("content");
   const storeEl = document.getElementById("figure-store");
   /* The exact figure-store size is figures' business, and figures is built after
@@ -97,6 +97,13 @@ export function createStatus(deps = {}) {
   });
 
   refresh();
+
+  /* A plugin that changes the document marks it dirty through here, so the dot and the
+     size readout keep telling the truth. */
+  const registry = env && env.StandaloneDoc;
+  if (registry && typeof registry.provide === "function") {
+    registry.provide("status", {refresh, markDirty});
+  }
 
   return {refresh, save, markDirty, setStoreEstimator};
 }

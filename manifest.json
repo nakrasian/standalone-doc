@@ -32,8 +32,8 @@
       "order": 20,
       "tag": "style",
       "file": "src/toolbar-styles.css",
-      "bytes": 19279,
-      "sha384": "sha384-TSkyPLokrGyo5Ko7M5Lp8vYa12ymuKI7Q21//EPMioNtlTg8IkRO8K9h8s+DiDG5",
+      "bytes": 20587,
+      "sha384": "sha384-iDpHlbd18Zt/gzsLaycRXFzY99jS0JZHLQrrZhDtPixQgwaD7Lfzl5GBq9aNgob3",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -75,8 +75,8 @@
       "order": 12,
       "tag": "header",
       "file": "src/toolbar-markup.html",
-      "bytes": 15438,
-      "sha384": "sha384-a2AWx8W7oEzwmcz0Iqp9YlQVeR/2frdoLoRRY1zyWNNhd4kI3f2KhFc9lWQfktA0",
+      "bytes": 15530,
+      "sha384": "sha384-e9HSGpJIJqFmqeGJDf0CnwpnncPes/jsppSVSJH2IR/p/RNg3CvGKdyCfBWl5gNY",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -247,8 +247,8 @@
       "order": 60,
       "tag": "script",
       "file": "src/status.js",
-      "bytes": 3773,
-      "sha384": "sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+",
+      "bytes": 4075,
+      "sha384": "sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -263,7 +263,8 @@
         "save",
         "markDirty",
         "setStoreEstimator"
-      ]
+      ],
+      "env": true
     },
     {
       "id": "editor",
@@ -271,8 +272,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 16070,
-      "sha384": "sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj",
+      "bytes": 16405,
+      "sha384": "sha384-e7UmCU5EERe6KSpFuSCGG0oGsqfyf8LyXH5E9w4i2RwfvnGARm15+df6x3c9+rHd",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -300,7 +301,8 @@
         "blockAt",
         "blockAtCaret",
         "insertBlock"
-      ]
+      ],
+      "env": true
     },
     {
       "id": "figures",
@@ -391,8 +393,8 @@
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 44916,
-      "sha384": "sha384-K6rVanfur2gFwfapcT2K98uqANL2aSElZgfKlocw9UEFjL8fvMXZgDrkayaA0O4Q",
+      "bytes": 45188,
+      "sha384": "sha384-Jz1cqNdAWo9PEKAtD1VVy3X9/o4Qro7TKznhEXBZYm7PLEHvr0q4+8SWvphV06aM",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -421,8 +423,8 @@
       "order": 95,
       "tag": "script",
       "file": "src/plugins.js",
-      "bytes": 8020,
-      "sha384": "sha384-kF7rmvWavYrqpvV86IFh26jE0A2GmEx0a1JrYwktCrcGLKMdEXpKSz9G44gb63y/",
+      "bytes": 11439,
+      "sha384": "sha384-Mh28tpD+lhDTw0sQScAQAXmFKiodp8ZkpiZBnkDB2L2ZShRXrgtMXc8fPmZ3Kj2f",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -435,7 +437,8 @@
       "provides": [
         "activateUi",
         "wire",
-        "unwire"
+        "unwire",
+        "openPanel"
       ],
       "env": true
     },

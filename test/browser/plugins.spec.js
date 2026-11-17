@@ -56,7 +56,7 @@ export async function createHarness() {
       let borrowed = "read a module it does not own";
       try { await host.text("signals"); } catch (error) { borrowed = error.kind; }
       let missing = "resolved";
-      try { host.use("editor"); } catch (error) { missing = error.kind; }
+      try { host.use("nothing-offers-this"); } catch (error) { missing = error.kind; }
       let demo = "unavailable";
       try { demo = host.use("demo").value; } catch (error) { demo = error.kind; }
       globalThis.__host = {

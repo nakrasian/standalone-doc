@@ -189,7 +189,7 @@ export function createToolbar(deps = {}) {
     /* Not #figure-tools: its markup is an asset now (the `figure-tools` fragment), so
        whether it travels with the file is the save policy's decision, not a cleanup
        rule. It is `hidden`, so an inline copy costs bytes and nothing else. */
-    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu]").forEach((el) => el.remove());
+    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui]").forEach((el) => el.remove());
     clone.querySelectorAll("[data-menu-panel]").forEach((m) => m.setAttribute("hidden", ""));
     clone.querySelectorAll(".menu").forEach((m) => {
       m.classList.remove("menu-flip");
@@ -238,6 +238,9 @@ export function createToolbar(deps = {}) {
     const doc = new DOMParser().parseFromString(html, "text/html");
     if (doc.querySelector(".page-spacer")) problems.push("a page spacer leaked into the file");
     if (doc.querySelector("#sheets > *")) problems.push("the sheet layer is not empty");
+    /* A plugin's panel is this session's UI. If one is in the file, the cleanup above
+       missed a path — fail the save rather than ship it. */
+    if (doc.querySelector("[data-plugin-ui]")) problems.push("a plugin's UI leaked into the document");
     /* What a reader needs to boot, not what happens to be in the markup: a slim
        document legitimately has no toolbar module, and still works. */
     if (!doc.getElementById("asset-manifest")) problems.push("the asset manifest is missing");

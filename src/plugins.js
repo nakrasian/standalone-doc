@@ -24,6 +24,7 @@ export function createPlugins(deps = {}) {
   const UI_KINDS = ["insert", "export", "panel", "command", "toolbar"];
 
   const wiring = new Map(); /* plugin id -> disposals for the DOM we rendered */
+  const dialogs = new Map(); /* "<plugin>:<panel>" -> the open dialog, if any */
 
   const pluginEntries = () => registry.manifest().plugins || {};
 
@@ -67,6 +68,10 @@ export function createPlugins(deps = {}) {
     const groups = [
       { selector: "[data-plugin-inserts]", kind: "insert", attribute: "pluginInsert" },
       { selector: "[data-plugin-exports]", kind: "export", attribute: "pluginExport" },
+      /* Panels and commands live in the settings menu: they are "do something to the
+         document" entries, not insertions. */
+      { selector: "[data-plugin-actions]", kind: "panel", attribute: "pluginPanel" },
+      { selector: "[data-plugin-actions]", kind: "command", attribute: "pluginCommand" },
     ];
 
     for (const { selector, kind, attribute } of groups) {
@@ -94,6 +99,11 @@ export function createPlugins(deps = {}) {
   }
 
   function unwire(id) {
+    for (const [key, dialog] of [...dialogs]) {
+      if (!key.startsWith(`${id}:`)) continue;
+      dialog.remove();
+      dialogs.delete(key);
+    }
     const disposals = wiring.get(id);
     if (!disposals) return;
     for (const dispose of disposals.splice(0).reverse()) {
@@ -128,6 +138,67 @@ export function createPlugins(deps = {}) {
       });
     } catch (error) {
       refuse(id, `insert "${itemId}" failed: ${(error && error.message) || error}`);
+    }
+  }
+
+  /**
+   * Open a plugin's panel.
+   *
+   * The host owns the box — size, head, close button, modality — and hands the plugin an
+   * empty body. The dialog is tagged `data-plugin-ui`, so `serialize()` drops it and a
+   * save can never carry it. Re-opening re-runs the implementation: a panel that wants to
+   * keep state keeps it in the plugin, not in stale DOM.
+   */
+  function openPanel(id, panelId) {
+    const instance = registry.instance(id);
+    const handler = instance && instance.panel && instance.panel[panelId];
+    const entry = pluginEntries()[id];
+    if (!entry || !handler) return refuse(id, `does not implement panel "${panelId}"`);
+    const declared = contribution(entry, "panel", panelId) || {};
+    const key = `${id}:${panelId}`;
+
+    let dialog = dialogs.get(key);
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.className = "plugin-panel";
+      dialog.setAttribute("data-plugin-ui", "");
+      const head = document.createElement("div");
+      head.className = "pp-head";
+      const title = document.createElement("h2");
+      title.textContent = declared.label || entry.label || id;
+      const close = document.createElement("button");
+      close.type = "button";
+      close.textContent = "Close";
+      close.addEventListener("click", () => dialog.close());
+      head.append(title, close);
+      const body = document.createElement("div");
+      body.className = "pp-body";
+      dialog.append(head, body);
+      document.body.append(dialog);
+      dialogs.set(key, dialog);
+    }
+
+    const body = dialog.querySelector(".pp-body");
+    body.replaceChildren();
+    try {
+      const rendered = handler(body);
+      if (rendered && typeof rendered.then === "function") {
+        rendered.catch((error) => refuse(id, `panel "${panelId}" failed: ${(error && error.message) || error}`));
+      }
+    } catch (error) {
+      refuse(id, `panel "${panelId}" failed: ${(error && error.message) || error}`);
+    }
+    if (!dialog.open) dialog.showModal();
+  }
+
+  async function runCommand(id, commandId) {
+    const instance = registry.instance(id);
+    const handler = instance && instance.command && instance.command[commandId];
+    if (!handler) return refuse(id, `does not implement command "${commandId}"`);
+    try {
+      await handler();
+    } catch (error) {
+      refuse(id, `command "${commandId}" failed: ${(error && error.message) || error}`);
     }
   }
 
@@ -175,6 +246,18 @@ export function createPlugins(deps = {}) {
     if (exportButton) {
       const [id, itemId] = exportButton.dataset.pluginExport.split(":");
       runExport(id, itemId);
+      return;
+    }
+    const panelButton = event.target.closest("[data-plugin-panel]");
+    if (panelButton) {
+      const [id, itemId] = panelButton.dataset.pluginPanel.split(":");
+      openPanel(id, itemId);
+      return;
+    }
+    const commandButton = event.target.closest("[data-plugin-command]");
+    if (commandButton) {
+      const [id, itemId] = commandButton.dataset.pluginCommand.split(":");
+      runCommand(id, itemId);
     }
   });
 
@@ -208,5 +291,5 @@ export function createPlugins(deps = {}) {
 
   activateUi();
 
-  return { activateUi, wire, unwire };
+  return { activateUi, wire, unwire, openPanel };
 }
