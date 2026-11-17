@@ -7,19 +7,13 @@
   const registry = globalThis.StandaloneDoc;
   const SHOW_DELAY = 150; /* a card that flashes for 60ms is worse than none */
 
-  /* Presentation only: registration ids are technical. */
-  const LABELS = {
-    signals: "Signals",
-    zoom: "Zoom",
-    pagination: "Pagination",
-    status: "Status line",
-    editor: "Editor",
-    figures: "Figures",
-    toolbar: "Toolbar",
-    progress: "Progress dialog",
-    export: "Export",
+  /* Presentation only: registration ids are technical. The name travels in the manifest,
+     so a document can rename an asset without touching the boot UI. */
+  const label = (id) => {
+    const assets = (registry && registry.manifest && registry.manifest().assets) || [];
+    const asset = assets.find((candidate) => candidate.id === id);
+    return (asset && asset.label) || id.charAt(0).toUpperCase() + id.slice(1);
   };
-  const label = (id) => LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1);
 
   let ui = null;
   let showTimer = null;

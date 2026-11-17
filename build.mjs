@@ -74,28 +74,28 @@ const UNMARKED_OK = new Set(["user-theme", "print-page", "figure-store", "favico
  * silently rebuild a different dependency order on the day it is actually needed.
  */
 const REGIONS = [
-  { id: "page-styles", kind: "css", order: 10, requiredBy: ["*"] },
-  { id: "toolbar-styles", kind: "css", order: 20, requiredBy: ["edit"] },
-  { id: "boot-ui-styles", kind: "css", order: 25, requiredBy: ["*"] },
-  { id: "registry", kind: "js", order: 5, requiredBy: ["*"] },
-  { id: "boot-ui", kind: "js", order: 6, requiredBy: ["*"] },
-  { id: "apply-settings", kind: "js", order: 7, requiredBy: ["*"] },
-  { id: "sprite", kind: "html", order: 11, requiredBy: ["edit"], tag: "svg" },
-  { id: "toolbar-markup", kind: "html", order: 12, requiredBy: ["edit"], tag: "header" },
-  { id: "figure-tools", kind: "html", order: 13, requiredBy: ["edit"], tag: "div" },
-  { id: "dialogs", kind: "html", order: 14, requiredBy: ["edit"], tag: "div" },
-  { id: "signals", kind: "js", order: 30, requiredBy: ["*"] },
-  { id: "zoom", kind: "js", order: 40, requiredBy: ["*"] },
-  { id: "pagination", kind: "js", order: 50, requiredBy: ["*"] },
-  { id: "progress", kind: "js", order: 45, requiredBy: ["edit"] },
-  { id: "status", kind: "js", order: 60, requiredBy: ["edit"] },
-  { id: "editor", kind: "js", order: 70, requiredBy: ["edit"] },
-  { id: "figures", kind: "js", order: 80, requiredBy: ["*"] },
-  { id: "policy", kind: "js", order: 85, requiredBy: ["edit"] },
-  { id: "plugins", kind: "js", order: 95, requiredBy: ["edit"] },
-  { id: "toolbar", kind: "js", order: 90, requiredBy: ["edit"] },
-  { id: "export", kind: "js", order: 100, requiredBy: ["edit"] },
-  { id: "bootstrap", kind: "js", order: 120, requiredBy: ["*"] },
+  { id: "page-styles", kind: "css", order: 10, label: "Page styles", requiredBy: ["*"]  },
+  { id: "toolbar-styles", kind: "css", order: 20, label: "Toolbar styles", requiredBy: ["edit"]  },
+  { id: "boot-ui-styles", kind: "css", order: 25, label: "Boot styles", requiredBy: ["*"]  },
+  { id: "registry", kind: "js", order: 5, label: "Loader", requiredBy: ["*"]  },
+  { id: "boot-ui", kind: "js", order: 6, label: "Boot dialog", requiredBy: ["*"]  },
+  { id: "apply-settings", kind: "js", order: 7, label: "Settings", requiredBy: ["*"]  },
+  { id: "sprite", kind: "html", order: 11, label: "Icons", requiredBy: ["edit"], tag: "svg"  },
+  { id: "toolbar-markup", kind: "html", order: 12, label: "Toolbar", requiredBy: ["edit"], tag: "header"  },
+  { id: "figure-tools", kind: "html", order: 13, label: "Figure tools", requiredBy: ["edit"], tag: "div"  },
+  { id: "dialogs", kind: "html", order: 14, label: "Dialogs", requiredBy: ["edit"], tag: "div"  },
+  { id: "signals", kind: "js", order: 30, label: "Signals", requiredBy: ["*"]  },
+  { id: "zoom", kind: "js", order: 40, label: "Zoom", requiredBy: ["*"]  },
+  { id: "pagination", kind: "js", order: 50, label: "Pagination", requiredBy: ["*"]  },
+  { id: "progress", kind: "js", order: 45, label: "Progress dialog", requiredBy: ["edit"]  },
+  { id: "status", kind: "js", order: 60, label: "Status line", requiredBy: ["edit"]  },
+  { id: "editor", kind: "js", order: 70, label: "Editor", requiredBy: ["edit"]  },
+  { id: "figures", kind: "js", order: 80, label: "Figures", requiredBy: ["*"]  },
+  { id: "policy", kind: "js", order: 85, label: "Save policy", requiredBy: ["edit"]  },
+  { id: "plugins", kind: "js", order: 95, label: "Plugins", requiredBy: ["edit"]  },
+  { id: "toolbar", kind: "js", order: 90, label: "Toolbar binding", requiredBy: ["edit"]  },
+  { id: "export", kind: "js", order: 100, label: "Export", requiredBy: ["edit"]  },
+  { id: "bootstrap", kind: "js", order: 120, label: "Bootstrap", requiredBy: ["*"]  },
 ];
 
 /* ------------------------------------------------------------------ utils */
@@ -266,6 +266,7 @@ function buildManifest(assets, previous) {
     const meta = REGIONS.find((r) => r.id === a.id) || {};
     const mode = before?.mode ?? meta.mode ?? "inline";
     const requiredBy = before?.requiredBy ?? meta.requiredBy ?? ["*"];
+    const label = before?.label ?? meta.label;
     if (before && (before.mode !== (meta.mode ?? "inline") || String(before.requiredBy) !== String(meta.requiredBy ?? ["*"]))) preserved++;
     const entry = {
       id: a.id,
@@ -283,7 +284,8 @@ function buildManifest(assets, previous) {
        every entry from scratch, so a field omitted here disappears on the next
        combine — this list is what stops a plugin's grouping, label or category from
        being silently dropped. */
-    for (const key of ["category", "plugin", "label"]) {
+    if (label) entry.label = label;
+    for (const key of ["category", "plugin"]) {
       if (before?.[key] != null) entry[key] = before[key];
     }
     /* A pinned plugin's bytes live wherever its author publishes them, so its url and

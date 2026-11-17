@@ -122,7 +122,10 @@ test("each src file exists, is hashed correctly, and reproduces its body", () =>
        body is the source verbatim between a generated header and the one
        registration line. Assert that identity directly (deliberately without
        importing lib/compile.mjs, so this test stays independent of it). */
-    if (body.includes("@compiled-from")) {
+    /* The header is line 1 of a compiled block, not merely present: a source file may
+       legitimately mention the marker (registry.js strips it), and `includes` would
+       then demand that an IIFE be ESM. */
+    if (/^[ \t]*\/\*@compiled-from src\//.test(body)) {
       assert.match(disk, /^export function create[A-Za-z0-9_$]*\(/m, `${asset.id}: src must be ESM`);
       const factory = /^export function (create[A-Za-z0-9_$]*)\s*\(/m.exec(disk)?.[1];
       assert.ok(factory, `${asset.id}: no create<Name> export`);

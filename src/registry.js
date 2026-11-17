@@ -259,7 +259,18 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       return el ? el.innerHTML : "";
     }
     const el = document.querySelector(`script[id="${assetId}"]`);
-    return el ? el.textContent : "";
+    /* A block carries the build's provenance comment and its register() line. Neither is
+       part of what the plugin *is*, and the by-reference path returns the published body
+       without them, so strip them here and the two paths agree. */
+    return el ? stripEnvelope(el.textContent) : "";
+  }
+
+  function stripEnvelope(text) {
+    return String(text || "")
+      .replace(/^\s*\/\*@compiled-from[^\n]*\n/, "")
+      .replace(/\n?\s*StandaloneDoc\.register\([^\n]*\);\s*$/, "")
+      .replace(/^\s*\n/, "")
+      .replace(/\s+$/, "");
   }
 
   /* The element of a block carried by the file, found through its marker: a

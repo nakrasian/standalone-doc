@@ -31,6 +31,44 @@ export function createFigures(deps = {}) {
      forces every imported figure to be same-origin with the app. */
   const SANDBOX = "allow-scripts allow-downloads";
 
+  /* The island profiles. What is sandboxed is the *content* a figure mounts — never the
+     plugin or the editor, which are document-level code by definition.
+     
+       sealed     no network, no storage, no parent. The default for a plugin's own content.
+       sandboxed  today's figure sandbox: it may fetch (a user's own HTML may need to, and
+                  the RecT samples call NCBI), still no storage and no parent.
+       trusted    + allow-same-origin: the content can reach this document. Measured in
+                  lab/005 — that is a real capability, not a label.
+     
+     `trusted: true` on an older figure means the same thing, so a file saved before the
+     profile existed behaves identically. */
+  const PROFILES = {
+    sealed: {
+      sandbox: "allow-scripts",
+      csp: [
+        "default-src 'none'",
+        /* 'wasm-unsafe-eval' is not optional: without it a sealed island cannot compile
+           WebAssembly at all (measured, lab/005). */
+        "script-src 'unsafe-inline' blob: 'wasm-unsafe-eval'",
+        "worker-src blob:",
+        "style-src 'unsafe-inline'",
+        "img-src data: blob:",
+        "media-src data: blob:",
+        "font-src data:",
+        "connect-src 'none'",
+        "frame-src 'none'",
+      ].join("; "),
+    },
+    sandboxed: {sandbox: SANDBOX, csp: null},
+    trusted: {sandbox: `${SANDBOX} allow-same-origin`, csp: null},
+  };
+
+  /** The profile a figure's content mounts into, with the legacy flag mapped onto it. */
+  function profileOf(stored) {
+    const name = (stored && stored.island) || (stored && stored.trusted ? "trusted" : "sandboxed");
+    return PROFILES[name] || PROFILES.sandboxed;
+  }
+
   /* Export-only snapshot support. The shim only TAGS WebGL canvases; it
      never changes their context attributes. The bridge is a message
      listener; the serializer itself is sent only when an export asks for
@@ -456,7 +494,7 @@ export function createFigures(deps = {}) {
       width: 0,
       height: 0,
     };
-    if (trusted) entry.trusted = true;
+    if (trusted) entry.island = "trusted";
 
     if (kind === "image") {
       Object.assign(entry, await imagePayload(file));
@@ -507,7 +545,7 @@ export function createFigures(deps = {}) {
     figure.dataset.figureId = entry.id;
     figure.dataset.kind = entry.kind;
     if (entry.media) figure.dataset.media = entry.media;
-    if (entry.trusted) figure.dataset.trusted = "1";
+    if (entry.trusted || entry.island === "trusted") figure.dataset.trusted = "1";
     figure.setAttribute("contenteditable", "false");
 
     const defaults = DEFAULT_SIZE[entry.kind] || {w: 1, h: 0.72};
@@ -571,24 +609,43 @@ export function createFigures(deps = {}) {
     }
   }
 
-  function htmlDocument(src) {
+  function htmlDocument(src, csp = null) {
+    const policy = csp
+      ? `<meta http-equiv="Content-Security-Policy" content="${csp.replace(/"/g, "&quot;")}">`
+      : "";
     const html = /<html[\s>]/i.test(src) ? src
-      : `<!doctype html><html><head><meta charset="utf-8">`
+      : `<!doctype html><html><head><meta charset="utf-8">${policy}`
         + `<style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif}</style>`
         + `</head><body>${src}</body></html>`;
-    if (html.includes("data-figure-bridge")) return html;
+    /* A source that brings its own <html> gets the policy injected into its head, and the
+       policy has to be *first*: a meta CSP is only honoured before the first fetch it
+       governs. */
+    const withPolicy = csp && !html.includes('http-equiv="Content-Security-Policy"')
+      ? (() => {
+          const head = html.match(/<head[^>]*>/i);
+          if (head) {
+            const at = head.index + head[0].length;
+            return html.slice(0, at) + policy + html.slice(at);
+          }
+          const doctype = html.match(/<!doctype[^>]*>/i);
+          const at = doctype ? doctype.index + doctype[0].length : 0;
+          return html.slice(0, at) + policy + html.slice(at);
+        })()
+      : html;
+    const html2 = withPolicy;
+    if (html2.includes("data-figure-bridge")) return html2;
     const tag = SNAPSHOT_TAG.replace("<script>", "<script data-figure-bridge>", 1);
-    const head = html.match(/<head[^>]*>/i);
+    const head = html2.match(/<head[^>]*>/i);
     if (head) {
       const at = head.index + head[0].length;
-      return html.slice(0, at) + tag + html.slice(at);
+      return html2.slice(0, at) + tag + html2.slice(at);
     }
-    const doctype = html.match(/<!doctype[^>]*>/i);
+    const doctype = html2.match(/<!doctype[^>]*>/i);
     if (doctype) {
       const at = doctype.index + doctype[0].length;
-      return html.slice(0, at) + tag + html.slice(at);
+      return html2.slice(0, at) + tag + html2.slice(at);
     }
-    return tag + html;
+    return tag + html2;
   }
 
   /* ---- plugins ---------------------------------------------------------
@@ -705,10 +762,16 @@ export function createFigures(deps = {}) {
       /* Mounting is already gated by IntersectionObserver. Native
          loading=lazy on srcdoc can defer the very island we just decided
          to mount, so it is deliberately not used here. */
-      iframe.setAttribute("sandbox", stored && stored.trusted ? `${SANDBOX} allow-same-origin` : SANDBOX);
+      const profile = profileOf(stored);
+      iframe.setAttribute("sandbox", profile.sandbox);
       iframe.setAttribute("title", entry.name || "Embedded figure");
       iframe.setAttribute("referrerpolicy", "no-referrer");
-      iframe.srcdoc = htmlDocument(entry.src);
+      /* A pure affordance is a permissions-policy grant, not a sandbox flag: a plugin may
+         ask for fullscreen, and nothing else, without gaining capability. */
+      if (Array.isArray(stored && stored.permissions) && stored.permissions.length) {
+        iframe.setAttribute("allow", stored.permissions.join("; "));
+      }
+      iframe.srcdoc = htmlDocument(entry.src, profile.csp);
       frame.append(iframe);
       mounted.set(figure, {el: iframe});
     } else if (entry.kind === "media") {
@@ -1089,6 +1152,13 @@ export function createFigures(deps = {}) {
     };
     if (pin && pin.id) entry.plugin = pin;
     if (island) entry.island = island;
+    /* Same bytes, same entry: two insertions of one contribution cost one copy. */
+    const shared = findSource(entry);
+    if (shared) {
+      entry.sourceId = shared.id;
+      entry.storedBytes = 0;
+      delete entry.src;
+    }
     store.figures[entry.id] = entry;
     syncStore();
     const figure = createFigure(entry);
@@ -1320,6 +1390,11 @@ export function createFigures(deps = {}) {
   const registry = env && env.StandaloneDoc;
   if (registry && typeof registry.provide === "function") {
     registry.provide("figures", {insertHTML, scan, usage: pluginUsage});
+  }
+  /* retry() tears the graph down and builds it again, so anything mounted before it is
+     stale. A rescan also picks up a plugin that finished loading during boot. */
+  if (registry && typeof registry.on === "function") {
+    registry.on("ready", () => scan());
   }
 
   /* Construction-time, exactly where the IIFE's trailing Figures.init() ran. */

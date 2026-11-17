@@ -24,7 +24,8 @@
       "requiredBy": [
         "*"
       ],
-      "role": "module"
+      "role": "module",
+      "label": "Page styles"
     },
     {
       "id": "toolbar-styles",
@@ -38,7 +39,8 @@
       "requiredBy": [
         "edit"
       ],
-      "role": "module"
+      "role": "module",
+      "label": "Toolbar styles"
     },
     {
       "id": "boot-ui-styles",
@@ -52,7 +54,8 @@
       "requiredBy": [
         "*"
       ],
-      "role": "infra"
+      "role": "infra",
+      "label": "Boot styles"
     },
     {
       "id": "sprite",
@@ -67,6 +70,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Icons",
       "open": "<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">"
     },
     {
@@ -82,6 +86,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Toolbar",
       "open": "<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">"
     },
     {
@@ -97,6 +102,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Figure tools",
       "open": "<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">"
     },
     {
@@ -105,13 +111,14 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 31444,
-      "sha384": "sha384-DM7Oe+n5rYboDBCrveyHU/xoDa9k71Zsyqehkeaug5j9U4YKk/SBrf3gDyWVO3M6",
+      "bytes": 31952,
+      "sha384": "sha384-N94RlFqsVDJdbNMnBeSmewuq09zYw4lf2ckHnJkbFrwwk5/qUY34IyHteRIVw3vi",
       "mode": "inline",
       "requiredBy": [
         "*"
       ],
-      "role": "infra"
+      "role": "infra",
+      "label": "Loader"
     },
     {
       "id": "boot-ui",
@@ -119,13 +126,14 @@
       "order": 6,
       "tag": "script",
       "file": "src/boot-ui.js",
-      "bytes": 10094,
-      "sha384": "sha384-iMbQ5qAHanTJvPaXm+Xcw7HVkE+T8tnc8OIusuV4quwPHxAzS/uhc9V7jucot0Pf",
+      "bytes": 10134,
+      "sha384": "sha384-wKrp69TrnHqRH1RS5uYiZoTuOP7X5fFIN0Tcz2ttREsOl+s1MOje/cUzGBBSp7KY",
       "mode": "inline",
       "requiredBy": [
         "*"
       ],
-      "role": "infra"
+      "role": "infra",
+      "label": "Boot dialog"
     },
     {
       "id": "apply-settings",
@@ -140,6 +148,7 @@
         "*"
       ],
       "role": "module",
+      "label": "Settings",
       "deps": [],
       "provides": [
         "apply"
@@ -160,6 +169,7 @@
         "*"
       ],
       "role": "module",
+      "label": "Signals",
       "deps": [],
       "provides": [
         "on",
@@ -181,6 +191,7 @@
         "*"
       ],
       "role": "module",
+      "label": "Zoom",
       "deps": [],
       "provides": [
         "command",
@@ -207,6 +218,7 @@
         "*"
       ],
       "role": "module",
+      "label": "Pagination",
       "deps": [
         "signals",
         "zoom"
@@ -231,6 +243,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Progress dialog",
       "deps": [],
       "provides": [
         "open",
@@ -254,6 +267,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Status line",
       "deps": [
         "signals",
         "pagination"
@@ -279,6 +293,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Editor",
       "deps": [
         "signals",
         "status",
@@ -310,13 +325,14 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 48168,
-      "sha384": "sha384-ji4OO7Q69Yzt5VGDJ2vWFYPecwmrWUnRLf4pq03al1x87+k2SObcSpX5+C+kgWZt",
+      "bytes": 51625,
+      "sha384": "sha384-vB7ZuEKT4eu0rL98kurugw2ut1AYCHxdB9RACHWJsHUT4ZBVjJ7XVj9qelho8HvL",
       "mode": "inline",
       "requiredBy": [
         "*"
       ],
       "role": "module",
+      "label": "Figures",
       "deps": [
         "signals",
         "pagination"
@@ -368,6 +384,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Save policy",
       "deps": [
         "figures"
       ],
@@ -400,6 +417,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Toolbar binding",
       "deps": [
         "zoom",
         "editor",
@@ -430,6 +448,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Plugins",
       "deps": [
         "signals",
         "figures",
@@ -458,6 +477,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Export",
       "deps": [
         "figures",
         "toolbar",
@@ -488,6 +508,7 @@
         "edit"
       ],
       "role": "module",
+      "label": "Dialogs",
       "open": "<div id=\"dialogs\">"
     },
     {
@@ -502,7 +523,8 @@
       "requiredBy": [
         "*"
       ],
-      "role": "infra"
+      "role": "infra",
+      "label": "Bootstrap"
     }
   ]
 }
