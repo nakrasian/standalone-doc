@@ -1,17 +1,17 @@
 {
   "source": {
-    "bytes": 407813
+    "bytes": 420534
   },
   "assets": [
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 60772
+      "bytes": 61281
     },
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 51060
+      "bytes": 55695
     },
     {
       "id": "registry",
@@ -21,7 +21,7 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 36690
+      "bytes": 36862
     },
     {
       "id": "export",
@@ -31,7 +31,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 31261
+      "bytes": 31687
     },
     {
       "id": "editor",
@@ -41,7 +41,7 @@
     {
       "id": "policy",
       "kind": "js",
-      "bytes": 18928
+      "bytes": 19591
     },
     {
       "id": "boot-ui",
@@ -74,6 +74,11 @@
       "bytes": 5775
     },
     {
+      "id": "viewer-bar-styles",
+      "kind": "css",
+      "bytes": 5235
+    },
+    {
       "id": "zoom",
       "kind": "js",
       "bytes": 5181
@@ -81,7 +86,7 @@
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 4975
+      "bytes": 5030
     },
     {
       "id": "status",
@@ -91,12 +96,12 @@
     {
       "id": "viewer-bar",
       "kind": "js",
-      "bytes": 4164
+      "bytes": 4412
     },
     {
-      "id": "viewer-bar-styles",
-      "kind": "css",
-      "bytes": 3780
+      "id": "session",
+      "kind": "js",
+      "bytes": 3795
     },
     {
       "id": "progress",
@@ -109,14 +114,14 @@
       "bytes": 1749
     },
     {
+      "id": "viewer-bar-markup",
+      "kind": "html",
+      "bytes": 1642
+    },
+    {
       "id": "apply-settings",
       "kind": "js",
       "bytes": 1591
-    },
-    {
-      "id": "viewer-bar-markup",
-      "kind": "html",
-      "bytes": 1344
     },
     {
       "id": "figure-tools",
@@ -130,9 +135,9 @@
     }
   ],
   "flavors": {
-    "index.html": 407813,
-    "asset-bodies": 392269,
-    "markup-and-runtime": 15544,
-    "dist/slim.html": 78586
+    "index.html": 420534,
+    "asset-bodies": 404525,
+    "markup-and-runtime": 16009,
+    "dist/slim.html": 78934
   }
 }
