@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 190858
+    "bytes": 191064
   },
   "assets": [
     {
@@ -22,7 +22,7 @@
     {
       "id": "zoom",
       "kind": "js",
-      "bytes": 4968
+      "bytes": 5174
     },
     {
       "id": "pagination",
@@ -61,8 +61,8 @@
     }
   ],
   "flavors": {
-    "index.html": 190858,
-    "asset-bodies": 165600,
+    "index.html": 191064,
+    "asset-bodies": 165806,
     "markup-and-runtime": 25258
   },
   "notes": [

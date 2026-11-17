@@ -52,11 +52,22 @@
       "order": 40,
       "tag": "script",
       "file": "src/zoom.js",
-      "bytes": 4505,
-      "sha384": "sha384-UVVvcpZTRgD1odw+RscEptMv3ISIGWliMmgtroCq7qjkIBR8K92hp+i6BzYOL9YW",
+      "bytes": 4600,
+      "sha384": "sha384-aT00aqR0k0qJ8SzaFDTO+TCCLzVtfI+oU3wDeRZ0a5J024Hr+v1PetKQ4P4Fmf9n",
       "mode": "inline",
       "requiredBy": [
         "*"
+      ],
+      "exports": [
+        "STEPS",
+        "MIN",
+        "MAX",
+        "TYPE_MIN",
+        "TYPE_MAX",
+        "clamp",
+        "nearest",
+        "parsePercent",
+        "createZoom"
       ]
     },
     {
