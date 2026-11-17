@@ -574,6 +574,11 @@ export function createFigures(deps = {}) {
     if (entry.media) figure.dataset.media = entry.media;
     markTrusted(figure, entry);
     figure.setAttribute("contenteditable", "false");
+    /* Not a tab stop: the frame is rendered content, and in Firefox a
+       `contenteditable=false` subtree inside an editable region is focusable, which
+       makes Tab walk into every figure. The caption (editable) is still reachable, and
+       the figure stays programmatically focusable for `select()`. */
+    figure.setAttribute("tabindex", "-1");
 
     const defaults = DEFAULT_SIZE[entry.kind] || {w: 1, h: 0.72};
     const width = defaults.w;
@@ -1081,6 +1086,8 @@ export function createFigures(deps = {}) {
         continue;
       }
       figure.removeAttribute("data-missing");
+      /* Files saved before this attribute existed get it on the next save. */
+      figure.setAttribute("tabindex", "-1");
       normaliseScale(figure);
 
       if (entry.kind === "image") {

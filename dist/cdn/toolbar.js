@@ -1,5 +1,5 @@
 export function createToolbar(deps = {}) {
-  const {zoom, editor, figures, status, policy} = deps;
+  const {zoom, editor, figures, status, policy, session} = deps;
   /* export (100) is built after toolbar (90) and is only reached from a click. */
   const exporter = deps.late("export");
 
@@ -186,29 +186,12 @@ export function createToolbar(deps = {}) {
   async function serialize(options = {}) {
     const clone = document.documentElement.cloneNode(true);
 
-    /* Not #figure-tools: its markup is an asset now (the `figure-tools` fragment), so
-       whether it travels with the file is the save policy's decision, not a cleanup
-       rule. It is `hidden`, so an inline copy costs bytes and nothing else. */
-    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui]").forEach((el) => el.remove());
-    clone.querySelectorAll("[data-menu-panel]").forEach((m) => m.setAttribute("hidden", ""));
-    clone.querySelectorAll(".menu").forEach((m) => {
-      m.classList.remove("menu-flip");
-      m.removeAttribute("style");
-    });
-    clone.querySelectorAll("[data-submenu-trigger]").forEach((b) => {
-      b.setAttribute("aria-expanded", "false");
-    });
-    clone.querySelector("#app-toolbar")?.classList.remove("is-resizing");
-    clone.querySelector("#stage")?.removeAttribute("style");
-    /* Reset the whole element, not just its text: Status.refresh() also adds a
-       title attribute, so a second save would otherwise differ from the first. */
-    clone.querySelectorAll("[data-stats]").forEach((el) => {
-      el.textContent = "—";
-      el.removeAttribute("title");
-    });
-    clone.querySelectorAll("[data-dirty]").forEach((el) => {el.hidden = true;});
-    clone.querySelector("#progress-dialog")?.removeAttribute("open");
-    clone.querySelector("#doc-settings-dialog")?.removeAttribute("open");
+    /* What this session rendered, in one place (`session.js`) — the viewer's bar strips
+       the same list, and it drifted between the two the last time it was copied. Note
+       what is *not* stripped: `#figure-tools` is an asset (`figure-tools` fragment), so
+       whether it travels is the save policy's decision, not a cleanup rule. It is
+       `hidden`, so an inline copy costs bytes and nothing else. */
+    session.strip(clone);
 
     // Runtime frames out, and the store pruned to the figures still present.
     figures.prepareClone(clone);
@@ -236,8 +219,7 @@ export function createToolbar(deps = {}) {
     const problems = [];
     if (!html.startsWith("<!doctype html>")) problems.push("missing doctype");
     const doc = new DOMParser().parseFromString(html, "text/html");
-    if (doc.querySelector(".page-spacer")) problems.push("a page spacer leaked into the file");
-    if (doc.querySelector("#sheets > *")) problems.push("the sheet layer is not empty");
+    problems.push(...session.problems(doc));
     /* A plugin's panel is this session's UI. If one is in the file, the cleanup above
        missed a path — fail the save rather than ship it. */
     if (doc.querySelector("[data-plugin-ui]")) problems.push("a plugin's UI leaked into the document");
@@ -627,6 +609,15 @@ export function createToolbar(deps = {}) {
   /* Rows are capabilities, not assets: content, the base view, each used plugin, the
      editor. That is the decision an author can actually make ("this copy is for
      reading"), and the useful saving is usually a plugin rather than the runtime. */
+  /** The plugin's own name, if the file declares one; the asset id is the fallback. */
+  function pluginLabel(plugin, assetId) {
+    const name = (globalThis.StandaloneDoc.manifest().plugins || {})[plugin]?.label;
+    return name ? `Plugin · ${name}` : `Plugin · ${assetId}`;
+  }
+
+  /** Figures that would break if this plugin did not travel (`policy` owns the count). */
+  const usedPluginCount = (plugin) => Number(policy.usage()?.[plugin]) || 0;
+
   const saveKilobytes = (bytes) =>
     bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
@@ -648,12 +639,16 @@ export function createToolbar(deps = {}) {
     for (const decision of planned.decisions) {
       if (decision.role === "infra") continue;
       if (decision.category === "plugin") {
+        /* A plugin a figure needs cannot be `absent` — `policy.target()` clamps it, and
+           the row does not offer what the door would refuse. */
+        const used = usedPluginCount(decision.plugin);
         plugins.push({
           key: decision.id,
-          label: `Plugin · ${decision.id}`,
+          label: pluginLabel(decision.plugin, decision.id),
           ids: [decision.id],
           bytes: decision.bytes,
-          choices: ["inline", "online", "absent"],
+          why: used ? `${used} figure${used === 1 ? "" : "s"} need it` : "",
+          choices: used ? ["inline", "online"] : ["inline", "online", "absent"],
           choice: decision.to,
         });
         continue;

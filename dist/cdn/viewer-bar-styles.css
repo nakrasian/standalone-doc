@@ -34,6 +34,52 @@ html[data-toolbar="off"] #viewer-bar {
   display: none;
 }
 
+/* Reading, not authoring: the bar can step out of the way for this session. Its own
+   children go, one restore button stays — hiding is never a dead end, and nothing about
+   it reaches the file (`session.strip()` removes the attribute from a saved clone). */
+#viewer-bar[data-session-hidden] > :not([data-vb-restore]) {
+  display: none;
+}
+
+#viewer-bar[data-session-hidden] {
+  justify-content: flex-end;
+  height: 26px;
+  border-bottom-color: transparent;
+  background: transparent;
+}
+
+.vb-restore {
+  border: 1px solid var(--vb-line);
+  background: var(--vb-paper);
+  color: var(--vb-muted);
+  border-radius: 999px;
+  width: 26px;
+  height: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vb-restore:hover,
+.vb-restore:focus-visible {
+  background: var(--vb-hover);
+  color: var(--vb-ink);
+}
+
+.vb-chip {
+  border: 1px solid var(--vb-line);
+  background: var(--vb-paper);
+  color: var(--vb-muted);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.vb-chip:hover {
+  background: var(--vb-hover);
+  color: var(--vb-ink);
+}
+
 #viewer-bar .folio {
   min-width: 6.5em;
   font-variant-numeric: tabular-nums;
@@ -65,6 +111,12 @@ html[data-toolbar="off"] #viewer-bar {
   font: inherit;
   color: var(--vb-ink);
   cursor: pointer;
+}
+
+/* A rule on the button element beats the UA sheet's `[hidden] { display: none }`, so
+   anything hidden inside the bar would still paint. Say the intent once. */
+#viewer-bar [hidden] {
+  display: none !important;
 }
 
 #viewer-bar button:hover {

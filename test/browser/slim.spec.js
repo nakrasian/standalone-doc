@@ -71,7 +71,7 @@ test("boots entirely from the CDN", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(info.state).toBe("ready");
-  expect(info.built).toHaveLength(12);
+  expect(info.built).toHaveLength(13);
   expect(info.signals).toBe("object");
   expect(info.figures).toBe("object");
   expect(info.inlineBlocks).toBe(0);
@@ -127,12 +127,12 @@ test("a view-mode document never asks the CDN for editor assets", async ({ page 
     .map((url) => url.split("/").pop())
     .sort();
 
-  expect(built).toEqual(["apply-settings", "signals", "zoom", "pagination", "figures", "viewer-bar"]);
+  expect(built).toEqual(["apply-settings", "session", "signals", "zoom", "pagination", "figures", "viewer-bar"]);
   /* progress is authoring-only, so a viewer never fetches it. The bar is the opposite:
      view-only, so a view-mode document is the one flavour that does fetch it. */
   expect(fetched).toEqual([
-    "apply-settings.js", "figures.js", "page-styles.css", "pagination.js", "signals.js",
-    "viewer-bar-markup.html", "viewer-bar-styles.css", "viewer-bar.js", "zoom.js",
+    "apply-settings.js", "figures.js", "page-styles.css", "pagination.js", "session.js",
+    "signals.js", "viewer-bar-markup.html", "viewer-bar-styles.css", "viewer-bar.js", "zoom.js",
   ]);
 });
 
@@ -143,7 +143,7 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
   const result = await page.evaluate(async () => {
     const toolbar = StandaloneDoc.modules.toolbar;
     const {html} = await toolbar.serialize({policy: "inline"});
-    const ids = ["apply-settings", "signals", "zoom", "pagination", "progress", "status", "editor", "figures", "policy", "toolbar", "plugins", "export"];
+    const ids = ["apply-settings", "session", "signals", "zoom", "pagination", "progress", "status", "editor", "figures", "policy", "toolbar", "plugins", "export"];
     const missing = ids.filter((id) => !html.includes(`id="${id}"`));
     const unregistered = ids.filter((id) => !new RegExp(`StandaloneDoc\\.register\\("${id}"`).test(html));
     const styles = ["page-styles", "toolbar-styles"].filter((id) => !new RegExp(`<style id="${id}"`).test(html));

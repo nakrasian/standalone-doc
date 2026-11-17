@@ -33,13 +33,23 @@ export function createPolicy(deps = {}) {
 
      A plugin's presence is the author's switch, not a figure count: an installed plugin
      may contribute menus and export entries, be used by no figure at all, and still have
-     to travel. `usage` prices rows; it does not decide this. */
+     to travel. `usage` prices rows; it does not decide this — with one exception, the
+     last line: a plugin a figure *needs* cannot be `absent`, or that figure renders as
+     "unavailable" in a reader's copy. The sheet stops offering the choice; this is the
+     door it stops at. */
   function target(asset, {mode, policy, overrides, usage}) {
     if (isInfra(asset)) return "inline";
     if (!inMode(asset, mode)) return "absent";
+    /* A switched-off plugin does not run, so carrying its bytes would be a bigger file
+       with the same broken figure: absent is the honest answer, and the Plugins sheet
+       refuses to produce that state while a figure needs it. */
     if (asset.category === "plugin" && asset.pluginEnabled === false) return "absent";
+    const needed = asset.category === "plugin" && (usage || {})[asset.plugin] > 0;
     const override = (overrides || {})[asset.id];
-    if (CHOICES.includes(override)) return override;
+    if (CHOICES.includes(override)) {
+      if (override === "absent" && needed) return "inline";
+      return override;
+    }
     if (policy === "slim") return "online";
     if (policy === "smart") return requiredEverywhere(asset) ? "inline" : "online";
     return "inline";

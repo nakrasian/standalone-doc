@@ -1,5 +1,5 @@
 export function createViewerBar(deps = {}) {
-  const {pagination, zoom, figures, signals, env} = deps;
+  const {pagination, zoom, figures, signals, session, env} = deps;
   const {document} = env;
   const registry = env.StandaloneDoc;
 
@@ -11,6 +11,7 @@ export function createViewerBar(deps = {}) {
   const titleEl = bar.querySelector("[data-vb-title]");
   const pagesEl = bar.querySelector("[data-vb-pages]");
   const pinEl = bar.querySelector("[data-vb-pin]");
+  const restoreButton = bar.querySelector("[data-vb-restore]");
 
   const manifest = () => {
     try {
@@ -36,20 +37,12 @@ export function createViewerBar(deps = {}) {
   /**
    * A viewer's save is a download: a read-only document cannot write the file it came
    * from. Same act as the editor's Save, minus the policy — the manifest already says
-   * what travels. Keep the cleanup list in step with `toolbar.serialize()`: what it drops
-   * is generated, and a saved file must not carry a rendering of this session.
+   * what travels. Both paths strip the same list (`session.js`), which is what keeps a
+   * file identical whichever flavour saved it.
    */
   function save() {
     const clone = document.documentElement.cloneNode(true);
-    clone.removeAttribute("data-boot-state");
-    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui]").forEach((node) => node.remove());
-    clone.querySelectorAll("[data-menu-panel]").forEach((node) => node.setAttribute("hidden", ""));
-    clone.querySelectorAll("dialog[open]").forEach((node) => node.removeAttribute("open"));
-    const panelClone = clone.querySelector("[data-vb-panel]");
-    if (panelClone) {
-      panelClone.setAttribute("hidden", "");
-      clone.querySelector("[data-vb-settings]")?.setAttribute("aria-expanded", "false");
-    }
+    session.strip(clone);
     figures?.prepareClone(clone);
 
     const name = (document.title || "document").trim().toLowerCase().replace(/[^\w.-]+/g, "-") || "document";
@@ -61,6 +54,18 @@ export function createViewerBar(deps = {}) {
     setTimeout(() => URL.revokeObjectURL(href), 2000);
     return link.download;
   }
+
+  /* Hiding is this session's: no setting is written, and a saved copy carries the bar
+     back. The restore button is inside the bar and excluded from the collapse, so the
+     reader can always undo it. */
+  function setHidden(hidden) {
+    if (hidden) bar.dataset.sessionHidden = "";
+    else delete bar.dataset.sessionHidden;
+    if (restoreButton) restoreButton.hidden = !hidden;
+    if (hidden) openPanel(false);
+  }
+
+  const isHidden = () => bar.hasAttribute("data-session-hidden");
 
   function openPanel(open) {
     if (!panel) return;
@@ -76,6 +81,15 @@ export function createViewerBar(deps = {}) {
     if (event.target.closest("[data-save]")) {
       save();
       openPanel(false);
+      return;
+    }
+    if (event.target.closest("[data-vb-hide]")) {
+      setHidden(true);
+      return;
+    }
+    if (event.target.closest("[data-vb-restore]")) {
+      setHidden(false);
+      openPanel(true);
       return;
     }
     if (event.target.closest("[data-vb-settings]")) {
@@ -97,5 +111,5 @@ export function createViewerBar(deps = {}) {
   signals.on("layout", sync);
   sync();
 
-  return {save, sync, openPanel};
+  return {save, sync, openPanel, setHidden, isHidden};
 }

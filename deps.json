@@ -12,14 +12,17 @@
         "pagination",
         "zoom",
         "figures",
-        "signals"
+        "signals",
+        "session"
       ],
       "late": [],
       "optional": [],
       "provides": [
         "save",
         "sync",
-        "openPanel"
+        "openPanel",
+        "setHidden",
+        "isHidden"
       ]
     },
     {
@@ -58,6 +61,21 @@
       "optional": [],
       "provides": [
         "apply"
+      ]
+    },
+    {
+      "id": "session",
+      "order": 8,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [],
+      "late": [],
+      "optional": [],
+      "provides": [
+        "strip",
+        "problems"
       ]
     },
     {
@@ -274,7 +292,8 @@
         "editor",
         "figures",
         "status",
-        "policy"
+        "policy",
+        "session"
       ],
       "late": [
         "export"

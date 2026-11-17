@@ -143,6 +143,22 @@ test("a plugin travels while it is switched on, and is absent when switched off"
   assert.equal(slim.mermaid, "online", "and it follows the preset like any asset");
 });
 
+test("a plugin a figure needs cannot be set absent by the save policy", () => {
+  const doc = {
+    plugins: { mermaid: { enabled: true } },
+    assets: [
+      ...ASSETS.map((asset) => ({...asset, mode: "inline"})),
+      {id: "mermaid", kind: "js", order: 200, category: "plugin", plugin: "mermaid", requiredBy: ["*"], mode: "online", bytes: 860_000},
+    ],
+  };
+  /* Document settings could set `absent` while the Plugins sheet refused to switch the
+     plugin off — two guardrails, one door. The door clamps now. */
+  const used = targetMap(policy.plan(doc, {policy: "inline", mode: "edit", overrides: {mermaid: "absent"}, usage: {mermaid: 1}}));
+  assert.equal(used.mermaid, "inline", "a figure needs it, so it travels");
+  const unused = targetMap(policy.plan(doc, {policy: "inline", mode: "edit", overrides: {mermaid: "absent"}, usage: {}}));
+  assert.equal(unused.mermaid, "absent", "an unused plugin is still the author's to drop");
+});
+
 test("a plugin asset with no plugin entry in the index is absent", () => {
   const orphan = {
     assets: [

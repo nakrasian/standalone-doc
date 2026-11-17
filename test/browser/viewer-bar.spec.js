@@ -293,6 +293,74 @@ test("an editing document carries no bar — the asset is offloaded, not built",
   expect(problems).toEqual([]);
 });
 
+test("the bar can step aside for this session, and the file keeps it", async ({ page }) => {
+  await load(page, VIEWER);
+  const bar = page.locator("#viewer-bar");
+  await page.click("#viewer-bar [data-vb-settings]");
+  await page.click("#viewer-bar [data-vb-hide]");
+
+  /* Collapsed to a restore affordance: hiding is never a dead end. */
+  await expect(page.locator("#viewer-bar [data-vb-restore]")).toBeVisible();
+  await expect(page.locator("#viewer-bar [data-save]")).toBeHidden();
+  await expect(page.locator("#viewer-bar [data-folio]")).toBeHidden();
+
+  await page.click("#viewer-bar [data-vb-restore]");
+  await expect(page.locator("#viewer-bar [data-save]")).toBeVisible();
+  await expect(page.locator("#viewer-bar [data-vb-restore]")).toBeHidden();
+
+  /* Hide again and save: the reader's session must not reach the file. Restoring opened
+     the panel, so the hide control is already there. */
+  await page.click("#viewer-bar [data-vb-hide]");
+  const target = path.join(ROOT, FIX, "hidden.html");
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 20_000 }),
+    page.evaluate(() => StandaloneDoc.modules["viewer-bar"].save()),
+  ]);
+  await download.saveAs(target);
+  const text = fs.readFileSync(target, "utf8");
+  /* Parse it: the stylesheet is in the file too, so the *string* mentions the selector. */
+  const saved = await page.evaluate((html) => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return {
+      hidden: doc.querySelector("#viewer-bar")?.hasAttribute("data-session-hidden"),
+      restore: doc.querySelector("[data-vb-restore]")?.hidden,
+      boot: doc.documentElement.hasAttribute("data-boot-state"),
+    };
+  }, text);
+  expect(saved.hidden).toBe(false);
+  expect(saved.restore).toBe(true);
+  expect(saved.boot).toBe(false);
+
+  const reopened = await page.context().newPage();
+  const problems = await load(reopened, "file://" + target);
+  expect(problems).toEqual([]);
+  await expect(reopened.locator("#viewer-bar [data-save]")).toBeVisible();
+});
+
+test("a saved file carries no session state, whichever flavour saved it", async ({ page }) => {
+  /* The list lives in `session.js` because it drifted: the viewer dropped the boot phase
+     and the editor kept it. Both paths are exercised here against the same rules. */
+  await load(page, EDITOR);
+  const saved = await page.evaluate(async () => {
+    const {html} = await StandaloneDoc.modules.toolbar.serialize({policy: "inline"});
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return {
+      root: doc.documentElement.outerHTML.slice(0, doc.documentElement.outerHTML.indexOf(">") + 1),
+      spacers: doc.querySelectorAll(".page-spacer").length,
+      openDialogs: doc.querySelectorAll("dialog[open]").length,
+      bootState: doc.documentElement.hasAttribute("data-boot-state"),
+      dirtyVisible: [...doc.querySelectorAll("[data-dirty]")].filter((node) => !node.hidden).length,
+      stats: [...doc.querySelectorAll("[data-stats]")].map((node) => node.textContent),
+    };
+  });
+  expect(saved.bootState).toBe(false);
+  expect(saved.spacers).toBe(0);
+  expect(saved.openDialogs).toBe(0);
+  expect(saved.dirtyVisible).toBe(0);
+  /* The status line is reset whole: text *and* the title refresh() adds. */
+  expect(new Set(saved.stats)).toEqual(new Set(["—"]));
+});
+
 test("a figure is not selectable in a viewer, and still is in the editor", async ({ page }) => {
   await load(page, VIEWER);
   const viewer = await page.evaluate(() => {

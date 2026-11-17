@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.6.0 — 2026-11-17
+
+The release where a reader, not only a broken document, can move a file forward — and where
+the two save paths stop being two.
+
+### Added
+
+- **"Check for updates…" in Document settings.** The failure card repairs a document that
+  cannot boot; this does the same move on purpose. It reads the release index (the authored
+  `catalog`, or the tag's moving sibling), finds `latest`, and offers it as a *draft*: nothing
+  is written until **Done**, failure is total (no index, no offer, no change), and the note
+  says which window keeps which runtime. Only `mode: online` module assets move — inline
+  hashes still describe bytes the file has, and a plugin's bytes stay its author's. A dev
+  base has no moving sibling, so the button says so instead of offering a press that can
+  only fail.
+- **A reader can hide the bar while reading.** Session-only: the bar collapses to a restore
+  button (never a dead end), and a saved copy carries the bar back, because `session.strip()`
+  removes the attribute from the clone. `#doc-settings`'s `toolbar` is the document's answer;
+  this is the reader's, and it does not travel.
+- **`docs/MANIFEST.md`** — the counterpart to `docs/PLUGINS.md`: every field of the three JSON
+  blocks, who writes it, what is authored vs derived vs preserved, the compatibility shims,
+  and the one caveat about tag trees.
+
+### Changed
+
+- **One save list, two savers.** `src/session.js` owns what a document must not carry out of
+  the session that rendered it; `toolbar.serialize()` and the viewer bar both call it, and
+  `validate()` checks the output against the same rules. It had already drifted: the viewer
+  dropped the boot phase and open dialogs, the editor kept them, so the same document differed
+  by which flavour saved it.
+- **A plugin a figure needs cannot be saved as `absent`.** `policy.target()` clamps the
+  override, and the sheet stops offering the choice; before, Document settings could produce
+  a file the Plugins sheet refused to produce, with the same broken figure at the end.
+- **A plugin's row in the sheet uses its label** (`Plugin · Whiteboard`) when the file declares
+  one, instead of the asset id.
+- **Figures are not tab stops.** `tabindex="-1"` on every figure: a `contenteditable="false"`
+  subtree inside an editable region is focusable in Firefox, so Tab used to walk into each
+  figure. The caption stays reachable.
+
+### Removed
+
+- **The `toolbar` contribution kind.** A plugin could declare one, which forced a boot build
+  and rendered nothing. `UI_KINDS` and the catalog validator both refuse it now.
+- **`dist/cdn/doc-settings.js`** — a stale copy of an asset that no longer exists.
+
+### Fixed
+
+- **`hidden` did nothing inside the viewer bar.** `#viewer-bar button { display: inline-flex }`
+  beat the UA sheet's `[hidden] { display: none }`, so anything hidden in the bar still
+  painted. One rule states the intent.
+- **A view-mode copy of `index.html` could not boot offline.** The bar is `mode: online`, so a
+  view copy fetched it from the pinned tag — correct for a released tree, a fixture bug for a
+  tree that is ahead of its tag. The test builds a self-contained copy instead, which also
+  removed a hidden dependency on jsDelivr.
+
+### Size
+
+editor 388.8 → 399.3 KB · slim 76.7 → 77.1 KB · viewer 174.2 → 180.8 KB. The session list
+(3.2 KB, one copy instead of two) and the bar's reading control are the additions; the editor
+still leaves out 11.2 KB of view-only chrome.
+
 ## v0.5.1 — 2026-11-17
 
 A patch that trims what an editor carries and makes the release gate tell the truth. No

@@ -19,9 +19,11 @@ export function createPlugins(deps = {}) {
   const {signals, figures, status, env} = deps;
   const registry = env.StandaloneDoc;
 
-  /* Contribution kinds that only exist as UI. A plugin offering one of these has to be
-     built at boot, or its menu would stay empty until something else loaded it. */
-  const UI_KINDS = ["insert", "export", "panel", "command", "toolbar"];
+  /* Contribution kinds that render into chrome. A plugin offering one of these has to be
+     built at boot, or its menu would stay empty until something else loaded it. There is
+     no "toolbar" kind: the formatting row is a fixed set of document commands, and a kind
+     that forced a boot build to render nothing was a trap (HANDOFF 6d). */
+  const UI_KINDS = ["insert", "export", "panel", "command"];
 
   const wiring = new Map(); /* plugin id -> disposals for the DOM we rendered */
   const dialogs = new Map(); /* "<plugin>:<panel>" -> the open dialog, if any */

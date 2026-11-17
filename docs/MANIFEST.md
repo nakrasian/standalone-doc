@@ -1,0 +1,194 @@
+# The blocks in a document
+
+A document is HTML that describes itself. Three JSON blocks carry what a reader's browser
+needs to run it; one is required, two are optional. This is the reference for editing them
+by hand, and for knowing which of their fields the toolchain will overwrite.
+
+The counterpart is [`PLUGINS.md`](PLUGINS.md): that is the contract between a document and
+a plugin's code, this is the contract between a document and its own runtime.
+
+Nothing here is a stable API yet — but the promise is **additive**: a new field is optional,
+a document that predates it keeps working, and the one-release shims are listed at the end.
+
+---
+
+## 1. `#asset-manifest` — required
+
+```html
+<script id="asset-manifest" type="application/json">{"schema":1,…}</script>
+```
+
+One line (the build writes it compact; `combine` and the save path each rewrite the whole
+block). The loader reads it before anything else and will not boot without it.
+
+```json
+{
+  "schema": 1,
+  "cdnBase": "https://cdn.jsdelivr.net/gh/<owner>/<repo>@v0.5.1/dist/cdn",
+  "catalog": "https://cdn.jsdelivr.net/gh/<owner>/<repo>@main/dist/runtime.json",
+  "plugins": { },
+  "assets": [ { "id": "editor", "…": "see below" } ]
+}
+```
+
+| field | who writes it | meaning |
+|---|---|---|
+| `schema` | build | `1`. A loader refuses a schema it does not know. |
+| `cdnBase` | **author** (`manifest.json`), build (derived into documents) | The tag this document pins, with `/dist/cdn` on the end. Every derived `url` is `cdnBase/<id>.<ext>`. Not a licence to fetch: a hash that does not match is a failed boot, not a warning. |
+| `catalog` | **author** (optional) | Where to hear about newer releases. Absent, the loader derives the moving sibling of `cdnBase` (`@main/dist/runtime.json`); a dev base has no sibling, so no offer is made. A recovery address, never a dependency: a document that cannot reach it still opens. |
+| `plugins` | `plugins.install()` | Present only when the file has plugins. See [§4](#4-plugins-in-the-manifest). |
+| `assets` | build, save policy | One entry per asset, sorted by `order`. See below. |
+
+### An asset entry
+
+| field | required | meaning |
+|---|---|---|
+| `id` | yes | Unique; also the DOM id of the block that carries it (`<script id="editor">`). |
+| `kind` | yes | `js` · `css` · `html`. Decides the wrapper element and the file extension on the CDN. |
+| `role` | yes | `module` (a capability) · `infra` (the loader and its failure UI). Infra is always inline and has **no** `url`: the thing that verifies hashes cannot be a thing that might fail to arrive. |
+| `order` | yes | Construction order. `boot()` builds in this order, whatever the document order of the blocks is. |
+| `mode` | yes | `inline` (the bytes are in the file) or `online` (fetch `url`, verify, then run). |
+| `requiredBy` | yes (defaults to `["*"]`) | `["*"]` for every mode, `["edit"]` for authoring only, `["view"]` for a viewer's chrome. A mode not listed means the asset is not built there — and in a restricted document, not carried either. |
+| `bytes` | yes | Size of the body. Used for the size ledger and the save threshold. |
+| `url`, `integrity` | unless `role: "infra"` | Carried **even when `mode: "inline"`**: the target state is known in advance, which is what lets the save policy move an asset between inline and online with no network. `integrity` is `sha384-` + base64, of the exact bytes. |
+| `deps` | for `js` | Named capabilities to inject as `deps`. Resolved from `factory` exports, in `order`. |
+| `late`, `optional` | for `js` | `deps.late("export")` is a getter that throws if used before that asset exists; `optional` names may be absent. |
+| `factory` | for converted `js` | The exported function the loader calls with `deps`. Absent means the module's namespace is the asset. |
+| `label` | optional | Human name, used by the sheet's ledger and the boot dialog's rows. |
+| `open` | `kind: "html"` | The element the fragment is wrapped in (`<header id="toolbar" …>`), so a fetched fragment can be injected without the file knowing its chrome. |
+| `insert` | `kind: "html"` | Where a fetched fragment lands: `before:<selector>` or `append:<selector>`. Default `before:#viewport`. |
+| `category`, `plugin` | plugins only | `category: "plugin"` plus the plugin's id, which groups the asset under that plugin's switch. |
+
+An asset entry with an unknown `kind`, a `url` that is not absolute `https://` (for an
+online asset), or an `id` that no block provides is a **check** failure, not a boot failure:
+the file would still open, and that is exactly the class of error the gate exists to catch.
+
+## 2. `#doc-settings` — required
+
+```html
+<script id="doc-settings" type="application/json">{"schema":1,"mode":"edit",…}</script>
+```
+
+What the *file* has decided about itself. The loader reads it before it builds anything, so
+these are enforced by code rather than by markup: a copy whose `<body>` was hand-edited
+cannot claim to be editable when this block says otherwise.
+
+| field | default | meaning |
+|---|---|---|
+| `schema` | `1` | Refused if unknown. |
+| `mode` | `edit` | `edit` · `view` · `comment`. Decides which `requiredBy` groups are built. |
+| `editable` | `true` in edit mode | `false` locks `#content` regardless of the markup. A setting can restrict a mode, never grant one: `true` in view mode is still read-only. |
+| `toolbar` | `mode !== "view"` | **Show chrome** — the editor's ribbon, or a viewer's bar. Not "show the editor": a view-mode document has chrome of its own. A file saved before this meant "ribbon" never authored it, so it keeps its chrome-less look. |
+| `ui` | `ribbon` | `ribbon` or `minimal` — which editor chrome to paint. Presentation only; applied before first paint so a minimal file never flashes its ribbon. |
+| `saveThresholdBytes` | `2097152` | Ask before saving a file larger than this. |
+| `thresholdDeclined` | absent | The size at which the author said "don't ask again". The prompt re-arms at twice this. |
+| `timeoutMs` | `8000` | Per-asset load timeout. Behaviour, so it lives here and not in the manifest. |
+| `policy` | absent | The save preset the author chose: `inline`, `smart`, `slim`. Absent means `inline`. |
+| `assets` | absent | An explicit `{id: "inline" \| "online" \| "absent"}` map. **Wins over `policy`** and replaces it on write: a preset is a shorthand for a map, and writing both would be two answers to one question. |
+
+`policy` and `assets` are what the save sheet edits. `mode`/`editable`/`toolbar` also travel
+here, which is why the sheet can offer "this copy opens in view mode" without touching the
+markup.
+
+## 3. `#plugin-catalog` — optional
+
+```html
+<script id="plugin-catalog" type="application/json">{"schema":1,…}</script>
+```
+
+An in-file copy of the plugin catalog (the same shape `dist/registry.json` publishes), so an
+offline document can offer plugins with zero requests. The loader prefers it when present
+and falls back to the catalog at `cdnBase`'s sibling. This repository's own flavours do not
+emit it — a catalog that grows would be bytes in every document — but a distribution that
+ships plugins can.
+
+## 4. Plugins in the manifest
+
+Written by `plugins.install()`, read by the loader and the Plugins sheet. Only present when
+the file has at least one.
+
+```json
+"plugins": {
+  "whiteboard": {
+    "label": "Whiteboard",
+    "version": "1.2.0",
+    "island": "sealed",
+    "enabled": true,
+    "entry": "whiteboard",
+    "assets": ["whiteboard", "whiteboard-template"],
+    "contributes": { "insert": [ { "id": "board", "label": "Board" } ] }
+  }
+}
+```
+
+| field | meaning |
+|---|---|
+| `enabled` | The author's switch. `false` means the plugin does not run and its assets are `absent` on save — unless a figure needs it, in which case the switch is refused rather than silently producing a broken file. |
+| `island` | Which profile the plugin's own content mounts into: `sealed` (default) · `sandboxed` · `trusted`. Stored on the *plugin* here and on the *figure* at insert time, so a later version cannot widen what an existing figure may do. |
+| `assets` | The asset ids that belong to this plugin. They carry `category: "plugin"` and `plugin: "<id>"`, which is what lets the save ledger show one row per plugin instead of one per file. |
+| `contributes` | What the plugin declared when it was installed. Stored, not re-read: an installed plugin that once contributed a menu keeps contributing it even if it cannot be built right now. |
+| `version` | Displayed and recorded. Nothing compares it to anything yet — see the warts in `HANDOFF.md`. |
+
+A pin whose `integrity` changes *under the same version* is not an upgrade; it is a tampered
+plugin. The integrity check does not care what the version says: it compares bytes.
+
+---
+
+## 5. Authored, derived, preserved
+
+Two files are authored and both are checked in: `index.html` (the whole document) and
+`src/` (one file per asset). `manifest.json` is authored **for four fields only** —
+`cdnBase`, `catalog`, and each asset's `mode` / `requiredBy` (plus plugin `url`/`integrity`
+for a pinned third party). Everything else in it is derived from `index.html` and `src/`.
+
+`npm run combine` rewrites `index.html` from `src/`; `npm run split` does the reverse. Both
+preserve the rest of the document verbatim. What neither touches:
+
+- the `#asset-manifest` and `#doc-settings` **contents** (`combine` rebuilds the manifest
+  block from `manifest.json`; `split` leaves both alone);
+- the `#plugin-catalog` block, if present;
+- `<head>` metadata, `<body>` order, hand-written markup outside asset blocks;
+- any `@asset` block whose body already matches its source (that is what makes the
+  round-trip an equality check rather than a reconstruction).
+
+A **save** rewrites the same two blocks: what travels (`mode`), the hashes of what was
+re-materialised, and the settings the sheet edited. Everything a session rendered is
+stripped first — the list is in `src/session.js`, and `validate()` checks the output against
+it before the download starts.
+
+## 6. What the checks enforce
+
+| gate | question |
+|---|---|
+| `npm run verify` | Does `index.html` reproduce `src/` byte for byte? |
+| `npm run check` | Is every block the build's, is every `url` a tag's, does every `js` asset parse, is `dist/` current for all three flavours, is the catalog current, and is `dist/cdn` the tag its documents pin? |
+| `verify-cdn` | Does the CDN serve the bytes a **tag** published? (The tag's tree, not the working tree.) |
+| browser tests | Does the file boot, and does a saved copy reopen as the same document? |
+
+## 7. Compatibility shims (remove at the next breaking change)
+
+A document saved by an older build may be missing fields that now live elsewhere. The loader
+reads them from their old home rather than refusing the file:
+
+| shim | reads | remove when |
+|---|---|---|
+| `mode` | `#doc-settings` absent → the manifest's `mode` (no longer written, so this now lands on the default) | a breaking `schema` bump |
+| `timeoutMs` | same | same |
+| `toolbar` | absent → `mode !== "view"` | same |
+| `requiredBy` | absent → `["*"]` | same |
+| `data-scale` on a figure | legacy alias for `data-w` | same |
+
+Two facts are *not* shims and will not go away: `cdnBase` must name a tag (`check` refuses a
+branch or a local address, because only a tag is both immutable and public), and a document's
+`integrity` values describe its own bytes rather than the tag's — which is why an update
+rewrites the manifest and never re-fetches to "check".
+
+### The one caveat worth knowing
+
+A `catalog` entry names a tag's **tree** — and `git show` of a tag is not the same thing as
+the bytes that tag publishes if the tree was ever rebuilt after tagging. `check` therefore
+compares `dist/cdn` with `git show <tag>:dist/cdn/*`, and `npm run catalog` reads
+`git show <tag>:manifest.json`, never the working tree. The v0.4.0 release is the historical
+example: its tag tree predates a rebuild, so its own `dist/` does not boot; the catalog
+carries the corrected table and a document pinned there still works, because a document
+carries its own pins and does not read the catalog to boot.

@@ -51,6 +51,16 @@ function editSettings(html, edit) {
   );
 }
 
+/** A copy that fetches nothing: every asset `inline`, using the blocks the source already
+ *  carries. That is what a save with the `inline` policy produces, and the only honest
+ *  fixture for a document that must boot offline while the working tree is ahead of the
+ *  tag it pins (a view copy of `index.html` now *fetches* the viewer bar). */
+function selfContained(html) {
+  return editManifest(html, (doc) => {
+    for (const asset of doc.assets) asset.mode = "inline";
+  });
+}
+
 /** Rewrite the in-document manifest (one line of JSON) for a fixture. */
 function editManifest(html, edit) {
   return html.replace(
@@ -105,7 +115,7 @@ test("construction follows the manifest order, not document order", async ({ pag
   expect(state.state).toBe("ready");
   /* Manifest order, even though the blocks were reversed in the file. */
   expect(state.built).toEqual([
-    "apply-settings", "signals", "zoom", "progress", "pagination",
+    "apply-settings", "session", "signals", "zoom", "progress", "pagination",
     "status", "editor", "figures", "policy", "toolbar", "plugins", "export",
   ]);
   expect(state.signals).toBe("object");
@@ -139,7 +149,7 @@ test("a view-mode document boots without the editor", async ({ page }) => {
      editing modules. figures mounts islands either way — that is the point of a
      viewer. */
   const file = tmp("view");
-  fs.writeFileSync(file, editSettings(SOURCE, (settings) => {
+  fs.writeFileSync(file, editSettings(selfContained(SOURCE), (settings) => {
     settings.mode = "view";
     settings.editable = false;
     settings.toolbar = false;
@@ -161,8 +171,8 @@ test("a view-mode document boots without the editor", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(state.state).toBe("ready");
-  expect(state.built).toEqual(["apply-settings", "signals", "zoom", "pagination", "figures", "viewer-bar"]);
-  expect(state.constructed).toEqual(["apply-settings", "figures", "pagination", "signals", "viewer-bar", "zoom"]);
+  expect(state.built).toEqual(["apply-settings", "session", "signals", "zoom", "pagination", "figures", "viewer-bar"]);
+  expect(state.constructed).toEqual(["apply-settings", "figures", "pagination", "session", "signals", "viewer-bar", "zoom"]);
   /* The lock is the loader's job, from the settings block — not the markup's. */
   expect(state.mode).toBe("view");
   expect(state.editable).toBe("false");
@@ -270,7 +280,7 @@ test.describe("boot dialog", () => {
     const seen = await dialog(page);
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
-    expect(seen.rows).toBe(12);
+    expect(seen.rows).toBe(13);
     expect(seen.barNow).toBe("100");
   });
 

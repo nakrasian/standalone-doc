@@ -89,6 +89,7 @@ const REGIONS = [
   { id: "registry", kind: "js", order: 5, label: "Loader", requiredBy: ["*"]  },
   { id: "boot-ui", kind: "js", order: 6, label: "Boot dialog", requiredBy: ["*"]  },
   { id: "apply-settings", kind: "js", order: 7, label: "Settings", requiredBy: ["*"]  },
+  { id: "session", kind: "js", order: 8, label: "Session state", requiredBy: ["*"]  },
   { id: "sprite", kind: "html", order: 11, label: "Icons", requiredBy: ["edit"], tag: "svg"  },
   { id: "toolbar-markup", kind: "html", order: 12, label: "Toolbar", requiredBy: ["edit"], tag: "header"  },
   { id: "figure-tools", kind: "html", order: 13, label: "Figure tools", requiredBy: ["edit"], tag: "div"  },
@@ -590,7 +591,9 @@ ${implicitNote}
  * thing that can be wrong here is a proposal that could not work, and the gate refuses
  * those rather than letting the sheet offer them.
  */
-const CATALOG_KINDS = ["insert", "export", "panel", "command", "toolbar"];
+/* Must match `UI_KINDS` in src/plugins.js: a kind the renderer does not know is a
+   proposal that can never appear. */
+const CATALOG_KINDS = ["insert", "export", "panel", "command"];
 
 function readCatalog() {
   if (!exists(PLUGINS)) return { schema: 1, assets: {} };

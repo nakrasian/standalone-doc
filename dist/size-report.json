@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 413244
+    "bytes": 420534
   },
   "assets": [
     {
@@ -32,17 +32,17 @@
     {
       "id": "viewer-bar-markup",
       "kind": "html",
-      "bytes": 1344
+      "bytes": 1642
     },
     {
       "id": "viewer-bar-styles",
       "kind": "css",
-      "bytes": 3780
+      "bytes": 5235
     },
     {
       "id": "viewer-bar",
       "kind": "js",
-      "bytes": 4164
+      "bytes": 4412
     },
     {
       "id": "figure-tools",
@@ -63,6 +63,11 @@
       "id": "apply-settings",
       "kind": "js",
       "bytes": 1591
+    },
+    {
+      "id": "session",
+      "kind": "js",
+      "bytes": 3795
     },
     {
       "id": "signals",
@@ -97,22 +102,22 @@
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 60772
+      "bytes": 61281
     },
     {
       "id": "policy",
       "kind": "js",
-      "bytes": 18928
+      "bytes": 19591
     },
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 56010
+      "bytes": 55695
     },
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 36690
+      "bytes": 36862
     },
     {
       "id": "export",
@@ -131,9 +136,9 @@
     }
   ],
   "flavors": {
-    "index.html": 413244,
-    "asset-bodies": 397700,
-    "markup-and-runtime": 15544,
-    "dist/slim.html": 78586
+    "index.html": 420534,
+    "asset-bodies": 404525,
+    "markup-and-runtime": 16009,
+    "dist/slim.html": 78934
   }
 }
