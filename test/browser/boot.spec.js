@@ -39,6 +39,25 @@ function shuffled() {
   return html;
 }
 
+/** Rewrite the in-document manifest (one line of JSON) for a fixture. */
+function editManifest(html, edit) {
+  return html.replace(
+    /(<script id="asset-manifest" type="application\/json">)([\s\S]*?)(<\/script>)/,
+    (match, open, json, close) => {
+      const doc = JSON.parse(json);
+      edit(doc);
+      return open + JSON.stringify(doc) + close;
+    },
+  );
+}
+
+/** A document whose plan omits an asset, while its block still registers it. */
+function withoutFromPlan(id) {
+  return editManifest(SOURCE, (doc) => {
+    doc.assets = doc.assets.filter((asset) => asset.id !== id);
+  });
+}
+
 async function load(page, url) {
   const problems = [];
   page.on("console", (m) => {
@@ -46,6 +65,11 @@ async function load(page, url) {
   });
   page.on("pageerror", (e) => problems.push(e.message));
   await page.goto(url);
+  await page.waitForFunction(
+    () => ["ready", "failed"].includes(globalThis.StandaloneDoc?.state),
+    null,
+    { timeout: 15_000 },
+  );
   return problems;
 }
 
@@ -100,8 +124,8 @@ test("the app introduces only the allowlisted globals", async ({ page }) => {
 });
 
 test("a missing dependency aborts boot with a named error", async ({ page }) => {
-  /* Drop the progress block: export declares it, so boot must refuse. */
-  const html = SOURCE.replace(blocks(SOURCE).get("progress").block, () => "");
+  /* Registered but absent from the plan: this is the dependency failure. */
+  const html = withoutFromPlan("progress");
   const file = tmp("missing-dep");
   fs.writeFileSync(file, html);
 
@@ -109,13 +133,14 @@ test("a missing dependency aborts boot with a named error", async ({ page }) => 
 
   const state = await page.evaluate(() => ({
     state: StandaloneDoc.state,
-    errors: StandaloneDoc.errors.map((e) => ({ phase: e.phase, id: e.id, message: e.message })),
+    errors: StandaloneDoc.errors.map((e) => ({ kind: e.kind, id: e.id, message: e.message })),
   }));
   expect(state.state).toBe("failed");
   expect(state.errors).toEqual([
-    { phase: "construct", id: "export", message: expect.stringContaining('requires "progress"') },
+    { kind: "construct", id: "export", message: expect.stringContaining('requires "progress"') },
   ]);
-  expect(problems.some((p) => p.includes('requires "progress"'))).toBe(true);
+  /* boot() records and reports; it does not throw into the page. */
+  expect(problems).toEqual([]);
   fs.rmSync(file, { force: true });
 });
 
@@ -173,13 +198,13 @@ test.describe("boot dialog", () => {
 
   test("a missing dependency opens the dialog naming both assets", async ({ page }) => {
     const file = tmp("dialog-missing-dep");
-    fs.writeFileSync(file, SOURCE.replace(blocks(SOURCE).get("progress").block, () => ""));
+    fs.writeFileSync(file, withoutFromPlan("progress"));
     await load(page, "file://" + file);
     const seen = await dialog(page);
     expect(seen.open).toBe(true);
     expect(seen.phase).toBe("failed");
     expect(seen.title).toBe("The editor failed to start");
-    expect(seen.errorTitle).toBe("Export threw while starting");
+    expect(seen.errorTitle).toBe("Export");
     expect(seen.errorBody).toContain('requires "progress"');
     expect(seen.diag).toContain('requires "progress"');
     expect(seen.retryHidden).toBe(false);
@@ -189,7 +214,18 @@ test.describe("boot dialog", () => {
     /* The row that failed is marked; assets that never registered are absent
        from the plan entirely (the error names the missing one). */
     expect(seen.states).toContain("export:failed");
-    expect(seen.states.some((entry) => entry.startsWith("progress:"))).toBe(false);
+    fs.rmSync(file, { force: true });
+  });
+
+  test("a deleted asset block is reported as not loaded", async ({ page }) => {
+    const file = tmp("dialog-deleted");
+    fs.writeFileSync(file, SOURCE.replace(blocks(SOURCE).get("progress").block, () => ""));
+    await load(page, "file://" + file);
+    const seen = await dialog(page);
+    expect(seen.open).toBe(true);
+    expect(seen.errorTitle).toBe("Progress dialog");
+    expect(seen.errorBody).toContain("not loaded");
+    expect(seen.diag).toContain("[missing] progress");
     fs.rmSync(file, { force: true });
   });
 
@@ -202,7 +238,7 @@ test.describe("boot dialog", () => {
     await load(page, "file://" + file);
     const seen = await dialog(page);
     expect(seen.open).toBe(true);
-    expect(seen.errorTitle).toBe("Figures threw while starting");
+    expect(seen.errorTitle).toBe("Figures");
     expect(seen.errorBody).toContain("deliberate test failure");
     expect(seen.diag).toContain("deliberate test failure");
     expect(seen.diag).toContain("createFigures"); /* the stack */
@@ -212,7 +248,7 @@ test.describe("boot dialog", () => {
 
   test("retry rebuilds from a clean state instead of accumulating errors", async ({ page }) => {
     const file = tmp("dialog-retry");
-    fs.writeFileSync(file, SOURCE.replace(blocks(SOURCE).get("progress").block, () => ""));
+    fs.writeFileSync(file, withoutFromPlan("progress"));
     await load(page, "file://" + file);
     expect(await page.evaluate(() => window.StandaloneDoc.errors.length)).toBe(1);
 
@@ -235,7 +271,7 @@ test.describe("boot dialog", () => {
 
   test("diagnostics can be revealed and copied without throwing", async ({ page }) => {
     const file = tmp("dialog-diag");
-    fs.writeFileSync(file, SOURCE.replace(blocks(SOURCE).get("progress").block, () => ""));
+    fs.writeFileSync(file, withoutFromPlan("progress"));
     const problems = await load(page, "file://" + file);
 
     await page.click("[data-boot-toggle]");

@@ -1,0 +1,749 @@
+:root {
+  --chrome-bg: #fbfbfc;
+  --ink: #1b1f24;
+  --muted: #6b7280;
+  --line: #dfe1e6;
+  --paper: #fff;
+  --backdrop: #e0e0e0;
+  --hover: #eef0f4;
+  --accent: #2f6fed;
+  --accent-soft: rgba(47, 111, 237, .12);
+
+  --chrome-h: 79px;
+}
+
+body[data-ui="ribbon"] {
+  --chrome-h: 79px;
+}
+
+body[data-ui="minimal"] {
+  --chrome-h: 34px;
+}
+
+/* ---- chrome container ---- */
+/* body is a column flexbox here (the lab uses a grid because it also has a
+   rail); the toolbar must never shrink, and it owns the stacking context
+   so dropdown menus paint above the page. */
+#app-toolbar {
+  flex: 0 0 auto;
+  height: var(--chrome-h, 44px);
+  transition: height 200ms cubic-bezier(.4, 0, .2, 1);
+  position: relative;
+  z-index: 40;
+}
+
+#app-toolbar.is-resizing {
+  overflow: hidden;
+}
+
+[data-ui-panel] {
+  display: none;
+}
+
+body[data-ui="ribbon"] [data-ui-panel="ribbon"],
+body[data-ui="minimal"] [data-ui-panel="minimal"] {
+  display: flex;
+  animation: chromeIn 200ms ease-out backwards;
+}
+
+@keyframes chromeIn {
+  from {
+    opacity: .9;
+    transform: translateY(-1px);
+  }
+}
+
+/* ---- shared chrome controls ---- */
+.bar,
+.ribbon {
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--line);
+  font: 500 12px/1 system-ui, -apple-system, sans-serif;
+  color: var(--muted);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.bar button,
+.ribbon button,
+.bubble button,
+.menu button,
+.rail button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.bar button:hover,
+.ribbon button:hover,
+.menu button:hover,
+.rail button:hover {
+  background: var(--hover);
+}
+
+button[aria-pressed="true"] {
+  background: var(--accent) !important;
+  color: #fff;
+}
+
+/* Toggled controls: strong for toolbar icons, soft inside menus. */
+button[aria-pressed="true"]:hover {
+  filter: brightness(1.06);
+}
+
+.menu button[aria-pressed="true"] {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+}
+
+.menu button[aria-pressed="true"] kbd {
+  color: var(--accent) !important;
+  opacity: .7;
+}
+
+button:disabled {
+  opacity: .38;
+  cursor: default;
+  background: transparent !important;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 5px;
+  background: var(--line);
+  flex: 0 0 auto;
+}
+
+.grow {
+  flex: 1 1 auto;
+}
+
+.i {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.i.sm {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.4;
+}
+
+.favicon {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  border-radius: 7px;
+}
+
+.favicon:hover {
+  background: var(--hover);
+}
+
+.title-input {
+  height: 28px;
+  padding: 0 6px;
+  min-width: 8em;
+  max-width: 22em;
+  font: inherit;
+  font-weight: 650;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  user-select: text;
+}
+
+.title-input:hover {
+  background: #fff;
+  border-color: var(--line);
+}
+
+.title-input:focus {
+  background: #fff;
+  border-color: var(--accent);
+}
+
+/* Native <select>: leave the platform arrow and padding alone. */
+.select {
+  height: 28px;
+  padding: 0 4px;
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.select:hover {
+  background: var(--hover);
+}
+
+.stats {
+  color: #8a929e;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.dirty-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.dirty-dot[hidden] {
+  display: none;
+}
+
+.status {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.status.is-error {
+  color: #b3261e;
+}
+
+.primary {
+  background: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 600;
+  padding: 0 12px !important;
+}
+
+.primary:hover {
+  filter: brightness(1.06);
+}
+
+.ghost {
+  color: var(--muted) !important;
+}
+
+/* ---- ribbon panel (two rows) ---- */
+#ui-ribbon {
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  height: 79px;
+}
+
+body[data-ui="ribbon"] #ui-ribbon {
+  display: flex;
+}
+
+.ribbon-top,
+.ribbon-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+}
+
+.ribbon-top {
+  height: 36px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.ribbon-tools {
+  height: 42px;
+  overflow-x: auto;
+  /* narrow windows scroll instead of clipping the zoom cluster */
+  scrollbar-width: none;
+}
+
+.ribbon-tools::-webkit-scrollbar {
+  display: none;
+}
+
+/* Text menus are neutral: no icon-button padding, chevron close to label. */
+.menu-trigger {
+  gap: 3px !important;
+  padding: 0 8px !important;
+  color: var(--ink) !important;
+}
+
+/* ---- zoom cluster ---- */
+.zoom-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.zoom-box {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-box:hover {
+  background: var(--hover);
+}
+
+.zoom-box:focus-within {
+  background: #fff;
+  border-color: var(--accent);
+}
+
+.zoom-value {
+  width: 3.4ch;
+  height: 26px;
+  padding: 0;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--ink);
+  text-align: right;
+  background: transparent;
+  border: 0;
+}
+
+.zoom-unit {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* The same field, as a row inside a dropdown menu. */
+.menu-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 6px;
+}
+
+.menu-field .zoom-value {
+  flex: 1 1 auto;
+  width: auto;
+  height: 26px;
+  padding: 0 6px;
+  text-align: left;
+  background: #fff;
+  border-radius: 6px;
+}
+
+.menu-field .zoom-value:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* ---- menu (shared by every variant) ---- */
+.menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  min-width: 232px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(16, 22, 30, .16);
+  font-weight: 450;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu button {
+  display: flex;
+  width: 100%;
+  height: 30px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 8px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.menu button kbd,
+.menu kbd {
+  margin-left: auto;
+  padding-left: 14px;
+  font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #9aa1ab;
+}
+
+.menu-sep {
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--line);
+}
+
+.menu-label {
+  padding: 6px 8px 3px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #9aa1ab;
+}
+
+.menu-wrap[data-menu-align="right"] > .menu {
+  left: auto;
+  right: 0;
+}
+
+.menu-wrap .menu.menu-flip {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+/* Cascading submenus use fixed positioning so the parent menu's
+   overflow-y:auto cannot clip them. Positions are set from JS. */
+.menu-sub {
+  position: relative;
+}
+
+.menu-sub > .menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  min-width: 220px;
+}
+
+.menu-sub-trigger .i {
+  margin-left: auto;
+  transform: rotate(-90deg);
+}
+
+.menu-sub-trigger[aria-expanded="true"] {
+  background: var(--hover);
+}
+
+/* ---- minimal panel ---- */
+#ui-minimal {
+  height: 34px;
+  background: #fff;
+  border-bottom-color: #eceef2;
+}
+
+#ui-minimal .folio {
+  font-variant-numeric: tabular-nums;
+  color: #9aa1ab;
+  min-width: 4.5em;
+}
+
+#ui-minimal .title-input {
+  text-align: center;
+  font-weight: 500;
+  font-size: 12px;
+  max-width: 26em;
+}
+
+#ui-minimal .save-text {
+  color: var(--accent) !important;
+  font-weight: 600;
+  padding: 0 8px !important;
+}
+
+/* ---- toggle button ---- */
+[data-chrome-toggle] {
+  background: transparent !important;
+  border: 1px solid transparent;
+}
+
+[data-chrome-toggle]:hover {
+  background: var(--hover) !important;
+}
+
+[data-chrome-toggle][aria-pressed="true"] {
+  background: var(--hover) !important;
+  color: var(--ink) !important;
+}
+
+
+/* ---- shortcuts dialog ---- */
+dialog#shortcuts-dialog {
+  width: min(440px, 90vw);
+  max-height: min(78dvh, 640px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  font: 13px/1.4 system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+}
+
+dialog#shortcuts-dialog::backdrop {
+  background: rgba(16, 22, 30, .34);
+}
+
+#shortcuts-dialog form {
+  display: flex;
+  flex-direction: column;
+  max-height: min(78dvh, 640px);
+  padding: 18px;
+}
+
+#shortcuts-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+#keylist {
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+#keylist h3 {
+  margin: 12px 0 4px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #9aa1ab;
+}
+
+#keylist h3:first-child {
+  margin-top: 0;
+}
+
+#keylist>div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 3px 0;
+}
+
+#keylist kbd {
+  flex: 0 0 auto;
+  font: 500 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #f2f3f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+#shortcuts-dialog:focus,
+#keylist:focus,
+#keylist:focus-visible {
+  outline: none;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+#shortcuts-dialog .dialog-actions button {
+  height: 30px;
+  padding: 0 14px;
+  font: inherit;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.primary:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+
+/* ---- progress dialog ---- */
+#progress-dialog {
+  width: min(460px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 18px 60px rgba(16, 22, 30, .24);
+  font: 13px/1.4 system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+}
+
+#progress-dialog::backdrop {
+  background: rgba(16, 22, 30, .28);
+}
+
+#progress-dialog h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.progress {
+  height: 8px;
+  border-radius: 4px;
+  background: #e9edf2;
+  overflow: hidden;
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #2f6fed, #7aa2ff, #2f6fed);
+  background-size: 200% 100%;
+  animation: sweep 1.6s linear infinite;
+  transition: width .18s ease;
+}
+
+@keyframes sweep {
+  from { background-position: 0% 0; }
+  to { background-position: 200% 0; }
+}
+
+#progress-dialog [data-progress-text] {
+  min-height: 1.5em;
+  margin: 10px 0 14px;
+  color: var(--muted);
+}
+
+#progress-dialog .dialog-actions button {
+  height: 30px;
+  padding: 0 14px;
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+}
+
+#progress-dialog .dialog-actions button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress i {
+    animation: none;
+  }
+}
+
+/* ---- @media (prefers-reduced-motion) ---- */
+@media (prefers-reduced-motion: reduce) {
+
+  body,
+  #app-toolbar {
+    transition: none;
+  }
+
+  body[data-ui] [data-ui-panel] {
+    animation: none;
+  }
+}
+
+/* ---- print ----
+   Page starts are preserved from the screen planner: every .page-spacer
+   is followed by the first block of the next page. Hide the spacer's
+   height, keep the node, and force the break before its sibling. */
+@media print {
+  body {
+    display: block;
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+
+  #app-toolbar,
+  #statusline,
+  #bubble,
+  #blockhandle,
+  #figure-tools,
+  #probe,
+  #progress-dialog,
+  #shortcuts-dialog {
+    display: none !important;
+  }
+
+  #sheets {
+    display: none !important;
+  }
+
+  .page-spacer {
+    display: none !important;
+  }
+
+  .page-spacer + * {
+    break-before: page;
+  }
+
+  #viewport {
+    overflow: visible;
+  }
+
+  /* Zoom is a screen affordance. No !important: the zoom value lives in
+     an inline --zoom custom property, so this rule is the only declaration
+     of `zoom` and wins on source order. */
+  #stage {
+    zoom: 1;
+    padding-block: 0;
+    /* The live app leaves an inline min-height on #stage. */
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  #content {
+    max-width: none;
+    min-height: 0;
+  }
+
+  #content > * {
+    break-inside: avoid;
+  }
+
+  figure.figure {
+    break-inside: avoid;
+  }
+
+  /* Folios: Chromium supports margin boxes; other browsers ignore them. */
+  @page:right {
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+      color: #9aa1ab;
+    }
+  }
+
+  @page:left {
+    @bottom-left {
+      content: counter(page) " / " counter(pages);
+      font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+      color: #9aa1ab;
+    }
+  }
+}

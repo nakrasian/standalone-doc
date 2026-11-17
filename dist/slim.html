@@ -1,0 +1,1204 @@
+<!doctype html>
+<html lang="en-US">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Standalone HTML Doc</title>
+  <!-- CORE STYLES: CSS, Typography, and Pagination -->
+<!-- @asset id="boot-ui-styles" kind="css" order="25" -->
+  <style id="boot-ui-styles">
+    /* Boot shell styles. Self-contained on purpose: this file must render before
+       any other asset exists, so it may not rely on core.css or its variables. */
+
+    #boot-dialog {
+      --boot-ink: #1b1f24;
+      --boot-muted: #6b7280;
+      --boot-line: #dfe1e6;
+      --boot-paper: #fff;
+      --boot-chrome: #fbfbfc;
+      --boot-accent: #2f6fed;
+      --boot-danger: #b3261e;
+      --boot-danger-soft: rgba(179, 38, 30, .08);
+      --boot-ok: #1a7f47;
+
+      width: min(520px, calc(100vw - 32px));
+      padding: 0;
+      border: 1px solid var(--boot-line);
+      border-radius: 10px;
+      background: var(--boot-paper);
+      color: var(--boot-ink);
+      box-shadow: 0 12px 32px rgba(16, 24, 40, .18), 0 2px 6px rgba(16, 24, 40, .06);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    #boot-dialog::backdrop { background: rgba(16, 24, 40, .28); }
+
+    #boot-dialog .boot-head { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px 12px; }
+    #boot-dialog .boot-mark {
+      width: 22px; height: 22px; flex: 0 0 auto; margin-top: 1px; border-radius: 6px;
+      display: grid; place-items: center; font-size: 12px; font-weight: 700;
+      background: var(--boot-accent); color: #fff;
+    }
+    #boot-dialog[data-phase="failed"] .boot-mark { background: var(--boot-danger); }
+    #boot-dialog h1 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+    #boot-dialog .boot-sub { margin: 2px 0 0; color: var(--boot-muted); font-size: 12.5px; }
+    #boot-dialog .boot-body { padding: 0 18px 14px; max-height: 62vh; overflow: auto; }
+    #boot-dialog .boot-foot {
+      display: flex; gap: 8px; align-items: center; padding: 11px 18px;
+      border-top: 1px solid var(--boot-line); background: var(--boot-chrome);
+    }
+    #boot-dialog .boot-foot .spacer { flex: 1; }
+
+    #boot-dialog button {
+      font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+      border: 1px solid var(--boot-line); background: var(--boot-paper); color: var(--boot-ink);
+    }
+    #boot-dialog button.primary { background: var(--boot-accent); border-color: var(--boot-accent); color: #fff; }
+    #boot-dialog button:focus-visible { outline: 2px solid var(--boot-accent); outline-offset: 2px; }
+
+    #boot-dialog .boot-bar {
+      height: 5px; border-radius: 99px; background: #eceef2; overflow: hidden; margin: 2px 0 12px;
+    }
+    #boot-dialog .boot-fill {
+      display: block; height: 100%; background: var(--boot-accent);
+      width: 100%; transform: scaleX(0); transform-origin: left;
+      transition: transform .32s ease-out;
+    }
+
+    #boot-dialog .boot-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    #boot-dialog .boot-row {
+      display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center;
+      font-size: 12.5px; color: var(--boot-muted);
+    }
+    #boot-dialog .boot-name { color: var(--boot-ink); }
+    #boot-dialog .boot-detail { font-size: 11.5px; font-variant-numeric: tabular-nums; }
+    #boot-dialog .boot-row[data-state="pending"] { opacity: .5; }
+    #boot-dialog .boot-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--boot-line); justify-self: center; }
+    #boot-dialog .boot-row[data-state="active"] .boot-name { color: var(--boot-accent); }
+    #boot-dialog .boot-row[data-state="active"] .boot-dot { background: var(--boot-accent); animation: boot-pulse 1s infinite; }
+    #boot-dialog .boot-row[data-state="ok"] .boot-dot { background: var(--boot-ok); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-dot,
+    #boot-dialog .boot-row[data-state="fail"] .boot-dot { background: var(--boot-danger); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-name,
+    #boot-dialog .boot-row[data-state="fail"] .boot-name { color: var(--boot-danger); }
+
+    @keyframes boot-pulse { 50% { opacity: .35; } }
+
+    #boot-dialog .boot-error {
+      display: grid; grid-template-columns: 18px 1fr; gap: 8px;
+      margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--boot-line);
+    }
+    #boot-dialog .boot-error[hidden] { display: none; }
+    #boot-dialog .boot-error-icon { color: var(--boot-danger); }
+    #boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
+    #boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
+
+    #boot-dialog .boot-diag {
+      margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
+      background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px; white-space: pre-wrap; max-height: 220px; overflow: auto;
+    }
+    #boot-dialog .boot-diag[hidden] { display: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #boot-dialog .boot-fill { transition: none; }
+      #boot-dialog .boot-dot { animation: none !important; }
+    }
+  </style>
+<!-- /@asset -->
+  <style id="user-theme"></style>
+  <style id="print-page"></style>
+  <!-- Favicon for sheet -->
+  <link id="favicon" rel="icon"
+    href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%A7%AC%3C%2Ftext%3E%3C%2Fsvg%3E" />
+</head>
+<!-- BODY: Toolbar and Content UI -->
+
+<body data-ui="ribbon">
+
+  <!-- SVG icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-bold" viewBox="0 0 24 24">
+      <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />
+    </symbol>
+    <symbol id="i-italic" viewBox="0 0 24 24">
+      <line x1="19" x2="10" y1="4" y2="4" />
+      <line x1="14" x2="5" y1="20" y2="20" />
+      <line x1="15" x2="9" y1="4" y2="20" />
+    </symbol>
+    <symbol id="i-underline" viewBox="0 0 24 24">
+      <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+      <line x1="4" x2="20" y1="20" y2="20" />
+    </symbol>
+    <symbol id="i-strike" viewBox="0 0 24 24">
+      <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+      <path d="M14 12a4 4 0 0 1 0 8H6" />
+      <line x1="4" x2="20" y1="12" y2="12" />
+    </symbol>
+    <symbol id="i-list" viewBox="0 0 24 24">
+      <line x1="8" x2="21" y1="6" y2="6" />
+      <line x1="8" x2="21" y1="12" y2="12" />
+      <line x1="8" x2="21" y1="18" y2="18" />
+      <line x1="3" x2="3.01" y1="6" y2="6" />
+      <line x1="3" x2="3.01" y1="12" y2="12" />
+      <line x1="3" x2="3.01" y1="18" y2="18" />
+    </symbol>
+    <symbol id="i-list-ol" viewBox="0 0 24 24">
+      <line x1="10" x2="21" y1="6" y2="6" />
+      <line x1="10" x2="21" y1="12" y2="12" />
+      <line x1="10" x2="21" y1="18" y2="18" />
+      <path d="M4 6h1v4" />
+      <path d="M4 10h2" />
+      <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
+    </symbol>
+    <symbol id="i-link" viewBox="0 0 24 24">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </symbol>
+    <symbol id="i-unlink" viewBox="0 0 24 24">
+      <path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      <line x1="8" x2="8" y1="2" y2="5" />
+      <line x1="2" x2="5" y1="8" y2="8" />
+      <line x1="16" x2="16" y1="19" y2="22" />
+      <line x1="19" x2="22" y1="16" y2="16" />
+    </symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24">
+      <path d="M4 7V4h16v3" />
+      <path d="M5 20h6" />
+      <path d="M13 4 8 20" />
+      <path d="m15 15 5 5" />
+      <path d="m20 15-5 5" />
+    </symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24">
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+    </symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24">
+      <path
+        d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+      <path
+        d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+    </symbol>
+    <symbol id="i-code" viewBox="0 0 24 24">
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </symbol>
+    <symbol id="i-sup" viewBox="0 0 24 24">
+      <path d="m4 19 8-8" />
+      <path d="m12 19-8-8" />
+      <path
+        d="M20 12h-4c0-1.5.44-2 1.5-2.5S20 8.33 20 7c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
+    </symbol>
+    <symbol id="i-sub" viewBox="0 0 24 24">
+      <path d="m4 5 8 8" />
+      <path d="m12 5-8 8" />
+      <path
+        d="M20 19h-4c0-1.5.44-2 1.5-2.5S20 15.33 20 14c0-.47-.17-.93-.48-1.29a2.1 2.1 0 0 0-2.62-.44c-.42.24-.74.62-.9 1.06" />
+    </symbol>
+    <symbol id="i-save" viewBox="0 0 24 24">
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+      <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+    </symbol>
+    <symbol id="i-more" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+      <circle cx="5" cy="12" r="1" />
+    </symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24">
+      <path d="M10 8h.01" />
+      <path d="M12 12h.01" />
+      <path d="M14 8h.01" />
+      <path d="M16 12h.01" />
+      <path d="M18 8h.01" />
+      <path d="M6 8h.01" />
+      <path d="M7 16h10" />
+      <path d="M8 12h.01" />
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+    </symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24">
+      <path d="m6 9 6 6 6-6" />
+    </symbol>
+    <symbol id="i-paneltop" viewBox="0 0 24 24">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M3 9h18" />
+    </symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+      <line x1="11" x2="11" y1="8" y2="14" />
+      <line x1="8" x2="14" y1="11" y2="11" />
+    </symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+      <line x1="8" x2="14" y1="11" y2="11" />
+    </symbol>
+    <symbol id="i-zoom-reset" viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </symbol>
+  </svg>
+
+  <header id="app-toolbar" data-chrome contenteditable="false">
+
+    <!-- ===== RIBBON: two rows ===== -->
+    <header id="ui-ribbon" class="ribbon" data-ui-panel="ribbon">
+
+      <!-- Row 1: title, file menu, save, toggle -->
+      <div class="ribbon-top">
+        <button class="favicon" data-favicon title="Change favicon">🧬</button>
+        <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false"
+          aria-label="Document title">
+        <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+        <span class="sep"></span>
+
+        <!-- File Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>File <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <button data-menu-item data-save><svg class="i sm">
+                <use href="#i-save" />
+              </svg>Save</button>
+
+            <div class="menu-sub" data-submenu>
+              <button type="button" data-menu-item data-submenu-trigger
+                aria-haspopup="menu" aria-expanded="false">Save as…
+                <svg class="i sm">
+                  <use href="#i-chev" />
+                </svg></button>
+              <div class="menu" data-menu-panel hidden>
+
+                <div class="menu-sub" data-submenu>
+                  <button type="button" data-menu-item data-submenu-trigger
+                    aria-haspopup="menu" aria-expanded="false">HTML
+                    <svg class="i sm">
+                      <use href="#i-chev" />
+                    </svg></button>
+                  <div class="menu" data-menu-panel hidden>
+                    <button data-menu-item data-export="html-interactive"
+                      data-save>Interactive (.html)</button>
+                    <button data-menu-item data-export="html-static">Static with captured figures…</button>
+                  </div>
+                </div>
+
+                <div class="menu-sub" data-submenu>
+                  <button type="button" data-menu-item data-submenu-trigger
+                    aria-haspopup="menu" aria-expanded="false">PDF
+                    <svg class="i sm">
+                      <use href="#i-chev" />
+                    </svg></button>
+                  <div class="menu" data-menu-panel hidden>
+                    <button data-menu-item data-export="print-live"
+                      title="The browser print dialog controls headers and footers.">Standard print</button>
+                    <button data-menu-item data-export="print-captured"
+                      title="The browser print dialog controls headers and footers.">Captured figures</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </span>
+
+        <!-- Insert Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>Insert <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <div class="menu-label">Blocks</div>
+            <button data-menu-item data-block-set="p">Paragraph</button>
+            <button data-menu-item data-block-set="h1">Heading 1</button>
+            <button data-menu-item data-block-set="h2">Heading 2</button>
+            <button data-menu-item data-block-set="h3">Heading 3</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Inline</div>
+            <button data-menu-item data-link>Link</button>
+            <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+            <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Figures</div>
+            <button data-menu-item data-figure-pick="image">Image…</button>
+            <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+            <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+            <button data-menu-item data-figure-pick="media">Video or audio…</button>
+          </div>
+        </span>
+
+        <!-- Style Dropdown Menu -->
+        <span class="menu-wrap">
+          <button class="menu-trigger" data-menu>Style <svg class="i sm">
+              <use href="#i-chev" />
+            </svg></button>
+          <div class="menu" data-menu-panel hidden>
+            <div class="menu-label">Text size</div>
+            <button data-menu-item data-font="10pt">10 pt</button>
+            <button data-menu-item data-font="11pt">11 pt</button>
+            <button data-menu-item data-font="12pt">12 pt</button>
+            <button data-menu-item data-font="13pt">13 pt</button>
+          </div>
+        </span>
+
+        <!-- Spacing between left and right tools -->
+        <span class="grow"></span>
+
+        <span class="stats" data-stats>—</span>
+        <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
+            <use href="#i-paneltop" />
+          </svg></button>
+        <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+            <use href="#i-keyboard" />
+          </svg></button>
+        <button class="primary" data-save title="Save">Save</button>
+      </div>
+
+      <!-- Row 2: formatting toolbar -->
+      <div class="ribbon-tools">
+        <button data-cmd="undo" title="Undo"><svg class="i">
+            <use href="#i-undo" />
+          </svg></button>
+        <button data-cmd="redo" title="Redo"><svg class="i">
+            <use href="#i-redo" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <!-- Zoom: scales the pages only, never this toolbar -->
+        <span class="zoom-field" role="group" aria-label="Zoom">
+          <button data-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="i">
+              <use href="#i-zoom-out" />
+            </svg></button>
+          <label class="zoom-box">
+            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+              spellcheck="false" value="100" aria-label="Zoom percentage" title="Type a percentage, then Enter">
+            <span class="zoom-unit" aria-hidden="true">%</span>
+          </label>
+          <button data-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="i">
+              <use href="#i-zoom-in" />
+            </svg></button>
+          <button data-zoom="reset" aria-label="Reset zoom to 100%" title="Reset zoom to 100%"><svg class="i sm">
+              <use href="#i-zoom-reset" />
+            </svg></button>
+        </span>
+
+        <span class="sep"></span>
+
+        <select class="select" data-block aria-label="Block style">
+          <option value="p">Paragraph</option>
+          <option value="h1">Heading 1</option>
+          <option value="h2">Heading 2</option>
+          <option value="h3">Heading 3</option>
+          <option value="blockquote">Quote</option>
+          <option value="pre">Code</option>
+        </select>
+
+        <span class="sep"></span>
+
+        <button data-cmd="bold" aria-pressed="false" title="Bold"><svg class="i">
+            <use href="#i-bold" />
+          </svg></button>
+        <button data-cmd="italic" aria-pressed="false" title="Italic"><svg class="i">
+            <use href="#i-italic" />
+          </svg></button>
+        <button data-cmd="underline" aria-pressed="false" title="Underline"><svg class="i">
+            <use href="#i-underline" />
+          </svg></button>
+        <button data-cmd="strikeThrough" aria-pressed="false" title="Strikethrough"><svg class="i">
+            <use href="#i-strike" />
+          </svg></button>
+        <button data-cmd="superscript" aria-pressed="false" title="Superscript"><svg class="i">
+            <use href="#i-sup" />
+          </svg></button>
+        <button data-cmd="subscript" aria-pressed="false" title="Subscript"><svg class="i">
+            <use href="#i-sub" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <button data-cmd="insertUnorderedList" aria-pressed="false" title="Bulleted list"><svg class="i">
+            <use href="#i-list" />
+          </svg></button>
+        <button data-cmd="insertOrderedList" aria-pressed="false" title="Numbered list"><svg class="i">
+            <use href="#i-list-ol" />
+          </svg></button>
+        <button data-block-set="blockquote" title="Quote"><svg class="i">
+            <use href="#i-quote" />
+          </svg></button>
+        <button data-block-set="pre" title="Code block"><svg class="i">
+            <use href="#i-code" />
+          </svg></button>
+
+        <span class="sep"></span>
+
+        <button data-link title="Insert link"><svg class="i">
+            <use href="#i-link" />
+          </svg></button>
+        <button data-cmd="unlink" title="Remove link"><svg class="i">
+            <use href="#i-unlink" />
+          </svg></button>
+        <button data-cmd="removeFormat" title="Clear formatting"><svg class="i">
+            <use href="#i-eraser" />
+          </svg></button>
+
+        <span class="grow"></span>
+
+        <select class="select" data-fontsize aria-label="Text size">
+          <option value="10pt">10 pt</option>
+          <option value="10.5pt">10.5 pt</option>
+          <option value="11pt" selected>11 pt</option>
+          <option value="12pt">12 pt</option>
+          <option value="13pt">13 pt</option>
+        </select>
+
+      </div>
+    </header>
+
+    <!-- ===== MINIMAL: thin bar ===== -->
+    <header id="ui-minimal" class="bar" data-ui-panel="minimal">
+      <span class="folio" data-folio>p. 1</span>
+      <span class="stats" data-stats>—</span>
+      <span class="grow"></span>
+      <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false" aria-label="Document title">
+      <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
+      <span class="grow"></span>
+      <span class="menu-wrap" data-menu-align="right">
+        <button data-menu title="All commands"><svg class="i">
+            <use href="#i-more" />
+          </svg></button>
+        <div class="menu" data-menu-panel hidden>
+          <div class="menu-label">File</div>
+          <button data-menu-item data-save>Save</button>
+          <div class="menu-sub" data-submenu>
+            <button type="button" data-menu-item data-submenu-trigger
+              aria-haspopup="menu" aria-expanded="false">Save as…
+              <svg class="i sm">
+                <use href="#i-chev" />
+              </svg></button>
+            <div class="menu" data-menu-panel hidden>
+              <div class="menu-label">HTML</div>
+              <button data-menu-item data-export="html-interactive" data-save>Interactive (.html)</button>
+              <button data-menu-item data-export="html-static">Static with captured figures…</button>
+              <div class="menu-sep"></div>
+              <div class="menu-label">PDF</div>
+              <button data-menu-item data-export="print-live"
+                title="The browser print dialog controls headers and footers.">Standard print</button>
+              <button data-menu-item data-export="print-captured"
+                title="The browser print dialog controls headers and footers.">Captured figures</button>
+            </div>
+          </div>
+          <div class="menu-sep"></div>
+          <div class="menu-label">Block</div>
+          <button data-menu-item data-block-set="p">Paragraph</button>
+          <button data-menu-item data-block-set="h1">Heading 1</button>
+          <button data-menu-item data-block-set="h2">Heading 2</button>
+          <button data-menu-item data-block-set="h3">Heading 3</button>
+          <button data-menu-item data-block-set="blockquote">Quote</button>
+          <button data-menu-item data-block-set="pre">Code block</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Inline</div>
+          <button data-menu-item data-cmd="bold">Bold</button>
+          <button data-menu-item data-cmd="italic">Italic</button>
+          <button data-menu-item data-cmd="underline">Underline</button>
+          <button data-menu-item data-cmd="strikeThrough">Strikethrough</button>
+          <button data-menu-item data-cmd="superscript">Superscript</button>
+          <button data-menu-item data-cmd="subscript">Subscript</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Lists & links</div>
+          <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
+          <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
+          <button data-menu-item data-link>Link…</button>
+          <button data-menu-item data-cmd="unlink">Unlink</button>
+          <button data-menu-item data-cmd="removeFormat">Clear formatting</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Figures</div>
+          <button data-menu-item data-figure-pick="image">Image…</button>
+          <button data-menu-item data-figure-pick="html">Standalone HTML…</button>
+          <button data-menu-item data-figure-pick="html-trusted">Standalone HTML (trusted)…</button>
+          <button data-menu-item data-figure-pick="media">Video or audio…</button>
+
+          <div class="menu-sep"></div>
+
+          <button data-menu-item data-cmd="undo">Undo</button>
+          <button data-menu-item data-cmd="redo">Redo</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label" data-zoom-label>Zoom · 100%</div>
+          <div class="menu-field">
+            <input class="zoom-value" data-zoom-input type="text" inputmode="numeric" autocomplete="off"
+              spellcheck="false" value="100" aria-label="Zoom percentage">
+            <span class="zoom-unit" aria-hidden="true">%</span>
+          </div>
+          <button data-menu-item data-zoom="out">Zoom out</button>
+          <button data-menu-item data-zoom="reset">Actual size (100%)</button>
+          <button data-menu-item data-zoom="in">Zoom in</button>
+          <button data-menu-item data-zoom="fit">Fit page width</button>
+
+          <div class="menu-sep"></div>
+
+          <div class="menu-label">Text size</div>
+          <button data-menu-item data-font="10pt">10 pt</button>
+          <button data-menu-item data-font="11pt">11 pt</button>
+          <button data-menu-item data-font="12pt">12 pt</button>
+          <button data-menu-item data-font="13pt">13 pt</button>
+
+          <div class="menu-sep"></div>
+
+          <button data-menu-item data-shortcuts>Keyboard shortcuts</button>
+        </div>
+      </span>
+
+      <button data-chrome-toggle aria-label="Full toolbar" title="Full toolbar"><svg class="i">
+          <use href="#i-paneltop" />
+        </svg></button>
+      <button data-shortcuts title="Keyboard shortcuts"><svg class="i">
+          <use href="#i-keyboard" />
+        </svg></button>
+
+      <button class="save-text" data-save title="Save">Save</button>
+    </header>
+
+    <input type="file" data-figure-input hidden multiple>
+  </header>
+
+  <div id="figure-tools" data-chrome hidden contenteditable="false">
+    <span class="figure-dim" data-dim="w">
+      <span class="figure-dim-label">W</span>
+      <button data-figure-dim="w" data-figure-step="-" title="Narrower figure">−</button>
+      <span class="figure-dim-value" data-figure-w-value>100%</span>
+      <button data-figure-dim="w" data-figure-step="+" title="Wider figure">+</button>
+    </span>
+    <span class="figure-dim" data-dim="h">
+      <span class="figure-dim-label">H</span>
+      <button data-figure-dim="h" data-figure-step="-" title="Shorter figure">−</button>
+      <span class="figure-dim-value" data-figure-h-value>auto</span>
+      <button data-figure-dim="h" data-figure-step="+" title="Taller figure">+</button>
+    </span>
+    <button data-figure-reset title="Reset figure size">Fit</button>
+    <button data-figure-remove title="Remove figure">Remove</button>
+  </div>
+
+  <main id="viewport">
+    <div id="stage">
+      <div id="sheets" data-generated aria-hidden="true"></div>
+      <article id="content" contenteditable="true" spellcheck="true">
+        <h1>Standalone HTML Doc</h1>
+        <p> Testing </p>
+      </article>
+    </div>
+  </main>
+
+  <!-- PROBE: A stable page size for pagination -->
+  <div id="probe" aria-hidden="true">
+    <i id="probe-content-h"></i>
+    <i id="probe-pitch"></i>
+    <i id="probe-pad"></i>
+  </div>
+
+  <!-- ZONE 5: inert figure data. Sources live here as escaped JSON strings,
+       never as DOM. A saved file can be re-mounted without any HTML parsing. -->
+  <script id="figure-store" type="application/json">{"version":1,"figures":{}}</script>
+
+
+  <!-- Shared content signals -->
+  <!-- The boot shell's markup. Inert until it is opened; defined before the
+       bootstrap runs so boot() can report into it. -->
+  <dialog id="boot-dialog" aria-labelledby="boot-title" aria-describedby="boot-sub">
+    <div class="boot-head">
+      <span class="boot-mark" aria-hidden="true">&#9680;</span>
+      <div>
+        <h1 id="boot-title" data-boot-title>Starting the editor</h1>
+        <p class="boot-sub" id="boot-sub" data-boot-sub></p>
+      </div>
+    </div>
+    <div class="boot-body">
+      <div class="boot-bar" data-boot-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Starting the editor">
+        <span class="boot-fill" data-boot-fill></span>
+      </div>
+      <ul class="boot-rows" data-boot-rows aria-live="polite"></ul>
+      <div class="boot-error" data-boot-error hidden>
+        <span class="boot-error-icon" aria-hidden="true">&#9888;</span>
+        <div>
+          <p class="boot-error-title" data-boot-error-title></p>
+          <p class="boot-error-body" data-boot-error-body></p>
+          <pre class="boot-diag" data-boot-diag hidden></pre>
+        </div>
+      </div>
+    </div>
+    <div class="boot-foot">
+      <button type="button" data-boot-toggle hidden>Diagnostics</button>
+      <span class="spacer"></span>
+      <button type="button" data-boot-copy hidden>Copy diagnostics</button>
+      <button type="button" class="primary" data-boot-retry hidden>Retry</button>
+    </div>
+  </dialog>
+
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"online","bytes":7295,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-JUSYx3Kl8fVWlf7FPcVznbIMX/fgafug1a0PjWoxiLHeywgsfrRwCFlZPJjOojOu"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"online","bytes":13167,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-I/TUuGL/wUQHwZcomarMW/T+JTyDg2GcGfB/yz4382KOtxDhSdAnXGigeKNvD6pA"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":4663},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":8386},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":8679},{"id":"signals","kind":"js","role":"module","order":30,"mode":"online","bytes":1435,"global":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"online","bytes":4584,"global":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"online","bytes":6964,"deps":["signals","zoom"],"global":"Pagination","factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"online","bytes":1660,"global":"ProgressDialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"online","bytes":3343,"deps":["signals","pagination"],"global":"Status","factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-qcDpHAikxzXD249tUyiB2oY8th5s7e8Aecw7tQE2dufZ8jg3Vb78c7Cg4RIBCPve"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"online","bytes":15972,"deps":["signals","status","pagination"],"global":"Editor","factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-Iq8SgBNSOqcXVwp9dCntaaEZ0utsNYgGiyrtsgjZJ1y4S6QCjr4I1MR37bSPDmCW"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"online","bytes":41785,"deps":["signals","status","editor"],"global":"Figures","factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-rb7W/a6lBND9mrD/phhvkBW65gRvgMcIJaWLOQWTTaMBYGcYuwsVIlIYVbZGP+WZ"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"online","bytes":22733,"deps":["zoom","editor","figures","status"],"global":"Toolbar","factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-tBL1EGB95dAfqwFHE1LG+xIlmH4Srr2SC0ORsZv1sjVS+kwUivANlLpnhh/hUJqo"},{"id":"export","kind":"js","role":"module","order":100,"mode":"online","bytes":33881,"deps":["figures","toolbar","progress"],"global":"Export","factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
+<!-- @asset id="registry" kind="js" order="5" -->
+  <script id="registry">
+    /* The container: the only global. Assets register their factory (inline) or are
+       resolved from the CDN, and boot() builds them in manifest order — never
+       document order. */
+    globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
+      "use strict";
+
+      const factories = Object.create(null);
+      const modules = Object.create(null);
+      const errors = [];
+      const listeners = Object.create(null);
+      const injected = [];
+      let state = "declared";
+      let parsed = null;
+
+      /* The manifest is authoritative for order/deps/mode; a registration only
+         supplies the factory, which is what makes the inline and CDN flavours the
+         same code path. An extra options argument from the compiled envelope is
+         accepted and ignored. */
+      function register(id, factory) {
+        /* Idempotent by id: a hand-concatenated document may contain the same block
+           twice. The first registration wins, so the module is built only once. */
+        if (factories[id]) return;
+        factories[id] = factory;
+      }
+
+      function manifest() {
+        if (parsed) return parsed;
+        const el = document.getElementById("asset-manifest");
+        try {
+          parsed = el ? JSON.parse(el.textContent) : { assets: [] };
+        } catch (error) {
+          parsed = { assets: [], parseError: String(error && error.message) };
+        }
+        return parsed;
+      }
+
+      function on(event, fn) {
+        (listeners[event] || (listeners[event] = [])).push(fn);
+        return function off() {
+          listeners[event] = (listeners[event] || []).filter((other) => other !== fn);
+        };
+      }
+
+      function emit(event, detail) {
+        for (const fn of (listeners[event] || []).slice()) {
+          try {
+            fn(detail);
+          } catch (error) {
+            /* A broken observer must not derail boot. */
+            console.error(`boot observer for "${event}" failed:`, error);
+          }
+        }
+      }
+
+      function late(id) {
+        return function () {
+          const module = modules[id];
+          if (!module) throw new Error(`"${id}" is not built yet (late edge used during construction, or the asset is disabled)`);
+          return module;
+        };
+      }
+
+      function failure(kind, id, message, extra) {
+        return Object.assign({ kind, id, message }, extra || {});
+      }
+
+      function fail(record) {
+        state = "failed";
+        errors.push(record);
+        emit("failed", { error: record, errors: errors.slice() });
+        return false;
+      }
+
+      /* Only constructed modules: infrastructure is already running. */
+      function order() {
+        return manifest()
+          .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra")
+          .sort((a, b) => a.order - b.order)
+          .map((asset) => asset.id);
+      }
+
+      async function sha384(buffer) {
+        const digest = await crypto.subtle.digest("SHA-384", buffer);
+        let binary = "";
+        for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
+        return "sha384-" + btoa(binary);
+      }
+
+      /* The only flavour-specific step in the whole architecture. */
+      async function resolve(asset) {
+        if (factories[asset.id]) return factories[asset.id];
+        if (asset.mode !== "online") {
+          throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
+        }
+        if (!asset.url) throw failure("missing", asset.id, "has no url in the manifest");
+        const timeoutMs = manifest().timeoutMs || 8000;
+
+        /* Our own timer, not AbortSignal.timeout: engines disagree about the error
+           name they produce, and we need to know *we* aborted, not the network. */
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        let response;
+        try {
+          response = await fetch(asset.url, { signal: controller.signal, cache: "force-cache" });
+        } catch (error) {
+          const timedOut = controller.signal.aborted;
+          /* navigator.onLine only *labels* the failure; it never decides anything. */
+          const kind = timedOut ? "timeout" : navigator.onLine === false ? "offline" : "unreachable";
+          const message = timedOut ? `no response within ${timeoutMs} ms` : (error && error.message) || "fetch failed";
+          throw failure(kind, asset.id, message, { url: asset.url });
+        } finally {
+          clearTimeout(timer);
+        }
+
+        if (!response.ok) {
+          throw failure("http", asset.id, `HTTP ${response.status}`, { url: asset.url, status: response.status });
+        }
+
+        const bytes = await response.arrayBuffer();
+        const actual = await sha384(bytes);
+        if (asset.integrity && actual !== asset.integrity) {
+          throw failure("integrity", asset.id, "hash does not match the manifest", {
+            url: asset.url,
+            expected: asset.integrity,
+            actual,
+          });
+        }
+
+        const text = new TextDecoder().decode(bytes);
+        if (asset.kind === "css") {
+          const style = document.createElement("style");
+          style.textContent = text;
+          style.dataset.asset = asset.id;
+          document.head.append(style);
+          injected.push(style);
+          return null;
+        }
+
+        const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+        let namespace;
+        try {
+          namespace = await import(blob);
+        } catch (error) {
+          throw failure("import", asset.id, error && error.message ? error.message : "module failed to evaluate", { url: asset.url });
+        }
+        const factory = namespace[asset.factory];
+        if (typeof factory !== "function") {
+          throw failure("import", asset.id, `module does not export ${asset.factory}`, { url: asset.url });
+        }
+        return factory;
+      }
+
+      async function boot() {
+        if (state !== "declared") return modules;
+        state = "booting";
+        errors.length = 0;
+
+        const assets = manifest().assets.slice().sort((a, b) => a.order - b.order);
+        const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
+        emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
+
+        let index = 0;
+        for (const asset of assets) {
+          if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
+
+          /* Stylesheets are not modules: inline ones are already in the document,
+             online ones are fetched and injected. Either way there is nothing to
+             construct. */
+          if (asset.kind === "css") {
+            if (asset.mode === "online") {
+              try {
+                await resolve(asset);
+              } catch (record) {
+                return fail(record);
+              }
+            }
+            continue;
+          }
+
+          const position = index++;
+          emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
+
+          const deps = { env: globalThis, late };
+          for (const name of asset.deps || []) {
+            if (!(name in modules)) {
+              return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
+            }
+            deps[name] = modules[name];
+          }
+
+          let factory;
+          try {
+            factory = factories[asset.id] || (await resolve(asset));
+          } catch (record) {
+            return fail(record);
+          }
+
+          try {
+            modules[asset.id] = factory(deps);
+          } catch (error) {
+            return fail(
+              failure("construct", asset.id, error && error.message ? error.message : String(error), {
+                stack: error && error.stack ? String(error.stack) : null,
+              }),
+            );
+          }
+
+          /* Transitional: publish the legacy global until every consumer takes the
+             dependency properly (Phase 3, commit 5). */
+          if (asset.global) globalThis[asset.global] = modules[asset.id];
+          emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
+        }
+
+        state = "ready";
+        emit("ready", { count: Object.keys(modules).length });
+        return modules;
+      }
+
+      /* Tear the graph down and build it again. Registered factories survive, so a
+         failure that was environmental can be retried without reloading the file. */
+      async function retry() {
+        if (state === "booting") return modules;
+        for (const id of Object.keys(modules)) delete modules[id];
+        for (const asset of manifest().assets) {
+          if (asset.global) delete globalThis[asset.global];
+        }
+        for (const node of injected.splice(0)) node.remove();
+        errors.length = 0;
+        state = "declared";
+        return boot();
+      }
+
+      return {
+        register,
+        on,
+        late,
+        boot,
+        retry,
+        order,
+        manifest,
+        modules,
+        factories,
+        errors,
+        get state() {
+          return state;
+        },
+      };
+    })();
+  </script>
+<!-- /@asset -->
+<!-- @asset id="boot-ui" kind="js" order="6" -->
+  <script id="boot-ui">
+    /* The boot shell. Owns no state: it subscribes to the registry's events and
+       renders them. Loaded before any asset, so it may not depend on core CSS, and
+       it resolves the dialog lazily so markup order cannot break it. */
+    (function () {
+      "use strict";
+
+      const registry = globalThis.StandaloneDoc;
+      const SHOW_DELAY = 150; /* a card that flashes for 60ms is worse than none */
+
+      /* Presentation only: registration ids are technical. */
+      const LABELS = {
+        signals: "Signals",
+        zoom: "Zoom",
+        pagination: "Pagination",
+        status: "Status line",
+        editor: "Editor",
+        figures: "Figures",
+        toolbar: "Toolbar",
+        progress: "Progress dialog",
+        export: "Export",
+      };
+      const label = (id) => LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1);
+
+      let ui = null;
+      let showTimer = null;
+      let lastStart = {order: [], total: 0};
+      const failures = [];
+
+      function ensure() {
+        if (ui) return ui;
+        const dialog = document.getElementById("boot-dialog");
+        if (!dialog) return null;
+        ui = {
+          dialog,
+          title: dialog.querySelector("[data-boot-title]"),
+          sub: dialog.querySelector("[data-boot-sub]"),
+          bar: dialog.querySelector("[data-boot-bar]"),
+          fill: dialog.querySelector("[data-boot-fill]"),
+          rows: dialog.querySelector("[data-boot-rows]"),
+          error: dialog.querySelector("[data-boot-error]"),
+          errorTitle: dialog.querySelector("[data-boot-error-title]"),
+          errorBody: dialog.querySelector("[data-boot-error-body]"),
+          diag: dialog.querySelector("[data-boot-diag]"),
+          retry: dialog.querySelector("[data-boot-retry]"),
+          copy: dialog.querySelector("[data-boot-copy]"),
+          toggle: dialog.querySelector("[data-boot-toggle]"),
+        };
+        wire(ui);
+        return ui;
+      }
+
+      function setBar(fraction) {
+        const el = ensure();
+        if (!el) return;
+        el.fill.style.transform = `scaleX(${Math.max(0, Math.min(1, fraction)).toFixed(3)})`;
+        const pct = Math.round(fraction * 100);
+        el.bar.setAttribute("aria-valuenow", String(pct));
+        el.bar.setAttribute("aria-valuetext", el.sub.textContent || `${pct}%`);
+      }
+
+      function open() {
+        const el = ensure();
+        if (!el || el.dialog.open) return;
+        el.dialog.showModal();
+      }
+
+      function scheduleOpen() {
+        clearTimeout(showTimer);
+        showTimer = setTimeout(open, SHOW_DELAY);
+      }
+
+      function close() {
+        clearTimeout(showTimer);
+        const el = ensure();
+        if (el?.dialog.open) el.dialog.close();
+      }
+
+      function renderRows(order) {
+        const el = ensure();
+        if (!el) return;
+        el.rows.replaceChildren();
+        for (const id of order) {
+          const row = document.createElement("li");
+          row.className = "boot-row";
+          row.dataset.state = "pending";
+          row.dataset.id = id;
+          row.innerHTML = '<span class="boot-dot" aria-hidden="true"></span><span class="boot-name"></span><span class="boot-detail"></span>';
+          row.querySelector(".boot-name").textContent = label(id);
+          el.rows.append(row);
+        }
+      }
+
+      function reset() {
+        const el = ensure();
+        failures.length = 0;
+        if (!el) return;
+        el.error.hidden = true;
+        el.retry.hidden = true;
+        el.toggle.hidden = true;
+        el.diag.hidden = true;
+        el.diag.textContent = "";
+        el.dialog.dataset.phase = "booting";
+        el.title.textContent = "Starting the editor";
+        el.sub.textContent = "";
+        setBar(0);
+      }
+
+      function diagnosticsText() {
+        const el = ensure();
+        const lines = [
+          "standalone-doc boot",
+          `state:    ${registry.state}`,
+          `document: ${location.href}`,
+          `modules:  ${(lastStart.order || []).join(", ") || "—"}`,
+          "",
+        ];
+        for (const failure of failures) {
+          lines.push(`[${failure.kind || failure.phase}] ${failure.id}: ${failure.message}`);
+          if (failure.url) lines.push(`url: ${failure.url}`);
+          if (failure.expected) lines.push(`expected ${failure.expected}`, `actual   ${failure.actual}`);
+          if (failure.stack) lines.push(failure.stack);
+          lines.push("");
+        }
+        lines.push(`user agent: ${navigator.userAgent}`);
+        return lines.join("\n");
+      }
+
+      /* One card per failure mode: the copy is the product here. */
+      function copyFor(failure) {
+        const name = label(failure.id);
+        switch (failure.kind) {
+          case "offline":
+            return { title: "You appear to be offline", body: `${name} could not be downloaded. Reconnect, then retry — nothing has been changed.` };
+          case "unreachable":
+            return { title: "The CDN is unreachable", body: `${name} could not be downloaded. Your connection is working, so this is usually temporary or a proxy blocking the CDN.` };
+          case "http":
+            return { title: "An asset is missing from the CDN", body: `${name} returned HTTP ${failure.status}. This document pins one runtime version; that file was not published at it.` };
+          case "timeout":
+            return { title: "Loading timed out", body: `${name} did not finish downloading in time. Slow connections usually succeed on retry.` };
+          case "integrity":
+            return { title: "This document's code has been altered", body: `The bytes served for ${name} do not match the hash recorded when this document was saved. It was not run.` };
+          case "import":
+            return { title: "A module could not start", body: `${name} downloaded but failed to evaluate.` };
+          case "missing":
+            return { title: "An asset is not loaded", body: `${name}: ${failure.message}` };
+          default:
+            /* Never lose the actual message: it is the actionable part. */
+            return { title: "The editor failed to start", body: `${name} threw while starting: ${failure.message}` };
+        }
+      }
+
+      function renderFailure(failure) {
+        const el = ensure();
+        if (!el) return;
+        failures.push(failure);
+        const copy = copyFor(failure);
+        el.dialog.dataset.phase = "failed";
+        el.title.textContent = copy.title;
+        el.sub.textContent = "Aborted — nothing has been changed on disk";
+        /* Mark the row that failed: the registry emits "active" and then aborts, so
+           without this the last row would sit on "starting…" forever. */
+        const failedRow = el.rows.querySelector(`.boot-row[data-id="${failure.id}"]`);
+        if (failedRow) {
+          failedRow.dataset.state = "failed";
+          failedRow.querySelector(".boot-detail").textContent = "failed";
+        }
+        el.error.hidden = false;
+        el.errorTitle.textContent = label(failure.id);
+        el.errorBody.textContent = copy.body;
+        el.diag.textContent = diagnosticsText();
+        el.retry.hidden = false;
+        el.toggle.hidden = false;
+        el.copy.hidden = false;
+        /* Errors are never delayed: the faster they appear, the less it feels hung. */
+        clearTimeout(showTimer);
+        open();
+        el.retry.focus();
+      }
+
+      function wire(el) {
+        el.dialog.addEventListener("cancel", (event) => event.preventDefault());
+
+        el.retry.addEventListener("click", () => {
+          reset();
+          open();
+          try {
+            registry.retry();
+          } catch {
+            /* retry() re-emits "failed", which renders the card again. */
+          }
+        });
+
+        el.toggle.addEventListener("click", () => {
+          const opening = el.diag.hidden;
+          el.diag.hidden = !opening;
+          el.toggle.textContent = opening ? "Hide diagnostics" : "Diagnostics";
+        });
+
+        el.copy.addEventListener("click", async () => {
+          const text = diagnosticsText();
+          try {
+            await navigator.clipboard.writeText(text);
+            el.copy.textContent = "Copied";
+          } catch {
+            el.diag.hidden = false;
+            el.diag.textContent = text;
+            el.copy.textContent = "Select and copy";
+          }
+          setTimeout(() => (el.copy.textContent = "Copy diagnostics"), 1400);
+        });
+      }
+
+      if (!registry) return;
+
+      registry.on("start", (detail) => {
+        lastStart = detail;
+        reset();
+        renderRows(detail.order);
+        const el = ensure();
+        if (el) el.sub.textContent = `${detail.total} modules · everything embedded in this file`;
+        scheduleOpen();
+      });
+
+      registry.on("construct", (detail) => {
+        const el = ensure();
+        if (!el) return;
+        const row = el.rows.querySelector(`.boot-row[data-id="${detail.id}"]`);
+        if (row) {
+          row.dataset.state = detail.state;
+          row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "starting…";
+        }
+        const done = detail.state === "ok" ? detail.index + 1 : detail.index;
+        setBar(0.95 * (done / Math.max(1, detail.total)));
+      });
+
+      registry.on("ready", (detail) => {
+        const el = ensure();
+        setBar(1);
+        if (!el) return;
+        el.dialog.dataset.phase = "ready";
+        el.sub.textContent = `Ready · ${detail.count} modules`;
+        close();
+      });
+
+      registry.on("failed", (detail) => renderFailure(detail.error));
+    })();
+  </script>
+<!-- /@asset -->
+
+  <!-- Document zoom: scales #stage only (pages + text), never the chrome.
+       Must be declared before the pagination script, which divides measured
+       block heights by Zoom.value. -->
+
+  <!-- Javascript for Pagination -->
+
+
+  <!-- Document status: pages, words, dirty -->
+
+  <!-- Rich text editing -->
+
+  <!-- Figures: import, inert storage, lazy mounting, scaling.
+       Data lives in #figure-store as escaped JSON; the DOM holds only an
+       id and an empty frame. -->
+
+  <!-- Javascript for Toolbar -->
+
+  <!-- Static export / print. Captures HTML islands only when an export asks
+       for it; normal rendering never runs the serializer. -->
+
+  <dialog id="shortcuts-dialog">
+    <form method="dialog">
+      <h2>Keyboard shortcuts</h2>
+      <div id="keylist"></div>
+      <div class="dialog-actions">
+        <button class="primary" value="close" autofocus>Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="progress-dialog" aria-labelledby="progress-title">
+    <h2 id="progress-title" data-progress-title>Working…</h2>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <i data-progress-bar></i>
+    </div>
+    <p data-progress-text aria-live="polite">Starting…</p>
+    <div class="dialog-actions">
+      <button type="button" data-progress-cancel>Cancel</button>
+    </div>
+  </dialog>
+
+<!-- @asset id="bootstrap" kind="js" order="120" -->
+  <script id="bootstrap">
+    /* Runs last: build every registered module in manifest order. */
+    globalThis.StandaloneDoc.boot();
+  </script>
+<!-- /@asset -->
+</body>
+
+</html>

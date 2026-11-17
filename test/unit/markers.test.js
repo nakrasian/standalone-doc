@@ -12,7 +12,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
 
-const ALLOW_UNMARKED = new Set(["user-theme", "print-page", "figure-store"]);
+/* Generated data blocks and the boot shell's own elements. */
+const ALLOW_UNMARKED = new Set(["user-theme", "print-page", "figure-store", "asset-manifest", "boot-dialog", "boot-ui-styles"]);
 
 /** Split index.html into marked regions, without trusting build.mjs. */
 function regions(source) {

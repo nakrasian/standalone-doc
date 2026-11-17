@@ -22,3 +22,6 @@ playwright-report/
 # Editor swap files
 *.swp
 *.swo
+
+# browser-test scratch fixtures
+.test-tmp/

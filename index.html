@@ -1754,29 +1754,45 @@
     </div>
   </dialog>
 
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":4663},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":8386},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":8679},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"global":"Signals","factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"global":"Zoom","factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"global":"Pagination","factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"global":"ProgressDialog","factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3343,"deps":["signals","pagination"],"global":"Status","factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":15972,"deps":["signals","status","pagination"],"global":"Editor","factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":41785,"deps":["signals","status","editor"],"global":"Figures","factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22733,"deps":["zoom","editor","figures","status"],"global":"Toolbar","factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"global":"Export","factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":99}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
-    /* The container: the only global. Every asset registers a factory and boot()
-       builds them in manifest order, so document order stops mattering. */
+    /* The container: the only global. Assets register their factory (inline) or are
+       resolved from the CDN, and boot() builds them in manifest order — never
+       document order. */
     globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       "use strict";
 
       const factories = Object.create(null);
-      const meta = Object.create(null);
       const modules = Object.create(null);
       const errors = [];
       const listeners = Object.create(null);
+      const injected = [];
       let state = "declared";
+      let parsed = null;
 
-      function register(id, factory, options) {
+      /* The manifest is authoritative for order/deps/mode; a registration only
+         supplies the factory, which is what makes the inline and CDN flavours the
+         same code path. An extra options argument from the compiled envelope is
+         accepted and ignored. */
+      function register(id, factory) {
         /* Idempotent by id: a hand-concatenated document may contain the same block
            twice. The first registration wins, so the module is built only once. */
         if (factories[id]) return;
         factories[id] = factory;
-        meta[id] = options || {};
       }
 
-      /* Observers get told what boot is doing; they never influence it. */
+      function manifest() {
+        if (parsed) return parsed;
+        const el = document.getElementById("asset-manifest");
+        try {
+          parsed = el ? JSON.parse(el.textContent) : { assets: [] };
+        } catch (error) {
+          parsed = { assets: [], parseError: String(error && error.message) };
+        }
+        return parsed;
+      }
+
       function on(event, fn) {
         (listeners[event] || (listeners[event] = [])).push(fn);
         return function off() {
@@ -1795,7 +1811,6 @@
         }
       }
 
-      /* A back-edge: resolved when called, never during construction. */
       function late(id) {
         return function () {
           const module = modules[id];
@@ -1804,67 +1819,172 @@
         };
       }
 
-      function abort(phase, id, error) {
+      function failure(kind, id, message, extra) {
+        return Object.assign({ kind, id, message }, extra || {});
+      }
+
+      function fail(record) {
         state = "failed";
-        const record = {
-          phase,
-          id,
-          message: error && error.message ? error.message : String(error),
-          stack: error && error.stack ? String(error.stack) : null,
-        };
         errors.push(record);
-        emit("failed", {error: record, errors: errors.slice()});
-        throw error;
+        emit("failed", { error: record, errors: errors.slice() });
+        return false;
       }
 
+      /* Only constructed modules: infrastructure is already running. */
       function order() {
-        return Object.keys(factories).sort((a, b) => (meta[a].order || 0) - (meta[b].order || 0));
+        return manifest()
+          .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra")
+          .sort((a, b) => a.order - b.order)
+          .map((asset) => asset.id);
       }
 
-      function boot() {
+      async function sha384(buffer) {
+        const digest = await crypto.subtle.digest("SHA-384", buffer);
+        let binary = "";
+        for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
+        return "sha384-" + btoa(binary);
+      }
+
+      /* The only flavour-specific step in the whole architecture. */
+      async function resolve(asset) {
+        if (factories[asset.id]) return factories[asset.id];
+        if (asset.mode !== "online") {
+          throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
+        }
+        if (!asset.url) throw failure("missing", asset.id, "has no url in the manifest");
+        const timeoutMs = manifest().timeoutMs || 8000;
+
+        /* Our own timer, not AbortSignal.timeout: engines disagree about the error
+           name they produce, and we need to know *we* aborted, not the network. */
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        let response;
+        try {
+          response = await fetch(asset.url, { signal: controller.signal, cache: "force-cache" });
+        } catch (error) {
+          const timedOut = controller.signal.aborted;
+          /* navigator.onLine only *labels* the failure; it never decides anything. */
+          const kind = timedOut ? "timeout" : navigator.onLine === false ? "offline" : "unreachable";
+          const message = timedOut ? `no response within ${timeoutMs} ms` : (error && error.message) || "fetch failed";
+          throw failure(kind, asset.id, message, { url: asset.url });
+        } finally {
+          clearTimeout(timer);
+        }
+
+        if (!response.ok) {
+          throw failure("http", asset.id, `HTTP ${response.status}`, { url: asset.url, status: response.status });
+        }
+
+        const bytes = await response.arrayBuffer();
+        const actual = await sha384(bytes);
+        if (asset.integrity && actual !== asset.integrity) {
+          throw failure("integrity", asset.id, "hash does not match the manifest", {
+            url: asset.url,
+            expected: asset.integrity,
+            actual,
+          });
+        }
+
+        const text = new TextDecoder().decode(bytes);
+        if (asset.kind === "css") {
+          const style = document.createElement("style");
+          style.textContent = text;
+          style.dataset.asset = asset.id;
+          document.head.append(style);
+          injected.push(style);
+          return null;
+        }
+
+        const blob = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+        let namespace;
+        try {
+          namespace = await import(blob);
+        } catch (error) {
+          throw failure("import", asset.id, error && error.message ? error.message : "module failed to evaluate", { url: asset.url });
+        }
+        const factory = namespace[asset.factory];
+        if (typeof factory !== "function") {
+          throw failure("import", asset.id, `module does not export ${asset.factory}`, { url: asset.url });
+        }
+        return factory;
+      }
+
+      async function boot() {
         if (state !== "declared") return modules;
         state = "booting";
         errors.length = 0;
 
-        const plan = order();
-        emit("start", {order: plan, total: plan.length});
+        const assets = manifest().assets.slice().sort((a, b) => a.order - b.order);
+        const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
+        emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
 
-        for (const [index, id] of plan.entries()) {
-          emit("construct", {id, state: "active", index, total: plan.length});
+        let index = 0;
+        for (const asset of assets) {
+          if (asset.role === "infra" && asset.kind === "js") continue; /* already running */
 
-          const deps = {env: globalThis, late};
-          for (const name of meta[id].deps || []) {
+          /* Stylesheets are not modules: inline ones are already in the document,
+             online ones are fetched and injected. Either way there is nothing to
+             construct. */
+          if (asset.kind === "css") {
+            if (asset.mode === "online") {
+              try {
+                await resolve(asset);
+              } catch (record) {
+                return fail(record);
+              }
+            }
+            continue;
+          }
+
+          const position = index++;
+          emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
+
+          const deps = { env: globalThis, late };
+          for (const name of asset.deps || []) {
             if (!(name in modules)) {
-              abort("construct", id, new Error(`${id} requires "${name}", which is not built`));
+              return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
             }
             deps[name] = modules[name];
           }
 
+          let factory;
           try {
-            modules[id] = factories[id](deps);
+            factory = factories[asset.id] || (await resolve(asset));
+          } catch (record) {
+            return fail(record);
+          }
+
+          try {
+            modules[asset.id] = factory(deps);
           } catch (error) {
-            abort("construct", id, error);
+            return fail(
+              failure("construct", asset.id, error && error.message ? error.message : String(error), {
+                stack: error && error.stack ? String(error.stack) : null,
+              }),
+            );
           }
 
           /* Transitional: publish the legacy global until every consumer takes the
              dependency properly (Phase 3, commit 5). */
-          if (meta[id].global) globalThis[meta[id].global] = modules[id];
-          emit("construct", {id, state: "ok", index, total: plan.length});
+          if (asset.global) globalThis[asset.global] = modules[asset.id];
+          emit("construct", { id: asset.id, state: "ok", index: position, total: jsAssets.length });
         }
 
         state = "ready";
-        emit("ready", {count: plan.length});
+        emit("ready", { count: Object.keys(modules).length });
         return modules;
       }
 
       /* Tear the graph down and build it again. Registered factories survive, so a
          failure that was environmental can be retried without reloading the file. */
-      function retry() {
+      async function retry() {
         if (state === "booting") return modules;
         for (const id of Object.keys(modules)) delete modules[id];
-        for (const [id, options] of Object.entries(meta)) {
-          if (options.global) delete globalThis[options.global];
+        for (const asset of manifest().assets) {
+          if (asset.global) delete globalThis[asset.global];
         }
+        for (const node of injected.splice(0)) node.remove();
         errors.length = 0;
         state = "declared";
         return boot();
@@ -1877,9 +1997,9 @@
         boot,
         retry,
         order,
+        manifest,
         modules,
         factories,
-        meta,
         errors,
         get state() {
           return state;
@@ -2007,18 +2127,47 @@
           "",
         ];
         for (const failure of failures) {
-          lines.push(`[${failure.phase}] ${failure.id}: ${failure.message}`, failure.stack || "", "");
+          lines.push(`[${failure.kind || failure.phase}] ${failure.id}: ${failure.message}`);
+          if (failure.url) lines.push(`url: ${failure.url}`);
+          if (failure.expected) lines.push(`expected ${failure.expected}`, `actual   ${failure.actual}`);
+          if (failure.stack) lines.push(failure.stack);
+          lines.push("");
         }
         lines.push(`user agent: ${navigator.userAgent}`);
         return lines.join("\n");
+      }
+
+      /* One card per failure mode: the copy is the product here. */
+      function copyFor(failure) {
+        const name = label(failure.id);
+        switch (failure.kind) {
+          case "offline":
+            return { title: "You appear to be offline", body: `${name} could not be downloaded. Reconnect, then retry — nothing has been changed.` };
+          case "unreachable":
+            return { title: "The CDN is unreachable", body: `${name} could not be downloaded. Your connection is working, so this is usually temporary or a proxy blocking the CDN.` };
+          case "http":
+            return { title: "An asset is missing from the CDN", body: `${name} returned HTTP ${failure.status}. This document pins one runtime version; that file was not published at it.` };
+          case "timeout":
+            return { title: "Loading timed out", body: `${name} did not finish downloading in time. Slow connections usually succeed on retry.` };
+          case "integrity":
+            return { title: "This document's code has been altered", body: `The bytes served for ${name} do not match the hash recorded when this document was saved. It was not run.` };
+          case "import":
+            return { title: "A module could not start", body: `${name} downloaded but failed to evaluate.` };
+          case "missing":
+            return { title: "An asset is not loaded", body: `${name}: ${failure.message}` };
+          default:
+            /* Never lose the actual message: it is the actionable part. */
+            return { title: "The editor failed to start", body: `${name} threw while starting: ${failure.message}` };
+        }
       }
 
       function renderFailure(failure) {
         const el = ensure();
         if (!el) return;
         failures.push(failure);
+        const copy = copyFor(failure);
         el.dialog.dataset.phase = "failed";
-        el.title.textContent = "The editor failed to start";
+        el.title.textContent = copy.title;
         el.sub.textContent = "Aborted — nothing has been changed on disk";
         /* Mark the row that failed: the registry emits "active" and then aborts, so
            without this the last row would sit on "starting…" forever. */
@@ -2028,8 +2177,8 @@
           failedRow.querySelector(".boot-detail").textContent = "failed";
         }
         el.error.hidden = false;
-        el.errorTitle.textContent = `${label(failure.id)} ${failure.phase === "construct" ? "threw while starting" : "could not be loaded"}`;
-        el.errorBody.textContent = failure.message;
+        el.errorTitle.textContent = label(failure.id);
+        el.errorBody.textContent = copy.body;
         el.diag.textContent = diagnosticsText();
         el.retry.hidden = false;
         el.toggle.hidden = false;

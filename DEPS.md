@@ -6,8 +6,8 @@ edit by hand; `npm run check` fails if this file is stale.
 ```
 | id | order | requires | late | provides | needed by |
 | --- | --- | --- | --- | --- | --- |
-| registry | 5 | — | — | _not derived_ | * |
-| boot-ui | 6 | — | — | _not derived_ | * |
+| registry | 5 | — | — | _infrastructure_ | * |
+| boot-ui | 6 | — | — | _infrastructure_ | * |
 | signals | 30 | — | — | `on`, `emit`, `mute`, `composing` | * |
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | * |
@@ -17,7 +17,7 @@ edit by hand; `npm run check` fails if this file is stale.
 | figures | 80 | signals, status, editor | — | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | toolbar | 90 | zoom, editor, figures, status | — | `save`, `serialize`, `validate` | edit, comment |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
-| bootstrap | 120 | — | — | _not derived_ | * |
+| bootstrap | 120 | — | — | _infrastructure_ | * |
 ```
 
 ```mermaid

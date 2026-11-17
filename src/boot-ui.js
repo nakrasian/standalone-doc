@@ -115,18 +115,47 @@
       "",
     ];
     for (const failure of failures) {
-      lines.push(`[${failure.phase}] ${failure.id}: ${failure.message}`, failure.stack || "", "");
+      lines.push(`[${failure.kind || failure.phase}] ${failure.id}: ${failure.message}`);
+      if (failure.url) lines.push(`url: ${failure.url}`);
+      if (failure.expected) lines.push(`expected ${failure.expected}`, `actual   ${failure.actual}`);
+      if (failure.stack) lines.push(failure.stack);
+      lines.push("");
     }
     lines.push(`user agent: ${navigator.userAgent}`);
     return lines.join("\n");
+  }
+
+  /* One card per failure mode: the copy is the product here. */
+  function copyFor(failure) {
+    const name = label(failure.id);
+    switch (failure.kind) {
+      case "offline":
+        return { title: "You appear to be offline", body: `${name} could not be downloaded. Reconnect, then retry — nothing has been changed.` };
+      case "unreachable":
+        return { title: "The CDN is unreachable", body: `${name} could not be downloaded. Your connection is working, so this is usually temporary or a proxy blocking the CDN.` };
+      case "http":
+        return { title: "An asset is missing from the CDN", body: `${name} returned HTTP ${failure.status}. This document pins one runtime version; that file was not published at it.` };
+      case "timeout":
+        return { title: "Loading timed out", body: `${name} did not finish downloading in time. Slow connections usually succeed on retry.` };
+      case "integrity":
+        return { title: "This document's code has been altered", body: `The bytes served for ${name} do not match the hash recorded when this document was saved. It was not run.` };
+      case "import":
+        return { title: "A module could not start", body: `${name} downloaded but failed to evaluate.` };
+      case "missing":
+        return { title: "An asset is not loaded", body: `${name}: ${failure.message}` };
+      default:
+        /* Never lose the actual message: it is the actionable part. */
+        return { title: "The editor failed to start", body: `${name} threw while starting: ${failure.message}` };
+    }
   }
 
   function renderFailure(failure) {
     const el = ensure();
     if (!el) return;
     failures.push(failure);
+    const copy = copyFor(failure);
     el.dialog.dataset.phase = "failed";
-    el.title.textContent = "The editor failed to start";
+    el.title.textContent = copy.title;
     el.sub.textContent = "Aborted — nothing has been changed on disk";
     /* Mark the row that failed: the registry emits "active" and then aborts, so
        without this the last row would sit on "starting…" forever. */
@@ -136,8 +165,8 @@
       failedRow.querySelector(".boot-detail").textContent = "failed";
     }
     el.error.hidden = false;
-    el.errorTitle.textContent = `${label(failure.id)} ${failure.phase === "construct" ? "threw while starting" : "could not be loaded"}`;
-    el.errorBody.textContent = failure.message;
+    el.errorTitle.textContent = label(failure.id);
+    el.errorBody.textContent = copy.body;
     el.diag.textContent = diagnosticsText();
     el.retry.hidden = false;
     el.toggle.hidden = false;

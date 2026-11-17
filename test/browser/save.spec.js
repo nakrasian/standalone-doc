@@ -30,6 +30,12 @@ async function load(page, url) {
   page.on("pageerror", (err) => problems.push(`pageerror: ${err.message}`));
   await page.goto(url);
   await page.waitForSelector("#app-toolbar", { state: "attached" });
+  /* boot() is async: wait until it has either finished or failed. */
+  await page.waitForFunction(
+    () => ["ready", "failed"].includes(globalThis.StandaloneDoc?.state),
+    null,
+    { timeout: 15_000 },
+  );
   return problems;
 }
 
