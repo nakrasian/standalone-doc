@@ -36,8 +36,8 @@
       "order": 30,
       "tag": "script",
       "file": "src/signals.js",
-      "bytes": 1451,
-      "sha384": "sha384-T0L3EIR154eNPG0CdTjNBwd679vowzlQc1tyDhPgVHdUdaydfIOQJRTNWy2ZS5yA",
+      "bytes": 1435,
+      "sha384": "sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -52,8 +52,8 @@
       "order": 40,
       "tag": "script",
       "file": "src/zoom.js",
-      "bytes": 4600,
-      "sha384": "sha384-aT00aqR0k0qJ8SzaFDTO+TCCLzVtfI+oU3wDeRZ0a5J024Hr+v1PetKQ4P4Fmf9n",
+      "bytes": 4584,
+      "sha384": "sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -76,11 +76,14 @@
       "order": 50,
       "tag": "script",
       "file": "src/pagination.js",
-      "bytes": 6414,
-      "sha384": "sha384-RqCZ9MBSOY8Xo6twaNjA8IhvIxJaoVHfb81hN55UL94kD5wwi4Jzh2MQubQtFI9J",
+      "bytes": 6964,
+      "sha384": "sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN",
       "mode": "inline",
       "requiredBy": [
         "*"
+      ],
+      "exports": [
+        "createPagination"
       ]
     },
     {
@@ -89,8 +92,8 @@
       "order": 60,
       "tag": "script",
       "file": "src/status.js",
-      "bytes": 3318,
-      "sha384": "sha384-4kJq2HjOWoZ11oNmyqvUhXGewt4E4+pXA3cKYoTqwdadIkuR/ldrQGByL5DLWngM",
+      "bytes": 3291,
+      "sha384": "sha384-Fpy7s1kcF8zAxy49fQsQ41MekAbdLJcSTaX1HZzz7vVrBysPlul4/3M/7Wx5VTDP",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -102,8 +105,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 15915,
-      "sha384": "sha384-xR51jdjGmbB4geldVU38gLD8jEjx36YkXsT5J4jFE5XsD4yup/JG6IgAkYGObyyy",
+      "bytes": 15840,
+      "sha384": "sha384-JWkJMlQGSa/BDZINx1jBHBEdBK79eg+tBXKk9aUNoVC+zfx7xIgtHD4V+Exx+pNB",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -115,8 +118,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 45599,
-      "sha384": "sha384-mqlWvEycLYNqUVw/aDZpsA+vtHr53gj3fH0JhSQOFWpxg1b1OcU/2CyQtuuBJtb6",
+      "bytes": 45524,
+      "sha384": "sha384-cSCgHPUmgZBkx01dB3+GlhaBLjXw82500/8rWmNwBbx2pGCwQgFEZOLKubzVs27G",
       "mode": "inline",
       "requiredBy": [
         "*"

@@ -51,7 +51,13 @@ Rules the build enforces:
 5. no literal `</script>` — it cannot be embedded in an inline script;
 6. no DOM access at module evaluation time — everything happens inside the factory or
    inside `boot()`;
-7. dependency order comes from `manifest.json`'s `order`, not from source order.
+7. dependency order comes from `manifest.json`'s `order`, not from source order;
+8. factories take **one object**: `createX(deps = {})`, destructured inside the body.
+   Until `boot()` takes over, the dependencies are declared in the `MODULES` entry's
+   `deps` map and the envelope passes them at the call site;
+9. never write `"use strict"` in a factory. It is illegal beside a non-simple
+   parameter list (`deps = {}` counts), and the envelope already applies it to the
+   whole block. ES modules are strict regardless.
 
 ### The envelope
 

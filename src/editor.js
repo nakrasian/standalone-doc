@@ -326,7 +326,7 @@ const Editor = (() => {
       remember();
       syncToolbar();
       Status.refresh();
-      if (typeof schedule === "function") schedule();
+      Pagination.schedule();
       if (window.Figures && window.Figures.scan) window.Figures.scan();
     }
 
@@ -409,7 +409,7 @@ const Editor = (() => {
     syncToolbar();
     Status.markDirty();
     if (select && node.nodeType === Node.ELEMENT_NODE) selectNode(node);
-    if (typeof schedule === "function") schedule();
+    Pagination.schedule();
     return node;
   }
 
@@ -444,7 +444,7 @@ const Editor = (() => {
     document.getElementById("user-theme").textContent = `:root{--doc-size:${size}}`;
     document.querySelectorAll("[data-fontsize]").forEach((el) => {el.value = size;});
     Status.markDirty();
-    if (typeof schedule === "function") schedule();
+    Pagination.schedule();
   }
 
   function openLink() {

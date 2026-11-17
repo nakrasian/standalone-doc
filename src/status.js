@@ -41,7 +41,7 @@ const Status = (() => {
 
   function refresh() {
     const words = wordCount(content);
-    const pages = typeof pageCount === "function" ? pageCount() : 1;
+    const pages = Pagination.pageCount();
     const html = contentHtml();
     const storeBytes = window.Figures && Figures.savedStoreBytes
       ? Figures.savedStoreBytes()

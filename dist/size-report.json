@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 191064
+    "bytes": 191688
   },
   "assets": [
     {
@@ -17,32 +17,32 @@
     {
       "id": "signals",
       "kind": "js",
-      "bytes": 1801
+      "bytes": 1799
     },
     {
       "id": "zoom",
       "kind": "js",
-      "bytes": 5174
+      "bytes": 5172
     },
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 7185
+      "bytes": 7990
     },
     {
       "id": "status",
       "kind": "js",
-      "bytes": 3653
+      "bytes": 3626
     },
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 17694
+      "bytes": 17619
     },
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 45598
+      "bytes": 45523
     },
     {
       "id": "toolbar",
@@ -61,8 +61,8 @@
     }
   ],
   "flavors": {
-    "index.html": 191064,
-    "asset-bodies": 165806,
+    "index.html": 191688,
+    "asset-bodies": 166430,
     "markup-and-runtime": 25258
   },
   "notes": [

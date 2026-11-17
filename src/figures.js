@@ -932,7 +932,7 @@
 
         if (selected === figure) positionTools(figure);
         Status.markDirty();
-        if (typeof schedule === "function") schedule();
+        Pagination.schedule();
       }
 
       function setScale(figure, scale) {
@@ -957,7 +957,7 @@
         select(null);
         Editor.history.record();
         Status.markDirty();
-        if (typeof schedule === "function") schedule();
+        Pagination.schedule();
         scan();
       }
 
@@ -1040,7 +1040,7 @@
         if (created.length) {
           syncStore();
           scan();
-          if (typeof schedule === "function") schedule();
+          Pagination.schedule();
           Status.markDirty();
         }
         return created;

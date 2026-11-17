@@ -1,5 +1,4 @@
 export function createSignals() {
-  "use strict";
   const target = document.getElementById("content");
   const listeners = new Map();
   let muted = 0;

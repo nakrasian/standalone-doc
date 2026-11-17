@@ -24,7 +24,6 @@ export function parsePercent(text) {
 }
 
 export function createZoom() {
-  "use strict";
   const stage = document.getElementById("stage");
   const viewport = document.getElementById("viewport");
   let value = 1;
