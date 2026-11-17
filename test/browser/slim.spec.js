@@ -71,7 +71,7 @@ test("boots entirely from the CDN", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(info.state).toBe("ready");
-  expect(info.built).toHaveLength(10);
+  expect(info.built).toHaveLength(11);
   expect(info.signals).toBe("object");
   expect(info.figures).toBe("object");
   expect(info.inlineBlocks).toBe(0);
@@ -127,9 +127,44 @@ test("a view-mode document never asks the CDN for editor assets", async ({ page 
     .map((url) => url.split("/").pop())
     .sort();
 
-  expect(built).toEqual(["doc-settings", "signals", "zoom", "pagination", "figures"]);
+  expect(built).toEqual(["apply-settings", "signals", "zoom", "pagination", "figures"]);
   /* progress is authoring-only, so a viewer never fetches it either. */
-  expect(fetched).toEqual(["doc-settings.js", "figures.js", "page-styles.css", "pagination.js", "signals.js", "zoom.js"]);
+  expect(fetched).toEqual(["apply-settings.js", "figures.js", "page-styles.css", "pagination.js", "signals.js", "zoom.js"]);
+});
+
+test("a slim document can be saved back to a fully inline file", async ({ page }) => {
+  /* The reverse direction needs the bytes, so it goes through source(): fetch,
+     verify, embed. This is the only policy path that touches the network. */
+  await load(page);
+  const result = await page.evaluate(async () => {
+    const toolbar = StandaloneDoc.modules.toolbar;
+    const {html} = await toolbar.serialize({policy: "inline"});
+    const ids = ["apply-settings", "signals", "zoom", "pagination", "progress", "status", "editor", "figures", "policy", "toolbar", "export"];
+    const missing = ids.filter((id) => !html.includes(`id="${id}"`));
+    const unregistered = ids.filter((id) => !new RegExp(`StandaloneDoc\\.register\\("${id}"`).test(html));
+    const styles = ["page-styles", "toolbar-styles"].filter((id) => !new RegExp(`<style id="${id}"`).test(html));
+    /* Parse, never text-search: the policy module's own source contains the
+       literal `data-asset="`, so a string count would match the checker code. */
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    return {
+      missing,
+      unregistered,
+      missingStyles: styles,
+      injectedStylesLeft: parsed.querySelectorAll("style[data-asset]").length,
+      stillOnline: /"mode":"online"/.test(html),
+      policy: /"policy":"inline"/.test(html),
+      validate: toolbar.validate(html),
+    };
+  });
+
+  expect(result.missing).toEqual([]);
+  expect(result.unregistered).toEqual([]);
+  expect(result.missingStyles).toEqual([]);
+  /* Injected <style data-asset> is session state; it must not be saved twice. */
+  expect(result.injectedStylesLeft).toBe(0);
+  expect(result.stillOnline).toBe(false);
+  expect(result.policy).toBe(true);
+  expect(result.validate).toEqual([]);
 });
 
 test("an HTTP error is reported as a missing asset", async ({ page }) => {

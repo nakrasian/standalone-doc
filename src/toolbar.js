@@ -1,5 +1,5 @@
 export function createToolbar(deps = {}) {
-  const {zoom, editor, figures, status} = deps;
+  const {zoom, editor, figures, status, policy} = deps;
   /* export (100) is built after toolbar (90) and is only reached from a click. */
   const exporter = deps.late("export");
 
@@ -160,7 +160,12 @@ export function createToolbar(deps = {}) {
     parent.append(menu);
   }
 
-  function serialize() {
+  /**
+   * Build the saved file. Async because a policy may have to fetch an asset that
+   * this document loaded from the CDN (re-inlining verifies the bytes first); every
+   * other policy decision is bookkeeping, so `inline` stays a pure clone.
+   */
+  async function serialize(options = {}) {
     const clone = document.documentElement.cloneNode(true);
 
     clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], #figure-tools").forEach((el) => el.remove());
@@ -193,7 +198,13 @@ export function createToolbar(deps = {}) {
     const title = (document.querySelector("[data-title]")?.value || "document").trim();
     clone.querySelector("title").textContent = title;
 
-    return {title, html: "<!doctype html>\n" + clone.outerHTML};
+    /* Assets last: the policy decides what travels, and it rewrites both JSON
+       blocks in the clone. A failure here is a failed save, not a partial file. */
+    const planned = policy.planned({policy: options.policy});
+    const {problems} = await policy.apply(clone, planned);
+    if (problems.length) throw new Error(`save policy: ${problems.join("; ")}`);
+
+    return {title, html: "<!doctype html>\n" + clone.outerHTML, planned};
   }
 
   /* Validate the parsed output, never the raw string: the runtime source is
@@ -205,7 +216,11 @@ export function createToolbar(deps = {}) {
     const doc = new DOMParser().parseFromString(html, "text/html");
     if (doc.querySelector(".page-spacer")) problems.push("a page spacer leaked into the file");
     if (doc.querySelector("#sheets > *")) problems.push("the sheet layer is not empty");
-    if (!doc.querySelector("#app-runtime, #toolbar")) problems.push("the runtime is missing");
+    /* What a reader needs to boot, not what happens to be in the markup: a slim
+       document legitimately has no toolbar module, and still works. */
+    if (!doc.getElementById("asset-manifest")) problems.push("the asset manifest is missing");
+    if (!doc.getElementById("doc-settings")) problems.push("the settings block is missing");
+    if (!doc.querySelector('script[id="registry"]')) problems.push("the loader is missing");
     if (doc.querySelector("#content iframe, #content script")) {
       problems.push("a runtime iframe or script leaked into the document body");
     }
@@ -239,8 +254,16 @@ export function createToolbar(deps = {}) {
     return problems;
   }
 
-  function save() {
-    const {title, html} = serialize();
+  async function save(options = {}) {
+    let serialized;
+    try {
+      serialized = await serialize(options);
+    } catch (error) {
+      console.error("Save aborted:", error && error.message ? error.message : error);
+      status.markDirty();
+      return;
+    }
+    const {title, html} = serialized;
     const problems = validate(html);
     if (problems.length) {
       console.error("Save aborted:", problems);

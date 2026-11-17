@@ -26,7 +26,7 @@
       "provides": null
     },
     {
-      "id": "doc-settings",
+      "id": "apply-settings",
       "order": 7,
       "mode": "inline",
       "requiredBy": [
@@ -212,6 +212,30 @@
       ]
     },
     {
+      "id": "policy",
+      "order": 85,
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "deps": [
+        "figures"
+      ],
+      "late": [],
+      "optional": [],
+      "provides": [
+        "plan",
+        "apply",
+        "persist",
+        "presetFor",
+        "resolve",
+        "planned",
+        "target",
+        "usage",
+        "PRESETS"
+      ]
+    },
+    {
       "id": "toolbar",
       "order": 90,
       "mode": "inline",
@@ -222,7 +246,8 @@
         "zoom",
         "editor",
         "figures",
-        "status"
+        "status",
+        "policy"
       ],
       "late": [
         "export"

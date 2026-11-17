@@ -8,7 +8,7 @@ edit by hand; `npm run check` fails if this file is stale.
 | --- | --- | --- | --- | --- | --- |
 | registry | 5 | — | — | _infrastructure_ | * |
 | boot-ui | 6 | — | — | _infrastructure_ | * |
-| doc-settings | 7 | — | — | `apply` | * |
+| apply-settings | 7 | — | — | `apply` | * |
 | signals | 30 | — | — | `on`, `emit`, `mute`, `composing` | * |
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | edit |
@@ -16,7 +16,8 @@ edit by hand; `npm run check` fails if this file is stale.
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
-| toolbar | 90 | zoom, editor, figures, status | export | `save`, `serialize`, `validate` | edit |
+| policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `usage`, `PRESETS` | edit |
+| toolbar | 90 | zoom, editor, figures, status, policy | export | `save`, `serialize`, `validate` | edit |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
 | bootstrap | 120 | — | — | _infrastructure_ | * |
 ```
@@ -35,10 +36,12 @@ graph LR
   pagination --> figures
   status -.->|optional| figures
   editor -.->|optional| figures
+  figures --> policy
   zoom --> toolbar
   editor --> toolbar
   figures --> toolbar
   status --> toolbar
+  policy --> toolbar
   export -.->|late| toolbar
   figures --> export
   toolbar --> export

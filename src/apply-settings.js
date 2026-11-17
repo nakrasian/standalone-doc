@@ -1,4 +1,4 @@
-export function createDocSettings(deps = {}) {
+export function createApplySettings(deps = {}) {
   const {settings, env} = deps;
   const {document} = env;
 

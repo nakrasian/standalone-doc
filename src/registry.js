@@ -60,6 +60,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       editable: authored?.editable ?? mode === "edit",
       toolbar: authored?.toolbar ?? mode !== "view",
       saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
+      /* The save choice travels unnormalised: a preset name, or the explicit
+         per-asset map that replaces it once anything is overridden. */
+      policy: authored?.policy ?? null,
+      assets: authored?.assets ?? null,
     };
     return settingsParsed;
   }

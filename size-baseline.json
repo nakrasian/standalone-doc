@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 234486
+    "bytes": 250888
   },
   "assets": [
     {
@@ -16,7 +16,7 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 25134
+      "bytes": 26462
     },
     {
       "id": "editor",
@@ -29,9 +29,14 @@
       "bytes": 15718
     },
     {
+      "id": "policy",
+      "kind": "js",
+      "bytes": 14362
+    },
+    {
       "id": "registry",
       "kind": "js",
-      "bytes": 13605
+      "bytes": 13851
     },
     {
       "id": "boot-ui",
@@ -74,9 +79,9 @@
       "bytes": 1749
     },
     {
-      "id": "doc-settings",
+      "id": "apply-settings",
       "kind": "js",
-      "bytes": 1367
+      "bytes": 1375
     },
     {
       "id": "bootstrap",
@@ -85,9 +90,9 @@
     }
   ],
   "flavors": {
-    "index.html": 234486,
-    "asset-bodies": 202362,
-    "markup-and-runtime": 32124,
-    "dist/slim.html": 61323
+    "index.html": 250888,
+    "asset-bodies": 218306,
+    "markup-and-runtime": 32582,
+    "dist/slim.html": 61907
   }
 }

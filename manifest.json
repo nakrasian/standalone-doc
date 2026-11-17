@@ -59,8 +59,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 12386,
-      "sha384": "sha384-izjuS6ogqBBFHhDfD/vrMvfk398OfCLW2yILGadYNqTIbCluc76sOcE4eKdZJ+gu",
+      "bytes": 12616,
+      "sha384": "sha384-rLTwgSNTdyipYYc8ZMkO3d3WNtdJOjio+ib/4zQzt32ggBw0HudShacEx7zoD73h",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -82,13 +82,13 @@
       "role": "infra"
     },
     {
-      "id": "doc-settings",
+      "id": "apply-settings",
       "kind": "js",
       "order": 7,
       "tag": "script",
-      "file": "src/doc-settings.js",
-      "bytes": 1119,
-      "sha384": "sha384-nwYHl2Xrau2U+qTRMqaQwEagJ1dRW31YXfbg4qH403mKr5hzSa93ojbRZTKjmeok",
+      "file": "src/apply-settings.js",
+      "bytes": 1121,
+      "sha384": "sha384-VeGnzBxFjgE+FH7Yp4FrcSnpDH4NgONlfK64cKn4Dr7LrOnQPEmttyXTXtjY66g3",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -305,13 +305,43 @@
       ]
     },
     {
+      "id": "policy",
+      "kind": "js",
+      "order": 85,
+      "tag": "script",
+      "file": "src/policy.js",
+      "bytes": 13003,
+      "sha384": "sha384-0xuB56NiBly/bGakDhABU8iU9FPSIrsLo0tL0YBFq+7+doObALnV/cohAKFSvpL9",
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "role": "module",
+      "deps": [
+        "figures"
+      ],
+      "provides": [
+        "plan",
+        "apply",
+        "persist",
+        "presetFor",
+        "resolve",
+        "planned",
+        "target",
+        "usage",
+        "PRESETS"
+      ],
+      "env": true,
+      "settings": true
+    },
+    {
       "id": "toolbar",
       "kind": "js",
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 22920,
-      "sha384": "sha384-EFA0reMVgAIttCPJKN05XtXRpOHUTPhl3FkfmCJ1pMuDGsm54UJIdVz02AiQsaKT",
+      "bytes": 24160,
+      "sha384": "sha384-5inPFCSbovJBpnSBVCeHGvb1WK3fJFHDDZlEjopp8cjpO/0CJNgpUobze96fFXvO",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -321,7 +351,8 @@
         "zoom",
         "editor",
         "figures",
-        "status"
+        "status",
+        "policy"
       ],
       "late": [
         "export"
