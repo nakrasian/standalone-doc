@@ -140,12 +140,15 @@
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 21367,
-      "sha384": "sha384-z5IJYON4HL5jSAnrnm4vJk06aHe1YxPTRU58JPo2VwbkFlDIbRmTChcVIkSNSyFX",
+      "bytes": 22733,
+      "sha384": "sha384-tBL1EGB95dAfqwFHE1LG+xIlmH4Srr2SC0ORsZv1sjVS+kwUivANlLpnhh/hUJqo",
       "mode": "inline",
       "requiredBy": [
         "edit",
         "comment"
+      ],
+      "exports": [
+        "createToolbar"
       ]
     },
     {
@@ -154,11 +157,14 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 34059,
-      "sha384": "sha384-o6+By0n+fX7fLrWX1F17qMESnJMqXASuH0Uog+wvm111GFeDSIJm1e3wmXfabAk+",
+      "bytes": 34073,
+      "sha384": "sha384-Jichm8p/iIANL44g3a2r8e7Vv7K9m/kTtfE0FboaQmBA1SuMBIepnnJwIDnqm2QV",
       "mode": "inline",
       "requiredBy": [
         "edit"
+      ],
+      "exports": [
+        "createExport"
       ]
     },
     {

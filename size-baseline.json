@@ -1,27 +1,27 @@
 {
   "source": {
-    "bytes": 190658
+    "bytes": 194785
   },
   "assets": [
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 45598
+      "bytes": 45879
     },
     {
       "id": "export",
       "kind": "js",
-      "bytes": 35198
+      "bytes": 35445
     },
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 23390
+      "bytes": 25047
     },
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 17694
+      "bytes": 18006
     },
     {
       "id": "toolbar-styles",
@@ -36,32 +36,32 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 7185
+      "bytes": 7990
     },
     {
       "id": "zoom",
       "kind": "js",
-      "bytes": 4968
+      "bytes": 5172
     },
     {
       "id": "status",
       "kind": "js",
-      "bytes": 3653
+      "bytes": 3913
     },
     {
       "id": "progress",
       "kind": "js",
-      "bytes": 1897
+      "bytes": 2060
     },
     {
       "id": "signals",
       "kind": "js",
-      "bytes": 1601
+      "bytes": 1799
     }
   ],
   "flavors": {
-    "index.html": 190658,
-    "asset-bodies": 165400,
+    "index.html": 194785,
+    "asset-bodies": 169527,
     "markup-and-runtime": 25258
   }
 }

@@ -80,6 +80,16 @@ instance instead of attaching a second set of observers.
 Assets with no `MODULES` entry pass through verbatim, so the transform can ship before
 any asset changes shape.
 
+**Changing a `MODULES` entry changes the compiled envelope** (the `deps` literal in the
+call site), so the anchors move. Run `npm run combine` *before* `npm run split` after
+touching the table; `split` will otherwise refuse with "envelope anchors not found".
+
+**Document order is construction order.** While factories are still invoked by the
+envelope at parse time, a module's markup must exist before its factory runs — which is
+why `progress` (whose `<dialog>` sits late in the body) is constructed last and
+`export` reaches it through `globalThis.ProgressDialog` at call time. Once `boot()` runs
+after parsing, those constraints disappear and the edge becomes an ordinary dependency.
+
 Why: a module with no imports is valid both as a CDN ES module and as an inline classic
 script. One source shape, two loaders, no bundler.
 
