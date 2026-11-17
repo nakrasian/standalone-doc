@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 407691
+    "bytes": 407813
   },
   "assets": [
     {
@@ -11,7 +11,7 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 50945
+      "bytes": 51060
     },
     {
       "id": "registry",
@@ -81,7 +81,7 @@
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 4968
+      "bytes": 4975
     },
     {
       "id": "status",
@@ -130,8 +130,8 @@
     }
   ],
   "flavors": {
-    "index.html": 407691,
-    "asset-bodies": 392147,
+    "index.html": 407813,
+    "asset-bodies": 392269,
     "markup-and-runtime": 15544,
     "dist/slim.html": 78586
   }
