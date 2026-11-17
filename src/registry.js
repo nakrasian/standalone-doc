@@ -189,7 +189,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
 
   function capability(name) {
     if (!providers[name]) {
-      throw failure("unavailable", name, "is not available in this document");
+      throw failure("unavailable", name, "is not provided by this document (no module offers it)");
     }
     return providers[name];
   }
