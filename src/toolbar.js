@@ -356,8 +356,9 @@ export function createToolbar(deps = {}) {
     dialog.querySelector("[data-ds='mode']").value = draft.mode;
     dialog.querySelector("[data-ds='editable']").checked = draft.editable && draft.mode === "edit";
     dialog.querySelector("[data-ds='editable']").disabled = draft.mode !== "edit";
-    dialog.querySelector("[data-ds='toolbar']").checked = draft.toolbar && draft.mode !== "view";
-    dialog.querySelector("[data-ds='toolbar']").disabled = draft.mode === "view";
+    /* "Show chrome" now: the editor's ribbon, or a viewer's bar. Neither mode overrides
+       the other, so the control is always honest and always editable. */
+    dialog.querySelector("[data-ds='toolbar']").checked = draft.toolbar;
     dialog.querySelector("[data-ds='threshold']").value = String(draft.thresholdMb);
     dialog.querySelector("[data-ds='timeout']").value = String(draft.timeoutMs);
     dialog.querySelector("[data-ds='never']").checked = draft.never;
@@ -443,9 +444,10 @@ export function createToolbar(deps = {}) {
     /* Storage keys come from the policy, so "the default plan" writes nothing. */
     const next = policy.settingsFragment(draft.planned, current);
     next.mode = draft.mode;
-    /* A setting can restrict a mode, never contradict it — the loader clamps too. */
+    /* A setting can restrict a mode, never contradict it — the loader clamps too.
+       `toolbar` is chrome, not the editor's ribbon, so it survives a mode change. */
     next.editable = draft.mode === "edit" ? draft.editable : false;
-    next.toolbar = draft.mode === "view" ? false : draft.toolbar;
+    next.toolbar = draft.toolbar;
     next.saveThresholdBytes = Math.max(0, toBytes(draft.thresholdMb || 0));
     next.timeoutMs = Math.max(0, Math.round(Number(draft.timeoutMs) || 0));
 

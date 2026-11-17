@@ -10,7 +10,8 @@
  *   node build.mjs build --base=<url> --out=<dir>
  *                             the same documents re-pointed at another base (dev);
  *                             never writes dist/, since only a tag is a release pair
- *   node build.mjs report     size table; --baseline rewrites size-baseline.json
+ *   node build.mjs release <x.y.z>  the whole ritual: bump, rebuild, check, print the tag
+ *   node build.mjs report     size table; --baseline rewrites baseline.json
  *   node build.mjs catalog    dist/runtime.json + one manifest per release, from the tags
  *   node build.mjs verify-cdn fetch every published asset and check its hash
  *   node build.mjs dev        static server on :8080
@@ -52,6 +53,7 @@ const LEGACY_GLOBAL_TO_ID = LEGACY_GLOBALS;
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE = "index.html";
 const MANIFEST = "manifest.json";
+const CHANGELOG_FILE = "CHANGELOG.md";
 const SRC = "src";
 const DIST = "dist";
 const BASELINE = "size-baseline.json";
@@ -870,11 +872,11 @@ async function cmdCheck() {
 
   /* dist/ must be current. Lives here and not in verify(), because build
      itself cannot run if verify refuses while dist is stale. */
-  if (exists(`${DIST}/editor.html`) && read(`${DIST}/editor.html`) !== html) {
-    all.push(`${DIST}/editor.html is stale — run: node build.mjs build`);
-  }
   try {
     const m = readManifest();
+    if (exists(`${DIST}/editor.html`) && read(`${DIST}/editor.html`) !== buildEditor(html, m)) {
+      all.push(`${DIST}/editor.html is stale — run: node build.mjs build`);
+    }
     if (exists(`${DIST}/slim.html`) && read(`${DIST}/slim.html`) !== buildSlim(html, m)) {
       all.push(`${DIST}/slim.html is stale — run: node build.mjs build`);
     }
@@ -900,6 +902,33 @@ async function cmdCheck() {
     }
   } catch (err) {
     all.push(`manifest: ${err.message}`);
+  }
+
+  /* Local bytes against the tag's. While the tree is ahead of the tag, a slim or viewer
+     built from it promises hashes that tag does not serve — the failure that took slim down
+     twice (v0.3.0, v0.4.0). It is a *warning*, because being ahead of the tag is the normal
+     state of work in progress; `release` is what clears it, and `build --base` is how you
+     get a bootable copy in the meantime. */
+  try {
+    const published = publishedState();
+    if (published.released) {
+      const drifted = published.manifest.assets
+        .filter((asset) => asset.role !== "infra")
+        .filter((asset) => {
+          const file = `${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`;
+          const shipped = fileAt(published.tag, file);
+          return !shipped || !Buffer.from(shipped).equals(fs.readFileSync(abs(file)));
+        })
+        .map((asset) => asset.id);
+      if (drifted.length) {
+        depWarnings.push(
+          `dist/cdn differs from ${published.tag} (${drifted.length} asset${drifted.length === 1 ? "" : "s"}: ${drifted.slice(0, 3).join(", ")}${drifted.length > 3 ? ", …" : ""}) — ` +
+          `dist/slim.html will not boot at that tag until you release, or build --base for a dev copy`,
+        );
+      }
+    }
+  } catch (err) {
+    depWarnings.push(`could not compare dist/cdn with the tag: ${err.message}`);
   }
 
   /* The runtime catalog is what an older document reads to find a newer release, so its
@@ -1146,9 +1175,31 @@ function inMode(asset, mode) {
  * rather than offloaded. `inline` is the policy, so it opens from `file://` with no
  * network — which is the whole point of sending someone a read-only copy.
  */
+/**
+ * The editor flavour: the canonical document restricted to what edit mode builds. An asset
+ * only a viewer needs leaves the file entirely — its manifest entry keeps `url` +
+ * `integrity` + `mode: online`, so a document switched to view mode later fetches it from
+ * the pin instead of an editor carrying chrome it never shows.
+ *
+ * This is why `dist/editor.html` is no longer byte-identical to `index.html`: `index.html`
+ * is the source of *every* asset, and a flavour is a mode.
+ */
+function buildEditor(html, manifest) {
+  const edit = new Set(manifest.assets.filter((asset) => inMode(asset, "edit")).map((asset) => asset.id));
+  let out = withDocManifest(html, docManifest(manifest));
+  for (const asset of manifest.assets) {
+    if (!edit.has(asset.id)) out = withoutAsset(out, asset.id);
+  }
+  return out;
+}
+
 function buildViewer(html, manifest) {
   const view = new Set(manifest.assets.filter((asset) => inMode(asset, "view")).map((asset) => asset.id));
-  let out = withDocSettings(withDocManifest(html, docManifest(manifest)), docSettings(manifest, {mode: "view", toolbar: true}));
+  /* Everything this flavour keeps is in the file, so it is declared inline even when the
+     manifest says `online` for editors (the viewer bar). Otherwise a viewer would fetch
+     what it already carries. */
+  const inline = Object.fromEntries([...view].map((id) => [id, "inline"]));
+  let out = withDocSettings(withDocManifest(html, docManifest(manifest, inline)), docSettings(manifest, {mode: "view", toolbar: true}));
   for (const asset of manifest.assets) {
     if (!view.has(asset.id)) out = withoutAsset(out, asset.id);
   }
@@ -1199,6 +1250,39 @@ function runtimeEntry(tag, manifest) {
         return entry;
       }),
   };
+}
+
+const tagOf = (base) => /@([^/]+)\//.exec(String(base || ""))?.[1] ?? null;
+
+/** A file as a tag shipped it, or null when this clone does not have that tag. */
+function fileAt(tag, file) {
+  try {
+    return execFileSync("git", ["show", `${tag}:${file}`], { cwd: ROOT, maxBuffer: 1 << 28 });
+  } catch {
+    return null;
+  }
+}
+
+/** The authored manifest a tag shipped, or null. */
+const manifestAt = (tag) => {
+  const text = fileAt(tag, MANIFEST);
+  try {
+    return text ? JSON.parse(text.toString("utf8")) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * What a release's tree published, for the checks that must judge *published* state
+ * rather than the working tree: the tag's own manifest and its own document bytes.
+ */
+function publishedState({ tag = null } = {}) {
+  const working = readManifest();
+  const wanted = tag || tagOf(working.cdnBase);
+  const released = wanted ? manifestAt(wanted) : null;
+  if (!released) return { tag: wanted, manifest: working, released: false, base: String(working.cdnBase || "") };
+  return { tag: wanted, manifest: released, released: true, base: String(released.cdnBase || "") };
 }
 
 const semverOf = (tag) => tag.replace(/^v/, "").split(".").map(Number);
@@ -1324,7 +1408,7 @@ function cmdBuild({ base = null, out = null } = {}) {
     return;
   }
 
-  write(`${DIST}/editor.html`, html);
+  write(`${DIST}/editor.html`, buildEditor(html, manifest));
 
   /* Byte copies of the sources: what integrity pins is exactly what we publish. */
   for (const asset of manifest.assets) {
@@ -1345,7 +1429,9 @@ function cmdBuild({ base = null, out = null } = {}) {
   write(`${DIST}/size-report.json`, JSON.stringify(report, null, 2) + "\n");
   const catalog = writeCatalog();
   if (catalog) console.log(`build: catalog ${catalog.count} releases, latest ${catalog.latest}`);
-  console.log(`build: dist/editor.html (${kb(m.flavors["index.html"])} KB, byte-identical to ${SOURCE})`);
+  const editor = read(`${DIST}/editor.html`);
+  console.log(`build: dist/editor.html (${kb(nbytes(editor))} KB) — ${SOURCE} is ${kb(nbytes(html))} KB, ` +
+    `${kb(nbytes(html) - nbytes(editor))} KB of view-only chrome left out`);
   console.log(`build: ${kb(m.flavors["asset-bodies"])} KB assets + ${kb(m.flavors["markup-and-runtime"])} KB markup/runtime`);
 }
 
@@ -1381,9 +1467,14 @@ function cmdReport({ baseline = false } = {}) {
  * rebuilding.
  */
 async function cmdVerifyCdn({ tag = null } = {}) {
-  const manifest = readManifest();
-  let base = String(manifest.cdnBase || "").replace(/\/$/, "");
-  if (tag) base = base.replace(/@[^/]+/, `@${tag}`);
+  /* Verify what was *published*, not what is checked out. HEAD is routinely ahead of the
+     tag (every feature branch is), and comparing HEAD's hashes with the tag's bytes made
+     this job red for reasons that had nothing to do with the CDN. The tag's own manifest
+     and its own document bytes are the thing to hold the CDN to. */
+  const published = publishedState({ tag });
+  const manifest = published.manifest;
+  let base = published.base.replace(/\/$/, "");
+  if (tag && !published.released) base = base.replace(/@[^/]+/, `@${tag}`);
   if (!/^https?:\/\//.test(base)) {
     console.error(`verify-cdn: cdnBase is not a URL: ${JSON.stringify(base)}`);
     process.exit(1);
@@ -1422,13 +1513,21 @@ async function cmdVerifyCdn({ tag = null } = {}) {
     process.exit(1);
   }
 
-  /* The document is the thing people actually open, so it is checked too. */
+  /* The document is the thing people actually open, so it is checked too — as the tag
+     published it, which is not what `dist/` holds while the tree is ahead. */
   for (const name of ["editor.html", "slim.html", "viewer.html"]) {
-    if (!exists(`${DIST}/${name}`)) continue;
-    targets.push({ id: name, url: `${docBase}/${name}`, expected: sha384(read(`${DIST}/${name}`)), local: `${DIST}/${name}` });
+    const shipped = published.released ? fileAt(published.tag, `${DIST}/${name}`) : null;
+    if (!shipped && !exists(`${DIST}/${name}`)) continue;
+    targets.push({
+      id: name,
+      url: `${docBase}/${name}`,
+      expected: "sha384-" + createHash("sha384").update(shipped || fs.readFileSync(abs(`${DIST}/${name}`))).digest("base64"),
+      local: shipped ? null : `${DIST}/${name}`,
+    });
   }
 
-  console.log(`verify-cdn: ${targets.length} files at ${base}${tag ? ` (tag ${tag})` : ""}`);
+  const how = published.released ? `${published.tag}'s tree` : "the working tree (tag not in this clone)";
+  console.log(`verify-cdn: ${targets.length} files at ${base} — expected hashes from ${how}`);
   const failures = [];
 
   /* Two attempts per file: this runs nightly over someone else's network, and a
@@ -1518,6 +1617,91 @@ function cmdDev() {
     });
 }
 
+/**
+ * `node build.mjs release <x.y.z>` — the ritual, once, in order.
+ *
+ * It refuses anything it cannot do safely and performs only the mechanical part: bump the
+ * two version facts, rebuild every derived artefact, re-seed the size baseline, and pass
+ * the gate. It never tags and never pushes — those stay human — but it prints them along
+ * with the purges a brand-new tag needs, because jsDelivr caches a failed fetch forever
+ * and the first person to hit it is a reader.
+ */
+async function cmdRelease({ version, dryRun = false } = {}) {
+  const usage = "release: usage: node build.mjs release <major.minor.patch> [--dry-run]";
+  if (!/^\d+\.\d+\.\d+$/.test(String(version || ""))) {
+    console.error(usage);
+    process.exit(1);
+  }
+  const tag = `v${version}`;
+  const problems = [];
+  const tags = releaseTags();
+  if (!tags.length) problems.push("no tags in this clone — fetch tags before releasing");
+  if (tags.includes(tag)) problems.push(`${tag} already exists`);
+  const newest = tags[tags.length - 1];
+  if (newest && !newer(tag, newest)) problems.push(`${tag} is not newer than ${newest}`);
+  if (!new RegExp(`^## ${tag.replace(/\./g, "\\.")}\\b`, "m").test(read(CHANGELOG_FILE))) {
+    problems.push(`${CHANGELOG_FILE} has no "## ${tag} — <date>" section (it has to be in the tag's tree)`);
+  }
+  let dirty = "";
+  try {
+    dirty = execFileSync("git", ["status", "--porcelain"], { cwd: ROOT, encoding: "utf8" }).trim();
+  } catch {
+    problems.push("not a git checkout");
+  }
+  if (dirty && !dryRun) problems.push(`the tree is not clean — commit first:\n${dirty.split("\n").map((line) => `  ${line}`).join("\n")}`);
+  if (problems.length) {
+    console.error(`release: refusing (${problems.length})`);
+    for (const problem of problems) console.error(`  - ${problem}`);
+    process.exit(1);
+  }
+
+  const manifest = readManifest();
+  const pkg = JSON.parse(read("package.json"));
+  const nextBase = String(manifest.cdnBase || "").replace(/@[^/]+/, `@${tag}`);
+  const steps = [
+    `manifest.json cdnBase ${manifest.cdnBase} → ${nextBase}`,
+    `package.json version ${pkg.version} → ${version}`,
+    "combine → build → catalog → report --baseline → check",
+  ];
+  console.log(`release: ${tag}`);
+  for (const step of steps) console.log(`  ${step}`);
+  if (dryRun) {
+    console.log("release: --dry-run, nothing written");
+    return;
+  }
+
+  manifest.cdnBase = nextBase;
+  write(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
+  pkg.version = version;
+  write("package.json", JSON.stringify(pkg, null, 2) + "\n");
+
+  cmdCombine();
+  cmdBuild();
+  cmdCatalog();
+  cmdReport({ baseline: true });
+  await cmdCheck();
+
+  /* jsDelivr: a new tag is a new set of paths, and it caches a failed fetch. Purging the
+     files that changed (all of them, on a first release) is cheaper than debugging it. */
+  const slug = /cdn\.jsdelivr\.net\/gh\/([^/@]+\/[^/@]+)@/.exec(nextBase)?.[1];
+  const files = ["dist/editor.html", "dist/slim.html", "dist/viewer.html",
+    ...manifest.assets.filter((asset) => asset.role !== "infra").map((asset) => `dist/cdn/${asset.id}.${extensionFor(asset.kind)}`)];
+
+  console.log("");
+  console.log("release: the mechanical part is done and green. Next, by hand:");
+  console.log(`  1. tag it   git tag -a ${tag} -m "${tag} — <one line>"`);
+  console.log(`  2. push     git push origin main && git push origin ${tag}`);
+  if (slug) {
+    console.log(`  3. purge    jsDelivr caches a new tag's paths (and a failed fetch, forever):`);
+    console.log(`     for f in ${files.join(" ")}; do curl -s "https://purge.jsdelivr.net/gh/${slug}@${tag}/$f" > /dev/null; done`);
+    console.log(`     curl -s "https://purge.jsdelivr.net/gh/${slug}@main/dist/runtime.json" > /dev/null`);
+    console.log(`  4. verify   node build.mjs verify-cdn --tag=${tag}`);
+  } else {
+    console.log(`  3. purge    not a jsDelivr base — purge ${files.length} paths on your host, then verify`);
+  }
+  console.log(`  5. catalog  npm run catalog && git commit -am "chore(catalog): ${tag}'s entry now carries its date" && git push`);
+}
+
 /* -------------------------------------------------------------------- cli */
 
 const [cmd = "help", ...flags] = process.argv.slice(2);
@@ -1545,6 +1729,12 @@ switch (cmd) {
     break;
   case "catalog":
     cmdCatalog();
+    break;
+  case "release":
+    await cmdRelease({
+      version: flags.find((flag) => !flag.startsWith("--")),
+      dryRun: flags.includes("--dry-run"),
+    });
     break;
   case "verify-cdn":
     await cmdVerifyCdn({ tag: flags.find((flag) => flag.startsWith("--tag="))?.slice("--tag=".length) ?? null });

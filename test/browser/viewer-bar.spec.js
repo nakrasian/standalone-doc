@@ -273,6 +273,26 @@ test("a broken viewer repairs itself and saves the repair", async ({ page }) => 
   expect(await reopened.evaluate(() => JSON.parse(document.getElementById("asset-manifest").textContent).cdnBase)).toBe(HEALTHY);
 });
 
+test("an editing document carries no bar — the asset is offloaded, not built", async ({ page }) => {
+  const problems = await load(page, EDITOR);
+  const state = await page.evaluate(() => {
+    const doc = JSON.parse(document.getElementById("asset-manifest").textContent);
+    return {
+      bar: !!document.getElementById("viewer-bar"),
+      built: Object.keys(StandaloneDoc.modules).includes("viewer-bar"),
+      entries: doc.assets.filter((asset) => asset.id.startsWith("viewer-bar"))
+        .map((asset) => ({ mode: asset.mode, pinned: !!(asset.url && asset.integrity) })),
+    };
+  });
+  expect(state.bar).toBe(false);
+  expect(state.built).toBe(false);
+  /* Offloaded: absent from the file, still described and pinned, so a document that
+     becomes a viewer can fetch it. */
+  expect(state.entries).toHaveLength(3);
+  for (const entry of state.entries) expect(entry).toEqual({ mode: "online", pinned: true });
+  expect(problems).toEqual([]);
+});
+
 test("a figure is not selectable in a viewer, and still is in the editor", async ({ page }) => {
   await load(page, VIEWER);
   const viewer = await page.evaluate(() => {

@@ -356,20 +356,52 @@ test("a catalog file for no tag fails check", () => {
 test("an unreleased package version becomes the pending catalog entry", () => {
   const file = path.join(ROOT, "package.json");
   const original = fs.readFileSync(file, "utf8");
+  /* Ahead of every tag, whatever the repository has released so far. */
+  const newest = execFileSync("git", ["tag", "--list", "v*", "--sort=-v:refname"], { cwd: ROOT, encoding: "utf8" })
+    .split("\n")[0].trim();
+  const next = `v${Number(newest.replace(/^v/, "").split(".")[0]) + 1}.0.0`;
   try {
     const pkg = JSON.parse(original);
-    pkg.version = "0.3.99";
+    pkg.version = next.slice(1);
     fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
     run(["catalog"]);
     const index = JSON.parse(fs.readFileSync(path.join(ROOT, "dist/runtime.json"), "utf8"));
-    assert.equal(index.latest, "v0.3.99", "the release being prepared is the newest entry");
-    const pending = JSON.parse(fs.readFileSync(path.join(ROOT, "dist/runtime/v0.3.99.json"), "utf8"));
+    assert.equal(index.latest, next, "the release being prepared is the newest entry");
+    const pending = JSON.parse(fs.readFileSync(path.join(ROOT, "dist", `runtime/${next}.json`), "utf8"));
     /* Built from the tree, because the tag does not exist yet: exactly the release
        commit's own manifest, once `release` bumps cdnBase. */
-    assert.equal(pending.tag, "v0.3.99");
+    assert.equal(pending.tag, next);
     assert.ok(pending.assets.length > 0);
   } finally {
     fs.writeFileSync(file, original);
     run(["catalog"]);
+  }
+});
+
+test("release refuses a version that is not newer, and a missing CHANGELOG section", () => {
+  const oldest = runFailing(["release", "0.0.1"]);
+  assert.ok(oldest, "release should have refused");
+  assert.match(oldest, /is not newer than|already exists/);
+
+  const missing = runFailing(["release", "99.0.0"]);
+  assert.ok(missing, "release should have refused");
+  assert.match(missing, /CHANGELOG\.md has no "## v99\.0\.0/);
+});
+
+test("release --dry-run prints the plan and writes nothing", () => {
+  const changelog = path.join(ROOT, "CHANGELOG.md");
+  const manifest = path.join(ROOT, "manifest.json");
+  const original = fs.readFileSync(changelog, "utf8");
+  const beforeManifest = fs.readFileSync(manifest, "utf8");
+  try {
+    fs.writeFileSync(changelog, original.replace("# Changelog\n", "# Changelog\n\n## v99.0.0 — 2026-01-01\n\nDry run.\n"));
+    const out = run(["release", "99.0.0", "--dry-run"]);
+    assert.match(out, /release: v99\.0\.0/);
+    assert.match(out, /cdnBase .* → .*@v99\.0\.0\/dist\/cdn/);
+    assert.match(out, /--dry-run, nothing written/);
+    assert.equal(fs.readFileSync(manifest, "utf8"), beforeManifest, "a dry run must not write");
+    assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version.endsWith("99.0.0"), false);
+  } finally {
+    fs.writeFileSync(changelog, original);
   }
 });

@@ -4,7 +4,7 @@
     {
       "id": "viewer-bar",
       "order": 92,
-      "mode": "inline",
+      "mode": "online",
       "requiredBy": [
         "view"
       ],

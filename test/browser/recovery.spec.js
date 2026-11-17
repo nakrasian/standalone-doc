@@ -56,16 +56,18 @@ function releaseEntry(tag = "v0.3.1") {
 
 /** A broken document: it pins the healthy hashes, and is served a mutated editor. */
 function brokenDocument({ catalog = true } = {}) {
-  let html = SLIM.split(PUBLISHED).join(STALE);
-  if (catalog) {
-    html = html.replace(/(<script id="asset-manifest" type="application\/json">)([\s\S]*?)(<\/script>)/,
-      (whole, open, json, close) => {
-        const doc = JSON.parse(json);
-        doc.catalog = CATALOG;
-        return open + JSON.stringify(doc) + close;
-      });
-  }
-  return html;
+  /* The built document already carries an authored `catalog` (the published `@main` index),
+     so "no catalog" means *removing* it — otherwise the real catalog answers and the
+     offer appears whenever jsDelivr is reachable, which made this flaky in both directions. */
+  return SLIM.split(PUBLISHED).join(STALE).replace(
+    /(<script id="asset-manifest" type="application\/json">)([\s\S]*?)(<\/script>)/,
+    (whole, open, json, close) => {
+      const doc = JSON.parse(json);
+      if (catalog) doc.catalog = CATALOG;
+      else delete doc.catalog;
+      return open + JSON.stringify(doc) + close;
+    },
+  );
 }
 
 test.beforeAll(() => {
@@ -139,13 +141,15 @@ test("a document whose pin no longer resolves offers the newest release and repa
   expect(broken.errors).toEqual(["integrity · editor"]);
   expect(broken.cdnBase).toContain(`@${STALE_TAG}/`);
 
-  /* The offer is in the failure card, and it is about *this* document's pin. */
+  /* The offer is in the failure card, and it is about *this* document's pin. The catalog
+     is fetched after the card renders, so read the card again once the offer is there. */
   const go = page.locator("[data-boot-update-go]");
   await expect(go).toBeVisible();
   await expect(go).toHaveText("Update to v0.3.1");
-  expect(broken.updateText).toContain(`pins ${STALE_TAG}`);
+  const offered = await card(page);
+  expect(offered.updateText).toContain(`pins ${STALE_TAG}`);
   /* A catalog read is not a document failure. */
-  expect(broken.errors).toHaveLength(1);
+  expect(offered.errors).toHaveLength(1);
 
   await go.click();
   await expect.poll(() => card(page).then((state) => state.state), { timeout: 15_000 }).toBe("ready");

@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.5.1 — 2026-11-17
+
+A patch that trims what an editor carries and makes the release gate tell the truth. No
+document behaviour changes; a viewer keeps its bar.
+
+### Changed
+
+- **The viewer bar is offloaded in an editing document, not carried.** Its three assets are
+  `mode: online`, and `dist/editor.html` is now the canonical document *restricted to the mode
+  it runs*: an asset only a viewer builds leaves the file, with `url` + `integrity` kept, so an
+  editor pays nothing for chrome it never shows — **9.5 KB lighter**. `dist/editor.html` is
+  therefore no longer byte-identical to `index.html`: `index.html` is the source of every
+  asset and a flavour is a mode. A document switched to view mode fetches the bar from its pin.
+- **`toolbar` is not clamped by mode.** The settings sheet used to force `toolbar: false` (and
+  disable the control) in view mode, on the assumption that a viewer has no chrome. It has one
+  now, so switching a document to view keeps the setting instead of silently stripping the bar
+  from the copy you save. The row reads "Show chrome".
+
+### Fixed
+
+- **`verify-cdn` judged the working tree.** It compared HEAD's `manifest.json` against the
+  tag's bytes, so the nightly job went red the moment `main` moved ahead of a release, for
+  reasons that had nothing to do with the CDN. It now verifies what the *tag* published — the
+  tag's own manifest, the tag's own documents.
+
+### Added
+
+- **`node build.mjs release <x.y.z>`** (and `--dry-run`): refuses a dirty tree, a taken tag, a
+  version that is not newer, or a missing CHANGELOG section; bumps `cdnBase` and
+  `package.json`; runs combine → build → catalog → `report --baseline` → check; then prints the
+  tag, the push, the jsDelivr purges a brand-new tag needs, `verify-cdn --tag`, and the
+  post-tag catalog commit.
+- **`check` warns when `dist/cdn` differs from the tag it pins** — the state in which
+  `dist/slim.html` cannot boot until you release, or `build --base` for a dev copy. A warning,
+  not a failure: being ahead of the tag is what work in progress looks like.
+
+### Size
+
+editor 398.1 → 388.6 KB (−9.5 KB: chrome an editor never builds). slim and viewer unchanged;
+a viewer still carries the bar inline, which is what keeps it offline.
+
 ## v0.5.0 — 2026-11-17
 
 A read-only document now has chrome of its own: a folio that knows the page, a save, and

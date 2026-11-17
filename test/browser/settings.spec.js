@@ -119,20 +119,24 @@ test("behaviour changes are written to the document and clamp against the mode",
   await openSheet(page);
 
   await page.selectOption("[data-ds='mode']", "view");
-  /* A setting can restrict a mode, never contradict it. */
+  /* A setting can restrict a mode, never contradict it — `editable` is clamped, because a
+     viewer has nothing to edit. `toolbar` is not: it means "show chrome", and a viewer has
+     chrome of its own (the bar), so forcing it off here used to strip the bar from a saved
+     viewer without anyone asking. */
   const clamped = await page.evaluate(() => ({
     editable: document.querySelector("[data-ds='editable']").checked,
     editableDisabled: document.querySelector("[data-ds='editable']").disabled,
     toolbar: document.querySelector("[data-ds='toolbar']").checked,
     toolbarDisabled: document.querySelector("[data-ds='toolbar']").disabled,
   }));
-  expect(clamped).toEqual({editable: false, editableDisabled: true, toolbar: false, toolbarDisabled: true});
+  expect(clamped).toEqual({editable: false, editableDisabled: true, toolbar: true, toolbarDisabled: false});
 
   await page.click("[data-ds-done]");
   const settings = await settingsBlock(page);
   expect(settings.mode).toBe("view");
   expect(settings.editable).toBe(false);
-  expect(settings.toolbar).toBe(false);
+  expect(settings.toolbar).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.dataset.toolbar)).toBe("on");
   /* The document is now dirty: the change reaches disk on save, not before. */
   expect(await page.evaluate(() => document.querySelector("[data-dirty]")?.hidden)).toBe(false);
 });
