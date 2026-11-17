@@ -94,6 +94,27 @@ test.describe("file:// (the archival case)", () => {
     expect(await page.locator("#content").textContent()).toContain("zebra");
   });
 
+  test("a figure can be inserted, resized and removed", async ({ page }) => {
+    /* These three paths called Pagination/Status through a global, so nothing
+       noticed when the globals were removed. Insert an island, resize it, remove
+       it: every figure mutation ends up in pagination.schedule(). */
+    const problems = await load(page, fileUrl());
+    const result = await page.evaluate(async () => {
+      const figures = StandaloneDoc.modules.figures;
+      const file = new File(['<!doctype html><meta charset="utf-8"><p>island</p>'], "island.html", { type: "text/html" });
+      const [figure] = await figures.insertFiles([file], { kindHint: "html" });
+      const id = figure?.dataset.figureId;
+      const inserted = !!figure && figure.isConnected && document.body.contains(figure);
+      const stored = !!(id && figures.store.figures[id]);
+      figures.setDimension(figure, "w", 0.8);
+      const width = figure.style.getPropertyValue("--figure-w");
+      figures.remove(figure);
+      return { inserted, stored, width, removed: !document.querySelector(`[data-figure-id="${id}"]`) };
+    });
+    expect(result).toEqual({ inserted: true, stored: true, width: "0.8", removed: true });
+    expect(problems).toEqual([]);
+  });
+
   test("a zoom button writes --zoom and updates its label", async ({ page }) => {
     await load(page, fileUrl());
     const zoomIn = page.locator('[data-zoom="in"]:visible').first();

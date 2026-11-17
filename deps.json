@@ -156,7 +156,8 @@
       "deps": [
         "signals",
         "status",
-        "editor"
+        "editor",
+        "pagination"
       ],
       "late": [],
       "provides": [

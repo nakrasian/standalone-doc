@@ -1770,7 +1770,7 @@
     </div>
   </dialog>
 
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":10607},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3773,"deps":["signals","pagination"],"factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":42072,"deps":["signals","status","editor"],"factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22920,"deps":["zoom","editor","figures","status"],"late":["export"],"factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":10607},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3773,"deps":["signals","pagination"],"factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":42084,"deps":["signals","status","editor","pagination"],"factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22920,"deps":["zoom","editor","figures","status"],"late":["export"],"factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -3480,7 +3480,7 @@
   <script type="module" id="figures">
     /*@compiled-from src/figures.js — envelope is build-owned; edit the body or src/*/
     export function createFigures(deps = {}) {
-      const {signals, status, editor} = deps;
+      const {signals, status, editor, pagination} = deps;
       const content = document.getElementById("content");
       const viewport = document.getElementById("viewport");
       const storeEl = document.getElementById("figure-store");
@@ -4412,7 +4412,7 @@
 
         if (selected === figure) positionTools(figure);
         status.markDirty();
-        Pagination.schedule();
+        pagination.schedule();
       }
 
       function setScale(figure, scale) {
@@ -4437,7 +4437,7 @@
         select(null);
         editor.history.record();
         status.markDirty();
-        Pagination.schedule();
+        pagination.schedule();
         scan();
       }
 
@@ -4520,7 +4520,7 @@
         if (created.length) {
           syncStore();
           scan();
-          Pagination.schedule();
+          pagination.schedule();
           status.markDirty();
         }
         return created;

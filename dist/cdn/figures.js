@@ -1,5 +1,5 @@
 export function createFigures(deps = {}) {
-  const {signals, status, editor} = deps;
+  const {signals, status, editor, pagination} = deps;
   const content = document.getElementById("content");
   const viewport = document.getElementById("viewport");
   const storeEl = document.getElementById("figure-store");
@@ -931,7 +931,7 @@ export function createFigures(deps = {}) {
 
     if (selected === figure) positionTools(figure);
     status.markDirty();
-    Pagination.schedule();
+    pagination.schedule();
   }
 
   function setScale(figure, scale) {
@@ -956,7 +956,7 @@ export function createFigures(deps = {}) {
     select(null);
     editor.history.record();
     status.markDirty();
-    Pagination.schedule();
+    pagination.schedule();
     scan();
   }
 
@@ -1039,7 +1039,7 @@ export function createFigures(deps = {}) {
     if (created.length) {
       syncStore();
       scan();
-      Pagination.schedule();
+      pagination.schedule();
       status.markDirty();
     }
     return created;

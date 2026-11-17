@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { auditContract, extractContract, LEGACY_GLOBALS } from "../../lib/deps.mjs";
+import { auditContract, extractContract, LEGACY_GLOBALS, stripComments } from "../../lib/deps.mjs";
 import { MODULES } from "../../lib/compile.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -78,6 +78,50 @@ test("finds implicit globals that shadow a declared dependency", () => {
     { globals: GLOBALS },
   );
   assert.deepEqual(c.implicitGlobals, ["figures"]);
+});
+
+test("catches a bare legacy global, which is how Pagination.schedule() hid", () => {
+  /* The failure that motivated this: `Pagination.schedule()` resolved through the
+     published global, so removing the global broke figure resize/remove with a
+     ReferenceError that no spec saw. */
+  const bare = extractContract(
+    factory(`  const {signals} = deps;
+  Pagination.schedule();
+  return {x};`),
+    { globals: GLOBALS },
+  );
+  assert.deepEqual(bare.implicitGlobals, ["pagination"]);
+});
+
+test("prose about a module is not a dependency", () => {
+  const prose = extractContract(
+    factory(`  const {signals} = deps;
+  // Pagination.schedule() used to live here; Status.refresh() too.
+  /* Figures.scan() as well */
+  return {x};`),
+    { globals: GLOBALS },
+  );
+  assert.deepEqual(prose.implicitGlobals, []);
+});
+
+test("stripComments keeps comment markers inside strings", () => {
+  const source = 'const url = "http://x/y"; // real comment\nconst re = /a\\/b/;\n';
+  const out = stripComments(source);
+  assert.ok(out.includes("http://x/y"), "a // inside a string survives");
+  assert.ok(!out.includes("real comment"), "a line comment is removed");
+});
+
+test("a declared dependency is never an implicit global", () => {
+  const declared = extractContract(
+    factory(`  const {signals, pagination} = deps;
+  const figures = deps.late("figures");
+  Pagination.schedule();
+  Figures.scan();
+  figures().scan();
+  return {x};`),
+    { globals: GLOBALS },
+  );
+  assert.deepEqual(declared.implicitGlobals, []);
 });
 
 test("audit: an implicit global is a problem, not a warning", () => {

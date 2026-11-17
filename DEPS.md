@@ -14,7 +14,7 @@ edit by hand; `npm run check` fails if this file is stale.
 | pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `refresh` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
-| figures | 80 | signals, status, editor | — | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
+| figures | 80 | signals, status, editor, pagination | — | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | toolbar | 90 | zoom, editor, figures, status | export | `save`, `serialize`, `validate` | edit, comment |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
 | bootstrap | 120 | — | — | _infrastructure_ | * |
@@ -33,6 +33,7 @@ graph LR
   signals --> figures
   status --> figures
   editor --> figures
+  pagination --> figures
   zoom --> toolbar
   editor --> toolbar
   figures --> toolbar

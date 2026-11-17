@@ -242,8 +242,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 42072,
-      "sha384": "sha384-8HzdMXFNAJS+9IyvoybkYIsw96QH2Vx50qLMyqD2w2ntJzhWC7pf4ZxPfJwSWH3+",
+      "bytes": 42084,
+      "sha384": "sha384-mWol60QA6+kdkezCgtYOF/loN00u1Ti9rISPNRZyCEyvRs9N119273L8oOUneZto",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -252,7 +252,8 @@
       "deps": [
         "signals",
         "status",
-        "editor"
+        "editor",
+        "pagination"
       ],
       "late": [],
       "provides": [
