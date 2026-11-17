@@ -5,3 +5,10 @@ set -e
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 node build.mjs check
+
+# dist/ is committed (jsDelivr serves it at a tag). A stale or unstaged build is
+# the easiest way to make CI fail on a green local run, so refuse.
+if ! git diff --quiet -- dist; then
+  echo "pre-commit: dist/ has uncommitted changes — run 'npm run build' and 'git add dist'" >&2
+  exit 1
+fi

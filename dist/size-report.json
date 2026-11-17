@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 192881
+    "bytes": 194785
   },
   "assets": [
     {
@@ -47,12 +47,12 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 23390
+      "bytes": 25047
     },
     {
       "id": "export",
       "kind": "js",
-      "bytes": 35198
+      "bytes": 35445
     },
     {
       "id": "progress",
@@ -61,8 +61,8 @@
     }
   ],
   "flavors": {
-    "index.html": 192881,
-    "asset-bodies": 167623,
+    "index.html": 194785,
+    "asset-bodies": 169527,
     "markup-and-runtime": 25258
   },
   "notes": [
