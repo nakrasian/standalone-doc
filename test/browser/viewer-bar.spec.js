@@ -273,6 +273,17 @@ test("a broken viewer repairs itself and saves the repair", async ({ page }) => 
   expect(await reopened.evaluate(() => JSON.parse(document.getElementById("asset-manifest").textContent).cdnBase)).toBe(HEALTHY);
 });
 
+test("a document paints only the chrome its own mode builds", async ({ page }) => {
+  /* `index.html` is the source of *every* mode's assets, so it carries a viewer bar it
+     will never run. The loader hides what the mode does not own; a flavour does not even
+     carry the block. */
+  await load(page, fileUrl("index.html"));
+  await expect(page.locator("#app-toolbar")).toBeVisible();
+  /* `header#viewer-bar`: the js asset's block shares the id, so the bare selector is
+     ambiguous in the source document (a flavour never carries both). */
+  await expect(page.locator("header#viewer-bar")).toBeHidden();
+});
+
 test("an editing document carries no bar — the asset is offloaded, not built", async ({ page }) => {
   const problems = await load(page, EDITOR);
   const state = await page.evaluate(() => {

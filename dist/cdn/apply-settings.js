@@ -16,6 +16,12 @@ export function createApplySettings(deps = {}) {
        read-only copy may still want the toolbar for print or zoom. */
     root.dataset.toolbar = settings.toolbar ? "on" : "off";
 
+    /* A built flavour carries only the chrome its mode builds, but `index.html` is the
+       source of all of them and a hand-edited copy can carry a block it never runs. Paint
+       the chrome this mode owns, and only that — the bar is a viewer's. */
+    const viewerBar = document.getElementById("viewer-bar");
+    if (viewerBar) viewerBar.hidden = settings.mode !== "view";
+
     const content = document.getElementById("content");
     if (!content) return;
     if (settings.editable) content.setAttribute("contenteditable", "true");

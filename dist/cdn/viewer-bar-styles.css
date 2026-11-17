@@ -113,8 +113,11 @@ html[data-toolbar="off"] #viewer-bar {
   cursor: pointer;
 }
 
-/* A rule on the button element beats the UA sheet's `[hidden] { display: none }`, so
-   anything hidden inside the bar would still paint. Say the intent once. */
+/* Both halves of one trap: `#viewer-bar { display: flex }` and
+   `#viewer-bar button { display: inline-flex }` outrank the UA sheet's
+   `[hidden] { display: none }`, so a hidden bar (or a hidden button inside one) still
+   paints. Say the intent once, for the bar and for everything in it. */
+#viewer-bar[hidden],
 #viewer-bar [hidden] {
   display: none !important;
 }

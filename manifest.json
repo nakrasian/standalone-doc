@@ -111,8 +111,8 @@
       "order": 21,
       "tag": "style",
       "file": "src/viewer-bar-styles.css",
-      "bytes": 4492,
-      "sha384": "sha384-G+GL9RlLfomXlEdQ0qIPinqkfIdqIiJgwwaZ3YvE4S5ZnV3jCTt2uHaKP+eLKzvh",
+      "bytes": 4646,
+      "sha384": "sha384-8IfJXDr73fbT7xgHTWhRbCw3EcezE8u8iybtSGLmpzhbur0stqpS4HxYWPtc3xZd",
       "mode": "online",
       "requiredBy": [
         "view"
@@ -202,8 +202,8 @@
       "order": 7,
       "tag": "script",
       "file": "src/apply-settings.js",
-      "bytes": 1325,
-      "sha384": "sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3",
+      "bytes": 1708,
+      "sha384": "sha384-rhh0bJv4v7DaSarFFPF8W5cnOV9Hb5+J6psnWoW2LA+f1ckdjokllDl2/4TfGZAv",
       "mode": "inline",
       "requiredBy": [
         "*"

@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.6.1 — 2026-11-17
+
+### Fixed
+
+- **`index.html` painted two bars.** The source document carries every mode's chrome — a
+  flavour carries only its own — so opening it directly showed the viewer bar under the
+  ribbon. `apply-settings` now hides chrome the document's mode does not own, which also
+  covers a hand-edited copy that kept a block it will never run.
+- **`[hidden]` lost to `#viewer-bar { display: flex }`** as well as to the button rule fixed in
+  v0.6.0. One rule now covers the bar and its children: an element-selector `display` always
+  outranks the UA sheet's `[hidden] { display: none }`.
+
+### Size
+
+editor 399.3 → 399.7 KB · viewer unchanged · no new assets.
+
 ## v0.6.0 — 2026-11-17
 
 The release where a reader, not only a broken document, can move a file forward — and where

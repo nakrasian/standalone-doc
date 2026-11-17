@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 420534
+    "bytes": 421103
   },
   "assets": [
     {
@@ -37,7 +37,7 @@
     {
       "id": "viewer-bar-styles",
       "kind": "css",
-      "bytes": 5235
+      "bytes": 5401
     },
     {
       "id": "viewer-bar",
@@ -62,7 +62,7 @@
     {
       "id": "apply-settings",
       "kind": "js",
-      "bytes": 1591
+      "bytes": 1994
     },
     {
       "id": "session",
@@ -136,8 +136,8 @@
     }
   ],
   "flavors": {
-    "index.html": 420534,
-    "asset-bodies": 404525,
+    "index.html": 421103,
+    "asset-bodies": 405094,
     "markup-and-runtime": 16009,
     "dist/slim.html": 78934
   }
