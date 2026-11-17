@@ -1,18 +1,18 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 370354
+    "bytes": 376898
   },
   "assets": [
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 9658
+      "bytes": 10447
     },
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 29398
+      "bytes": 31261
     },
     {
       "id": "boot-ui-styles",
@@ -82,7 +82,7 @@
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 56443
+      "bytes": 57070
     },
     {
       "id": "policy",
@@ -97,7 +97,7 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 33210
+      "bytes": 36475
     },
     {
       "id": "export",
@@ -116,8 +116,8 @@
     }
   ],
   "flavors": {
-    "index.html": 370354,
-    "asset-bodies": 356768,
+    "index.html": 376898,
+    "asset-bodies": 363312,
     "markup-and-runtime": 13586,
     "dist/slim.html": 66209
   }

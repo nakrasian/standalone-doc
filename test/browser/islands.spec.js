@@ -200,3 +200,21 @@ test("a figure may ask for a permission without gaining capability", async ({ pa
   expect(frame.allow).toBe("fullscreen");
   expect(frame.sandbox).toBe("allow-scripts");
 });
+
+test("unsandboxed content is marked for the reader, who is never asked", async ({ page }) => {
+  const { state } = await mounted(page);
+  /* The badge is the only signal a reader gets: the author's confirmation is stored in the
+     file, and a viewer has no sheet. `data-trusted` is what the badge keys on. */
+  const marks = await page.evaluate(() =>
+    [...document.querySelectorAll("figure.figure")].map((figure) => ({
+      id: figure.dataset.figureId,
+      trusted: figure.hasAttribute("data-trusted"),
+    })),
+  );
+  expect(marks).toEqual([
+    { id: "fig-sealed", trusted: false },
+    { id: "fig-sandboxed", trusted: false },
+    { id: "fig-trusted", trusted: true },
+  ]);
+  expect(state.results["fig-trusted"].parent).toBe("reachable");
+});

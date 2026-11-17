@@ -49,6 +49,9 @@ build.mjs           split | combine | verify | check | build | report | dev  (ze
 src/                one file per asset, generated from index.html by `split`
 dist/               build output (committed: the CDN serves these at a tag)
 test/unit/          node:test suites
+test/browser/       playwright suites (chromium, webkit, firefox)
+docs/PLUGINS.md     the plugin contract: host API, contributions, islands, pinning
+plugins.json        curated plugin catalog, published as dist/registry.json
 ```
 
 `archive/` (private, gitignored) holds docs, samples, experiments and the probe lab.
@@ -98,6 +101,17 @@ the body and one `StandaloneDoc.register(...)` line below it, so the block is th
 verbatim. Each block has its own scope, and `export` is legal — no bundler, no module
 graph, nothing to resolve. `file://` therefore never needs to fetch a module. The only
 shared global is `globalThis.StandaloneDoc`.
+
+## Plugins
+
+A document can pin a plugin — a bundle of assets with a `plugins[]` record — and load it on
+demand, verified before it runs, with an in-place failure card when it is missing rather than
+a broken file. Contributions (insert, export, panel, command) are declared in the manifest and
+rendered by the host, so a plugin extends the surface without occupying it.
+
+Read `docs/PLUGINS.md` before writing one. The three island profiles it describes are
+enforced, not advisory: `sealed` has no network, `sandboxed` is today's figure sandbox, and
+`trusted` lets a plugin's *content* reach the document — which asks the author once.
 
 ## Status
 

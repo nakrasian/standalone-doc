@@ -138,6 +138,17 @@ async function openSheet(page, url) {
   return problems;
 }
 
+
+/* The fixture's catalog entry is `trusted`, so every install asks first. Confirm it, then
+   wait for the pin *and* the activation (the menu entry appears when activate() resolves). */
+async function confirmInstall(page) {
+  await page.evaluate(() => document.querySelector("[data-install]").click());
+  await page.waitForSelector("dialog.plugin-trust[open]");
+  await page.evaluate(() => document.querySelector("[data-pt-ok]").click());
+  await page.waitForFunction(() => Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}).includes("widget"));
+  await page.waitForFunction(() => document.querySelectorAll("[data-plugin-insert]").length > 0);
+}
+
 const sheetState = (page) =>
   page.evaluate(() => {
     const sheet = document.querySelector("dialog.plugin-sheet");
@@ -227,8 +238,7 @@ test("a document that carries its catalog needs no network for it", async ({ pag
   expect(state.available).toEqual(["widget"]);
   expect(state.installs).toBe(1);
 
-  await page.evaluate(() => document.querySelector("[data-install]").click());
-  await page.waitForFunction(() => Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}).includes("widget"));
+  await confirmInstall(page);
   const pinned = await page.evaluate(() => {
     const asset = JSON.parse(document.getElementById("asset-manifest").textContent).assets.find((a) => a.id === "widget");
     return { url: asset.url, integrity: asset.integrity };
@@ -242,6 +252,25 @@ test("install from the catalog pins the version's own hash", async ({ page }) =>
   await page.waitForFunction(() => !!document.querySelector("[data-install]"));
 
   await page.evaluate(() => document.querySelector("[data-install]").click());
+  /* A trusted bundle asks before it is pinned. Nothing is written until it is confirmed. */
+  await page.waitForSelector("dialog.plugin-trust[open]");
+  const asked = await page.evaluate(() => ({
+    title: document.querySelector(".plugin-trust h2").textContent,
+    what: document.querySelector(".plugin-trust .pt-what").textContent,
+    manifest: Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}),
+  }));
+  expect(asked.title).toContain("unsandboxed content");
+  expect(asked.what).toContain("read and modify this document");
+  expect(asked.manifest).toEqual([]);
+
+  /* Cancelling changes nothing… */
+  await page.evaluate(() => document.querySelector("[data-pt-cancel]").click());
+  expect(await page.evaluate(() => Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}))).toEqual([]);
+
+  /* …and confirming pins it. */
+  await page.evaluate(() => document.querySelector("[data-install]").click());
+  await page.waitForSelector("dialog.plugin-trust[open]");
+  await page.evaluate(() => document.querySelector("[data-pt-ok]").click());
   await page.waitForFunction(() => Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}).includes("widget"));
   /* The pin lands first; the menu entry appears when activate() resolves. Both are part
      of "installed", so wait for both rather than racing the second. */
@@ -355,6 +384,9 @@ test("what the sheet installs survives a save, and the sheet itself does not", a
   await page.waitForFunction(() => !!document.querySelector("[data-install]"));
   const saved = await page.evaluate(async () => {
     document.querySelector("[data-install]").click();
+    /* trusted bundle: confirm, then let the pin and the activation land */
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    document.querySelector("[data-pt-ok]").click();
     await new Promise((resolve) => setTimeout(resolve, 400));
     const serialized = await StandaloneDoc.modules.toolbar.serialize({ policy: "inline" });
     const doc = new DOMParser().parseFromString(serialized.html, "text/html");

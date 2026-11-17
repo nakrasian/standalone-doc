@@ -586,6 +586,59 @@ export function createPlugins(deps = {}) {
     }
   }
 
+  /* A plugin's *content* may run unsandboxed (island: "trusted"), which is a real
+     capability: lab/005 measured that such content can read `parent.document`. The author
+     confirms it when they add the plugin or turn it back on — and nothing separate is
+     stored, because the plugin entry in the file *is* the record of that decision. */
+  function confirmTrusted({ label, verb, detail }) {
+    return new Promise((resolve) => {
+      const dialog = element("dialog", "plugin-trust");
+      dialog.setAttribute("data-plugin-ui", "");
+      dialog.innerHTML = `
+        <div class="pt-head">
+          <h2 data-pt-title></h2>
+          <p>Declared by the plugin, at the version you are pinning.</p>
+        </div>
+        <div class="pt-body">
+          <p class="pt-what" data-pt-what></p>
+          <p class="pt-hint" data-pt-hint></p>
+        </div>
+        <div class="pt-foot">
+          <span class="pt-hint" data-pt-prepared></span>
+          <button data-pt-cancel>Cancel</button>
+          <button class="pt-go" data-pt-ok></button>
+        </div>`;
+      dialog.querySelector("[data-pt-title]").textContent = `${label} needs unsandboxed content`;
+      dialog.querySelector("[data-pt-what]").textContent = detail
+        || "This plugin's content runs with allow-same-origin: it can read and modify this document, "
+        + "including what gets saved. A sandboxed island cannot.";
+      dialog.querySelector("[data-pt-hint]").textContent =
+        "Being in this file is the record of your consent — reopening will not ask again. "
+        + "A new version that widens its access to this level asks again.";
+      dialog.querySelector("[data-pt-prepared]").textContent = `${verb} “${label}”`;
+      dialog.querySelector("[data-pt-ok]").textContent = `${verb} with unsandboxed content`;
+
+      const finish = (ok) => {
+        dialog.close();
+        dialog.remove();
+        resolve(ok);
+      };
+      dialog.querySelector("[data-pt-cancel]").addEventListener("click", () => finish(false));
+      dialog.querySelector("[data-pt-ok]").addEventListener("click", () => finish(true));
+      dialog.addEventListener("cancel", (event) => { event.preventDefault(); finish(false); });
+      document.body.append(dialog);
+      dialog.showModal();
+    });
+  }
+
+  /** Does taking this action expose unsandboxed content anywhere in the bundle? */
+  function wantsTrust(island, contributes) {
+    if (island === "trusted") return true;
+    return Object.values(contributes || {}).some(
+      (items) => Array.isArray(items) && items.some((item) => item && item.island === "trusted"),
+    );
+  }
+
   async function setEnabled(id, enabled) {
     const next = manifestJSON();
     const entry = next?.plugins?.[id];
@@ -594,6 +647,14 @@ export function createPlugins(deps = {}) {
     if (!enabled && count > 0) {
       say(`Refused — ${count} figure${count === 1 ? "" : "s"} still need ${entry.label || id}. Keep it, or turn those figures into static content first.`);
       return;
+    }
+    if (enabled && wantsTrust(entry.island, entry.contributes)) {
+      const ok = await confirmTrusted({ label: entry.label || id, verb: "Turn on" });
+      if (!ok) {
+        say(`${entry.label || id} stays off.`);
+        renderSheet();
+        return;
+      }
     }
     entry.enabled = Boolean(enabled);
     writeManifest(next);
@@ -630,6 +691,10 @@ export function createPlugins(deps = {}) {
     const next = manifestJSON();
     if (!next) return say("this document has no asset manifest");
     if (next.plugins?.[id]) return say(`${label || id} is already in this file.`);
+    if (wantsTrust(island, contributes)) {
+      const ok = await confirmTrusted({ label: label || id, verb: "Add" });
+      if (!ok) return say(`${label || id} was not added.`);
+    }
     /* Measured in lab/007: a relative url works in Firefox and fails in Chromium and
        WebKit, so it is refused rather than pinned. */
     if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url || "")) {

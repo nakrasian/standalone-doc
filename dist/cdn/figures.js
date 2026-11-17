@@ -545,7 +545,7 @@ export function createFigures(deps = {}) {
     figure.dataset.figureId = entry.id;
     figure.dataset.kind = entry.kind;
     if (entry.media) figure.dataset.media = entry.media;
-    if (entry.trusted || entry.island === "trusted") figure.dataset.trusted = "1";
+    markTrusted(figure, entry);
     figure.setAttribute("contenteditable", "false");
 
     const defaults = DEFAULT_SIZE[entry.kind] || {w: 1, h: 0.72};
@@ -572,6 +572,14 @@ export function createFigures(deps = {}) {
 
     figure.append(frame, caption);
     return figure;
+  }
+
+  /* The reader's only signal that a figure's content runs unsandboxed. Derived from the
+     store (the pin), applied at mount, and stripped on save: the file describes the island
+     in one place, and the attribute is this session's rendering of it. */
+  function markTrusted(figure, entry) {
+    if (entry && (entry.island === "trusted" || entry.trusted === true)) figure.dataset.trusted = "1";
+    else figure.removeAttribute("data-trusted");
   }
 
   /* data-w/data-h are the persisted size. data-scale is kept as the old
@@ -746,6 +754,7 @@ export function createFigures(deps = {}) {
     }
 
     figure.removeAttribute("data-missing");
+    markTrusted(figure, stored && stored.island ? stored : entry);
     if (frame.firstElementChild) {
       figure.dataset.mounted = "";
       return;
@@ -1180,6 +1189,8 @@ export function createFigures(deps = {}) {
       /* Loading/ready/failed is this session's observation of a plugin, not part of
          the figure. The store entry keeps the pin; the state does not travel. */
       figure.removeAttribute("data-plugin-state");
+      /* Derived from the store entry, so the file never carries it. */
+      figure.removeAttribute("data-trusted");
     });
     const out = {version: VERSION, figures: {}};
     const add = (id) => {
