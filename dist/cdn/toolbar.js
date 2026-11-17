@@ -325,6 +325,9 @@ export function createToolbar(deps = {}) {
       timeoutMs: settings.timeoutMs,
       never: Number(settings.thresholdDeclined) > 0,
       planned: policy.planned({}),
+      /* A release this sheet has fetched but not applied: the pin is a document fact,
+         so it lands with Done and dies with Cancel, like every other field here. */
+      repin: null,
     };
     paintDocSettings();
     if (!dialog.open) dialog.showModal();
@@ -365,8 +368,14 @@ export function createToolbar(deps = {}) {
     dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
       ? "quiet until the file doubles"
       : "the prompt returns when the file doubles";
-    dialog.querySelector("[data-ds-pin]").textContent = `@${pin}`;
+    /* A pending re-pin is shown where the pin lives, because that is what changes. */
+    dialog.querySelector("[data-ds-pin]").textContent = draft.repin ? `@${draft.repin.tag} (pending)` : `@${pin}`;
     dialog.querySelector("[data-ds-base]").textContent = base.replace(/^https?:\/\//, "");
+    const check = dialog.querySelector("[data-ds-update]");
+    check.textContent = draft.repin ? `Update to ${draft.repin.tag}` : "Check for updates…";
+    /* A document with no `catalog` and a dev base has nowhere to look: the button says
+       so instead of offering a press that can only fail. */
+    check.disabled = !registry()?.catalogUrl?.() && !draft.repin;
 
     dialog.querySelector("[data-ds-sub]").textContent = draft.mode === "edit"
       ? "Stored in this file. Behaviour applies on next open; assets apply when you save."
@@ -469,10 +478,102 @@ export function createToolbar(deps = {}) {
     if (!settingsDraft) return;
     const current = readSettingsBlock();
     const next = settingsPatch();
+    const repin = settingsDraft.repin;
     closeDocSettings();
-    if (sameBlock(current, next)) return;
-    writeSettingsBlock(next);
+    if (sameBlock(current, next) && !repin) return;
+    if (!sameBlock(current, next)) writeSettingsBlock(next);
+    if (repin) {
+      /* Only `mode: online` module assets move; a plugin's bytes are its author's and
+         an inline asset's hash describes bytes the file already has. */
+      registry().repin(repin);
+    }
     status.markDirty();
+  }
+
+  const registry = () => globalThis.StandaloneDoc;
+
+  /** `vX.Y.Z` comparison; anything unparseable sorts below a release. */
+  function newerTag(a, b) {
+    const parts = (tag) => String(tag || "").replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+    const left = parts(a);
+    const right = parts(b);
+    for (let i = 0; i < 3; i += 1) {
+      if ((left[i] || 0) !== (right[i] || 0)) return (left[i] || 0) > (right[i] || 0);
+    }
+    return false;
+  }
+
+  /**
+   * "Check for updates…" — the deliberate path to a newer release, as opposed to the
+   * failure card (which exists because the pin no longer resolves).
+   *
+   * Three rules, all of them about not lying to the author:
+   *   - Nothing is written until Done. The fetched release is a draft field.
+   *   - Failure is total. A catalog that cannot be read, or a release manifest that
+   *     does not parse, leaves the pin exactly where it was.
+   *   - The running code does not change. This window started on `@pin` and keeps it;
+   *     the *file* moves, so what you save from now on runs the new release.
+   */
+  async function checkForUpdates() {
+    const dialog = settingsDialog();
+    if (!dialog || !settingsDraft) return;
+    const button = dialog.querySelector("[data-ds-update]");
+    const note = dialog.querySelector("[data-ds-update-note]");
+    const say = (text, tone) => {
+      note.hidden = !text;
+      note.textContent = text || "";
+      if (tone) note.dataset.tone = tone;
+      else note.removeAttribute("data-tone");
+    };
+
+    if (settingsDraft.repin) {
+      /* Second press is a withdrawal, not a second fetch. */
+      settingsDraft.repin = null;
+      say("");
+      paintDocSettings();
+      return;
+    }
+    const api = registry();
+    if (!api?.catalogUrl?.()) {
+      say("This copy names no release catalog — a dev build has no moving sibling to read.", "warn");
+      return;
+    }
+
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = "Checking…";
+    say("Reading the release index…");
+    try {
+      const index = await api.catalog();
+      if (!index) {
+        say("Could not read the release index (offline, or the catalog is missing). Nothing changed.", "warn");
+        return;
+      }
+      const current = /@([^/]+)\//.exec(String(api.manifest().cdnBase || ""))?.[1] ?? null;
+      const latest = index.latest;
+      if (!current) {
+        say("This document has no tag to compare against. Nothing changed.", "warn");
+        return;
+      }
+      if (!latest || latest === current) {
+        say(`Already on the newest release (${current}).`, "ok");
+        return;
+      }
+      if (!newerTag(latest, current)) {
+        say(`The index offers ${latest}; this copy is on ${current}, which is newer. Nothing changed.`, "ok");
+        return;
+      }
+      const entry = await api.release(latest);
+      settingsDraft.repin = entry;
+      paintDocSettings();
+      say(`${latest} is available. Press Done to point this file at it: the running window keeps ${current}, and every copy you save from now on runs ${latest}.`, "ok");
+    } catch (error) {
+      /* `release()` raises a `failure` with a readable reason; either way the pin stands. */
+      say(`${error?.message || "That release could not be read"}. Nothing changed.`, "warn");
+    } finally {
+      button.disabled = false;
+      button.textContent = settingsDraft.repin ? `Update to ${settingsDraft.repin.tag}` : label;
+    }
   }
 
   /** `settings()` is the registry's normalised view; used only for the decline size. */
@@ -514,6 +615,7 @@ export function createToolbar(deps = {}) {
         repriceDraft(policy.planned({policy: name}));
       });
     });
+    dialog.querySelector("[data-ds-update]").addEventListener("click", () => { checkForUpdates(); });
     dialog.querySelector("[data-ds-cancel]").addEventListener("click", closeDocSettings);
     dialog.querySelector("[data-ds-done]").addEventListener("click", commitDocSettings);
     /* Escape, or a backdrop-free close, discards the draft. */

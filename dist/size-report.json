@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 407813
+    "bytes": 413244
   },
   "assets": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 31261
+      "bytes": 31687
     },
     {
       "id": "boot-ui-styles",
@@ -107,7 +107,7 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 51060
+      "bytes": 56010
     },
     {
       "id": "plugins",
@@ -122,7 +122,7 @@
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 4975
+      "bytes": 5030
     },
     {
       "id": "bootstrap",
@@ -131,8 +131,8 @@
     }
   ],
   "flavors": {
-    "index.html": 407813,
-    "asset-bodies": 392269,
+    "index.html": 413244,
+    "asset-bodies": 397700,
     "markup-and-runtime": 15544,
     "dist/slim.html": 78586
   }
