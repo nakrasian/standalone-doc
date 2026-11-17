@@ -19,6 +19,14 @@
   let showTimer = null;
   let lastStart = {order: [], total: 0};
   const failures = [];
+  /* The recovery flow. `offered` is the release this card proposed; `updating` is the tag
+     being applied, set before retry() so the "ready" handler knows the boot was a repair
+     rather than an ordinary start. */
+  let offered = null;
+  let updating = null;
+  /* An offer can still be in flight when a retry lands; without this the answer to a
+     question nobody is asking any more would paint itself onto the new card. */
+  let offersAllowed = true;
 
   function ensure() {
     if (ui) return ui;
@@ -38,6 +46,10 @@
       retry: dialog.querySelector("[data-boot-retry]"),
       copy: dialog.querySelector("[data-boot-copy]"),
       toggle: dialog.querySelector("[data-boot-toggle]"),
+      update: dialog.querySelector("[data-boot-update]"),
+      updateText: dialog.querySelector("[data-boot-update-text]"),
+      updateGo: dialog.querySelector("[data-boot-update-go]"),
+      continue: dialog.querySelector("[data-boot-continue]"),
     };
     wire(ui);
     return ui;
@@ -87,10 +99,16 @@
   function reset() {
     const el = ensure();
     failures.length = 0;
+    offered = null;
+    offersAllowed = true;
     if (!el) return;
     el.error.hidden = true;
     el.retry.hidden = true;
     el.toggle.hidden = true;
+    el.update.hidden = true;
+    el.updateGo.hidden = true;
+    el.updateGo.disabled = false;
+    el.continue.hidden = true;
     el.diag.hidden = true;
     el.diag.textContent = "";
     el.dialog.dataset.phase = "booting";
@@ -169,6 +187,109 @@
     clearTimeout(showTimer);
     open();
     el.retry.focus();
+    offerUpdate(failure);
+  }
+
+  /* ---------------------------------------------------------------- recovery */
+
+  /** The tag this document pins, or null for a base that is not a tag (a dev build). */
+  const pinnedTag = () => /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1] ?? null;
+
+  /**
+   * Offer a newer release when the failure looks like a stale pin.
+   *
+   * Only `integrity` and `http` qualify: those are the two ways a tag can stop serving what
+   * a document pinned. A construct error or a missing module is not a pin problem, and
+   * offering a different release would be a guess dressed as a fix.
+   *
+   * This lives in the failure card and not in Document settings on purpose: a failed boot
+   * injects no toolbar, so the sheet is unreachable exactly when it is needed (measured in
+   * lab/009).
+   */
+  async function offerUpdate(failure) {
+    const el = ensure();
+    if (!el || !["integrity", "http"].includes(failure.kind)) return;
+    const current = pinnedTag();
+    if (!current) return;
+    const index = await registry.catalog();
+    /* The card may have moved on while the catalog was in flight. */
+    if (!offersAllowed || registry.state !== "failed" || !el.error || el.error.hidden) return;
+    if (!index || !index.latest || index.latest === current) return;
+    offered = {index, from: current, to: index.latest};
+    const when = index.releases?.find((release) => release.tag === index.latest)?.date;
+    el.updateText.textContent = `${index.latest}${when ? ` (${when})` : ""} exists; this document pins ${current}. `
+      + "Updating rewrites its pin and fetches that release — nothing on disk changes until you save.";
+    el.updateGo.textContent = `Update to ${index.latest}`;
+    el.update.hidden = false;
+    el.updateGo.hidden = false;
+  }
+
+  function updateFailed(el, message) {
+    offersAllowed = false;
+    if (!el) return;
+    el.update.hidden = false;
+    el.updateText.textContent = message;
+    el.updateGo.hidden = true;
+    el.updateGo.disabled = false;
+  }
+
+  async function applyUpdate(el) {
+    const offer = offered;
+    if (!offer) return;
+    el.updateGo.disabled = true;
+    el.updateGo.textContent = `Fetching ${offer.to}…`;
+    let applied = null;
+    try {
+      const entry = await registry.release(offer.to);
+      applied = registry.repin(entry);
+    } catch (error) {
+      updateFailed(ensure(), `${offer.to} could not be read (${error && error.message ? error.message : String(error)}). Nothing was changed.`);
+      return;
+    }
+    updating = {tag: offer.to, moved: applied.moved.length, from: offer.from};
+    reset();
+    open();
+    try {
+      await registry.retry();
+    } catch {
+      /* retry() records its own failure and re-renders the card. */
+    }
+    if (registry.state !== "ready") {
+      /* Failure is total: put the document's own pin back, and say so. The card keeps the
+         failure it just rendered, so the reader still has the real error in front of them. */
+      const tag = updating?.tag;
+      updating = null;
+      applied.restore();
+      updateFailed(ensure(), `${tag} did not load either. This document's own pin was restored; nothing was changed on disk.`);
+    }
+  }
+
+  function renderRepaired(el) {
+    const done = updating;
+    updating = null;
+    if (!el || !done) return;
+    const canSave = !!document.querySelector("[data-save]");
+    el.dialog.dataset.phase = "ready";
+    el.title.textContent = `Updated to ${done.tag}`;
+    el.sub.textContent = `${done.moved} fetched asset${done.moved === 1 ? "" : "s"} re-pinned from ${done.from}`;
+    el.error.hidden = true;
+    el.errorBody.textContent = "";
+    el.retry.hidden = true;
+    el.toggle.hidden = true;
+    el.copy.hidden = true;
+    el.update.hidden = true;
+    el.updateGo.hidden = true;
+    el.continue.hidden = false;
+    /* The repair is in memory. A viewer has no save button, and saying "save the file" to
+       a document that cannot write itself would be a lie (lab/009, finding 3). */
+    el.update.hidden = false;
+    el.updateText.textContent = canSave
+      ? "Save the file to keep this update. Until you do, the repaired pin lives in this tab only."
+      : "This document is read-only, so the update lasts for this session only.";
+    el.updateGo.hidden = true;
+    clearTimeout(showTimer);
+    open();
+    el.continue.focus();
   }
 
   function wire(el) {
@@ -182,6 +303,15 @@
       } catch {
         /* retry() re-emits "failed", which renders the card again. */
       }
+    });
+
+    el.updateGo.addEventListener("click", () => {
+      applyUpdate(el);
+    });
+
+    el.continue.addEventListener("click", () => {
+      reset();
+      close();
     });
 
     el.toggle.addEventListener("click", () => {
@@ -261,6 +391,10 @@
     const el = ensure();
     setBar(1);
     if (!el) return;
+    if (updating) {
+      renderRepaired(el);
+      return;
+    }
     el.dialog.dataset.phase = "ready";
     el.sub.textContent = `Ready · ${detail.count} modules`;
     close();

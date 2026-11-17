@@ -1,9 +1,22 @@
 # Changelog
 
-## Unreleased
+## v0.4.0 — 2026-11-17
+
+A document whose pin no longer resolves can repair itself. The failure card offers the newest
+release, re-pins what the document actually fetches, and retries — the reader's content never
+leaves the screen.
 
 ### Added
 
+- **Recovery in the failure card.** When boot fails with `integrity` or `http`, the card reads
+  the runtime catalog and offers the release it names. Applying it fetches that release's
+  manifest, rewrites `url`/`integrity`/`bytes` for the assets this document *fetches*, leaves
+  `mode`, inline blocks and plugin pins untouched, and retries. A failed attempt restores the
+  document's own pin. Nothing reaches disk until the reader saves, and a view-mode document —
+  which cannot save — is told the repair lasts for this session.
+- **`catalog` in `#asset-manifest`** (authored in `manifest.json`): where to hear about newer
+  releases. Defaults to the base's moving sibling (`@main`), because a tag can only describe
+  itself.
 - **`build --base=<url> --out=<dir>`** builds the three flavours re-pointed at another base
   with `integrity`, `bytes` and every `mode` untouched — a hash never moves, only the address.
   It is what a development loop needs: `--base=http://127.0.0.1:8080/dist/cdn` plus

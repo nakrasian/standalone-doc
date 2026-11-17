@@ -48,8 +48,8 @@
       "order": 25,
       "tag": "style",
       "file": "src/boot-ui-styles.css",
-      "bytes": 5412,
-      "sha384": "sha384-TfWVpqje1Voq28whlcJV1xj2r1kOl9IUuQ7GL0DceNHoJBZ9wB62sINLpQaAX2B6",
+      "bytes": 6015,
+      "sha384": "sha384-3aY+1E8PDLBPBte2aTFs1kuoO94yYz+Fhp/hk+bFXxwBFocyrSnOMB7AGFB4Uerv",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -111,8 +111,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 34492,
-      "sha384": "sha384-q/MX4VK3ZvNvKEinuvR8grLVttaqlGl8qslBoKKRQ8f984vRmQ2Wb/LgcoH46G/3",
+      "bytes": 38134,
+      "sha384": "sha384-i+tUp3SIKZbBi9t6IGuxLzzV9E8G1Qvo40Iz4qlAu3QdGVN68W/BknCyvKRxR0I8",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -126,8 +126,8 @@
       "order": 6,
       "tag": "script",
       "file": "src/boot-ui.js",
-      "bytes": 10134,
-      "sha384": "sha384-wKrp69TrnHqRH1RS5uYiZoTuOP7X5fFIN0Tcz2ttREsOl+s1MOje/cUzGBBSp7KY",
+      "bytes": 15586,
+      "sha384": "sha384-xDYX0hG/0p4EEa5oHYOt51QRYPpAcCCbvAGaHMIbJ0JbMBDsTmZF3SeGVRaH0+lx",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -526,5 +526,6 @@
       "role": "infra",
       "label": "Bootstrap"
     }
-  ]
+  ],
+  "catalog": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"
 }

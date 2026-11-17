@@ -109,6 +109,16 @@
     #boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
     #boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
 
+    /* Recovery: a newer release exists. Deliberately inside the error card — the settings
+       sheet is unreachable here, because a failed boot injects no toolbar. */
+    #boot-dialog .boot-update {
+      margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--boot-line); border-radius: 8px;
+      background: var(--boot-paper); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    #boot-dialog .boot-update[hidden] { display: none; }
+    #boot-dialog .boot-update-text { margin: 0; flex: 1 1 220px; font-size: 12.5px; color: var(--boot-ink); }
+    #boot-dialog .boot-update-go[hidden] { display: none; }
+
     #boot-dialog .boot-diag {
       margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
       background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -179,6 +189,10 @@
         <div>
           <p class="boot-error-title" data-boot-error-title></p>
           <p class="boot-error-body" data-boot-error-body></p>
+          <div class="boot-update" data-boot-update hidden>
+            <p class="boot-update-text" data-boot-update-text></p>
+            <button type="button" class="primary" data-boot-update-go hidden>Update</button>
+          </div>
           <pre class="boot-diag" data-boot-diag hidden></pre>
         </div>
       </div>
@@ -187,12 +201,13 @@
       <button type="button" data-boot-toggle hidden>Diagnostics</button>
       <span class="spacer"></span>
       <button type="button" data-boot-copy hidden>Copy diagnostics</button>
-      <button type="button" class="primary" data-boot-retry hidden>Retry</button>
+      <button type="button" data-boot-retry hidden>Retry</button>
+      <button type="button" class="primary" data-boot-continue hidden>Continue</button>
     </div>
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"online","requiredBy":["*"],"bytes":9060,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/page-styles.css","integrity":"sha384-51khLdAdDMaNJs+a33rdstpihIn4iBAd0LAP/Id8roTkAsl1kh49vY0oHF/vE70D"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"online","requiredBy":["edit"],"bytes":27618,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/toolbar-styles.css","integrity":"sha384-UJ7Ni9/aio5xS7DiNdg4jpcdv4xeuZiUugk+1wAC0nIOGIscmOJpRZb6QcRbp2BC"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"online","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"online","requiredBy":["edit"],"bytes":15664,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/toolbar-markup.html","integrity":"sha384-aTWXYs9oPMEYi5IlCEaPEr2derZp9mIC9vN0ei9zRCowlTM1vNxajf9euFOCKcGd"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"online","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":34492,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":10134,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"online","requiredBy":["*"],"bytes":1325,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/apply-settings.js","integrity":"sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"online","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"online","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"online","requiredBy":["*"],"bytes":6964,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"online","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"online","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"online","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"online","requiredBy":["*"],"bytes":55445,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/figures.js","integrity":"sha384-RqO4QfWrf5ZWxNVadubcZ9rcnvblIj6Y3ce+9/m7p6gVAXjiQKFDuRlwidgXjuYe"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"online","requiredBy":["edit"],"bytes":17205,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/policy.js","integrity":"sha384-YIyJDvR38Z1+jA7a1xDlbWKZv1HR5cov9bPLfRi+57szs3QloXzTUHAAt7hJOUUw"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"online","requiredBy":["edit"],"bytes":45188,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/toolbar.js","integrity":"sha384-Jz1cqNdAWo9PEKAtD1VVy3X9/o4Qro7TKznhEXBZYm7PLEHvr0q4+8SWvphV06aM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"online","requiredBy":["edit"],"bytes":33708,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/plugins.js","integrity":"sha384-omasqaoiHeJBnRraXQKWrryETmkJtp+jqD+uHhl+PKbr+6tpUxG2+VZmOT/FNfWk"},{"id":"export","kind":"js","role":"module","order":100,"mode":"online","requiredBy":["edit"],"bytes":33881,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"online","requiredBy":["edit"],"bytes":4753,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/dialogs.html","integrity":"sha384-8g6mUBg+JRWqy+Bdrv9lwlbd+j5zFDcV91qqI11svB4FL6DyY3p56LjV79lk3Kfj"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"online","requiredBy":["*"],"bytes":9060,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/page-styles.css","integrity":"sha384-51khLdAdDMaNJs+a33rdstpihIn4iBAd0LAP/Id8roTkAsl1kh49vY0oHF/vE70D"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"online","requiredBy":["edit"],"bytes":27618,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/toolbar-styles.css","integrity":"sha384-UJ7Ni9/aio5xS7DiNdg4jpcdv4xeuZiUugk+1wAC0nIOGIscmOJpRZb6QcRbp2BC"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6015,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"online","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"online","requiredBy":["edit"],"bytes":15664,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/toolbar-markup.html","integrity":"sha384-aTWXYs9oPMEYi5IlCEaPEr2derZp9mIC9vN0ei9zRCowlTM1vNxajf9euFOCKcGd"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"online","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":38134,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":15586,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"online","requiredBy":["*"],"bytes":1325,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/apply-settings.js","integrity":"sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"online","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"online","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"online","requiredBy":["*"],"bytes":6964,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"online","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"online","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"online","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"online","requiredBy":["*"],"bytes":55445,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/figures.js","integrity":"sha384-RqO4QfWrf5ZWxNVadubcZ9rcnvblIj6Y3ce+9/m7p6gVAXjiQKFDuRlwidgXjuYe"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"online","requiredBy":["edit"],"bytes":17205,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/policy.js","integrity":"sha384-YIyJDvR38Z1+jA7a1xDlbWKZv1HR5cov9bPLfRi+57szs3QloXzTUHAAt7hJOUUw"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"online","requiredBy":["edit"],"bytes":45188,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/toolbar.js","integrity":"sha384-Jz1cqNdAWo9PEKAtD1VVy3X9/o4Qro7TKznhEXBZYm7PLEHvr0q4+8SWvphV06aM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"online","requiredBy":["edit"],"bytes":33708,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/plugins.js","integrity":"sha384-omasqaoiHeJBnRraXQKWrryETmkJtp+jqD+uHhl+PKbr+6tpUxG2+VZmOT/FNfWk"},{"id":"export","kind":"js","role":"module","order":100,"mode":"online","requiredBy":["edit"],"bytes":33881,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"online","requiredBy":["edit"],"bytes":4753,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.3.1/dist/cdn/dialogs.html","integrity":"sha384-8g6mUBg+JRWqy+Bdrv9lwlbd+j5zFDcV91qqI11svB4FL6DyY3p56LjV79lk3Kfj"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -323,6 +338,97 @@
           thresholdDeclined: Number(authored?.thresholdDeclined) || 0,
         };
         return settingsParsed;
+      }
+
+      /* ------------------------------------------------------------ release catalog */
+
+      /**
+       * Where a document hears about a newer release. `cdnBase` is a tag, and a tag can only
+       * describe itself, so the news lives at its moving sibling (`@main`); `catalog` in the
+       * manifest overrides that. Reading it changes nothing — what it names is verified against
+       * the hashes this document writes into itself, so a lying catalog costs an update, never
+       * correctness.
+       */
+      function catalogUrl() {
+        const doc = manifest();
+        if (doc.catalog) return doc.catalog;
+        const base = String(doc.cdnBase || "").replace(/\/$/, "");
+        if (!/@[^/]+\/dist\/cdn$/.test(base)) return null; /* a dev base has no moving sibling */
+        return base.replace(/@[^/]+/, "@main").replace(/\/cdn$/, "/runtime.json");
+      }
+
+      async function fetchJSON(url, timeoutMs) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return await response.json();
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      /** The release index, or null. Never a document failure: nothing is recorded. */
+      async function catalog() {
+        const url = catalogUrl();
+        if (!url) return null;
+        try {
+          const data = await fetchJSON(url, 6000);
+          return data && Array.isArray(data.releases) ? { ...data, url } : null;
+        } catch {
+          return null;
+        }
+      }
+
+      /** One release's asset table, read from beside the index and shape-checked. */
+      async function release(tag) {
+        const dir = catalogUrl()?.replace(/[^/]*$/, "");
+        if (!dir) throw failure("update", tag, "this document names no catalog to read");
+        try {
+          const data = await fetchJSON(`${dir}runtime/${tag}.json`, 8000);
+          const usable = data && data.tag === tag && typeof data.base === "string"
+            && Array.isArray(data.assets)
+            && data.assets.every((a) => a && a.id && a.sha384 && a.url);
+          if (!usable) throw new Error("not a release");
+          return data;
+        } catch (error) {
+          throw failure("update", tag, `its release manifest could not be read (${error.message})`);
+        }
+      }
+
+      /**
+       * Move this document's pin onto a release; returns how to undo it. Only assets the
+       * document *fetches* move: an inline asset's hash describes bytes the file already has,
+       * and a pinned plugin's bytes are its author's. `mode` is the save policy's business, so
+       * a re-pin never re-inlines or drops anything as a side effect.
+       */
+      function repin(entry) {
+        const el = document.getElementById("asset-manifest");
+        if (!el) throw failure("update", entry.tag, "this document has no asset manifest to rewrite");
+        const before = el.textContent;
+        const doc = JSON.parse(before);
+        const byId = new Map(doc.assets.map((asset) => [asset.id, asset]));
+        const moved = [];
+        for (const remote of entry.assets) {
+          const mine = byId.get(remote.id);
+          if (!mine || mine.role === "infra" || mine.plugin || mine.mode !== "online") continue;
+          mine.url = remote.url;
+          mine.integrity = remote.sha384;
+          if (typeof remote.bytes === "number") mine.bytes = remote.bytes;
+          moved.push(remote.id);
+        }
+        doc.cdnBase = entry.base;
+        el.textContent = JSON.stringify(doc);
+        reloadManifest();
+        return {
+          moved,
+          tag: entry.tag,
+          restore() {
+            el.textContent = before;
+            reloadManifest();
+          },
+        };
       }
 
       function on(event, fn) {
@@ -1033,6 +1139,10 @@
         retry,
         order,
         manifest,
+        catalogUrl,
+        catalog,
+        release,
+        repin,
         modules,
         factories,
         errors,
@@ -1066,6 +1176,14 @@
       let showTimer = null;
       let lastStart = {order: [], total: 0};
       const failures = [];
+      /* The recovery flow. `offered` is the release this card proposed; `updating` is the tag
+         being applied, set before retry() so the "ready" handler knows the boot was a repair
+         rather than an ordinary start. */
+      let offered = null;
+      let updating = null;
+      /* An offer can still be in flight when a retry lands; without this the answer to a
+         question nobody is asking any more would paint itself onto the new card. */
+      let offersAllowed = true;
 
       function ensure() {
         if (ui) return ui;
@@ -1085,6 +1203,10 @@
           retry: dialog.querySelector("[data-boot-retry]"),
           copy: dialog.querySelector("[data-boot-copy]"),
           toggle: dialog.querySelector("[data-boot-toggle]"),
+          update: dialog.querySelector("[data-boot-update]"),
+          updateText: dialog.querySelector("[data-boot-update-text]"),
+          updateGo: dialog.querySelector("[data-boot-update-go]"),
+          continue: dialog.querySelector("[data-boot-continue]"),
         };
         wire(ui);
         return ui;
@@ -1134,10 +1256,16 @@
       function reset() {
         const el = ensure();
         failures.length = 0;
+        offered = null;
+        offersAllowed = true;
         if (!el) return;
         el.error.hidden = true;
         el.retry.hidden = true;
         el.toggle.hidden = true;
+        el.update.hidden = true;
+        el.updateGo.hidden = true;
+        el.updateGo.disabled = false;
+        el.continue.hidden = true;
         el.diag.hidden = true;
         el.diag.textContent = "";
         el.dialog.dataset.phase = "booting";
@@ -1216,6 +1344,109 @@
         clearTimeout(showTimer);
         open();
         el.retry.focus();
+        offerUpdate(failure);
+      }
+
+      /* ---------------------------------------------------------------- recovery */
+
+      /** The tag this document pins, or null for a base that is not a tag (a dev build). */
+      const pinnedTag = () => /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1] ?? null;
+
+      /**
+       * Offer a newer release when the failure looks like a stale pin.
+       *
+       * Only `integrity` and `http` qualify: those are the two ways a tag can stop serving what
+       * a document pinned. A construct error or a missing module is not a pin problem, and
+       * offering a different release would be a guess dressed as a fix.
+       *
+       * This lives in the failure card and not in Document settings on purpose: a failed boot
+       * injects no toolbar, so the sheet is unreachable exactly when it is needed (measured in
+       * lab/009).
+       */
+      async function offerUpdate(failure) {
+        const el = ensure();
+        if (!el || !["integrity", "http"].includes(failure.kind)) return;
+        const current = pinnedTag();
+        if (!current) return;
+        const index = await registry.catalog();
+        /* The card may have moved on while the catalog was in flight. */
+        if (!offersAllowed || registry.state !== "failed" || !el.error || el.error.hidden) return;
+        if (!index || !index.latest || index.latest === current) return;
+        offered = {index, from: current, to: index.latest};
+        const when = index.releases?.find((release) => release.tag === index.latest)?.date;
+        el.updateText.textContent = `${index.latest}${when ? ` (${when})` : ""} exists; this document pins ${current}. `
+          + "Updating rewrites its pin and fetches that release — nothing on disk changes until you save.";
+        el.updateGo.textContent = `Update to ${index.latest}`;
+        el.update.hidden = false;
+        el.updateGo.hidden = false;
+      }
+
+      function updateFailed(el, message) {
+        offersAllowed = false;
+        if (!el) return;
+        el.update.hidden = false;
+        el.updateText.textContent = message;
+        el.updateGo.hidden = true;
+        el.updateGo.disabled = false;
+      }
+
+      async function applyUpdate(el) {
+        const offer = offered;
+        if (!offer) return;
+        el.updateGo.disabled = true;
+        el.updateGo.textContent = `Fetching ${offer.to}…`;
+        let applied = null;
+        try {
+          const entry = await registry.release(offer.to);
+          applied = registry.repin(entry);
+        } catch (error) {
+          updateFailed(ensure(), `${offer.to} could not be read (${error && error.message ? error.message : String(error)}). Nothing was changed.`);
+          return;
+        }
+        updating = {tag: offer.to, moved: applied.moved.length, from: offer.from};
+        reset();
+        open();
+        try {
+          await registry.retry();
+        } catch {
+          /* retry() records its own failure and re-renders the card. */
+        }
+        if (registry.state !== "ready") {
+          /* Failure is total: put the document's own pin back, and say so. The card keeps the
+             failure it just rendered, so the reader still has the real error in front of them. */
+          const tag = updating?.tag;
+          updating = null;
+          applied.restore();
+          updateFailed(ensure(), `${tag} did not load either. This document's own pin was restored; nothing was changed on disk.`);
+        }
+      }
+
+      function renderRepaired(el) {
+        const done = updating;
+        updating = null;
+        if (!el || !done) return;
+        const canSave = !!document.querySelector("[data-save]");
+        el.dialog.dataset.phase = "ready";
+        el.title.textContent = `Updated to ${done.tag}`;
+        el.sub.textContent = `${done.moved} fetched asset${done.moved === 1 ? "" : "s"} re-pinned from ${done.from}`;
+        el.error.hidden = true;
+        el.errorBody.textContent = "";
+        el.retry.hidden = true;
+        el.toggle.hidden = true;
+        el.copy.hidden = true;
+        el.update.hidden = true;
+        el.updateGo.hidden = true;
+        el.continue.hidden = false;
+        /* The repair is in memory. A viewer has no save button, and saying "save the file" to
+           a document that cannot write itself would be a lie (lab/009, finding 3). */
+        el.update.hidden = false;
+        el.updateText.textContent = canSave
+          ? "Save the file to keep this update. Until you do, the repaired pin lives in this tab only."
+          : "This document is read-only, so the update lasts for this session only.";
+        el.updateGo.hidden = true;
+        clearTimeout(showTimer);
+        open();
+        el.continue.focus();
       }
 
       function wire(el) {
@@ -1229,6 +1460,15 @@
           } catch {
             /* retry() re-emits "failed", which renders the card again. */
           }
+        });
+
+        el.updateGo.addEventListener("click", () => {
+          applyUpdate(el);
+        });
+
+        el.continue.addEventListener("click", () => {
+          reset();
+          close();
         });
 
         el.toggle.addEventListener("click", () => {
@@ -1308,6 +1548,10 @@
         const el = ensure();
         setBar(1);
         if (!el) return;
+        if (updating) {
+          renderRepaired(el);
+          return;
+        }
         el.dialog.dataset.phase = "ready";
         el.sub.textContent = `Ready · ${detail.count} modules`;
         close();

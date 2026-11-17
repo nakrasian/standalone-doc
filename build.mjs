@@ -356,6 +356,9 @@ function buildManifest(assets, previous) {
   /* The plugin index is authored, like `settings`: the build cannot derive a label,
      a default island profile or a contribution list. It travels verbatim. */
   if (previous?.plugins) manifest.plugins = previous.plugins;
+  /* Where to look for a newer release. Authored, because only the document's owner knows
+     which host may name one; the loader falls back to the base's moving sibling. */
+  if (previous?.catalog) manifest.catalog = previous.catalog;
   return { manifest, preserved };
 }
 
@@ -414,6 +417,8 @@ function docManifest(manifest, overrides = {}) {
   /* Only when there is something to say: an empty index in every document would be
      bytes spent on saying nothing. */
   if (manifest.plugins && Object.keys(manifest.plugins).length) doc.plugins = manifest.plugins;
+  /* A recovery address, not a dependency: a document that cannot reach it still opens. */
+  if (manifest.catalog) doc.catalog = manifest.catalog;
   return doc;
 }
 
@@ -881,7 +886,11 @@ async function cmdCheck() {
      document that is committed, because every fetch from it then promises bytes no
      server keeps (that is exactly how the v0.3.0 slim stopped opening). */
   try {
-    const base = String(readManifest().cdnBase || "");
+    const authored = readManifest();
+    if (authored.catalog && !/^https:\/\/\S+$/.test(authored.catalog)) {
+      all.push(`manifest.json catalog must be an absolute https url: ${authored.catalog}`);
+    }
+    const base = String(authored.cdnBase || "");
     if (!/@v\d+\.\d+\.\d+(\/|$)/.test(base)) {
       all.push(`manifest.json cdnBase is not a release tag: ${base} — use \`build --base --out\` for a dev build`);
     }

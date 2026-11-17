@@ -62,6 +62,21 @@ The catalog is advisory in the same sense as `dist/registry.json`: it costs conv
 lies or disappears, never correctness — whatever it names is still verified against the
 hashes the document carries after re-pinning.
 
+### Repairing a document whose pin no longer resolves
+
+A tag can stop serving what a document pinned: a rebuild without a release, a force-moved
+tag, a tampered CDN. The document's own failure is already on screen — the content is parsed
+and rendered — so the failure card is where the way out lives (Document settings is
+unreachable there: a failed boot injects no toolbar).
+
+It offers the catalog's newest release when the failure is `integrity` or `http`, and applies
+it like this: fetch that release's manifest, rewrite `url`/`integrity`/`bytes` **for the
+assets this document fetches**, leave `mode`, inline blocks and plugin pins alone, then
+retry. Nothing is written to disk until you save, and the card says so; a document that
+cannot save (a viewer) is told the repair lasts for this session. If the new release does not
+load either, the document's own pin is restored and the card says so — a failed update
+changes nothing.
+
 ## Quick start
 
 No dependencies to install. Node 20+.

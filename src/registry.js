@@ -128,6 +128,97 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return settingsParsed;
   }
 
+  /* ------------------------------------------------------------ release catalog */
+
+  /**
+   * Where a document hears about a newer release. `cdnBase` is a tag, and a tag can only
+   * describe itself, so the news lives at its moving sibling (`@main`); `catalog` in the
+   * manifest overrides that. Reading it changes nothing — what it names is verified against
+   * the hashes this document writes into itself, so a lying catalog costs an update, never
+   * correctness.
+   */
+  function catalogUrl() {
+    const doc = manifest();
+    if (doc.catalog) return doc.catalog;
+    const base = String(doc.cdnBase || "").replace(/\/$/, "");
+    if (!/@[^/]+\/dist\/cdn$/.test(base)) return null; /* a dev base has no moving sibling */
+    return base.replace(/@[^/]+/, "@main").replace(/\/cdn$/, "/runtime.json");
+  }
+
+  async function fetchJSON(url, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** The release index, or null. Never a document failure: nothing is recorded. */
+  async function catalog() {
+    const url = catalogUrl();
+    if (!url) return null;
+    try {
+      const data = await fetchJSON(url, 6000);
+      return data && Array.isArray(data.releases) ? { ...data, url } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** One release's asset table, read from beside the index and shape-checked. */
+  async function release(tag) {
+    const dir = catalogUrl()?.replace(/[^/]*$/, "");
+    if (!dir) throw failure("update", tag, "this document names no catalog to read");
+    try {
+      const data = await fetchJSON(`${dir}runtime/${tag}.json`, 8000);
+      const usable = data && data.tag === tag && typeof data.base === "string"
+        && Array.isArray(data.assets)
+        && data.assets.every((a) => a && a.id && a.sha384 && a.url);
+      if (!usable) throw new Error("not a release");
+      return data;
+    } catch (error) {
+      throw failure("update", tag, `its release manifest could not be read (${error.message})`);
+    }
+  }
+
+  /**
+   * Move this document's pin onto a release; returns how to undo it. Only assets the
+   * document *fetches* move: an inline asset's hash describes bytes the file already has,
+   * and a pinned plugin's bytes are its author's. `mode` is the save policy's business, so
+   * a re-pin never re-inlines or drops anything as a side effect.
+   */
+  function repin(entry) {
+    const el = document.getElementById("asset-manifest");
+    if (!el) throw failure("update", entry.tag, "this document has no asset manifest to rewrite");
+    const before = el.textContent;
+    const doc = JSON.parse(before);
+    const byId = new Map(doc.assets.map((asset) => [asset.id, asset]));
+    const moved = [];
+    for (const remote of entry.assets) {
+      const mine = byId.get(remote.id);
+      if (!mine || mine.role === "infra" || mine.plugin || mine.mode !== "online") continue;
+      mine.url = remote.url;
+      mine.integrity = remote.sha384;
+      if (typeof remote.bytes === "number") mine.bytes = remote.bytes;
+      moved.push(remote.id);
+    }
+    doc.cdnBase = entry.base;
+    el.textContent = JSON.stringify(doc);
+    reloadManifest();
+    return {
+      moved,
+      tag: entry.tag,
+      restore() {
+        el.textContent = before;
+        reloadManifest();
+      },
+    };
+  }
+
   function on(event, fn) {
     (listeners[event] || (listeners[event] = [])).push(fn);
     return function off() {
@@ -836,6 +927,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     retry,
     order,
     manifest,
+    catalogUrl,
+    catalog,
+    release,
+    repin,
     modules,
     factories,
     errors,

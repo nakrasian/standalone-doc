@@ -100,6 +100,16 @@ html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boo
 #boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
 #boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
 
+/* Recovery: a newer release exists. Deliberately inside the error card — the settings
+   sheet is unreachable here, because a failed boot injects no toolbar. */
+#boot-dialog .boot-update {
+  margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--boot-line); border-radius: 8px;
+  background: var(--boot-paper); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+#boot-dialog .boot-update[hidden] { display: none; }
+#boot-dialog .boot-update-text { margin: 0; flex: 1 1 220px; font-size: 12.5px; color: var(--boot-ink); }
+#boot-dialog .boot-update-go[hidden] { display: none; }
+
 #boot-dialog .boot-diag {
   margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
   background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
