@@ -18,8 +18,8 @@
       "order": 10,
       "tag": "style",
       "file": "src/page-styles.css",
-      "bytes": 7595,
-      "sha384": "sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh",
+      "bytes": 8351,
+      "sha384": "sha384-SWejN7+ENvY5pMbPJ10EKweXiM/o+8BOvpQ35Z//Wgc8r5Asy/G30GQ8NC8Vdn6j",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -308,8 +308,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 42354,
-      "sha384": "sha384-3CDpokYFxuAJVKVDMlje2/7VTdlAWzGV/srOMEUdlF864RXZM6kl//NvEIGruc7V",
+      "bytes": 46824,
+      "sha384": "sha384-YCARHJyB+jKCRm3zu5vA5H57OJ0f3zmiNM9KAtvNv+soR0Hw2FEAloYp6bMs/xK7",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -337,6 +337,7 @@
         "resumeObserver",
         "snapshot",
         "captureAll",
+        "pluginUsage",
         "setScale",
         "setDimension",
         "resetSize",
@@ -348,7 +349,8 @@
         "savedStoreBytes",
         "store",
         "selected"
-      ]
+      ],
+      "env": true
     },
     {
       "id": "policy",

@@ -198,6 +198,7 @@
         "resumeObserver",
         "snapshot",
         "captureAll",
+        "pluginUsage",
         "setScale",
         "setDimension",
         "resetSize",

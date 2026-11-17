@@ -25,6 +25,7 @@ const policy = createPolicy({ figures: null, settings: { mode: "edit" }, env: {}
 
 /** id -> target, for readable assertions. */
 const targets = (planned) => Object.fromEntries(planned.decisions.map((d) => [d.id, d.to]));
+const targetMap = targets;
 
 test("inline puts everything the mode needs in the file", () => {
   const edit = targets(policy.plan(manifest, {policy: "inline", mode: "edit"}));
@@ -133,4 +134,41 @@ test("the estimate counts the inline bytes plus the rest of the document", () =>
   const infraBytes = 10_000 + 10_000 + 300;
   assert.equal(planned.inlineBytes, infraBytes);
   assert.equal(planned.estimate, 5_000 + infraBytes);
+});
+
+/* A plugin is priced by use, and a used plugin is never absent. `usage` is the count
+   of figures that need it (figures.pluginUsage()); the category is what tells the
+   policy the asset is a plugin at all. */
+test("a plugin is absent unless a figure needs it, and never absent once one does", () => {
+  const withPlugin = {
+    assets: [
+      ...ASSETS.map((asset) => ({...asset, mode: "inline"})),
+      {id: "mermaid", kind: "js", order: 200, category: "plugin", requiredBy: ["*"], mode: "online", bytes: 860_000},
+    ],
+  };
+
+  const unused = targetMap(policy.plan(withPlugin, {policy: "inline", mode: "edit", usage: {}}));
+  assert.equal(unused.mermaid, "absent", "an unused plugin is not in the file");
+
+  const used = targetMap(policy.plan(withPlugin, {policy: "inline", mode: "edit", usage: {mermaid: 2}}));
+  assert.equal(used.mermaid, "inline", "a used plugin follows the preset like any asset");
+
+  const slim = targetMap(policy.plan(withPlugin, {policy: "slim", mode: "edit", usage: {mermaid: 1}}));
+  assert.equal(slim.mermaid, "online", "and in slim it goes by reference, not away");
+});
+
+test("an override cannot keep an unused plugin in the file", () => {
+  const withPlugin = {
+    assets: [
+      ...ASSETS.map((asset) => ({...asset, mode: "inline"})),
+      {id: "mermaid", kind: "js", order: 200, category: "plugin", requiredBy: ["*"], mode: "online", bytes: 860_000},
+    ],
+  };
+  const planned = policy.plan(withPlugin, {
+    policy: "inline",
+    mode: "edit",
+    usage: {},
+    overrides: {mermaid: "inline"},
+  });
+  assert.equal(targetMap(planned).mermaid, "absent", "the category rule is decided before the override");
 });

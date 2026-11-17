@@ -1,5 +1,5 @@
 export function createFigures(deps = {}) {
-  const {signals, pagination} = deps;
+  const {signals, pagination, env} = deps;
   /* Editing concerns. A view-mode document mounts figures to render islands but
      has neither module, so these are optional edges rather than dependencies:
      the getters return undefined, and every call site tolerates that. */
@@ -591,6 +591,85 @@ export function createFigures(deps = {}) {
     return tag + html;
   }
 
+  /* ---- plugins ---------------------------------------------------------
+     A figure may need a plugin. The plugin is not part of this module: it is built
+     on demand, verified, and may be absent — in which case the figure keeps its
+     place in the document and says why. A missing plugin is a missing *view*, never
+     a missing figure: the element and its store entry are untouched, so the file is
+     byte-stable and the plugin can be added later. */
+  const pluginOf = (entry) => (entry && entry.plugin && entry.plugin.id ? entry.plugin : null);
+
+  /* How many figures in this document need each plugin. The count is what the
+     settings sheet shows and what the save policy floors on; whether the plugin is
+     in the file is still the author's choice. */
+  function pluginUsage() {
+    const usage = {};
+    for (const figure of content.querySelectorAll("figure.figure")) {
+      const plugin = pluginOf(store.figures[figure.dataset.figureId]);
+      if (!plugin) continue;
+      usage[plugin.id] = (usage[plugin.id] || 0) + 1;
+    }
+    return usage;
+  }
+
+  /* Short, because it sits in a figure frame: the reason, not the diagnosis. */
+  function pluginReason(error) {
+    switch (error && error.kind) {
+      case "unresolved": return "not in this copy of the file";
+      case "disabled": return "switched off in this document";
+      case "integrity": return "its bytes do not match the pinned hash";
+      case "api": return "it needs a newer version of this document";
+      case "stale": return "it was unloaded while loading";
+      default: return (error && error.message) || "it could not be loaded";
+    }
+  }
+
+  function pluginNotice(figure, state, error) {
+    const frame = figure.querySelector(".figure-frame");
+    if (!frame) return;
+    const plugin = pluginOf(store.figures[figure.dataset.figureId]) || {};
+    const label = plugin.label || plugin.id || "A plugin";
+    const failed = state === "failed";
+    const notice = document.createElement("div");
+    notice.className = "figure-plugin";
+    notice.dataset.state = state;
+    notice.textContent = failed ? `Needs ${label} — ${pluginReason(error)}. Click to retry.` : `Loading ${label}…`;
+    if (failed) {
+      notice.onclick = () => {
+        /* The only automatic retry is none: a failing plugin must not refetch on
+           every scroll. A click is deliberate. */
+        delete figure.dataset.pluginState;
+        frame.replaceChildren();
+        mount(figure);
+      };
+    }
+    frame.replaceChildren(notice);
+  }
+
+  async function mountWithPlugin(figure, plugin) {
+    const registry = env && env.StandaloneDoc;
+    if (!registry || typeof registry.require !== "function") {
+      figure.dataset.pluginState = "failed";
+      pluginNotice(figure, "failed", { kind: "unresolved" });
+      return;
+    }
+    figure.dataset.pluginState = "loading";
+    pluginNotice(figure, "loading");
+    try {
+      await registry.require(plugin.id);
+      /* Scrolled away, or unloaded, while the bytes were in flight. */
+      if (!figure.isConnected || figure.dataset.pluginState !== "loading") return;
+      figure.dataset.pluginState = "ready";
+      const frame = figure.querySelector(".figure-frame");
+      if (frame) frame.replaceChildren();
+      mount(figure);
+    } catch (error) {
+      if (!figure.isConnected) return;
+      figure.dataset.pluginState = "failed";
+      pluginNotice(figure, "failed", error);
+    }
+  }
+
   function mount(figure) {
     if (!figure || !figure.isConnected) return;
     const stored = store.figures[figure.dataset.figureId];
@@ -600,6 +679,15 @@ export function createFigures(deps = {}) {
       figure.dataset.missing = "";
       return;
     }
+
+    /* The plugin comes before the kind: a figure cannot render without it, and the
+       loading/failed state is the figure's own, not the document's. */
+    const plugin = pluginOf(stored);
+    if (plugin && figure.dataset.pluginState !== "ready") {
+      if (figure.dataset.pluginState === "loading" || figure.dataset.pluginState === "failed") return;
+      return mountWithPlugin(figure, plugin);
+    }
+
     figure.removeAttribute("data-missing");
     if (frame.firstElementChild) {
       figure.dataset.mounted = "";
@@ -647,6 +735,11 @@ export function createFigures(deps = {}) {
       media.removeAttribute("src");
       try {media.load();} catch { }
       media.remove();
+    }
+    /* A notice is runtime state too: scrolled away is not the same as failed. */
+    if (figure) {
+      figure.querySelectorAll(".figure-frame .figure-plugin").forEach((node) => node.remove());
+      delete figure.dataset.pluginState;
     }
     if (figure) delete figure.dataset.mounted;
   }
@@ -789,7 +882,9 @@ export function createFigures(deps = {}) {
 
         const wasMounted = !!figure.querySelector(".figure-frame iframe, .figure-frame video");
         if ((kind === "html" || kind === "media") && !wasMounted) {
-          mount(figure);
+          /* Awaited: a plugin-backed figure may have to be built before it can be
+             captured, and this loop must not race ahead. */
+          await mount(figure);
           mountedForExport.add(figure);
         }
 
@@ -981,6 +1076,9 @@ export function createFigures(deps = {}) {
       figure.removeAttribute("data-selected");
       figure.removeAttribute("data-mounted");
       figure.removeAttribute("data-missing");
+      /* Loading/ready/failed is this session's observation of a plugin, not part of
+         the figure. The store entry keeps the pin; the state does not travel. */
+      figure.removeAttribute("data-plugin-state");
     });
     const out = {version: VERSION, figures: {}};
     const add = (id) => {
@@ -1180,7 +1278,7 @@ export function createFigures(deps = {}) {
 
   const api = {
     init, pick, insertFiles, scan, mount, unmount, unmountAll, pause, resume,
-    suspendObserver, resumeObserver, snapshot, captureAll,
+    suspendObserver, resumeObserver, snapshot, captureAll, pluginUsage,
     setScale, setDimension, resetSize, remove, select, prepareClone, storeJSON, storeBytes, savedStoreBytes,
     get store() {return store;},
     get selected() {return selected;},

@@ -155,6 +155,29 @@ figure.figure .figure-frame {
   background: #fff;
 }
 
+/* A figure whose plugin is not available keeps its place and its specification.
+   The frame says why, and clicking retries; nothing is removed. */
+figure.figure .figure-plugin {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 14px;
+  text-align: center;
+  font: 12px/1.45 system-ui, -apple-system, sans-serif;
+  color: #5b6270;
+}
+figure.figure .figure-plugin[data-state="loading"] {
+  background: repeating-linear-gradient(135deg, #fafbfc, #fafbfc 6px, #f4f6f8 6px, #f4f6f8 12px);
+}
+figure.figure .figure-plugin[data-state="failed"] {
+  color: #8a5a12;
+  background: #fdf8ee;
+  border: 1px dashed #e3c9a6;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+figure.figure .figure-plugin[data-state="failed"]:hover { background: #fbf2df; }
+
 /* HTML islands: independent width and height fractions of the text area.
    The embedded document scrolls inside if it needs more room. */
 figure.figure[data-kind="html"] .figure-frame {
