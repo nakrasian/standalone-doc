@@ -29,8 +29,7 @@
       "sha384": "sha384-I/TUuGL/wUQHwZcomarMW/T+JTyDg2GcGfB/yz4382KOtxDhSdAnXGigeKNvD6pA",
       "mode": "inline",
       "requiredBy": [
-        "edit",
-        "comment"
+        "edit"
       ],
       "role": "module"
     },
@@ -54,8 +53,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 10607,
-      "sha384": "sha384-JyL+cLE76csXbdmMry7xG+BaYa/4QZgI0Ti74SguAmplpIpbGwyslr4jWP/PmaBn",
+      "bytes": 11480,
+      "sha384": "sha384-8IkQ4pUkJfRZF7XiNDvcbR+yU0cZN9LQRABzc7VsVC4YsvRjmKZ/HeTItxV9hrq8",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -90,7 +89,6 @@
       ],
       "role": "module",
       "deps": [],
-      "late": [],
       "provides": [
         "on",
         "emit",
@@ -112,7 +110,6 @@
       ],
       "role": "module",
       "deps": [],
-      "late": [],
       "provides": [
         "command",
         "set",
@@ -142,7 +139,6 @@
         "signals",
         "zoom"
       ],
-      "late": [],
       "provides": [
         "schedule",
         "pageCount",
@@ -164,7 +160,6 @@
       ],
       "role": "module",
       "deps": [],
-      "late": [],
       "provides": [
         "open",
         "update",
@@ -191,7 +186,6 @@
         "signals",
         "pagination"
       ],
-      "late": [],
       "provides": [
         "refresh",
         "save",
@@ -242,8 +236,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 42084,
-      "sha384": "sha384-mWol60QA6+kdkezCgtYOF/loN00u1Ti9rISPNRZyCEyvRs9N119273L8oOUneZto",
+      "bytes": 42407,
+      "sha384": "sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -251,11 +245,12 @@
       "role": "module",
       "deps": [
         "signals",
-        "status",
-        "editor",
         "pagination"
       ],
-      "late": [],
+      "optional": [
+        "status",
+        "editor"
+      ],
       "provides": [
         "init",
         "pick",
@@ -293,8 +288,7 @@
       "sha384": "sha384-EFA0reMVgAIttCPJKN05XtXRpOHUTPhl3FkfmCJ1pMuDGsm54UJIdVz02AiQsaKT",
       "mode": "inline",
       "requiredBy": [
-        "edit",
-        "comment"
+        "edit"
       ],
       "role": "module",
       "deps": [
@@ -330,7 +324,6 @@
         "toolbar",
         "progress"
       ],
-      "late": [],
       "provides": [
         "begin",
         "capture",

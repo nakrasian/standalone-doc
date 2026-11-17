@@ -1770,7 +1770,7 @@
     </div>
   </dialog>
 
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","bytes":10607},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","bytes":1435,"factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","bytes":4584,"factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","bytes":6964,"deps":["signals","zoom"],"factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","bytes":1660,"factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","bytes":3773,"deps":["signals","pagination"],"factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","bytes":42084,"deps":["signals","status","editor","pagination"],"factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","bytes":22920,"deps":["zoom","editor","figures","status"],"late":["export"],"factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"mode":"edit","cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":11480},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["*"],"bytes":1660,"factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":22920,"deps":["zoom","editor","figures","status"],"late":["export"],"factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -1842,6 +1842,15 @@
         };
       }
 
+      /* Unlike late(), this never throws: the asset may be absent for good — it is
+         mode-gated (an editor module in a view-mode document) or disabled. The getter
+         is read at call time, so a module built later is still visible. */
+      function optional(id) {
+        return function () {
+          return modules[id];
+        };
+      }
+
       function failure(kind, id, message, extra) {
         return Object.assign({ kind, id, message }, extra || {});
       }
@@ -1853,10 +1862,19 @@
         return false;
       }
 
+      /* A document declares the mode it was saved for (edit | view | comment), and an
+         asset declares the modes that need it. "*" means all of them, so a view-mode
+         document never even fetches the editor. */
+      function inMode(asset, mode) {
+        const requiredBy = asset.requiredBy || ["*"];
+        return requiredBy.includes("*") || requiredBy.includes(mode);
+      }
+
       /* Only constructed modules: infrastructure is already running. */
       function order() {
+        const mode = manifest().mode || "edit";
         return manifest()
-          .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra")
+          .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode))
           .sort((a, b) => a.order - b.order)
           .map((asset) => asset.id);
       }
@@ -1961,7 +1979,10 @@
         setState("booting");
         errors.length = 0;
 
-        const assets = manifest().assets.slice().sort((a, b) => a.order - b.order);
+        const mode = manifest().mode || "edit";
+        const assets = manifest()
+          .assets.filter((asset) => inMode(asset, mode))
+          .sort((a, b) => a.order - b.order);
         const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
         emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
 
@@ -2000,7 +2021,7 @@
           const position = index++;
           emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
 
-          const deps = { env: globalThis, late };
+          const deps = { env: globalThis, late, optional };
           for (const name of asset.deps || []) {
             if (!(name in modules)) {
               return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
@@ -2055,6 +2076,7 @@
         register,
         on,
         late,
+        optional,
         source,
         boot,
         retry,
@@ -3480,7 +3502,12 @@
   <script type="module" id="figures">
     /*@compiled-from src/figures.js — envelope is build-owned; edit the body or src/*/
     export function createFigures(deps = {}) {
-      const {signals, status, editor, pagination} = deps;
+      const {signals, pagination} = deps;
+      /* Editing concerns. A view-mode document mounts figures to render islands but
+         has neither module, so these are optional edges rather than dependencies:
+         the getters return undefined, and every call site tolerates that. */
+      const status = deps.optional("status");
+      const editor = deps.optional("editor");
       const content = document.getElementById("content");
       const viewport = document.getElementById("viewport");
       const storeEl = document.getElementById("figure-store");
@@ -4411,7 +4438,7 @@
         }
 
         if (selected === figure) positionTools(figure);
-        status.markDirty();
+        status()?.markDirty();
         pagination.schedule();
       }
 
@@ -4435,8 +4462,8 @@
         unmount(figure);
         figure.remove();
         select(null);
-        editor.history.record();
-        status.markDirty();
+        editor()?.history.record();
+        status()?.markDirty();
         pagination.schedule();
         scan();
       }
@@ -4509,7 +4536,7 @@
             }
             const entry = await makeEntry(file, kind, {trusted});
             const figure = createFigure(entry);
-            editor.insertBlock(figure, {after: anchor});
+            editor()?.insertBlock(figure, {after: anchor});
             anchor = figure;
             created.push(figure);
           } catch (err) {
@@ -4521,7 +4548,7 @@
           syncStore();
           scan();
           pagination.schedule();
-          status.markDirty();
+          status()?.markDirty();
         }
         return created;
       }
@@ -4568,7 +4595,7 @@
         /* Give status the exact store size from now on. Before this point it counts
            the raw store text; status cannot depend on figures (it is built first and
            refreshes during construction), so the estimator travels this way. */
-        status.setStoreEstimator(savedStoreBytes);
+        status()?.setStoreEstimator(savedStoreBytes);
         syncStore();
 
         if ("IntersectionObserver" in window) {
@@ -4653,7 +4680,7 @@
         signals.on("mutation", scheduleScan);
         signals.on("compositionend", scheduleScan);
         scan();
-        status.save();
+        status()?.save();
       }
 
       const api = {

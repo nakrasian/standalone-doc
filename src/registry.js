@@ -67,6 +67,15 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     };
   }
 
+  /* Unlike late(), this never throws: the asset may be absent for good — it is
+     mode-gated (an editor module in a view-mode document) or disabled. The getter
+     is read at call time, so a module built later is still visible. */
+  function optional(id) {
+    return function () {
+      return modules[id];
+    };
+  }
+
   function failure(kind, id, message, extra) {
     return Object.assign({ kind, id, message }, extra || {});
   }
@@ -78,10 +87,19 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return false;
   }
 
+  /* A document declares the mode it was saved for (edit | view | comment), and an
+     asset declares the modes that need it. "*" means all of them, so a view-mode
+     document never even fetches the editor. */
+  function inMode(asset, mode) {
+    const requiredBy = asset.requiredBy || ["*"];
+    return requiredBy.includes("*") || requiredBy.includes(mode);
+  }
+
   /* Only constructed modules: infrastructure is already running. */
   function order() {
+    const mode = manifest().mode || "edit";
     return manifest()
-      .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra")
+      .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode))
       .sort((a, b) => a.order - b.order)
       .map((asset) => asset.id);
   }
@@ -186,7 +204,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     setState("booting");
     errors.length = 0;
 
-    const assets = manifest().assets.slice().sort((a, b) => a.order - b.order);
+    const mode = manifest().mode || "edit";
+    const assets = manifest()
+      .assets.filter((asset) => inMode(asset, mode))
+      .sort((a, b) => a.order - b.order);
     const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
     emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
 
@@ -225,7 +246,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       const position = index++;
       emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
 
-      const deps = { env: globalThis, late };
+      const deps = { env: globalThis, late, optional };
       for (const name of asset.deps || []) {
         if (!(name in modules)) {
           return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
@@ -280,6 +301,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     register,
     on,
     late,
+    optional,
     source,
     boot,
     retry,

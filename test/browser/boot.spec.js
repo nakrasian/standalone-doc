@@ -120,6 +120,36 @@ test("the app introduces only the allowlisted globals", async ({ page }) => {
   expect(added).toEqual(["StandaloneDoc"]);
 });
 
+test("a view-mode document boots without the editor", async ({ page }) => {
+  /* The document declares its own mode and every asset declares the modes that
+     need it, so a viewer never constructs (or, in the slim flavour, fetches) the
+     editing modules. figures mounts islands either way — that is the point of a
+     viewer. */
+  const file = tmp("view");
+  fs.writeFileSync(file, editManifest(SOURCE, (doc) => { doc.mode = "view"; }));
+
+  const problems = await load(page, "file://" + file);
+  const state = await page.evaluate(() => ({
+    state: StandaloneDoc.state,
+    built: StandaloneDoc.order(),
+    constructed: Object.keys(StandaloneDoc.modules).sort(),
+    rowIds: [...document.querySelectorAll(".boot-row")].map((row) => row.dataset.id),
+    stats: document.querySelector("[data-stats]")?.textContent ?? "",
+    content: document.querySelector("#content")?.textContent?.trim().slice(0, 20) ?? "",
+  }));
+
+  expect(problems).toEqual([]);
+  expect(state.state).toBe("ready");
+  expect(state.built).toEqual(["signals", "zoom", "progress", "pagination", "figures"]);
+  expect(state.constructed).toEqual(["figures", "pagination", "progress", "signals", "zoom"]);
+  /* The boot dialog only lists what this document will build. */
+  expect(state.rowIds).toEqual(state.built);
+  /* No status module, so the status line keeps its placeholder. */
+  expect(state.stats).not.toMatch(/\d+ words?/);
+  expect(state.content.length).toBeGreaterThan(0);
+  fs.rmSync(file, { force: true });
+});
+
 test("a missing dependency aborts boot with a named error", async ({ page }) => {
   /* Registered but absent from the plan: this is the dependency failure. */
   const html = withoutFromPlan("progress");

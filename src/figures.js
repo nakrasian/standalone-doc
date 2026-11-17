@@ -1,5 +1,10 @@
 export function createFigures(deps = {}) {
-  const {signals, status, editor, pagination} = deps;
+  const {signals, pagination} = deps;
+  /* Editing concerns. A view-mode document mounts figures to render islands but
+     has neither module, so these are optional edges rather than dependencies:
+     the getters return undefined, and every call site tolerates that. */
+  const status = deps.optional("status");
+  const editor = deps.optional("editor");
   const content = document.getElementById("content");
   const viewport = document.getElementById("viewport");
   const storeEl = document.getElementById("figure-store");
@@ -930,7 +935,7 @@ export function createFigures(deps = {}) {
     }
 
     if (selected === figure) positionTools(figure);
-    status.markDirty();
+    status()?.markDirty();
     pagination.schedule();
   }
 
@@ -954,8 +959,8 @@ export function createFigures(deps = {}) {
     unmount(figure);
     figure.remove();
     select(null);
-    editor.history.record();
-    status.markDirty();
+    editor()?.history.record();
+    status()?.markDirty();
     pagination.schedule();
     scan();
   }
@@ -1028,7 +1033,7 @@ export function createFigures(deps = {}) {
         }
         const entry = await makeEntry(file, kind, {trusted});
         const figure = createFigure(entry);
-        editor.insertBlock(figure, {after: anchor});
+        editor()?.insertBlock(figure, {after: anchor});
         anchor = figure;
         created.push(figure);
       } catch (err) {
@@ -1040,7 +1045,7 @@ export function createFigures(deps = {}) {
       syncStore();
       scan();
       pagination.schedule();
-      status.markDirty();
+      status()?.markDirty();
     }
     return created;
   }
@@ -1087,7 +1092,7 @@ export function createFigures(deps = {}) {
     /* Give status the exact store size from now on. Before this point it counts
        the raw store text; status cannot depend on figures (it is built first and
        refreshes during construction), so the estimator travels this way. */
-    status.setStoreEstimator(savedStoreBytes);
+    status()?.setStoreEstimator(savedStoreBytes);
     syncStore();
 
     if ("IntersectionObserver" in window) {
@@ -1172,7 +1177,7 @@ export function createFigures(deps = {}) {
     signals.on("mutation", scheduleScan);
     signals.on("compositionend", scheduleScan);
     scan();
-    status.save();
+    status()?.save();
   }
 
   const api = {

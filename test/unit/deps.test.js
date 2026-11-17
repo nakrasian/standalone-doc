@@ -147,6 +147,45 @@ test("audit: construction deps must come earlier than the declarer", () => {
   assert.deepEqual(backward.problems, []);
 });
 
+test("extracts optional edges separately from construction deps", () => {
+  const c = extractContract(
+    factory(`  const {signals} = deps;
+  const status = deps.optional("status");
+  const editor = deps.optional("editor");
+  return {x, status, editor};`),
+    { globals: GLOBALS },
+  );
+  assert.deepEqual(c.deps, ["signals"]);
+  assert.deepEqual(c.optional, ["status", "editor"]);
+});
+
+test("audit: an always-present module cannot depend on a mode-gated one", () => {
+  /* figures is needed by every document; status only by an editable one. A plain
+     dependency would leave a view-mode document unable to boot. */
+  const index = new Map([
+    ["status", {id: "status", order: 60, requiredBy: ["edit"]}],
+    ["figures", {id: "figures", order: 80, requiredBy: ["*"]}],
+  ]);
+  const empty = {deps: [], late: [], optional: [], provides: [], implicitGlobals: []};
+
+  const bad = auditContract("figures", {...empty, deps: ["status"]}, index);
+  assert.match(bad.problems[0], /only needed by edit/);
+
+  const good = auditContract("figures", {...empty, optional: ["status"]}, index);
+  assert.deepEqual(good.problems, []);
+});
+
+test("audit: optional on an always-present module is needless", () => {
+  const index = new Map([
+    ["signals", {id: "signals", order: 30, requiredBy: ["*"]}],
+    ["figures", {id: "figures", order: 80, requiredBy: ["*"]}],
+  ]);
+  const empty = {deps: [], late: [], optional: [], provides: [], implicitGlobals: []};
+  const audited = auditContract("figures", {...empty, optional: ["signals"]}, index);
+  assert.match(audited.warnings[0], /always present/);
+  assert.deepEqual(audited.problems, []);
+});
+
 test("audit: unknown, self, and needless late edges", () => {
   const index = new Map([
     ["a", {id: "a", order: 10}],
@@ -167,7 +206,8 @@ test("the real sources match the manifest and their signatures", () => {
     const derived = extractContract(source, { globals: GLOBALS });
     const recorded = manifest.assets.find((a) => a.id === id);
     assert.deepEqual(derived.deps, recorded.deps, `${id}: manifest deps match the signature`);
-    assert.deepEqual(derived.late, recorded.late, `${id}: manifest late edges match`);
+    assert.deepEqual(derived.late, recorded.late ?? [], `${id}: manifest late edges match`);
+    assert.deepEqual(derived.optional, recorded.optional ?? [], `${id}: manifest optional edges match`);
     assert.deepEqual(derived.provides, recorded.provides, `${id}: manifest provides match`);
     assert.deepEqual(derived.implicitGlobals, [], `${id}: no global reaches`);
     const audited = auditContract(id, derived, index);

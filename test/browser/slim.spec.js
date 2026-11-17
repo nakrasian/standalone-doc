@@ -102,6 +102,30 @@ test("source() returns the bytes the manifest pins, cached", async ({ page }) =>
   expect(result.cached).toBe(true);
 });
 
+test("a view-mode document never asks the CDN for editor assets", async ({ page }) => {
+  const published = /"cdnBase":"([^"]*)"/.exec(SLIM)[1];
+  const file = `.test-tmp/slim-view-${process.pid}.html`;
+  fs.mkdirSync(TMP, { recursive: true });
+  fs.writeFileSync(
+    path.join(ROOT, file),
+    SLIM.split(published).join(CDN).replace('"mode":"edit"', '"mode":"view"'),
+  );
+
+  const requested = [];
+  page.on("request", (request) => requested.push(request.url()));
+  await page.goto("/" + file);
+  await page.waitForFunction(() => ["ready", "failed"].includes(globalThis.StandaloneDoc?.state), null, { timeout: 20_000 });
+
+  const built = await page.evaluate(() => StandaloneDoc.order());
+  const fetched = requested
+    .filter((url) => url.includes("/dist/cdn/"))
+    .map((url) => url.split("/").pop())
+    .sort();
+
+  expect(built).toEqual(["signals", "zoom", "progress", "pagination", "figures"]);
+  expect(fetched).toEqual(["figures.js", "page-styles.css", "pagination.js", "progress.js", "signals.js", "zoom.js"]);
+});
+
 test("an HTTP error is reported as a missing asset", async ({ page }) => {
   await page.route("**/dist/cdn/signals.js", (route) => route.fulfill({ status: 404, body: "not found" }));
   await load(page);

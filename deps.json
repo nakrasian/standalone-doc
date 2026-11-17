@@ -10,6 +10,7 @@
       ],
       "deps": [],
       "late": [],
+      "optional": [],
       "provides": null
     },
     {
@@ -21,6 +22,7 @@
       ],
       "deps": [],
       "late": [],
+      "optional": [],
       "provides": null
     },
     {
@@ -32,6 +34,7 @@
       ],
       "deps": [],
       "late": [],
+      "optional": [],
       "provides": [
         "on",
         "emit",
@@ -48,6 +51,7 @@
       ],
       "deps": [],
       "late": [],
+      "optional": [],
       "provides": [
         "command",
         "set",
@@ -72,6 +76,7 @@
         "zoom"
       ],
       "late": [],
+      "optional": [],
       "provides": [
         "schedule",
         "pageCount",
@@ -87,6 +92,7 @@
       ],
       "deps": [],
       "late": [],
+      "optional": [],
       "provides": [
         "open",
         "update",
@@ -108,6 +114,7 @@
         "pagination"
       ],
       "late": [],
+      "optional": [],
       "provides": [
         "refresh",
         "save",
@@ -130,6 +137,7 @@
       "late": [
         "figures"
       ],
+      "optional": [],
       "provides": [
         "init",
         "exec",
@@ -155,11 +163,13 @@
       ],
       "deps": [
         "signals",
-        "status",
-        "editor",
         "pagination"
       ],
       "late": [],
+      "optional": [
+        "status",
+        "editor"
+      ],
       "provides": [
         "init",
         "pick",
@@ -192,8 +202,7 @@
       "order": 90,
       "mode": "inline",
       "requiredBy": [
-        "edit",
-        "comment"
+        "edit"
       ],
       "deps": [
         "zoom",
@@ -204,6 +213,7 @@
       "late": [
         "export"
       ],
+      "optional": [],
       "provides": [
         "save",
         "serialize",
@@ -223,6 +233,7 @@
         "progress"
       ],
       "late": [],
+      "optional": [],
       "provides": [
         "begin",
         "capture",
@@ -244,6 +255,7 @@
       ],
       "deps": [],
       "late": [],
+      "optional": [],
       "provides": null
     }
   ]
