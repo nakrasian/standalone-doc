@@ -59,25 +59,31 @@ const MARKER_RE = /^[ \t]*<!--[ \t]*@asset[ \t]+([^>]*?)[ \t]*-->[ \t]*$/gm;
 const END_MARKER = "<!-- /@asset -->";
 
 /** Elements that legitimately carry an id but are runtime/data, not assets. */
-const UNMARKED_OK = new Set(["user-theme", "print-page", "figure-store", "favicon", DOC_MANIFEST_ID, "boot-dialog", "boot-ui-styles"]);
+const UNMARKED_OK = new Set(["user-theme", "print-page", "figure-store", "favicon", DOC_MANIFEST_ID, "boot-dialog"]);
 
 /**
- * Bootstrap table, used exactly once: to insert markers into a file that has
- * none. After that, index.html's own markers are the source of truth and this
- * table is asserted to agree with them (see verify()).
+ * Bootstrap table, in document order. Used exactly once: to insert markers into
+ * an index.html that has none (a hand-written file, or a bad `git checkout` of
+ * the source). After that, index.html's own markers are the source of truth, and
+ * `check` asserts this table still agrees with the manifest — a stale table would
+ * silently rebuild a different dependency order on the day it is actually needed.
  */
 const REGIONS = [
   { id: "page-styles", kind: "css", order: 10, requiredBy: ["*"] },
   { id: "toolbar-styles", kind: "css", order: 20, requiredBy: ["edit", "comment"] },
+  { id: "boot-ui-styles", kind: "css", order: 25, requiredBy: ["*"] },
+  { id: "registry", kind: "js", order: 5, requiredBy: ["*"] },
+  { id: "boot-ui", kind: "js", order: 6, requiredBy: ["*"] },
   { id: "signals", kind: "js", order: 30, requiredBy: ["*"] },
   { id: "zoom", kind: "js", order: 40, requiredBy: ["*"] },
   { id: "pagination", kind: "js", order: 50, requiredBy: ["*"] },
+  { id: "progress", kind: "js", order: 45, requiredBy: ["*"] },
   { id: "status", kind: "js", order: 60, requiredBy: ["edit"] },
   { id: "editor", kind: "js", order: 70, requiredBy: ["edit"] },
   { id: "figures", kind: "js", order: 80, requiredBy: ["*"] },
   { id: "toolbar", kind: "js", order: 90, requiredBy: ["edit", "comment"] },
   { id: "export", kind: "js", order: 100, requiredBy: ["edit"] },
-  { id: "progress", kind: "js", order: 110, requiredBy: ["*"] },
+  { id: "bootstrap", kind: "js", order: 120, requiredBy: ["*"] },
 ];
 
 /* ------------------------------------------------------------------ utils */
@@ -653,6 +659,24 @@ async function cmdCheck() {
     }
   } catch (err) {
     all.push(`manifest: ${err.message}`);
+  }
+
+  /* the marker bootstrap table must still describe this document: it is the
+     recovery path for an index.html that lost its markers */
+  try {
+    const m = readManifest();
+    for (const region of REGIONS) {
+      const entry = m.assets.find((a) => a.id === region.id);
+      if (!entry) all.push(`REGIONS lists "${region.id}", which is not an asset`);
+      else if (entry.order !== region.order || entry.kind !== region.kind) {
+        all.push(`REGIONS says ${region.id} is order ${region.order}/${region.kind}, manifest says ${entry.order}/${entry.kind}`);
+      }
+    }
+    for (const a of m.assets) {
+      if (!REGIONS.some((r) => r.id === a.id)) all.push(`${a.id} is missing from REGIONS (marker recovery would skip it)`);
+    }
+  } catch (err) {
+    all.push(err.message);
   }
 
   /* schema sanity */
