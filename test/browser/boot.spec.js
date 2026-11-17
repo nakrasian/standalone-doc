@@ -39,6 +39,18 @@ function shuffled() {
   return html;
 }
 
+/** Rewrite the in-document settings block (mode, locks, threshold) for a fixture. */
+function editSettings(html, edit) {
+  return html.replace(
+    /(<script id="doc-settings" type="application\/json">)([\s\S]*?)(<\/script>)/,
+    (match, open, json, close) => {
+      const settings = JSON.parse(json);
+      edit(settings);
+      return open + JSON.stringify(settings) + close;
+    },
+  );
+}
+
 /** Rewrite the in-document manifest (one line of JSON) for a fixture. */
 function editManifest(html, edit) {
   return html.replace(
@@ -93,7 +105,8 @@ test("construction follows the manifest order, not document order", async ({ pag
   expect(state.state).toBe("ready");
   /* Manifest order, even though the blocks were reversed in the file. */
   expect(state.built).toEqual([
-    "signals", "zoom", "progress", "pagination", "status", "editor", "figures", "toolbar", "export",
+    "doc-settings", "signals", "zoom", "progress", "pagination",
+    "status", "editor", "figures", "toolbar", "export",
   ]);
   expect(state.signals).toBe("object");
   expect(state.figures).toBe("object");
@@ -126,7 +139,11 @@ test("a view-mode document boots without the editor", async ({ page }) => {
      editing modules. figures mounts islands either way — that is the point of a
      viewer. */
   const file = tmp("view");
-  fs.writeFileSync(file, editManifest(SOURCE, (doc) => { doc.mode = "view"; }));
+  fs.writeFileSync(file, editSettings(SOURCE, (settings) => {
+    settings.mode = "view";
+    settings.editable = false;
+    settings.toolbar = false;
+  }));
 
   const problems = await load(page, "file://" + file);
   const state = await page.evaluate(() => ({
@@ -136,17 +153,51 @@ test("a view-mode document boots without the editor", async ({ page }) => {
     rowIds: [...document.querySelectorAll(".boot-row")].map((row) => row.dataset.id),
     stats: document.querySelector("[data-stats]")?.textContent ?? "",
     content: document.querySelector("#content")?.textContent?.trim().slice(0, 20) ?? "",
+    mode: document.documentElement.dataset.mode,
+    editable: document.getElementById("content")?.getAttribute("contenteditable"),
+    toolbar: document.documentElement.dataset.toolbar,
+    toolbarHidden: getComputedStyle(document.getElementById("app-toolbar")).display === "none",
   }));
 
   expect(problems).toEqual([]);
   expect(state.state).toBe("ready");
-  expect(state.built).toEqual(["signals", "zoom", "progress", "pagination", "figures"]);
-  expect(state.constructed).toEqual(["figures", "pagination", "progress", "signals", "zoom"]);
+  expect(state.built).toEqual(["doc-settings", "signals", "zoom", "pagination", "figures"]);
+  expect(state.constructed).toEqual(["doc-settings", "figures", "pagination", "signals", "zoom"]);
+  /* The lock is the loader's job, from the settings block — not the markup's. */
+  expect(state.mode).toBe("view");
+  expect(state.editable).toBe("false");
+  expect(state.toolbar).toBe("off");
+  expect(state.toolbarHidden).toBe(true);
   /* The boot dialog only lists what this document will build. */
   expect(state.rowIds).toEqual(state.built);
   /* No status module, so the status line keeps its placeholder. */
   expect(state.stats).not.toMatch(/\d+ words?/);
   expect(state.content.length).toBeGreaterThan(0);
+  fs.rmSync(file, { force: true });
+});
+
+test("settings decide the lock, and edit mode stays editable", async ({ page }) => {
+  await load(page, "file://" + path.join(ROOT, "index.html"));
+  const state = await page.evaluate(() => ({
+    mode: document.documentElement.dataset.mode,
+    editable: document.getElementById("content")?.getAttribute("contenteditable"),
+    toolbar: document.documentElement.dataset.toolbar,
+    threshold: StandaloneDoc.settings().saveThresholdBytes,
+  }));
+  expect(state.mode).toBe("edit");
+  expect(state.editable).toBe("true");
+  expect(state.toolbar).toBe("on");
+  expect(state.threshold).toBe(2 * 1024 * 1024);
+});
+
+test("a document without a settings block still boots (old files)", async ({ page }) => {
+  /* One release of compatibility: mode falls back to the manifest, then to edit. */
+  const file = tmp("no-settings");
+  fs.writeFileSync(file, SOURCE.replace(/<script id="doc-settings" type="application\/json">[\s\S]*?<\/script>\n?/, ""));
+  const problems = await load(page, "file://" + file);
+  const mode = await page.evaluate(() => StandaloneDoc.settings().mode);
+  expect(problems).toEqual([]);
+  expect(mode).toBe("edit");
   fs.rmSync(file, { force: true });
 });
 
@@ -219,7 +270,7 @@ test.describe("boot dialog", () => {
     const seen = await dialog(page);
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
-    expect(seen.rows).toBe(9);
+    expect(seen.rows).toBe(10);
     expect(seen.barNow).toBe("100");
   });
 

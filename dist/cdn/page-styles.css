@@ -348,3 +348,8 @@ figure.figure[data-missing] .figure-frame::after {
 #probe-pad {
   height: var(--pad);
 }
+
+/* A document whose settings say `toolbar: false` opens without chrome. The markup
+   stays (it is the cheapest thing to keep in sync); this hides it before first
+   paint, because the loader sets the attribute before any module is built. */
+html[data-toolbar="off"] #app-toolbar { display: none; }

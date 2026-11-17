@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 229324
+    "bytes": 234486
   },
   "assets": [
     {
@@ -31,7 +31,7 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 12607
+      "bytes": 13605
     },
     {
       "id": "boot-ui",
@@ -41,7 +41,7 @@
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 8498
+      "bytes": 8814
     },
     {
       "id": "pagination",
@@ -74,15 +74,20 @@
       "bytes": 1749
     },
     {
+      "id": "doc-settings",
+      "kind": "js",
+      "bytes": 1367
+    },
+    {
       "id": "bootstrap",
       "kind": "js",
       "bytes": 298
     }
   ],
   "flavors": {
-    "index.html": 229324,
-    "asset-bodies": 199681,
-    "markup-and-runtime": 29643,
-    "dist/slim.html": 59874
+    "index.html": 234486,
+    "asset-bodies": 202362,
+    "markup-and-runtime": 32124,
+    "dist/slim.html": 61323
   }
 }

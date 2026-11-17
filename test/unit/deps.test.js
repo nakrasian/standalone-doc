@@ -13,6 +13,18 @@ const GLOBALS = LEGACY_GLOBALS;
 
 const factory = (body) => `export function createDemo(deps = {}) {\n${body}\n}\n`;
 
+test("`settings` is ambient, like `env`, not a module dependency", () => {
+  const c = extractContract(
+    factory(`  const {settings, env} = deps;
+  const {document} = env;
+  return {apply};`),
+    { globals: GLOBALS },
+  );
+  assert.deepEqual(c.deps, [], "settings must not appear as an asset dependency");
+  assert.equal(c.usesSettings, true);
+  assert.equal(c.usesEnv, true);
+});
+
 test("derives deps, env, late and provides", () => {
   const c = extractContract(
     factory(`  const {signals, zoom, env = globalThis} = deps;
@@ -208,6 +220,7 @@ test("the real sources match the manifest and their signatures", () => {
     assert.deepEqual(derived.deps, recorded.deps, `${id}: manifest deps match the signature`);
     assert.deepEqual(derived.late, recorded.late ?? [], `${id}: manifest late edges match`);
     assert.deepEqual(derived.optional, recorded.optional ?? [], `${id}: manifest optional edges match`);
+    assert.equal(derived.usesSettings, Boolean(recorded.settings), `${id}: manifest settings flag matches`);
     assert.deepEqual(derived.provides, recorded.provides, `${id}: manifest provides match`);
     assert.deepEqual(derived.implicitGlobals, [], `${id}: no global reaches`);
     const audited = auditContract(id, derived, index);

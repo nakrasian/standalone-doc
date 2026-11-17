@@ -12,6 +12,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   const sources = Object.create(null);
   let state = "declared";
   let parsed = null;
+  let settingsParsed = null;
 
   /* The shell gates the app on this attribute, so it must be set wherever state
      changes — never by the UI, which only observes. */
@@ -39,6 +40,28 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       parsed = { assets: [], parseError: String(error && error.message) };
     }
     return parsed;
+  }
+
+  /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
+     read as a fallback for documents saved before the block existed (one release
+     of compatibility, not a permanent second source of truth). */
+  function settings() {
+    if (settingsParsed) return settingsParsed;
+    let authored = null;
+    const el = document.getElementById("doc-settings");
+    try {
+      authored = el ? JSON.parse(el.textContent) : null;
+    } catch (error) {
+      authored = { parseError: String(error && error.message) };
+    }
+    const mode = authored?.mode ?? manifest().mode ?? "edit";
+    settingsParsed = {
+      mode,
+      editable: authored?.editable ?? mode === "edit",
+      toolbar: authored?.toolbar ?? mode !== "view",
+      saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
+    };
+    return settingsParsed;
   }
 
   function on(event, fn) {
@@ -97,7 +120,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
 
   /* Only constructed modules: infrastructure is already running. */
   function order() {
-    const mode = manifest().mode || "edit";
+    const mode = settings().mode;
     return manifest()
       .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode))
       .sort((a, b) => a.order - b.order)
@@ -204,7 +227,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     setState("booting");
     errors.length = 0;
 
-    const mode = manifest().mode || "edit";
+    const mode = settings().mode;
     const assets = manifest()
       .assets.filter((asset) => inMode(asset, mode))
       .sort((a, b) => a.order - b.order);
@@ -246,7 +269,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       const position = index++;
       emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
 
-      const deps = { env: globalThis, late, optional };
+      const deps = { env: globalThis, settings: settings(), late, optional };
       for (const name of asset.deps || []) {
         if (!(name in modules)) {
           return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
@@ -301,6 +324,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     register,
     on,
     late,
+    settings,
     optional,
     source,
     boot,

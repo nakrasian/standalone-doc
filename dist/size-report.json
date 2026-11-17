@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 229324
+    "bytes": 234486
   },
   "assets": [
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 8498
+      "bytes": 8814
     },
     {
       "id": "toolbar-styles",
@@ -22,12 +22,17 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 12607
+      "bytes": 13605
     },
     {
       "id": "boot-ui",
       "kind": "js",
       "bytes": 10895
+    },
+    {
+      "id": "doc-settings",
+      "kind": "js",
+      "bytes": 1367
     },
     {
       "id": "signals",
@@ -81,9 +86,9 @@
     }
   ],
   "flavors": {
-    "index.html": 229324,
-    "asset-bodies": 199681,
-    "markup-and-runtime": 29643,
-    "dist/slim.html": 59874
+    "index.html": 234486,
+    "asset-bodies": 202362,
+    "markup-and-runtime": 32124,
+    "dist/slim.html": 61323
   }
 }

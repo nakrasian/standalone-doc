@@ -4,6 +4,12 @@
   "source": "index.html",
   "cdnBase": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn",
   "timeoutMs": 8000,
+  "settings": {
+    "mode": "edit",
+    "editable": true,
+    "toolbar": true,
+    "saveThresholdBytes": 2097152
+  },
   "assets": [
     {
       "id": "page-styles",
@@ -11,8 +17,8 @@
       "order": 10,
       "tag": "style",
       "file": "src/page-styles.css",
-      "bytes": 7295,
-      "sha384": "sha384-JUSYx3Kl8fVWlf7FPcVznbIMX/fgafug1a0PjWoxiLHeywgsfrRwCFlZPJjOojOu",
+      "bytes": 7595,
+      "sha384": "sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -53,8 +59,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 11480,
-      "sha384": "sha384-8IkQ4pUkJfRZF7XiNDvcbR+yU0cZN9LQRABzc7VsVC4YsvRjmKZ/HeTItxV9hrq8",
+      "bytes": 12386,
+      "sha384": "sha384-izjuS6ogqBBFHhDfD/vrMvfk398OfCLW2yILGadYNqTIbCluc76sOcE4eKdZJ+gu",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -74,6 +80,26 @@
         "*"
       ],
       "role": "infra"
+    },
+    {
+      "id": "doc-settings",
+      "kind": "js",
+      "order": 7,
+      "tag": "script",
+      "file": "src/doc-settings.js",
+      "bytes": 1119,
+      "sha384": "sha384-nwYHl2Xrau2U+qTRMqaQwEagJ1dRW31YXfbg4qH403mKr5hzSa93ojbRZTKjmeok",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "role": "module",
+      "deps": [],
+      "provides": [
+        "apply"
+      ],
+      "env": true,
+      "settings": true
     },
     {
       "id": "signals",
@@ -156,7 +182,7 @@
       "sha384": "sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI",
       "mode": "inline",
       "requiredBy": [
-        "*"
+        "edit"
       ],
       "role": "module",
       "deps": [],

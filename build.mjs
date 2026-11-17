@@ -51,6 +51,10 @@ const DIST = "dist";
 const BASELINE = "size-baseline.json";
 const DEFAULT_CDN_BASE = "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn";
 const DOC_MANIFEST_ID = "asset-manifest";
+const DOC_SETTINGS_ID = "doc-settings";
+/* Authoring defaults for the document's own behaviour. manifest.json is the place a
+   human edits these; build materialises them into #doc-settings. */
+const DEFAULT_SETTINGS = { mode: "edit", editable: true, toolbar: true, saveThresholdBytes: 2097152 };
 /* The only assets that are part of the loader itself. Everything else — CSS
    included — is content that can be inlined or fetched. */
 const INFRA = new Set(["registry", "boot-ui", "boot-ui-styles", "bootstrap"]);
@@ -59,7 +63,7 @@ const MARKER_RE = /^[ \t]*<!--[ \t]*@asset[ \t]+([^>]*?)[ \t]*-->[ \t]*$/gm;
 const END_MARKER = "<!-- /@asset -->";
 
 /** Elements that legitimately carry an id but are runtime/data, not assets. */
-const UNMARKED_OK = new Set(["user-theme", "print-page", "figure-store", "favicon", DOC_MANIFEST_ID, "boot-dialog"]);
+const UNMARKED_OK = new Set(["user-theme", "print-page", "figure-store", "favicon", DOC_MANIFEST_ID, DOC_SETTINGS_ID, "boot-dialog"]);
 
 /**
  * Bootstrap table, in document order. Used exactly once: to insert markers into
@@ -74,10 +78,11 @@ const REGIONS = [
   { id: "boot-ui-styles", kind: "css", order: 25, requiredBy: ["*"] },
   { id: "registry", kind: "js", order: 5, requiredBy: ["*"] },
   { id: "boot-ui", kind: "js", order: 6, requiredBy: ["*"] },
+  { id: "doc-settings", kind: "js", order: 7, requiredBy: ["*"] },
   { id: "signals", kind: "js", order: 30, requiredBy: ["*"] },
   { id: "zoom", kind: "js", order: 40, requiredBy: ["*"] },
   { id: "pagination", kind: "js", order: 50, requiredBy: ["*"] },
-  { id: "progress", kind: "js", order: 45, requiredBy: ["*"] },
+  { id: "progress", kind: "js", order: 45, requiredBy: ["edit"] },
   { id: "status", kind: "js", order: 60, requiredBy: ["edit"] },
   { id: "editor", kind: "js", order: 70, requiredBy: ["edit"] },
   { id: "figures", kind: "js", order: 80, requiredBy: ["*"] },
@@ -264,6 +269,7 @@ function buildManifest(assets, previous) {
       if (contract.optional.length) entry.optional = contract.optional;
       entry.provides = contract.provides;
       if (contract.usesEnv) entry.env = true;
+      if (contract.usesSettings) entry.settings = true;
       if (contract.implicitGlobals.length) entry.implicit = contract.implicitGlobals;
     }
     return entry;
@@ -274,6 +280,7 @@ function buildManifest(assets, previous) {
     source: SOURCE,
     cdnBase: previous?.cdnBase ?? DEFAULT_CDN_BASE,
     timeoutMs: previous?.timeoutMs ?? 8000,
+    settings: previous?.settings ?? DEFAULT_SETTINGS,
     assets: entries,
   };
   return { manifest, preserved };
@@ -286,11 +293,10 @@ function buildManifest(assets, previous) {
  * each asset's list of modes. Both travel with the document so a reader never
  * has to guess: a view-mode file boots without the editor even being fetched.
  */
-function docManifest(manifest, overrides = {}, { mode: docMode = "edit" } = {}) {
+function docManifest(manifest, overrides = {}) {
   const base = String(manifest.cdnBase || "").replace(/\/$/, "");
   return {
     schema: 1,
-    mode: docMode,
     cdnBase: base,
     timeoutMs: manifest.timeoutMs || 8000,
     assets: manifest.assets.map((a) => {
@@ -309,7 +315,12 @@ function docManifest(manifest, overrides = {}, { mode: docMode = "edit" } = {}) 
       if (a.late?.length) entry.late = a.late;
       if (a.optional?.length) entry.optional = a.optional;
       if (isConverted(a.id)) entry.factory = MODULES[a.id].factory;
-      if (mode === "online") {
+      /* Every non-infra asset carries where it lives and what it hashes to, even
+         when it is inline today. That is what lets a save policy move an asset
+         between inline and online with no network: the target state is already
+         known. Infrastructure has no url on purpose — see inMode()'s sibling rule
+         in check(): the loader and its failure UI cannot be fetched. */
+      if (a.role !== "infra") {
         entry.url = `${base}/${a.id}.${ext}`;
         entry.integrity = a.sha384;
       }
@@ -320,6 +331,38 @@ function docManifest(manifest, overrides = {}, { mode: docMode = "edit" } = {}) 
 
 const manifestBlock = (doc) =>
   `<script id="${DOC_MANIFEST_ID}" type="application/json">${JSON.stringify(doc)}</script>`;
+
+/**
+ * The document's own behaviour — mode, content lock, toolbar, save threshold.
+ * Separate from the asset manifest on purpose: the manifest answers "what does
+ * this document need", settings answer "how does it behave". `mode` used to live
+ * in the manifest and is read from there as a fallback for one release.
+ */
+function docSettings(manifest, { mode } = {}) {
+  const authored = manifest.settings || {};
+  const docMode = mode ?? authored.mode ?? DEFAULT_SETTINGS.mode;
+  return {
+    schema: 1,
+    mode: docMode,
+    editable: authored.editable ?? docMode === "edit",
+    toolbar: authored.toolbar ?? docMode !== "view",
+    saveThresholdBytes: authored.saveThresholdBytes ?? DEFAULT_SETTINGS.saveThresholdBytes,
+  };
+}
+
+const settingsBlock = (settings) =>
+  `<script id="${DOC_SETTINGS_ID}" type="application/json">${JSON.stringify(settings)}</script>`;
+
+/** Insert or refresh the settings block, immediately before the manifest block. */
+function withDocSettings(html, settings) {
+  const block = settingsBlock(settings);
+  const existing = new RegExp(`<script id="${DOC_SETTINGS_ID}" type="application/json">[\\s\\S]*?</script>`);
+  if (existing.test(html)) return html.replace(existing, () => block);
+  const at = html.indexOf(`<script id="${DOC_MANIFEST_ID}"`);
+  if (at < 0) throw new Error("cannot place the document settings: no asset manifest block");
+  const lineStart = html.lastIndexOf("\n", at) + 1;
+  return html.slice(0, lineStart) + block + "\n" + html.slice(lineStart);
+}
 
 /** Insert or refresh the manifest block, immediately before the registry. */
 function withDocManifest(html, doc) {
@@ -478,7 +521,7 @@ function cmdCombine() {
   const { manifest } = buildManifest(assets, previousManifest());
   saveManifest(manifest);
 
-  const withManifest = withDocManifest(next, docManifest(manifest));
+  const withManifest = withDocSettings(withDocManifest(next, docManifest(manifest)), docSettings(manifest));
   if (withManifest === html) {
     console.log(`combine: ${SOURCE} already matches src/ (no change)`);
     return;
@@ -662,6 +705,24 @@ async function cmdCheck() {
     const m = readManifest();
     if (!html.includes(manifestBlock(docManifest(m)))) {
       all.push("the in-document asset manifest is stale — run: node build.mjs combine");
+    }
+    if (!html.includes(settingsBlock(docSettings(m)))) {
+      all.push("the in-document settings block is stale — run: node build.mjs combine");
+    }
+    /* Every asset a save policy may move to the CDN needs to know where it lives
+       and what it hashes to, even while it is inline. */
+    for (const asset of docManifest(m).assets) {
+      if (asset.role === "infra") continue;
+      if (!asset.url || !asset.integrity) {
+        all.push(`${asset.id}: the document manifest must carry url + integrity for every non-infra asset`);
+      }
+    }
+    /* The loader and its failure UI cannot arrive over the network: something has
+       to verify bytes, and something has to report that it could not. */
+    for (const asset of m.assets) {
+      if (asset.role === "infra" && asset.mode === "online") {
+        all.push(`${asset.id} is infrastructure and cannot have mode "online" (it is the root of trust and the failure UI)`);
+      }
     }
     for (const asset of m.assets) {
       if (asset.role === "infra") continue;

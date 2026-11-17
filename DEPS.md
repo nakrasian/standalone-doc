@@ -8,9 +8,10 @@ edit by hand; `npm run check` fails if this file is stale.
 | --- | --- | --- | --- | --- | --- |
 | registry | 5 | — | — | _infrastructure_ | * |
 | boot-ui | 6 | — | — | _infrastructure_ | * |
+| doc-settings | 7 | — | — | `apply` | * |
 | signals | 30 | — | — | `on`, `emit`, `mute`, `composing` | * |
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
-| progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | * |
+| progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | edit |
 | pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `refresh` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |

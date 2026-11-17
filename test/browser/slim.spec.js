@@ -71,7 +71,7 @@ test("boots entirely from the CDN", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(info.state).toBe("ready");
-  expect(info.built).toHaveLength(9);
+  expect(info.built).toHaveLength(10);
   expect(info.signals).toBe("object");
   expect(info.figures).toBe("object");
   expect(info.inlineBlocks).toBe(0);
@@ -108,7 +108,12 @@ test("a view-mode document never asks the CDN for editor assets", async ({ page 
   fs.mkdirSync(TMP, { recursive: true });
   fs.writeFileSync(
     path.join(ROOT, file),
-    SLIM.split(published).join(CDN).replace('"mode":"edit"', '"mode":"view"'),
+    SLIM.split(published)
+      .join(CDN)
+      .replace(
+        /(<script id="doc-settings" type="application\/json">)([\s\S]*?)(<\/script>)/,
+        (match, open, json, close) => open + JSON.stringify({ ...JSON.parse(json), mode: "view", editable: false }) + close,
+      ),
   );
 
   const requested = [];
@@ -122,8 +127,9 @@ test("a view-mode document never asks the CDN for editor assets", async ({ page 
     .map((url) => url.split("/").pop())
     .sort();
 
-  expect(built).toEqual(["signals", "zoom", "progress", "pagination", "figures"]);
-  expect(fetched).toEqual(["figures.js", "page-styles.css", "pagination.js", "progress.js", "signals.js", "zoom.js"]);
+  expect(built).toEqual(["doc-settings", "signals", "zoom", "pagination", "figures"]);
+  /* progress is authoring-only, so a viewer never fetches it either. */
+  expect(fetched).toEqual(["doc-settings.js", "figures.js", "page-styles.css", "pagination.js", "signals.js", "zoom.js"]);
 });
 
 test("an HTTP error is reported as a missing asset", async ({ page }) => {

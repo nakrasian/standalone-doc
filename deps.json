@@ -26,6 +26,20 @@
       "provides": null
     },
     {
+      "id": "doc-settings",
+      "order": 7,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [],
+      "late": [],
+      "optional": [],
+      "provides": [
+        "apply"
+      ]
+    },
+    {
       "id": "signals",
       "order": 30,
       "mode": "inline",
@@ -88,7 +102,7 @@
       "order": 45,
       "mode": "inline",
       "requiredBy": [
-        "*"
+        "edit"
       ],
       "deps": [],
       "late": [],

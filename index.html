@@ -357,6 +357,11 @@
     #probe-pad {
       height: var(--pad);
     }
+
+    /* A document whose settings say `toolbar: false` opens without chrome. The markup
+       stays (it is the cheapest thing to keep in sync); this hides it before first
+       paint, because the loader sets the attribute before any module is built. */
+    html[data-toolbar="off"] #app-toolbar { display: none; }
   </style>
 <!-- /@asset -->
 <!-- @asset id="toolbar-styles" kind="css" order="20" -->
@@ -1770,7 +1775,8 @@
     </div>
   </dialog>
 
-<script id="asset-manifest" type="application/json">{"schema":1,"mode":"edit","cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7295},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":13167},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":11480},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["*"],"bytes":1660,"factory":"createProgress"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":22920,"deps":["zoom","editor","figures","status"],"late":["export"],"factory":"createToolbar"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","editable":true,"toolbar":true,"saveThresholdBytes":2097152}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn","timeoutMs":8000,"assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":7595,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/page-styles.css","integrity":"sha384-WDRpHT4wPF9SbN+eBghzraVbv1S0Dy2Xasym/MJbHLMHS5yanuHGgDprRQhPMNQh"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":13167,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar-styles.css","integrity":"sha384-I/TUuGL/wUQHwZcomarMW/T+JTyDg2GcGfB/yz4382KOtxDhSdAnXGigeKNvD6pA"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":12386},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":9896},{"id":"doc-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1119,"factory":"createDocSettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/doc-settings.js","integrity":"sha384-nwYHl2Xrau2U+qTRMqaQwEagJ1dRW31YXfbg4qH403mKr5hzSa93ojbRZTKjmeok"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":3773,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/status.js","integrity":"sha384-FpwVK6Cg3entpJQLDtpEHiNOeoSlgIoWlfbO0oPo7HWJTthvONZHxSlneVhwbyw+"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16070,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/editor.js","integrity":"sha384-EO17UKFUnxztQdG7pGq2BHmIUS1bCrMf407hBrXLJ0VXDA80kWiSGLTiJiPU8WYj"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":42407,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/figures.js","integrity":"sha384-j/dxathAJsgk1C9dJ/gv+BzMP48rXwhp0bl0qShYNNiIhHCm/h28aiKbhgd7fZSU"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":22920,"deps":["zoom","editor","figures","status"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/toolbar.js","integrity":"sha384-EFA0reMVgAIttCPJKN05XtXRpOHUTPhl3FkfmCJ1pMuDGsm54UJIdVz02AiQsaKT"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -1787,6 +1793,7 @@
       const sources = Object.create(null);
       let state = "declared";
       let parsed = null;
+      let settingsParsed = null;
 
       /* The shell gates the app on this attribute, so it must be set wherever state
          changes — never by the UI, which only observes. */
@@ -1814,6 +1821,28 @@
           parsed = { assets: [], parseError: String(error && error.message) };
         }
         return parsed;
+      }
+
+      /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
+         read as a fallback for documents saved before the block existed (one release
+         of compatibility, not a permanent second source of truth). */
+      function settings() {
+        if (settingsParsed) return settingsParsed;
+        let authored = null;
+        const el = document.getElementById("doc-settings");
+        try {
+          authored = el ? JSON.parse(el.textContent) : null;
+        } catch (error) {
+          authored = { parseError: String(error && error.message) };
+        }
+        const mode = authored?.mode ?? manifest().mode ?? "edit";
+        settingsParsed = {
+          mode,
+          editable: authored?.editable ?? mode === "edit",
+          toolbar: authored?.toolbar ?? mode !== "view",
+          saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
+        };
+        return settingsParsed;
       }
 
       function on(event, fn) {
@@ -1872,7 +1901,7 @@
 
       /* Only constructed modules: infrastructure is already running. */
       function order() {
-        const mode = manifest().mode || "edit";
+        const mode = settings().mode;
         return manifest()
           .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode))
           .sort((a, b) => a.order - b.order)
@@ -1979,7 +2008,7 @@
         setState("booting");
         errors.length = 0;
 
-        const mode = manifest().mode || "edit";
+        const mode = settings().mode;
         const assets = manifest()
           .assets.filter((asset) => inMode(asset, mode))
           .sort((a, b) => a.order - b.order);
@@ -2021,7 +2050,7 @@
           const position = index++;
           emit("construct", { id: asset.id, state: "active", index: position, total: jsAssets.length });
 
-          const deps = { env: globalThis, late, optional };
+          const deps = { env: globalThis, settings: settings(), late, optional };
           for (const name of asset.deps || []) {
             if (!(name in modules)) {
               return fail(failure("construct", asset.id, `requires "${name}", which is not built`));
@@ -2076,6 +2105,7 @@
         register,
         on,
         late,
+        settings,
         optional,
         source,
         boot,
@@ -2369,6 +2399,40 @@
     })();
   </script>
 <!-- /@asset -->
+<!-- @asset id="doc-settings" kind="js" order="7" -->
+  <script type="module" id="doc-settings">
+    /*@compiled-from src/doc-settings.js — envelope is build-owned; edit the body or src/*/
+    export function createDocSettings(deps = {}) {
+      const {settings, env} = deps;
+      const {document} = env;
+
+      /* Behaviour the browser cannot express in CSS, and therefore the loader's job.
+         Everything here is derived from the document's own #doc-settings block, never
+         from the markup: a copy whose markup was edited by hand must not be able to
+         claim it is editable when the file says otherwise. */
+      function apply() {
+        const root = document.documentElement;
+        root.dataset.mode = settings.mode;
+        /* Chrome visibility is a setting of its own, not a consequence of the mode: a
+           read-only copy may still want the toolbar for print or zoom. */
+        root.dataset.toolbar = settings.toolbar ? "on" : "off";
+
+        const content = document.getElementById("content");
+        if (!content) return;
+        if (settings.editable) content.setAttribute("contenteditable", "true");
+        else content.setAttribute("contenteditable", "false");
+      }
+
+      /* Construction-time, like editor and figures: the lock is in place before any
+         module that could act on the content is built. */
+      apply();
+
+      return {apply};
+    }
+    StandaloneDoc.register("doc-settings", createDocSettings);
+  </script>
+<!-- /@asset -->
+
 <!-- @asset id="signals" kind="js" order="30" -->
   <script type="module" id="signals">
     /*@compiled-from src/signals.js — envelope is build-owned; edit the body or src/*/
