@@ -40,11 +40,39 @@ export function createFigures({ store, progress, loader }) {
 
 Rules the build enforces:
 
-1. exactly one top-level `export function create<Name>(` per file;
-2. the token `import` appears nowhere (comments included);
-3. dependency order lives in `build.mjs`'s `ORDER` list, not in the source;
-4. no DOM access at module evaluation time — everything happens inside the factory or
-   inside `boot()`.
+1. exactly one `export function create<Name>(` per file, and its name must match the
+   entry in `lib/compile.mjs`'s `MODULES` table;
+2. **every top-level declaration is exported.** Private helpers live inside the factory.
+   This is what makes the swap to the shipped form reversible;
+3. the token `import` appears nowhere (comments included) — dependencies arrive as
+   arguments;
+4. no `export` at the start of a line inside a template literal (the strip is line-based
+   and would corrupt the string);
+5. no literal `</script>` — it cannot be embedded in an inline script;
+6. no DOM access at module evaluation time — everything happens inside the factory or
+   inside `boot()`;
+7. dependency order comes from `manifest.json`'s `order`, not from source order.
+
+### The envelope
+
+Converted assets are compiled into a classic script, because `export` is a syntax error
+there and because a classic script keeps its parse-time position:
+
+```html
+/*@compiled-from src/signals.js — envelope is build-owned; edit the body or src/*/
+var Signals = globalThis.Signals || (function () {
+function createSignals(deps = {}) { … }      ← `export ` stripped
+return createSignals();
+})();
+```
+
+The two envelope lines are **build-owned**: change them by editing `src/` and running
+`npm run combine`, or `split` will refuse with a message telling you so. The body is
+yours, from either side. `globalThis.X ||` makes a duplicated block reuse the first
+instance instead of attaching a second set of observers.
+
+Assets with no `MODULES` entry pass through verbatim, so the transform can ship before
+any asset changes shape.
 
 Why: a module with no imports is valid both as a CDN ES module and as an inline classic
 script. One source shape, two loaders, no bundler.
