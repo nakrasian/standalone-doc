@@ -1299,6 +1299,98 @@
     }
     dialog.plugin-panel .pp-body { padding: 14px 18px 18px; overflow-y: auto; max-height: 64dvh; }
 
+    /* ---- plugins sheet ----
+       Sibling of Document settings, not a tab in it: that sheet prices what is in the file,
+       this one decides what gets in. Built at runtime and tagged `data-plugin-ui`. */
+    dialog.plugin-sheet {
+      width: min(700px, calc(100vw - 32px));
+      max-height: min(86dvh, 800px);
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+      color: var(--ink);
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    dialog.plugin-sheet::backdrop { background: rgba(16, 22, 30, .34); }
+    dialog.plugin-sheet:focus,
+    dialog.plugin-sheet:focus-visible { outline: none; }
+
+    .plugin-sheet .ps-head { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
+    .plugin-sheet .ps-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    .plugin-sheet .ps-sub { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .plugin-sheet .ps-search {
+      width: 100%; height: 30px; margin-top: 9px; padding: 0 9px;
+      font: inherit; font-size: 12.5px; border: 1px solid var(--line); border-radius: 7px;
+      background: #fff; color: var(--ink);
+    }
+    .plugin-sheet .ps-nav { display: flex; gap: 6px; margin-top: 9px; }
+    .plugin-sheet .ps-chip {
+      font: inherit; font-size: 12px; height: 26px; padding: 0 10px; border-radius: 99px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+    }
+    .plugin-sheet .ps-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .plugin-sheet .ps-body { padding: 4px 20px 8px; overflow-y: auto; max-height: 62dvh; }
+    .plugin-sheet .ps-sect { border-bottom: 1px solid #f0f2f5; padding: 13px 0; }
+    .plugin-sheet .ps-sect:last-child { border-bottom: 0; }
+    .plugin-sheet .ps-sect > h3 { margin: 0 0 2px; font-size: 12.5px; font-weight: 650; }
+    .plugin-sheet .ps-sect > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+
+    .plugin-sheet .ps-row { border-bottom: 1px solid #f0f2f5; padding: 9px 0; }
+    .plugin-sheet .ps-row:last-child { border-bottom: 0; }
+    .plugin-sheet .ps-main { display: flex; align-items: baseline; gap: 7px; }
+    .plugin-sheet .ps-name { font-weight: 650; font-size: 12.5px; }
+    .plugin-sheet .ps-version { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .plugin-sheet .ps-badge {
+      padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 600;
+      border: 1px solid #d8dde5; color: #5b6270; background: #f7f9fb;
+    }
+    .plugin-sheet .ps-badge[data-island="trusted"] { border-color: #e3c9a6; color: #8a5a12; background: #fdf6ea; }
+    .plugin-sheet .ps-used { color: var(--muted); font-size: 11.5px; }
+    .plugin-sheet .ps-grow { flex: 1 1 auto; }
+    .plugin-sheet .ps-switch { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11.5px; cursor: pointer; }
+    .plugin-sheet .ps-hint { color: var(--muted); font-size: 11.5px; margin: 4px 0 0; }
+    .plugin-sheet .ps-why { margin: 4px 0 0; color: #b3261e; font-size: 11.5px; }
+    .plugin-sheet .ps-btn {
+      font: inherit; font-size: 11.5px; height: 26px; padding: 0 10px; border-radius: 6px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+    }
+    .plugin-sheet .ps-btn.ps-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .plugin-sheet .ps-btn:disabled { opacity: .45; cursor: default; }
+    /* White-on-accent at 45% is unreadable: a disabled primary goes grey, not faint. */
+    .plugin-sheet .ps-btn.ps-primary:disabled {
+      background: #eef1f5; border-color: var(--line); color: #7b828d; opacity: 1;
+    }
+    .plugin-sheet .ps-details { margin-top: 5px; }
+    .plugin-sheet .ps-details > summary { cursor: pointer; color: #4a515c; font-size: 11.5px; padding: 2px 0; }
+    .plugin-sheet .ps-assets { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 4px; }
+    .plugin-sheet .ps-assets th,
+    .plugin-sheet .ps-assets td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #f2f4f7; }
+    .plugin-sheet .ps-assets th { color: var(--muted); font-weight: 600; }
+    .plugin-sheet .ps-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .plugin-sheet .ps-asset-id { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+    .plugin-sheet .ps-empty { color: var(--muted); font-size: 12px; }
+
+    .plugin-sheet .ps-form { display: grid; gap: 7px; }
+    .plugin-sheet .ps-field { display: flex; gap: 8px; align-items: center; }
+    .plugin-sheet .ps-field label { width: 52px; flex: 0 0 auto; color: var(--muted); font-size: 11.5px; }
+    .plugin-sheet .ps-field input {
+      flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px; font: inherit; font-size: 12px;
+      border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink);
+    }
+    .plugin-sheet .ps-mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+    .plugin-sheet .ps-result { margin: 0; font-size: 11.5px; min-height: 16px; color: var(--muted); }
+    .plugin-sheet .ps-result[data-tone="ok"] { color: #1a7f47; }
+    .plugin-sheet .ps-result[data-tone="bad"] { color: #b3261e; }
+
+    .plugin-sheet .ps-foot {
+      display: flex; gap: 10px; align-items: center; padding: 11px 20px;
+      border-top: 1px solid var(--line); background: var(--chrome-bg);
+    }
+    .plugin-sheet .ps-foot .ps-hint { flex: 1 1 auto; margin: 0; }
+
     /* a clickable size readout: it opens the sheet at Size & loading */
     .stats[data-stats] { cursor: pointer; border-radius: 4px; }
     .stats[data-stats]:hover { background: var(--hover); }
@@ -1694,6 +1786,7 @@
                 <use href="#i-keyboard" />
               </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
             <div data-plugin-actions hidden></div>
+          <button data-menu-item data-plugins-open>Plugins…</button>
           </div>
         </span>
         <button class="primary" data-save title="Save">Save</button>
@@ -1920,6 +2013,7 @@
               <use href="#i-keyboard" />
             </svg>Keyboard shortcuts<kbd data-hint="action:shortcuts"></kbd></button>
           <div data-plugin-actions hidden></div>
+          <button data-menu-item data-plugins-open>Plugins…</button>
         </div>
       </span>
 
@@ -2005,7 +2099,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":8351,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/page-styles.css","integrity":"sha384-SWejN7+ENvY5pMbPJ10EKweXiM/o+8BOvpQ35Z//Wgc8r5Asy/G30GQ8NC8Vdn6j"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":20587,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-styles.css","integrity":"sha384-iDpHlbd18Zt/gzsLaycRXFzY99jS0JZHLQrrZhDtPixQgwaD7Lfzl5GBq9aNgob3"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15530,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-markup.html","integrity":"sha384-e9HSGpJIJqFmqeGJDf0CnwpnncPes/jsppSVSJH2IR/p/RNg3CvGKdyCfBWl5gNY"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":29844},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":10094},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1325,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/apply-settings.js","integrity":"sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16405,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/editor.js","integrity":"sha384-e7UmCU5EERe6KSpFuSCGG0oGsqfyf8LyXH5E9w4i2RwfvnGARm15+df6x3c9+rHd"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":48168,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figures.js","integrity":"sha384-ji4OO7Q69Yzt5VGDJ2vWFYPecwmrWUnRLf4pq03al1x87+k2SObcSpX5+C+kgWZt"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":15373,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/policy.js","integrity":"sha384-2kA8kpxfT0d7l882tXd1eB7zhglvEofxdIxiRA14BgAZ/LCWdiFN+wPHkM8tzDIJ"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":45188,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar.js","integrity":"sha384-Jz1cqNdAWo9PEKAtD1VVy3X9/o4Qro7TKznhEXBZYm7PLEHvr0q4+8SWvphV06aM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":11439,"deps":["signals","figures"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/plugins.js","integrity":"sha384-Mh28tpD+lhDTw0sQScAQAXmFKiodp8ZkpiZBnkDB2L2ZShRXrgtMXc8fPmZ3Kj2f"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4753,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/dialogs.html","integrity":"sha384-8g6mUBg+JRWqy+Bdrv9lwlbd+j5zFDcV91qqI11svB4FL6DyY3p56LjV79lk3Kfj"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":8351,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/page-styles.css","integrity":"sha384-SWejN7+ENvY5pMbPJ10EKweXiM/o+8BOvpQ35Z//Wgc8r5Asy/G30GQ8NC8Vdn6j"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":25820,"url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-styles.css","integrity":"sha384-58L+G/9DJvETC9LxE3dPd+lgAJi8N8S/SmWtHF5Bl76yxWzjXvV7ojE6riJG9Nnx"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":5412},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15664,"open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar-markup.html","integrity":"sha384-aTWXYs9oPMEYi5IlCEaPEr2derZp9mIC9vN0ei9zRCowlTM1vNxajf9euFOCKcGd"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":31444},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":10094},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1325,"factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/apply-settings.js","integrity":"sha384-6ZZflZ5dNdPXEoffnwqnmVEGbLz5OUvJP4ucKNkZfsXCqzqtCCKlj8MZbkOygGK3"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":6964,"deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/pagination.js","integrity":"sha384-H6jI4EnRLhouA70wCAvLa5e2LZWAV6BvTGe6cUplK6rQazxk+iN6i6PN6DM499mN"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":16405,"deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/editor.js","integrity":"sha384-e7UmCU5EERe6KSpFuSCGG0oGsqfyf8LyXH5E9w4i2RwfvnGARm15+df6x3c9+rHd"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":48168,"deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/figures.js","integrity":"sha384-ji4OO7Q69Yzt5VGDJ2vWFYPecwmrWUnRLf4pq03al1x87+k2SObcSpX5+C+kgWZt"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":16085,"deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/policy.js","integrity":"sha384-81coNdgkc0vo94crhOHlJjQNl0J9XLu8hVeM6x/iBaONAiwiUsuLZ+6Tp3MJbHe3"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":45188,"deps":["zoom","editor","figures","status","policy"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/toolbar.js","integrity":"sha384-Jz1cqNdAWo9PEKAtD1VVy3X9/o4Qro7TKznhEXBZYm7PLEHvr0q4+8SWvphV06aM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":28608,"deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/plugins.js","integrity":"sha384-Oztqc6UAqhDdxhQidEVBztOTkaVk1SEVTHCbHQwICT1mfjg8xWkr+W3dcUUG8tul"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4753,"open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.2.0/dist/cdn/dialogs.html","integrity":"sha384-8g6mUBg+JRWqy+Bdrv9lwlbd+j5zFDcV91qqI11svB4FL6DyY3p56LjV79lk3Kfj"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283}]}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -2080,6 +2174,13 @@
           .map((assetId) => assetById(assetId))
           .filter(Boolean)
           .sort((a, b) => (a.order || 0) - (b.order || 0));
+      }
+
+      /* The document's manifest is edited in place when a plugin is installed, so the parse
+         cache has to be dropped deliberately. */
+      function reloadManifest() {
+        parsed = null;
+        return manifest();
       }
 
       function manifest() {
@@ -2414,6 +2515,33 @@
         return evaluate(asset, text);
       }
 
+      /**
+       * Fetch a url and hash it, with nothing to verify against.
+       *
+       * This is *pinning*, not loading: the author decided the url is the right one, and the
+       * hash makes it immutable from then on. `fetchVerified` is the other direction — it
+       * refuses bytes that do not match a pin the document already has.
+       */
+      async function prefetch(url) {
+        if (!url) throw failure("missing", url || "(none)", "no url to fetch");
+        const timeoutMs = settings().timeoutMs || 8000;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        let response;
+        try {
+          response = await fetch(url, { signal: controller.signal, mode: "cors", cache: "no-store" });
+        } catch (error) {
+          const timedOut = controller.signal.aborted;
+          const kind = timedOut ? "timeout" : navigator.onLine === false ? "offline" : "unreachable";
+          throw failure(kind, url, timedOut ? `no response within ${timeoutMs} ms` : (error && error.message) || "fetch failed");
+        } finally {
+          clearTimeout(timer);
+        }
+        if (!response.ok) throw failure("http", url, `HTTP ${response.status}`, { url, status: response.status });
+        const bytes = await response.arrayBuffer();
+        return { bytes, text: new TextDecoder().decode(bytes), integrity: await sha384(bytes), size: bytes.byteLength };
+      }
+
       /* Verified CDN text for an asset, which is what a saved document embeds when a
          policy decides to inline an asset that was loaded by reference. Cached: the
          bytes at a pinned url + hash cannot change. An inline asset does not need
@@ -2734,6 +2862,8 @@
         settings,
         optional,
         source,
+        prefetch,
+        reloadManifest,
         require: requirePlugin,
         deactivate: deactivatePlugin,
         /** What a plugin's activate() returned, or null when it is not built. */
@@ -5584,12 +5714,16 @@
       }
 
       /* What should happen to one asset. Order is the point: the loader can never be
-         offloaded, a capability this document lacks is absent, an unused plugin is
-         absent, then the author's override, then the preset. */
+         offloaded, a capability this document lacks is absent, a switched-off plugin is
+         absent, then the author's override, then the preset.
+
+         A plugin's presence is the author's switch, not a figure count: an installed plugin
+         may contribute menus and export entries, be used by no figure at all, and still have
+         to travel. `usage` prices rows; it does not decide this. */
       function target(asset, {mode, policy, overrides, usage}) {
         if (isInfra(asset)) return "inline";
         if (!inMode(asset, mode)) return "absent";
-        if (asset.category === "plugin" && !((usage || {})[asset.id] > 0)) return "absent";
+        if (asset.category === "plugin" && asset.pluginEnabled === false) return "absent";
         const override = (overrides || {})[asset.id];
         if (CHOICES.includes(override)) return override;
         if (policy === "slim") return "online";
@@ -5605,16 +5739,23 @@
       function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, baseBytes = 0} = {}) {
         const decisions = [...((manifest && manifest.assets) || [])]
           .sort((a, b) => (a.order || 0) - (b.order || 0))
-          .map((asset) => ({
-            id: asset.id,
-            order: asset.order,
-            role: asset.role || "module",
-            category: asset.category,
-            requiredBy: asset.requiredBy || ["*"],
-            from: asset.mode || "inline",
-            to: target(asset, {mode, policy, overrides, usage}),
-            bytes: asset.bytes || 0,
-          }));
+          .map((asset) => {
+            /* A plugin asset's presence follows its plugin's switch. The decision carries
+               that, so `presetFor()` can re-plan from decisions alone. */
+            const plugin = asset.plugin ? (manifest.plugins || {})[asset.plugin] : null;
+            const decision = {
+              id: asset.id,
+              order: asset.order,
+              role: asset.role || "module",
+              category: asset.category,
+              requiredBy: asset.requiredBy || ["*"],
+              from: asset.mode || "inline",
+              bytes: asset.bytes || 0,
+            };
+            if (asset.plugin) decision.pluginEnabled = plugin ? plugin.enabled !== false : false;
+            decision.to = target({...asset, pluginEnabled: decision.pluginEnabled}, {mode, policy, overrides, usage});
+            return decision;
+          });
         const inlineBytes = decisions
           .filter((decision) => decision.to === "inline")
           .reduce((sum, decision) => sum + decision.bytes, 0);
@@ -7077,7 +7218,7 @@
      * a figure needs is loaded by that figure, not by this module.
      */
     export function createPlugins(deps = {}) {
-      const {signals, figures, env} = deps;
+      const {signals, figures, status, env} = deps;
       const registry = env.StandaloneDoc;
 
       /* Contribution kinds that only exist as UI. A plugin offering one of these has to be
@@ -7294,9 +7435,433 @@
         return false;
       }
 
+
+      /* ------------------------------------------------------------------- the sheet */
+      /*
+       * The author-facing half: what is in this file, what could be, and how to add one from
+       * a url. Storage (inline vs fetched) is *not* here — that decision lives in Document
+       * settings, and a second control for it would be the third copy of the same rows.
+       *
+       * Built in JS on purpose: the sheet is session state, tagged `data-plugin-ui`, and the
+       * save path drops it like any other runtime node.
+       */
+
+      let sheet = null;
+      let catalog = null;
+      let catalogError = null;
+      let foot = "";
+      let pendingPin = null;
+
+      const manifestJSON = () => {
+        const el = document.getElementById("asset-manifest");
+        try {
+          return el ? JSON.parse(el.textContent) : null;
+        } catch {
+          return null;
+        }
+      };
+
+      /* Writing the manifest is the only mutation in this module, and it is deliberate:
+         installing a plugin is editing the file's own description of itself. */
+      function writeManifest(next) {
+        const el = document.getElementById("asset-manifest");
+        if (!el) return false;
+        el.textContent = JSON.stringify(next);
+        registry.reloadManifest();
+        status.markDirty();
+        return true;
+      }
+
+      const catalogUrl = () =>
+        String(registry.manifest().cdnBase || "").replace(/\/$/, "").replace(/\/cdn$/, "") + "/registry.json";
+
+      const say = (text) => {
+        foot = text;
+        if (sheet) sheet.querySelector("[data-ps-foot]").textContent = text;
+      };
+
+      function element(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text != null) node.textContent = text;
+        return node;
+      }
+
+      function usedBy(id) {
+        return figures.pluginUsage()[id] || 0;
+      }
+
+      function assetRows(entry, manifest) {
+        const table = element("table", "ps-assets");
+        const head = element("thead");
+        const headRow = element("tr");
+        for (const label of ["Asset", "Size", "Stored"]) headRow.append(element("th", null, label));
+        head.append(headRow);
+        const body = element("tbody");
+        for (const assetId of entry.assets || []) {
+          const asset = (manifest.assets || []).find((candidate) => candidate.id === assetId) || {};
+          const row = element("tr");
+          row.append(
+            element("td", "ps-asset-id", assetId),
+            element("td", "ps-num", `${Math.round((asset.bytes || 0) / 1024)} KB`),
+            element("td", null, asset.mode || "—"),
+          );
+          body.append(row);
+        }
+        table.append(head, body);
+        return table;
+      }
+
+      function installedRow(id, entry, manifest) {
+        const count = usedBy(id);
+        const built = Boolean(registry.instance(id));
+        const row = element("div", "ps-row");
+        row.dataset.id = id;
+        row.dataset.state = entry.enabled === false ? "off" : built ? "on" : "idle";
+
+        const main = element("div", "ps-main");
+        const name = element("span", "ps-name", entry.label || id);
+        const version = element("span", "ps-version", entry.version ? `v${entry.version}` : "");
+        const island = element("span", "ps-badge", entry.island || "sealed");
+        island.dataset.island = entry.island || "sealed";
+        const used = element("span", "ps-used", count ? `used by ${count} figure${count === 1 ? "" : "s"}` : "used by none");
+
+        const toggle = element("label", "ps-switch");
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = entry.enabled !== false;
+        box.dataset.toggle = id;
+        box.addEventListener("click", (event) => {
+          /* The intent comes from the manifest, not from the checkbox: a click may have
+             flipped the input before this handler ran, and a refusal must not leave a
+             switch that says the opposite of the file. */
+          event.preventDefault();
+          const current = (manifestJSON()?.plugins?.[id] || {}).enabled !== false;
+          setEnabled(id, !current);
+        });
+        toggle.append(box, element("span", null, box.checked ? "on" : "off"));
+
+        const remove = element("button", "ps-btn", "Remove");
+        remove.dataset.remove = id;
+        remove.addEventListener("click", () => uninstall(id));
+
+        main.append(name, version, island, used, element("span", "ps-grow"), toggle, remove);
+        row.append(main);
+
+        const error = (registry.errors || []).find((item) => item.id === id);
+        if (error) row.append(element("p", "ps-why", `${error.kind} — ${error.message}`));
+        else if (count) row.append(element("p", "ps-hint", "A plugin a figure needs cannot be removed or switched off."));
+
+        const details = element("details", "ps-details");
+        details.append(element("summary", null, `${(entry.assets || []).length} asset${(entry.assets || []).length === 1 ? "" : "s"} · storage is set in Document settings`));
+        details.append(assetRows(entry, manifest));
+        row.append(details);
+        return row;
+      }
+
+      function availableRow(id, asset) {
+        const latest = (asset.versions || [])[0] || {};
+        const row = element("div", "ps-row");
+        row.dataset.id = id;
+        row.dataset.state = "available";
+        const main = element("div", "ps-main");
+        const island = element("span", "ps-badge", asset.island || latest.island || "sealed");
+        island.dataset.island = asset.island || latest.island || "sealed";
+        main.append(
+          element("span", "ps-name", asset.label || id),
+          element("span", "ps-version", latest.version ? `v${latest.version}` : ""),
+          island,
+          element("span", "ps-used", latest.bytes ? `${Math.round(latest.bytes / 1024)} KB` : ""),
+          element("span", "ps-grow"),
+        );
+        const install = element("button", "ps-btn ps-primary", "Install");
+        install.dataset.install = id;
+        install.addEventListener("click", () => installFrom(id, asset, latest));
+        main.append(install);
+        row.append(main);
+        if (asset.description) row.append(element("p", "ps-hint", asset.description));
+        return row;
+      }
+
+      function formRow() {
+        const wrap = element("div", "ps-form");
+        const field = (labelText, placeholder, mono) => {
+          const row = element("div", "ps-field");
+          const label = element("label", null, labelText);
+          const input = document.createElement("input");
+          input.placeholder = placeholder;
+          if (mono) input.classList.add("ps-mono");
+          row.append(label, input);
+          wrap.append(row);
+          return input;
+        };
+        const url = field("URL", "https://esm.sh/mermaid@11.4.1?bundle", true);
+        const label = field("Name", "Mermaid");
+        const result = element("p", "ps-result");
+        const actions = element("div", "ps-field");
+        actions.append(element("label"));
+        const verify = element("button", "ps-btn", "Fetch and verify");
+        const add = element("button", "ps-btn ps-primary", "Add");
+        add.disabled = true;
+        actions.append(verify, add);
+        wrap.append(actions, result);
+
+        verify.addEventListener("click", async () => {
+          const target = url.value.trim();
+          result.dataset.tone = "busy";
+          result.textContent = "fetching…";
+          add.disabled = true;
+          pendingPin = null;
+          /* Checked here as well as in install(): a relative url resolves against this
+             document over http and fails from disk, so it must not get as far as a hash. */
+          if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(target)) {
+            result.dataset.tone = "bad";
+            result.textContent = "A plugin url must be absolute (https://…) — a relative one does not work from disk.";
+            return;
+          }
+          try {
+            const fetched = await registry.prefetch(target);
+            pendingPin = { url: target, integrity: fetched.integrity, bytes: fetched.size, label: label.value.trim() };
+            result.dataset.tone = "ok";
+            const size = fetched.size < 2048 ? `${fetched.size} bytes` : `${Math.round(fetched.size / 1024)} KB`;
+            result.textContent = `verified ${size} · ${fetched.integrity.slice(0, 22)}… — press Add to pin it`;
+            add.disabled = false;
+          } catch (error) {
+            result.dataset.tone = "bad";
+            result.textContent = `${error.kind || "error"} — ${error.message || error}`;
+          }
+        });
+
+        add.addEventListener("click", async () => {
+          if (!pendingPin) return;
+          const id = (pendingPin.label || pendingPin.url).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "plugin";
+          await install(id, { ...pendingPin, label: pendingPin.label || id, island: "sealed" });
+          url.value = "";
+          label.value = "";
+          result.textContent = "";
+          add.disabled = true;
+          pendingPin = null;
+        });
+        return wrap;
+      }
+
+      function renderSheet() {
+        if (!sheet) return;
+        const manifest = manifestJSON() || { assets: [], plugins: {} };
+        const plugins = manifest.plugins || {};
+        const search = (sheet.querySelector("[data-ps-search]").value || "").trim().toLowerCase();
+        const matches = (text) => !search || String(text).toLowerCase().includes(search);
+
+        const installed = Object.entries(plugins).filter(([id, entry]) => matches(id) || matches(entry.label || ""));
+        const installedList = sheet.querySelector('[data-ps-list="installed"]');
+        installedList.replaceChildren();
+        if (!installed.length) {
+          installedList.append(element("p", "ps-empty", Object.keys(plugins).length
+            ? "No plugin in this file matches that search."
+            : "No plugins in this file. Install one from the catalog, or paste a url below."));
+        } else {
+          for (const [id, entry] of installed) installedList.append(installedRow(id, entry, manifest));
+        }
+
+        const available = Object.entries(catalog?.assets || {}).filter(([id, asset]) => !plugins[id] && (matches(id) || matches(asset.label || "")));
+        const availableList = sheet.querySelector('[data-ps-list="available"]');
+        availableList.replaceChildren();
+        if (!available.length) {
+          const why = catalogError
+            ? `No catalog reachable (${catalogError}). Add a plugin by url below.`
+            : catalog
+              ? "Nothing in this catalog matches."
+              : "No catalog yet for this runtime — add a plugin by url below.";
+          availableList.append(element("p", "ps-empty", why));
+        } else {
+          for (const [id, asset] of available) availableList.append(availableRow(id, asset));
+        }
+
+        const advanced = sheet.querySelector('[data-ps-form]');
+        advanced.replaceChildren(formRow());
+
+        const total = Object.keys(plugins).length;
+        const used = Object.values(plugins).filter((entry) => usedBy(Object.keys(plugins).find((id) => plugins[id] === entry)) > 0).length;
+        sheet.querySelector("[data-ps-sub]").textContent =
+          `${total} installed · ${used} used · everything here is written into this file when you save`;
+        sheet.querySelector("[data-ps-foot]").textContent = foot
+          || "Installing pins url + sha384. Storage (inline or fetched) is set in Document settings.";
+      }
+
+      function buildSheet() {
+        const dialog = element("dialog", "plugin-sheet");
+        dialog.setAttribute("data-plugin-ui", "");
+        dialog.innerHTML = `
+      <div class="ps-head">
+        <h2>Plugins</h2>
+        <p class="ps-sub" data-ps-sub></p>
+        <input class="ps-search" type="search" data-ps-search placeholder="Search plugins…" aria-label="Search plugins">
+        <div class="ps-nav">
+          <button class="ps-chip" data-ps-jump="installed" aria-pressed="true">In this file</button>
+          <button class="ps-chip" data-ps-jump="available" aria-pressed="false">Available</button>
+          <button class="ps-chip" data-ps-jump="advanced" aria-pressed="false">Add from URL</button>
+        </div>
+      </div>
+      <div class="ps-body">
+        <section class="ps-sect" data-ps-section="installed">
+          <h3>In this file</h3>
+          <p>A plugin's menus and panels are only there while it is loaded.</p>
+          <div data-ps-list="installed"></div>
+        </section>
+        <section class="ps-sect" data-ps-section="available">
+          <h3>Available</h3>
+          <p>From this runtime's catalog. Installing pins <code>url + sha384</code> into this file.</p>
+          <div data-ps-list="available"></div>
+        </section>
+        <section class="ps-sect" data-ps-section="advanced">
+          <h3>Add from URL</h3>
+          <p>A hash is required: it is the only authority for what runs. The url must be absolute — a
+            relative one works in one engine and fails in two.</p>
+          <div data-ps-form></div>
+        </section>
+      </div>
+      <div class="ps-foot">
+        <span class="ps-hint" data-ps-foot></span>
+        <button class="ps-btn ps-primary" data-ps-done>Done</button>
+      </div>`;
+
+        dialog.querySelector("[data-ps-search]").addEventListener("input", () => renderSheet());
+        dialog.querySelector("[data-ps-done]").addEventListener("click", () => dialog.close());
+        for (const chip of dialog.querySelectorAll("[data-ps-jump]")) {
+          chip.addEventListener("click", () => {
+            for (const other of dialog.querySelectorAll("[data-ps-jump]")) other.setAttribute("aria-pressed", String(other === chip));
+            dialog.querySelector(`[data-ps-section="${chip.dataset.psJump}"]`).scrollIntoView({ block: "start", behavior: "smooth" });
+          });
+        }
+        document.body.append(dialog);
+        return dialog;
+      }
+
+      function openSheet() {
+        if (!sheet) sheet = buildSheet();
+        foot = "";
+        renderSheet();
+        if (!sheet.open) sheet.showModal();
+        loadCatalog().then(() => renderSheet()).catch(() => renderSheet());
+      }
+
+      async function loadCatalog() {
+        if (catalog || catalogError) return;
+        try {
+          const response = await fetch(catalogUrl(), { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          catalog = await response.json();
+        } catch (error) {
+          /* Advisory only: the document embeds its own pins, so a missing catalog costs
+             nothing but convenience. */
+          catalogError = (error && error.message) || String(error);
+        }
+      }
+
+      async function setEnabled(id, enabled) {
+        const next = manifestJSON();
+        const entry = next?.plugins?.[id];
+        if (!entry) return;
+        const count = usedBy(id);
+        if (!enabled && count > 0) {
+          say(`Refused — ${count} figure${count === 1 ? "" : "s"} still need ${entry.label || id}. Keep it, or turn those figures into static content first.`);
+          return;
+        }
+        entry.enabled = Boolean(enabled);
+        writeManifest(next);
+        if (!enabled) await registry.deactivate(id);
+        else {
+          try {
+            await registry.require(id);
+          } catch {
+            /* the row shows the reason; a failed plugin is not a failed sheet */
+          }
+        }
+        say(enabled ? `${entry.label || id} loaded.` : `${entry.label || id} unloaded.`);
+        renderSheet();
+      }
+
+      async function uninstall(id) {
+        const next = manifestJSON();
+        const entry = next?.plugins?.[id];
+        if (!entry) return;
+        const count = usedBy(id);
+        if (count > 0) {
+          say(`Refused — ${count} figure${count === 1 ? "" : "s"} still need ${entry.label || id}. Its pin must stay in this file.`);
+          return;
+        }
+        await registry.deactivate(id);
+        delete next.plugins[id];
+        next.assets = (next.assets || []).filter((asset) => asset.plugin !== id);
+        writeManifest(next);
+        say(`${entry.label || id} removed from this file. Save to write that.`);
+        renderSheet();
+      }
+
+      async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null }) {
+        const next = manifestJSON();
+        if (!next) return say("this document has no asset manifest");
+        if (next.plugins?.[id]) return say(`${label || id} is already in this file.`);
+        /* Measured in lab/007: a relative url works in Firefox and fails in Chromium and
+           WebKit, so it is refused rather than pinned. */
+        if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url || "")) {
+          return say("A plugin url must be absolute (https://…) — a relative one does not work from disk.");
+        }
+        next.plugins = next.plugins || {};
+        next.plugins[id] = {
+          label: label || id,
+          version,
+          island,
+          enabled: true,
+          entry: id,
+          assets: [id],
+          contributes: {},
+        };
+        next.assets = next.assets || [];
+        next.assets.push({
+          id,
+          kind: "js",
+          role: "module",
+          order: 300 + next.assets.length,
+          mode: "online",
+          category: "plugin",
+          plugin: id,
+          requiredBy: ["*"],
+          bytes: bytes || 0,
+          url,
+          integrity,
+          ...(factory ? { factory } : {}),
+        });
+        writeManifest(next);
+        try {
+          await registry.require(id);
+        } catch {
+          /* shown on the row */
+        }
+        say(`${label || id} pinned. Save to write it into the file.`);
+        renderSheet();
+      }
+
+      function installFrom(id, asset, latest) {
+        if (!latest.url || !latest.sha384) return say(`${asset.label || id} has no pinned version in the catalog.`);
+        install(id, {
+          label: asset.label || id,
+          url: latest.url,
+          integrity: latest.sha384,
+          bytes: latest.bytes,
+          factory: latest.factory || null,
+          island: asset.island || latest.island || "sealed",
+          version: latest.version,
+        });
+      }
+
       /* ------------------------------------------------------------------- wiring */
 
       document.addEventListener("click", (event) => {
+        if (event.target.closest("[data-plugins-open]")) {
+          openSheet();
+          return;
+        }
         const insertButton = event.target.closest("[data-plugin-insert]");
         if (insertButton) {
           const [id, itemId] = insertButton.dataset.pluginInsert.split(":");
@@ -7352,7 +7917,7 @@
 
       activateUi();
 
-      return { activateUi, wire, unwire, openPanel };
+      return { activateUi, wire, unwire, openPanel, openSheet, install };
     }
     StandaloneDoc.register("plugins", createPlugins);
   </script>

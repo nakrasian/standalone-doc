@@ -28,12 +28,16 @@ export function createPolicy(deps = {}) {
   }
 
   /* What should happen to one asset. Order is the point: the loader can never be
-     offloaded, a capability this document lacks is absent, an unused plugin is
-     absent, then the author's override, then the preset. */
+     offloaded, a capability this document lacks is absent, a switched-off plugin is
+     absent, then the author's override, then the preset.
+
+     A plugin's presence is the author's switch, not a figure count: an installed plugin
+     may contribute menus and export entries, be used by no figure at all, and still have
+     to travel. `usage` prices rows; it does not decide this. */
   function target(asset, {mode, policy, overrides, usage}) {
     if (isInfra(asset)) return "inline";
     if (!inMode(asset, mode)) return "absent";
-    if (asset.category === "plugin" && !((usage || {})[asset.id] > 0)) return "absent";
+    if (asset.category === "plugin" && asset.pluginEnabled === false) return "absent";
     const override = (overrides || {})[asset.id];
     if (CHOICES.includes(override)) return override;
     if (policy === "slim") return "online";
@@ -49,16 +53,23 @@ export function createPolicy(deps = {}) {
   function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, baseBytes = 0} = {}) {
     const decisions = [...((manifest && manifest.assets) || [])]
       .sort((a, b) => (a.order || 0) - (b.order || 0))
-      .map((asset) => ({
-        id: asset.id,
-        order: asset.order,
-        role: asset.role || "module",
-        category: asset.category,
-        requiredBy: asset.requiredBy || ["*"],
-        from: asset.mode || "inline",
-        to: target(asset, {mode, policy, overrides, usage}),
-        bytes: asset.bytes || 0,
-      }));
+      .map((asset) => {
+        /* A plugin asset's presence follows its plugin's switch. The decision carries
+           that, so `presetFor()` can re-plan from decisions alone. */
+        const plugin = asset.plugin ? (manifest.plugins || {})[asset.plugin] : null;
+        const decision = {
+          id: asset.id,
+          order: asset.order,
+          role: asset.role || "module",
+          category: asset.category,
+          requiredBy: asset.requiredBy || ["*"],
+          from: asset.mode || "inline",
+          bytes: asset.bytes || 0,
+        };
+        if (asset.plugin) decision.pluginEnabled = plugin ? plugin.enabled !== false : false;
+        decision.to = target({...asset, pluginEnabled: decision.pluginEnabled}, {mode, policy, overrides, usage});
+        return decision;
+      });
     const inlineBytes = decisions
       .filter((decision) => decision.to === "inline")
       .reduce((sum, decision) => sum + decision.bytes, 0);

@@ -72,6 +72,13 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
+  /* The document's manifest is edited in place when a plugin is installed, so the parse
+     cache has to be dropped deliberately. */
+  function reloadManifest() {
+    parsed = null;
+    return manifest();
+  }
+
   function manifest() {
     if (parsed) return parsed;
     const el = document.getElementById("asset-manifest");
@@ -404,6 +411,33 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return evaluate(asset, text);
   }
 
+  /**
+   * Fetch a url and hash it, with nothing to verify against.
+   *
+   * This is *pinning*, not loading: the author decided the url is the right one, and the
+   * hash makes it immutable from then on. `fetchVerified` is the other direction — it
+   * refuses bytes that do not match a pin the document already has.
+   */
+  async function prefetch(url) {
+    if (!url) throw failure("missing", url || "(none)", "no url to fetch");
+    const timeoutMs = settings().timeoutMs || 8000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await fetch(url, { signal: controller.signal, mode: "cors", cache: "no-store" });
+    } catch (error) {
+      const timedOut = controller.signal.aborted;
+      const kind = timedOut ? "timeout" : navigator.onLine === false ? "offline" : "unreachable";
+      throw failure(kind, url, timedOut ? `no response within ${timeoutMs} ms` : (error && error.message) || "fetch failed");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!response.ok) throw failure("http", url, `HTTP ${response.status}`, { url, status: response.status });
+    const bytes = await response.arrayBuffer();
+    return { bytes, text: new TextDecoder().decode(bytes), integrity: await sha384(bytes), size: bytes.byteLength };
+  }
+
   /* Verified CDN text for an asset, which is what a saved document embeds when a
      policy decides to inline an asset that was loaded by reference. Cached: the
      bytes at a pinned url + hash cannot change. An inline asset does not need
@@ -724,6 +758,8 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     settings,
     optional,
     source,
+    prefetch,
+    reloadManifest,
     require: requirePlugin,
     deactivate: deactivatePlugin,
     /** What a plugin's activate() returned, or null when it is not built. */

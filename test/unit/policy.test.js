@@ -90,20 +90,6 @@ test("an override wins over the preset, and cannot resurrect an out-of-mode asse
   assert.equal(view.editor, "absent", "mode eligibility is not negotiable");
 });
 
-test("a plugin is absent until a figure needs it", () => {
-  const withPlugin = {
-    assets: [
-      ...manifest.assets,
-      {id: "mermaid", kind: "js", order: 130, requiredBy: ["*"], bytes: 861_000, mode: "online", category: "plugin"},
-    ],
-  };
-  const unused = targets(policy.plan(withPlugin, {policy: "inline", mode: "edit", usage: {}}));
-  assert.equal(unused.mermaid, "absent", "unused plugins are not in the file");
-
-  const used = targets(policy.plan(withPlugin, {policy: "inline", mode: "edit", usage: {mermaid: 2}}));
-  assert.equal(used.mermaid, "inline");
-});
-
 test("persist keeps the preset while nothing is overridden", () => {
   for (const name of ["inline", "smart", "slim"]) {
     const planned = policy.plan(manifest, {policy: name, mode: "edit"});
@@ -136,39 +122,47 @@ test("the estimate counts the inline bytes plus the rest of the document", () =>
   assert.equal(planned.estimate, 5_000 + infraBytes);
 });
 
-/* A plugin is priced by use, and a used plugin is never absent. `usage` is the count
-   of figures that need it (figures.pluginUsage()); the category is what tells the
-   policy the asset is a plugin at all. */
-test("a plugin is absent unless a figure needs it, and never absent once one does", () => {
-  const withPlugin = {
+/* A plugin's presence is the author's switch, not a figure count: an installed plugin
+   may contribute menus and be used by no figure at all. */
+test("a plugin travels while it is switched on, and is absent when switched off", () => {
+  const plugin = (enabled) => ({
+    plugins: { mermaid: { enabled } },
     assets: [
       ...ASSETS.map((asset) => ({...asset, mode: "inline"})),
-      {id: "mermaid", kind: "js", order: 200, category: "plugin", requiredBy: ["*"], mode: "online", bytes: 860_000},
+      {id: "mermaid", kind: "js", order: 200, category: "plugin", plugin: "mermaid", requiredBy: ["*"], mode: "online", bytes: 860_000},
     ],
-  };
+  });
 
-  const unused = targetMap(policy.plan(withPlugin, {policy: "inline", mode: "edit", usage: {}}));
-  assert.equal(unused.mermaid, "absent", "an unused plugin is not in the file");
+  const on = targetMap(policy.plan(plugin(true), {policy: "inline", mode: "edit", usage: {}}));
+  assert.equal(on.mermaid, "inline", "switched on with no figures still travels");
 
-  const used = targetMap(policy.plan(withPlugin, {policy: "inline", mode: "edit", usage: {mermaid: 2}}));
-  assert.equal(used.mermaid, "inline", "a used plugin follows the preset like any asset");
+  const off = targetMap(policy.plan(plugin(false), {policy: "inline", mode: "edit", usage: {mermaid: 2}}));
+  assert.equal(off.mermaid, "absent", "switched off is absent even when a figure wants it");
 
-  const slim = targetMap(policy.plan(withPlugin, {policy: "slim", mode: "edit", usage: {mermaid: 1}}));
-  assert.equal(slim.mermaid, "online", "and in slim it goes by reference, not away");
+  const slim = targetMap(policy.plan(plugin(true), {policy: "slim", mode: "edit", usage: {mermaid: 1}}));
+  assert.equal(slim.mermaid, "online", "and it follows the preset like any asset");
 });
 
-test("an override cannot keep an unused plugin in the file", () => {
-  const withPlugin = {
+test("a plugin asset with no plugin entry in the index is absent", () => {
+  const orphan = {
     assets: [
       ...ASSETS.map((asset) => ({...asset, mode: "inline"})),
-      {id: "mermaid", kind: "js", order: 200, category: "plugin", requiredBy: ["*"], mode: "online", bytes: 860_000},
+      {id: "mermaid", kind: "js", order: 200, category: "plugin", plugin: "mermaid", requiredBy: ["*"], mode: "online", bytes: 1},
     ],
   };
-  const planned = policy.plan(withPlugin, {
-    policy: "inline",
-    mode: "edit",
-    usage: {},
-    overrides: {mermaid: "inline"},
-  });
-  assert.equal(targetMap(planned).mermaid, "absent", "the category rule is decided before the override");
+  assert.equal(targetMap(policy.plan(orphan, {policy: "inline", mode: "edit"})).mermaid, "absent");
+});
+
+test("an override cannot keep a switched-off plugin in the file", () => {
+  const planned = policy.plan(
+    {
+      plugins: { mermaid: { enabled: false } },
+      assets: [
+        ...ASSETS.map((asset) => ({...asset, mode: "inline"})),
+        {id: "mermaid", kind: "js", order: 200, category: "plugin", plugin: "mermaid", requiredBy: ["*"], mode: "online", bytes: 1},
+      ],
+    },
+    {policy: "inline", mode: "edit", overrides: {mermaid: "inline"}},
+  );
+  assert.equal(targetMap(planned).mermaid, "absent", "the switch is decided before the override");
 });

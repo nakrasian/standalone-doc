@@ -273,7 +273,8 @@
       ],
       "deps": [
         "signals",
-        "figures"
+        "figures",
+        "status"
       ],
       "late": [],
       "optional": [],
@@ -281,7 +282,9 @@
         "activateUi",
         "wire",
         "unwire",
-        "openPanel"
+        "openPanel",
+        "openSheet",
+        "install"
       ]
     },
     {

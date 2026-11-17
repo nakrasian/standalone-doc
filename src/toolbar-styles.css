@@ -908,6 +908,98 @@ dialog.plugin-panel .pp-head button {
 }
 dialog.plugin-panel .pp-body { padding: 14px 18px 18px; overflow-y: auto; max-height: 64dvh; }
 
+/* ---- plugins sheet ----
+   Sibling of Document settings, not a tab in it: that sheet prices what is in the file,
+   this one decides what gets in. Built at runtime and tagged `data-plugin-ui`. */
+dialog.plugin-sheet {
+  width: min(700px, calc(100vw - 32px));
+  max-height: min(86dvh, 800px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+dialog.plugin-sheet::backdrop { background: rgba(16, 22, 30, .34); }
+dialog.plugin-sheet:focus,
+dialog.plugin-sheet:focus-visible { outline: none; }
+
+.plugin-sheet .ps-head { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
+.plugin-sheet .ps-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+.plugin-sheet .ps-sub { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.plugin-sheet .ps-search {
+  width: 100%; height: 30px; margin-top: 9px; padding: 0 9px;
+  font: inherit; font-size: 12.5px; border: 1px solid var(--line); border-radius: 7px;
+  background: #fff; color: var(--ink);
+}
+.plugin-sheet .ps-nav { display: flex; gap: 6px; margin-top: 9px; }
+.plugin-sheet .ps-chip {
+  font: inherit; font-size: 12px; height: 26px; padding: 0 10px; border-radius: 99px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+}
+.plugin-sheet .ps-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.plugin-sheet .ps-body { padding: 4px 20px 8px; overflow-y: auto; max-height: 62dvh; }
+.plugin-sheet .ps-sect { border-bottom: 1px solid #f0f2f5; padding: 13px 0; }
+.plugin-sheet .ps-sect:last-child { border-bottom: 0; }
+.plugin-sheet .ps-sect > h3 { margin: 0 0 2px; font-size: 12.5px; font-weight: 650; }
+.plugin-sheet .ps-sect > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+
+.plugin-sheet .ps-row { border-bottom: 1px solid #f0f2f5; padding: 9px 0; }
+.plugin-sheet .ps-row:last-child { border-bottom: 0; }
+.plugin-sheet .ps-main { display: flex; align-items: baseline; gap: 7px; }
+.plugin-sheet .ps-name { font-weight: 650; font-size: 12.5px; }
+.plugin-sheet .ps-version { color: var(--muted); font-variant-numeric: tabular-nums; }
+.plugin-sheet .ps-badge {
+  padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 600;
+  border: 1px solid #d8dde5; color: #5b6270; background: #f7f9fb;
+}
+.plugin-sheet .ps-badge[data-island="trusted"] { border-color: #e3c9a6; color: #8a5a12; background: #fdf6ea; }
+.plugin-sheet .ps-used { color: var(--muted); font-size: 11.5px; }
+.plugin-sheet .ps-grow { flex: 1 1 auto; }
+.plugin-sheet .ps-switch { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11.5px; cursor: pointer; }
+.plugin-sheet .ps-hint { color: var(--muted); font-size: 11.5px; margin: 4px 0 0; }
+.plugin-sheet .ps-why { margin: 4px 0 0; color: #b3261e; font-size: 11.5px; }
+.plugin-sheet .ps-btn {
+  font: inherit; font-size: 11.5px; height: 26px; padding: 0 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+}
+.plugin-sheet .ps-btn.ps-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+.plugin-sheet .ps-btn:disabled { opacity: .45; cursor: default; }
+/* White-on-accent at 45% is unreadable: a disabled primary goes grey, not faint. */
+.plugin-sheet .ps-btn.ps-primary:disabled {
+  background: #eef1f5; border-color: var(--line); color: #7b828d; opacity: 1;
+}
+.plugin-sheet .ps-details { margin-top: 5px; }
+.plugin-sheet .ps-details > summary { cursor: pointer; color: #4a515c; font-size: 11.5px; padding: 2px 0; }
+.plugin-sheet .ps-assets { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 4px; }
+.plugin-sheet .ps-assets th,
+.plugin-sheet .ps-assets td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #f2f4f7; }
+.plugin-sheet .ps-assets th { color: var(--muted); font-weight: 600; }
+.plugin-sheet .ps-num { text-align: right; font-variant-numeric: tabular-nums; }
+.plugin-sheet .ps-asset-id { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+.plugin-sheet .ps-empty { color: var(--muted); font-size: 12px; }
+
+.plugin-sheet .ps-form { display: grid; gap: 7px; }
+.plugin-sheet .ps-field { display: flex; gap: 8px; align-items: center; }
+.plugin-sheet .ps-field label { width: 52px; flex: 0 0 auto; color: var(--muted); font-size: 11.5px; }
+.plugin-sheet .ps-field input {
+  flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px; font: inherit; font-size: 12px;
+  border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink);
+}
+.plugin-sheet .ps-mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+.plugin-sheet .ps-result { margin: 0; font-size: 11.5px; min-height: 16px; color: var(--muted); }
+.plugin-sheet .ps-result[data-tone="ok"] { color: #1a7f47; }
+.plugin-sheet .ps-result[data-tone="bad"] { color: #b3261e; }
+
+.plugin-sheet .ps-foot {
+  display: flex; gap: 10px; align-items: center; padding: 11px 20px;
+  border-top: 1px solid var(--line); background: var(--chrome-bg);
+}
+.plugin-sheet .ps-foot .ps-hint { flex: 1 1 auto; margin: 0; }
+
 /* a clickable size readout: it opens the sheet at Size & loading */
 .stats[data-stats] { cursor: pointer; border-radius: 4px; }
 .stats[data-stats]:hover { background: var(--hover); }

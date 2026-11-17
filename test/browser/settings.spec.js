@@ -36,7 +36,7 @@ async function openSheet(page) {
   await page.waitForFunction(() => document.getElementById("doc-settings-dialog")?.open === true);
 }
 
-test("the gear is a two-item menu and there is no separate shortcuts button", async ({ page }) => {
+test("the gear menu carries settings, shortcuts and plugins, and no separate shortcuts button", async ({ page }) => {
   const problems = await load(page);
   expect(problems).toEqual([]);
 
@@ -48,6 +48,7 @@ test("the gear is a two-item menu and there is no separate shortcuts button", as
         ui,
         gear: host.querySelectorAll('[data-menu][aria-label="Document settings"]').length,
         shortcutsButton: host.querySelectorAll("button[data-shortcuts]:not([data-menu-item])").length,
+        plugins: host.querySelectorAll("[data-plugins-open]").length,
         /* the gear sits immediately before the Save button, as decided */
         gearBeforeSave: Boolean(gear && gear.closest(".menu-wrap")?.nextElementSibling?.matches("[data-save]")),
       };
@@ -57,8 +58,8 @@ test("the gear is a two-item menu and there is no separate shortcuts button", as
 
   /* Both bars reach the sheet, and neither carries the old standalone button. */
   expect(chrome.bars).toEqual([
-    {ui: "ribbon", gear: 1, shortcutsButton: 0, gearBeforeSave: true},
-    {ui: "minimal", gear: 1, shortcutsButton: 0, gearBeforeSave: true},
+    {ui: "ribbon", gear: 1, shortcutsButton: 0, plugins: 1, gearBeforeSave: true},
+    {ui: "minimal", gear: 1, shortcutsButton: 0, plugins: 1, gearBeforeSave: true},
   ]);
   expect(chrome.gearIcon).toBe(1);
 
@@ -72,9 +73,10 @@ test("the gear is a two-item menu and there is no separate shortcuts button", as
       shortcuts: item.hasAttribute("data-shortcuts"),
     })),
   );
-  expect(items.map((item) => item.label)).toEqual(["Document settings…", "Keyboard shortcuts"]);
+  expect(items.map((item) => item.label)).toEqual(["Document settings…", "Keyboard shortcuts", "Plugins…"]);
   /* the exact chord is platform-dependent (⌘ vs Ctrl); presence is the contract */
-  expect(items.map((item) => item.hint.length > 0)).toEqual([true, true]);
+  /* Plugins… has no chord yet; the two commands that do keep theirs */
+  expect(items.map((item) => item.hint.length > 0)).toEqual([true, true, false]);
   expect(items.some((item) => item.settings)).toBe(true);
   expect(items.some((item) => item.shortcuts)).toBe(true);
 });
