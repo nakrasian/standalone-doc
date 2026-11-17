@@ -852,7 +852,7 @@ function firstDiff(a, b) {
   return n;
 }
 
-async function cmdCheck() {
+async function cmdCheck({ exit = true } = {}) {
   const { problems, html } = verify({ quiet: true });
   const all = [...problems];
   const depWarnings = [];
@@ -1129,7 +1129,8 @@ async function cmdCheck() {
     console.log("check: ok");
   }
   for (const w of [...depWarnings, ...warnings]) console.warn(`check: warning — ${w}`);
-  process.exit(all.length ? 1 : 0);
+  if (exit) process.exit(all.length ? 1 : 0);
+  return all.length === 0;
 }
 
 function measure() {
@@ -1213,7 +1214,7 @@ const RUNTIME = `${DIST}/runtime`;
 /** Every release tag in the clone, oldest first. Empty on a shallow checkout. */
 function releaseTags() {
   try {
-    return execFileSync("git", ["tag", "--list", "v*", "--sort=v:refname"], { cwd: ROOT, encoding: "utf8" })
+    return execFileSync("git", ["tag", "--list", "v*", "--sort=v:refname"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
       .split("\n")
       .map((line) => line.trim())
       .filter((tag) => /^v\d+\.\d+\.\d+$/.test(tag));
@@ -1257,7 +1258,9 @@ const tagOf = (base) => /@([^/]+)\//.exec(String(base || ""))?.[1] ?? null;
 /** A file as a tag shipped it, or null when this clone does not have that tag. */
 function fileAt(tag, file) {
   try {
-    return execFileSync("git", ["show", `${tag}:${file}`], { cwd: ROOT, maxBuffer: 1 << 28 });
+    /* `stdio` silences git's own "invalid object name" for a tag that does not exist yet:
+       asking is how we find out, and it is not an error worth printing. */
+    return execFileSync("git", ["show", `${tag}:${file}`], { cwd: ROOT, maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] });
   } catch {
     return null;
   }
@@ -1308,7 +1311,7 @@ function runtimeCatalog() {
   for (const tag of tags) {
     try {
       const manifest = JSON.parse(execFileSync("git", ["show", `${tag}:${MANIFEST}`], {
-        cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 26,
+        cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 26, stdio: ["ignore", "pipe", "ignore"],
       }));
       releases.push([tag, runtimeEntry(tag, manifest)]);
     } catch {
@@ -1337,7 +1340,7 @@ function runtimeCatalog() {
 function tagDate(tag) {
   try {
     return execFileSync("git", ["for-each-ref", `refs/tags/${tag}`, "--format=%(taggerdate:short)"], {
-      cwd: ROOT, encoding: "utf8",
+      cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
     }).trim() || null;
   } catch {
     return null;
@@ -1679,7 +1682,11 @@ async function cmdRelease({ version, dryRun = false } = {}) {
   cmdBuild();
   cmdCatalog();
   cmdReport({ baseline: true });
-  await cmdCheck();
+  if (!(await cmdCheck({ exit: false }))) {
+    console.error(`release: ${tag} was NOT prepared — the gate above has the reasons. Nothing is tagged.`);
+    console.error("  (the version bump and the rebuild are in place; fix, commit, and run release again)");
+    process.exit(1);
+  }
 
   /* jsDelivr: a new tag is a new set of paths, and it caches a failed fetch. Purging the
      files that changed (all of them, on a first release) is cheaper than debugging it. */
