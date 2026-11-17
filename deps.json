@@ -1,0 +1,210 @@
+{
+  "schema": 1,
+  "assets": [
+    {
+      "id": "signals",
+      "order": 30,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": [
+        "on",
+        "emit",
+        "mute",
+        "composing"
+      ]
+    },
+    {
+      "id": "zoom",
+      "order": 40,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": [
+        "command",
+        "set",
+        "setPercent",
+        "in",
+        "out",
+        "reset",
+        "fit",
+        "syncUI",
+        "value"
+      ]
+    },
+    {
+      "id": "pagination",
+      "order": 50,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [
+        "signals",
+        "zoom"
+      ],
+      "late": [],
+      "provides": [
+        "schedule",
+        "pageCount",
+        "refresh"
+      ]
+    },
+    {
+      "id": "status",
+      "order": 60,
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "deps": [
+        "signals",
+        "pagination"
+      ],
+      "late": [],
+      "provides": [
+        "refresh",
+        "save",
+        "markDirty"
+      ]
+    },
+    {
+      "id": "editor",
+      "order": 70,
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "deps": [
+        "signals",
+        "status",
+        "pagination"
+      ],
+      "late": [],
+      "provides": [
+        "init",
+        "exec",
+        "setBlock",
+        "setList",
+        "syncToolbar",
+        "setFontSize",
+        "openLink",
+        "remember",
+        "restore",
+        "history",
+        "blockAt",
+        "blockAtCaret",
+        "insertBlock"
+      ]
+    },
+    {
+      "id": "figures",
+      "order": 80,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [
+        "signals",
+        "status",
+        "editor"
+      ],
+      "late": [],
+      "provides": [
+        "init",
+        "pick",
+        "insertFiles",
+        "scan",
+        "mount",
+        "unmount",
+        "unmountAll",
+        "pause",
+        "resume",
+        "suspendObserver",
+        "resumeObserver",
+        "snapshot",
+        "captureAll",
+        "setScale",
+        "setDimension",
+        "resetSize",
+        "remove",
+        "select",
+        "prepareClone",
+        "storeJSON",
+        "storeBytes",
+        "savedStoreBytes",
+        "store",
+        "selected"
+      ]
+    },
+    {
+      "id": "toolbar",
+      "order": 90,
+      "mode": "inline",
+      "requiredBy": [
+        "edit",
+        "comment"
+      ],
+      "deps": [
+        "zoom",
+        "editor",
+        "figures",
+        "status"
+      ],
+      "late": [],
+      "provides": [
+        "save",
+        "serialize",
+        "validate"
+      ]
+    },
+    {
+      "id": "export",
+      "order": 100,
+      "mode": "inline",
+      "requiredBy": [
+        "edit"
+      ],
+      "deps": [
+        "figures",
+        "toolbar"
+      ],
+      "late": [],
+      "provides": [
+        "begin",
+        "capture",
+        "captureAndBuild",
+        "buildStatic",
+        "validateStatic",
+        "download",
+        "syncPrintPage",
+        "printLive",
+        "printCaptured"
+      ]
+    },
+    {
+      "id": "progress",
+      "order": 110,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": [
+        "open",
+        "update",
+        "setText",
+        "setCancel",
+        "close",
+        "isOpen"
+      ]
+    }
+  ]
+}

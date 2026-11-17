@@ -16,6 +16,7 @@ playwright-report/
 /*.md
 !/README.md
 !/CONTRIBUTING.md
+!/DEPS.md
 /*.txt
 
 # Editor swap files

@@ -44,6 +44,14 @@
       ],
       "exports": [
         "createSignals"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": [
+        "on",
+        "emit",
+        "mute",
+        "composing"
       ]
     },
     {
@@ -68,6 +76,19 @@
         "nearest",
         "parsePercent",
         "createZoom"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": [
+        "command",
+        "set",
+        "setPercent",
+        "in",
+        "out",
+        "reset",
+        "fit",
+        "syncUI",
+        "value"
       ]
     },
     {
@@ -84,7 +105,18 @@
       ],
       "exports": [
         "createPagination"
-      ]
+      ],
+      "deps": [
+        "signals",
+        "zoom"
+      ],
+      "late": [],
+      "provides": [
+        "schedule",
+        "pageCount",
+        "refresh"
+      ],
+      "env": true
     },
     {
       "id": "status",
@@ -100,6 +132,19 @@
       ],
       "exports": [
         "createStatus"
+      ],
+      "deps": [
+        "signals",
+        "pagination"
+      ],
+      "late": [],
+      "provides": [
+        "refresh",
+        "save",
+        "markDirty"
+      ],
+      "implicit": [
+        "figures"
       ]
     },
     {
@@ -116,6 +161,30 @@
       ],
       "exports": [
         "createEditor"
+      ],
+      "deps": [
+        "signals",
+        "status",
+        "pagination"
+      ],
+      "late": [],
+      "provides": [
+        "init",
+        "exec",
+        "setBlock",
+        "setList",
+        "syncToolbar",
+        "setFontSize",
+        "openLink",
+        "remember",
+        "restore",
+        "history",
+        "blockAt",
+        "blockAtCaret",
+        "insertBlock"
+      ],
+      "implicit": [
+        "figures"
       ]
     },
     {
@@ -132,6 +201,38 @@
       ],
       "exports": [
         "createFigures"
+      ],
+      "deps": [
+        "signals",
+        "status",
+        "editor"
+      ],
+      "late": [],
+      "provides": [
+        "init",
+        "pick",
+        "insertFiles",
+        "scan",
+        "mount",
+        "unmount",
+        "unmountAll",
+        "pause",
+        "resume",
+        "suspendObserver",
+        "resumeObserver",
+        "snapshot",
+        "captureAll",
+        "setScale",
+        "setDimension",
+        "resetSize",
+        "remove",
+        "select",
+        "prepareClone",
+        "storeJSON",
+        "storeBytes",
+        "savedStoreBytes",
+        "store",
+        "selected"
       ]
     },
     {
@@ -149,6 +250,21 @@
       ],
       "exports": [
         "createToolbar"
+      ],
+      "deps": [
+        "zoom",
+        "editor",
+        "figures",
+        "status"
+      ],
+      "late": [],
+      "provides": [
+        "save",
+        "serialize",
+        "validate"
+      ],
+      "implicit": [
+        "export"
       ]
     },
     {
@@ -165,6 +281,25 @@
       ],
       "exports": [
         "createExport"
+      ],
+      "deps": [
+        "figures",
+        "toolbar"
+      ],
+      "late": [],
+      "provides": [
+        "begin",
+        "capture",
+        "captureAndBuild",
+        "buildStatic",
+        "validateStatic",
+        "download",
+        "syncPrintPage",
+        "printLive",
+        "printCaptured"
+      ],
+      "implicit": [
+        "progress"
       ]
     },
     {
@@ -181,6 +316,16 @@
       ],
       "exports": [
         "createProgress"
+      ],
+      "deps": [],
+      "late": [],
+      "provides": [
+        "open",
+        "update",
+        "setText",
+        "setCancel",
+        "close",
+        "isOpen"
       ]
     }
   ]
