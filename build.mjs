@@ -36,6 +36,7 @@ import {
   syntaxError,
   uncompileBody,
 } from "./lib/compile.mjs";
+import { dedentCode as dedent, indentCode as reindent } from "./lib/indent.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE = "index.html";
@@ -102,30 +103,6 @@ function parseAttrs(text) {
   const attrs = {};
   for (const m of text.matchAll(/([a-zA-Z-]+)\s*=\s*"([^"]*)"/g)) attrs[m[1]] = m[2];
   return attrs;
-}
-
-/** Strip the largest common leading indent; the inverse of reindent(). */
-function dedent(text) {
-  const lines = text.split("\n");
-  let min = Infinity;
-  for (const line of lines) {
-    if (line.trim() === "") continue;
-    min = Math.min(min, /^[ \t]*/.exec(line)[0].length);
-  }
-  if (!Number.isFinite(min) || min === 0) return { text, indent: "" };
-  const indent = " ".repeat(min);
-  return {
-    text: lines.map((l) => (l.trim() === "" ? l : l.slice(min))).join("\n"),
-    indent,
-  };
-}
-
-function reindent(text, indent) {
-  if (!indent) return text;
-  return text
-    .split("\n")
-    .map((l) => (l === "" ? "" : indent + l))
-    .join("\n");
 }
 
 /* ------------------------------------------------------- parse / combine */

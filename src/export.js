@@ -125,43 +125,43 @@ const Export = (() => {
 
     const style = document.createElement("style");
     style.textContent = `
-      html, body { height: auto; }
-      body { display: block; min-height: 100dvh; overflow: auto; background: #e0e0e0; }
-      #viewport { overflow: visible; height: auto; }
-      #content { outline: none; }
+          html, body { height: auto; }
+          body { display: block; min-height: 100dvh; overflow: auto; background: #e0e0e0; }
+          #viewport { overflow: visible; height: auto; }
+          #content { outline: none; }
 
-      @media print {
-        body { display: block; height: auto; overflow: visible; background: #fff; }
-        #viewport { overflow: visible; }
-        #stage {
-          zoom: 1;
-          padding-block: 0;
-          height: auto !important;
-          min-height: 0 !important;
-        }
-        #sheets { display: none !important; }
-        .page-spacer { display: none !important; }
-        .page-spacer + * { break-before: page; }
-        #content { max-width: none; min-height: 0; }
-        #content > * { break-inside: avoid; }
-        figure.figure { break-inside: avoid; }
-        @page { size: ${sheetW} ${sheetH}; margin: ${pad}; }
-        @page:right {
-          @bottom-right {
-            content: counter(page) " / " counter(pages);
-            font: 500 8pt/1 system-ui, -apple-system, sans-serif;
-            color: #9aa1ab;
+          @media print {
+            body { display: block; height: auto; overflow: visible; background: #fff; }
+            #viewport { overflow: visible; }
+            #stage {
+              zoom: 1;
+              padding-block: 0;
+              height: auto !important;
+              min-height: 0 !important;
+            }
+            #sheets { display: none !important; }
+            .page-spacer { display: none !important; }
+            .page-spacer + * { break-before: page; }
+            #content { max-width: none; min-height: 0; }
+            #content > * { break-inside: avoid; }
+            figure.figure { break-inside: avoid; }
+            @page { size: ${sheetW} ${sheetH}; margin: ${pad}; }
+            @page:right {
+              @bottom-right {
+                content: counter(page) " / " counter(pages);
+                font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+                color: #9aa1ab;
+              }
+            }
+            @page:left {
+              @bottom-left {
+                content: counter(page) " / " counter(pages);
+                font: 500 8pt/1 system-ui, -apple-system, sans-serif;
+                color: #9aa1ab;
+              }
+            }
           }
-        }
-        @page:left {
-          @bottom-left {
-            content: counter(page) " / " counter(pages);
-            font: 500 8pt/1 system-ui, -apple-system, sans-serif;
-            color: #9aa1ab;
-          }
-        }
-      }
-    `;
+        `;
     clone.querySelector("head")?.append(style);
 
     return "<!doctype html>\n" + clone.outerHTML;

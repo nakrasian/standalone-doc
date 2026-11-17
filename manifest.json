@@ -118,8 +118,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 45524,
-      "sha384": "sha384-cSCgHPUmgZBkx01dB3+GlhaBLjXw82500/8rWmNwBbx2pGCwQgFEZOLKubzVs27G",
+      "bytes": 41676,
+      "sha384": "sha384-8CFW7xNndwm45sGS8kvFiCzPd+cgHdCvMFDo+HNdI4+KzSXUeuAEtQgcxSTxt/V0",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -145,8 +145,8 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 33915,
-      "sha384": "sha384-zE/kfWZFx57jtZoEFl+eB+YNsuHJn5jfAeCRFdTtbIwSgumxkGeVcpOrnjR7kg4E",
+      "bytes": 34059,
+      "sha384": "sha384-o6+By0n+fX7fLrWX1F17qMESnJMqXASuH0Uog+wvm111GFeDSIJm1e3wmXfabAk+",
       "mode": "inline",
       "requiredBy": [
         "edit"
