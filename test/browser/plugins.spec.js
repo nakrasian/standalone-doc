@@ -456,3 +456,131 @@ test("a document with no pinned copy says so", async ({ page }) => {
   expect(result.state).toBe("ready");
   expect(result.errors).toBe(1);
 });
+
+/* ------------------------------------------------------------------ file:// ---
+   A document opened from disk is the archival case, so a plugin has to work there
+   too. Two ways, and both are measured here rather than argued:
+
+     inline   the plugin's bytes are a block in the file — require() does no I/O at all
+     online   the bytes arrive by reference; a file:// page can fetch and hash them,
+              but only from a host that sends Access-Control-Allow-Origin (lab/007)
+
+   What a file:// page cannot do is fetch a *relative* path: Chromium and WebKit treat
+   each file as an opaque origin and refuse it. So a pinned url is either absolute or
+   the bytes are inline — there is no third option. */
+
+const EDITOR = fs.readFileSync(path.join(ROOT, "dist/editor.html"), "utf8");
+
+const DISK_PLUGIN_JS = `globalThis.__activated = globalThis.__activated || 0;
+
+export async function createWhiteboard() {
+  return {
+    kind: "whiteboard-from-disk",
+    async activate() {
+      globalThis.__activated += 1;
+      return { deactivate() {} };
+    },
+  };
+}
+`;
+
+/**
+ * An editor document on disk with one plugin pinned, inline or by reference.
+ * `file://` has no server, so the online case points at the dev server, which is the
+ * only CORS-enabled host a spec can reach offline.
+ */
+function makeFileDoc({ inline }) {
+  fs.mkdirSync(TMP, { recursive: true });
+  fs.writeFileSync(path.join(TMP, "plugin-disk.js"), DISK_PLUGIN_JS);
+  let html = EDITOR;
+  const manifest = JSON.parse(MANIFEST_RE.exec(html)[2]);
+  manifest.assets.push({
+    id: "whiteboard",
+    kind: "js",
+    role: "module",
+    order: 220,
+    mode: inline ? "inline" : "online",
+    category: "plugin",
+    plugin: "whiteboard",
+    requiredBy: ["*"],
+    bytes: byteLength(DISK_PLUGIN_JS),
+    factory: "createWhiteboard",
+    url: `${STAGE}/plugin-disk.js`,
+    integrity: sha384(DISK_PLUGIN_JS),
+  });
+  manifest.plugins = {
+    whiteboard: {
+      label: "Whiteboard",
+      version: "1.0.0",
+      isolation: "sealed",
+      enabled: true,
+      entry: "whiteboard",
+      assets: ["whiteboard"],
+    },
+  };
+  html = html.replace(MANIFEST_RE, (_, open, _json, close) => open + JSON.stringify(manifest) + close);
+
+  if (inline) {
+    /* The block carries the register line, exactly as a save-produced inline asset
+       does: that is what makes require() a construct-only operation offline. */
+    const block = `<!-- @asset id="whiteboard" kind="js" order="220" -->\n`
+      + `<script type="module" id="whiteboard">\n${DISK_PLUGIN_JS}\nStandaloneDoc.register("whiteboard", createWhiteboard);\n</script>\n`
+      + `<!-- /@asset -->\n`;
+    html = html.replace('<!-- @asset id="bootstrap" kind="js" order="120" -->', `${block}\n<!-- @asset id="bootstrap" kind="js" order="120" -->`);
+  }
+
+  const name = `.test-tmp/disk-${process.pid}-${inline ? "inline" : "online"}.html`;
+  fs.writeFileSync(path.join(ROOT, name), html);
+  return path.join(ROOT, name);
+}
+
+async function openFromDisk(page, file) {
+  const http = [];
+  page.on("request", (request) => {
+    if (/^https?:/.test(request.url())) http.push(request.url());
+  });
+  const problems = [];
+  page.on("pageerror", (error) => problems.push(error.message));
+  await page.goto("file://" + file);
+  await page.waitForFunction(() => ["ready", "failed"].includes(globalThis.StandaloneDoc?.state), null, { timeout: 20_000 });
+  return { http, problems };
+}
+
+test("an inline plugin loads from disk with no network at all", async ({ page }) => {
+  const file = makeFileDoc({ inline: true });
+  const { http, problems } = await openFromDisk(page, file);
+  const result = await page.evaluate(async () => {
+    const mod = await StandaloneDoc.require("whiteboard");
+    return {
+      kind: mod?.kind,
+      activated: globalThis.__activated,
+      state: StandaloneDoc.state,
+      errors: StandaloneDoc.errors.length,
+      /* the bytes really are in the document, as a block, not fetched */
+      block: Boolean(document.getElementById("whiteboard")),
+    };
+  });
+  expect(result.kind).toBe("whiteboard-from-disk");
+  expect(result.activated).toBe(1);
+  expect(result.block).toBe(true);
+  expect(result.state).toBe("ready");
+  expect(result.errors).toBe(0);
+  expect(http).toEqual([]);
+  expect(problems).toEqual([]);
+});
+
+test("an online plugin loads from disk when the host allows CORS", async ({ page }) => {
+  const file = makeFileDoc({ inline: false });
+  const { http, problems } = await openFromDisk(page, file);
+  const result = await page.evaluate(async () => {
+    const mod = await StandaloneDoc.require("whiteboard");
+    return { kind: mod?.kind, activated: globalThis.__activated, state: StandaloneDoc.state, errors: StandaloneDoc.errors.length };
+  });
+  expect(result.kind).toBe("whiteboard-from-disk");
+  expect(result.activated).toBe(1);
+  expect(result.state).toBe("ready");
+  expect(result.errors).toBe(0);
+  /* exactly one request: the plugin. Everything else in this document is inline. */
+  expect(http.filter((url) => url.endsWith("/plugin-disk.js")).length).toBe(1);
+  expect(problems).toEqual([]);
+});

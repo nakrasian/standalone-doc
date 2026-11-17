@@ -1087,7 +1087,11 @@ function cmdDev() {
         res.end("not found");
         return;
       }
-      res.writeHead(200, { "content-type": types[path.extname(file)] || "application/octet-stream", "cache-control": "no-store" });
+      /* CORS for everything: this server exists to be fetched from, including from a
+         `file://` document. Without this header Chromium and WebKit refuse the request
+         (measured — lab/007), which would mean a plugin pinned to a local url could
+         never be tested the way a reader would open the file. */
+      res.writeHead(200, { "content-type": types[path.extname(file)] || "application/octet-stream", "cache-control": "no-store", "access-control-allow-origin": "*" });
       res.end(fs.readFileSync(file));
     })
     .listen(port, "127.0.0.1", () => {
