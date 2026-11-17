@@ -73,12 +73,18 @@ test("moduleExportNames preserves source order", () => {
   });
 });
 
-test("rejects the token import anywhere, comments included", () => {
+test("rejects import syntax, but not the word inside strings and comments", () => {
   withModule(() => {
-    assert.throws(
-      () => compileBody("demo", "// we could import things\nexport function createDemo() {}\n"),
-      /contains the token `import`/,
+    assert.throws(() => compileBody("demo", 'import x from "./y.js";\nexport function createDemo() {}\n'), /import declaration/);
+    assert.throws(() => compileBody("demo", 'export function createDemo() { await import("./y.js"); }\n'), /dynamic import/);
+    assert.throws(() => compileBody("demo", "export function createDemo() { return import.meta.url; }\n"), /import\.meta/);
+
+    /* The word itself is ordinary text. */
+    const { body } = compileBody(
+      "demo",
+      'export function createDemo() {\n  console.error("figure import failed");\n  // we never import here\n}\n',
     );
+    assert.ok(body.includes("figure import failed"));
   });
 });
 

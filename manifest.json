@@ -121,11 +121,14 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 41676,
-      "sha384": "sha384-8CFW7xNndwm45sGS8kvFiCzPd+cgHdCvMFDo+HNdI4+KzSXUeuAEtQgcxSTxt/V0",
+      "bytes": 41785,
+      "sha384": "sha384-rb7W/a6lBND9mrD/phhvkBW65gRvgMcIJaWLOQWTTaMBYGcYuwsVIlIYVbZGP+WZ",
       "mode": "inline",
       "requiredBy": [
         "*"
+      ],
+      "exports": [
+        "createFigures"
       ]
     },
     {

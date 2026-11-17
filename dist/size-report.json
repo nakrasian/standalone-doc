@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 192138
+    "bytes": 192494
   },
   "assets": [
     {
@@ -42,7 +42,7 @@
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 45523
+      "bytes": 45879
     },
     {
       "id": "toolbar",
@@ -61,8 +61,8 @@
     }
   ],
   "flavors": {
-    "index.html": 192138,
-    "asset-bodies": 166880,
+    "index.html": 192494,
+    "asset-bodies": 167236,
     "markup-and-runtime": 25258
   },
   "notes": [

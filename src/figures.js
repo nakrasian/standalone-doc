@@ -1,6 +1,5 @@
-"use strict";
-
-const Figures = (() => {
+export function createFigures(deps = {}) {
+  const {signals, status, editor} = deps;
   const content = document.getElementById("content");
   const viewport = document.getElementById("viewport");
   const storeEl = document.getElementById("figure-store");
@@ -185,7 +184,7 @@ const Figures = (() => {
      terminate its own JSON container. JSON.parse restores it on load. */
   function syncStore() {
     if (storeEl) storeEl.textContent = JSON.stringify(store).replace(/</g, "\\u003c");
-    Signals.emit("figures");
+    signals.emit("figures");
   }
 
   function storeJSON() {
@@ -931,7 +930,7 @@ const Figures = (() => {
     }
 
     if (selected === figure) positionTools(figure);
-    Status.markDirty();
+    status.markDirty();
     Pagination.schedule();
   }
 
@@ -955,8 +954,8 @@ const Figures = (() => {
     unmount(figure);
     figure.remove();
     select(null);
-    Editor.history.record();
-    Status.markDirty();
+    editor.history.record();
+    status.markDirty();
     Pagination.schedule();
     scan();
   }
@@ -1029,7 +1028,7 @@ const Figures = (() => {
         }
         const entry = await makeEntry(file, kind, {trusted});
         const figure = createFigure(entry);
-        Editor.insertBlock(figure, {after: anchor});
+        editor.insertBlock(figure, {after: anchor});
         anchor = figure;
         created.push(figure);
       } catch (err) {
@@ -1041,7 +1040,7 @@ const Figures = (() => {
       syncStore();
       scan();
       Pagination.schedule();
-      Status.markDirty();
+      status.markDirty();
     }
     return created;
   }
@@ -1165,21 +1164,22 @@ const Figures = (() => {
       if (selected) positionTools(selected);
     });
 
-    Signals.on("layout", scan);
-    Signals.on("mutation", scheduleScan);
-    Signals.on("compositionend", scheduleScan);
+    signals.on("layout", scan);
+    signals.on("mutation", scheduleScan);
+    signals.on("compositionend", scheduleScan);
     scan();
-    Status.save();
+    status.save();
   }
 
-  return {
+  const api = {
     init, pick, insertFiles, scan, mount, unmount, unmountAll, pause, resume,
     suspendObserver, resumeObserver, snapshot, captureAll,
     setScale, setDimension, resetSize, remove, select, prepareClone, storeJSON, storeBytes, savedStoreBytes,
     get store() {return store;},
     get selected() {return selected;},
   };
-})();
 
-window.Figures = Figures;
-Figures.init();
+  /* Construction-time, exactly where the IIFE's trailing Figures.init() ran. */
+  init();
+  return api;
+}
