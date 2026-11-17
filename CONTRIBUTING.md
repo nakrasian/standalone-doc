@@ -63,11 +63,11 @@ Before opening a PR: `npm run check && npm test`. Before changing anything behav
 
 ## Lab (private)
 
-Exploratory work lives in `lab/`, which is **gitignored** and must never be committed.
+Exploratory work lives in `archive/lab/`, which is **gitignored** and must never be committed.
 The convention, if you keep one locally:
 
 ```
-lab/NNN-slug/
+archive/lab/NNN-slug/
   notes.md        front-matter: id, question, status (open|answered|promoted|abandoned),
                   answer, date, promoted_to, depends_on
   probe.html      standalone. Once the code exists in src/, import it — never copy it.

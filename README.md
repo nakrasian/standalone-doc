@@ -43,7 +43,8 @@ dist/               build output (committed: the CDN serves these at a tag)
 test/unit/          node:test suites
 ```
 
-`lab/` (private, gitignored) holds throwaway experiments. See CONTRIBUTING.md.
+`archive/` (private, gitignored) holds docs, samples, experiments and the probe lab.
+Nothing in it is referenced by the build. See CONTRIBUTING.md and `archive/README.md`.
 
 ## The asset model
 

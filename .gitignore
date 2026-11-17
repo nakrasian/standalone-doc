@@ -4,13 +4,9 @@
 # dependencies (the project itself has none; build tooling may add dev-only ones later)
 node_modules/
 
-# Unpublished material. Kept on disk, never committed.
-Samples/
-docs/
-experiments/
-
-# Private lab (experiments/probes). See CONTRIBUTING.md for the convention.
-lab/
+# Unpublished material: docs, experiments, samples, labs, planning notes.
+# See archive/README.md. Nothing in archive/ is referenced by the build.
+archive/
 
 # Playwright output
 test-results/
