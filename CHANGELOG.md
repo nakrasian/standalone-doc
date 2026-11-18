@@ -1,5 +1,81 @@
 # Changelog
 
+## v0.9.0 — 2026-11-18
+
+One dialog, one honest manifest per flavour, one update path — and a boot dialog that shows the
+half of boot that was silent (Phase 7's B, C and D, measured in `lab/013`–`lab/015`).
+
+### Added
+
+- **The boot dialog shows the fetch, not just the build.** `boot()` reported construction and
+  said nothing during the fetch, which on a slow link is 99 % of the wait: `lab/013` measured
+  4,331 ms of silence out of 4,358, with the bar flat at 0 % for all of it, while construction
+  cost 27 ms. The rows now come from `registry.planned()` — every asset the document boots, not
+  just the modules — and are painted from the browser's own resource timeline
+  (`performance.getEntriesByType("resource")`, which jsDelivr lets us read: `timing-allow-origin:
+  *`). No registry event was added: an event would be a second truth for the same fact. The bar
+  models phases (fetch 0–0.6, construct 0.6–1) so the construct handler cannot walk it
+  backwards. `#boot-dialog` now states invariant 16 once instead of four times.
+- **One document dialog with five panels.** Document settings and the Plugins sheet were two
+  windows over one file's decisions. They are now one dialog — Document, Storage, Runtime,
+  Plugins, About — with one draft and one Done. The Plugins panel is a host element filled by
+  `plugins.js` on first activation (order 95 > 90, reached through the optional edge), so the
+  catalog is still read only when an author asks for it. The tab stops offering what the door
+  would refuse, and the About panel reads its numbers and the diagnostics report from the
+  registry (`registry.diagnostics()`, which the failure card's *Copy* now uses too — one
+  implementation).
+- **An update path, in one place.** `registry.compareUpdate()` answers "what would an update
+  move?" for both callers: the failure card (applies at once — a failed boot has no toolbar)
+  and the Runtime panel (drafts, because a pin is a document fact). The two had duplicated the
+  plumbing *and* disagreed about what "could not read the index" means; `readable` is now a
+  separate answer from `newer`. Only `mode: online` assets move, as before.
+- **Plugin updates live on the plugin's row** (see `docs/PLUGINS.md` §7). The catalog's version
+  is compared per plugin, the row offers *Update to x.y.z*, `enabled` survives, a same-level
+  island does not re-ask, and a same-version-different-`sha384` is reported as *Bytes differ* —
+  a substitution, never an upgrade. The tab label carries the count, so the Runtime panel
+  *notices* and the row *acts*.
+- **An optional in-file plugin catalog** (`manifest.json` → `"pluginCatalog": true`). The block
+  is generated from `plugins.json`, carries the `tag` it was taken at, and `check` refuses one
+  that is missing when asked for, present when not, or taken at a different tag than the
+  document pins. A bundle's `manifest` stays relative, so a snapshot rides the tag the document
+  pins. The Plugins panel names a stale snapshot and offers **Refresh** (one request, a
+  document change). Off for this repository, on for a distribution that ships plugins.
+- **`registry.planned()`** — the assets this document will boot, in manifest order — so the
+  loader and the boot UI cannot disagree about the plan. `start` now reports assets and fetched
+  counts beside the module list.
+
+### Fixed
+
+- **Every flavour's manifest describes its own body.** `buildViewer` inherited `mode: "inline"`
+  for the assets it stripped, so `dist/viewer.html` declared 26 inline assets and carried 14
+  blocks: **238.6 KB of claims about bytes the file does not have**, and zero `absent`
+  declarations anywhere in the repository. Stripped assets are now written `absent` (what
+  invariant 19 says the word is for, and what the export path already did), and `check` fails
+  when an `inline` asset has no block or an `absent` one still has its block. Every
+  size-by-mode reading — including the ones in `lab/014` — was measuring that lie.
+- **The Plugins panel is styled by its own rules.** The `ps-*` rules were scoped to
+  `[data-plugin-panel]` — which is the attribute a *plugin's panel button* carries, not the
+  panel host — so the panel rendered unstyled and menu buttons inherited its grid. They are
+  scoped to `[data-dd-plugins]`, and a browser test asserts two computed values that can only
+  come from the panel's own rules (`lab/014`'s lesson in miniature: a scope is a claim).
+- **A bundle is measured in MB.** `sizeLabel()` stopped at KB, so the 87 MB pandoc bundle read
+  `85154 KB` in *Available*. It switches unit at 1 MB.
+- **`catalogBlock()` no longer treats `{}` as a catalog.** A parseable block with no tables won
+  over the network and showed an empty *Available* list, which reads like "nothing is
+  published". It now falls through, and a snapshot from another tag says so.
+
+### Size
+
+Against `v0.8.2`: `index.html` grew 24.4 KB (5.5 %), `dist/editor.html` 25.4 KB (5.8 % — the
+same code, plus the inline assets), `slim.html` 6.4 KB (8.1 %), `viewer.html` 6.7 KB (3.5 %).
+Honest accounting: ~10 KB is the new UI (five-panel shell, about, author, plugin updates,
+catalog refresh), ~6 KB is the per-asset boot rows (`slim`'s growth is almost entirely
+`registry` + `boot-ui`, which are inline in every flavour), and the rest is documentation
+comments in the CSS and the modules. The *dedupe* this cycle was smaller than planned: the
+plumbing behind an update is ~30 lines, and the 3.4 + 6.8 KB that `lab/014` priced were UI and
+recovery logic that cannot be shared, not plumbing. `check` warns about the drift (a warning by
+decision); `size-baseline.json` is re-seeded at this tree.
+
 ## v0.8.2 — 2026-11-18
 
 ### Fixed

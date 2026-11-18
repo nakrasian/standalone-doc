@@ -159,6 +159,9 @@ test("a view-mode document boots without the editor", async ({ page }) => {
   const state = await page.evaluate(() => ({
     state: StandaloneDoc.state,
     built: StandaloneDoc.order(),
+    /* The rows are the plan, not the module list: a slim document fetches fragments and
+       stylesheets too, and they are half of what a slow boot spends its time on. */
+    planned: StandaloneDoc.planned().filter((asset) => asset.role !== "infra").map((asset) => asset.id),
     constructed: Object.keys(StandaloneDoc.modules).sort(),
     rowIds: [...document.querySelectorAll(".boot-row")].map((row) => row.dataset.id),
     stats: document.querySelector("[data-stats]")?.textContent ?? "",
@@ -178,8 +181,9 @@ test("a view-mode document boots without the editor", async ({ page }) => {
   expect(state.editable).toBe("false");
   expect(state.toolbar).toBe("off");
   expect(state.toolbarHidden).toBe(true);
-  /* The boot dialog only lists what this document will build. */
-  expect(state.rowIds).toEqual(state.built);
+  /* The boot dialog lists what this document will load and build — every non-infra asset
+     in the plan, in manifest order. Infrastructure is already running and is not a wait. */
+  expect(state.rowIds).toEqual(state.planned);
   /* No status module, so the status line keeps its placeholder. */
   expect(state.stats).not.toMatch(/\d+ words?/);
   expect(state.content.length).toBeGreaterThan(0);
@@ -280,7 +284,7 @@ test.describe("boot dialog", () => {
     const seen = await dialog(page);
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
-    expect(seen.rows).toBe(13);
+    expect(seen.rows).toBe(19);
     expect(seen.barNow).toBe("100");
   });
 

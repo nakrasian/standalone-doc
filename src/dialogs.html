@@ -34,32 +34,56 @@
 </dialog>
 
 <dialog id="doc-settings-dialog" aria-labelledby="doc-settings-title">
-  <div class="ds-head">
-    <h2 id="doc-settings-title">Document settings</h2>
-    <p data-ds-sub>Stored in this file.</p>
+  <!-- One dialog, one draft, one Done. The panels are tabs rather than a longer scroll
+       because settings, storage, the pin and the plugins are four different questions, and a
+       single sheet made the least frequent one the hardest to find (lab/014 measured the
+       duplicated update path this replaces). Panel internals keep their old class prefixes:
+       `ds-*` is behaviour and storage, `ps-*` is the Plugins panel, and both predate this
+       shell. Empty panels are not rendered — a tab that is never opened does no work. -->
+  <div class="dd-head">
+    <div class="dd-title">
+      <h2 id="doc-settings-title">Document</h2>
+      <p data-ds-sub>Stored in this file.</p>
+    </div>
+    <p class="dd-state" data-dd-state></p>
   </div>
 
-  <div class="ds-body">
-    <section class="ds-sect">
-      <h3>Behaviour</h3>
-      <p>Applies the next time this file is opened — the loader enforces it, not the markup.</p>
+  <div class="dd-tabs" role="tablist" aria-label="Document panels">
+    <button type="button" role="tab" data-dd-tab="document" aria-controls="dd-document" aria-selected="true">Document</button>
+    <button type="button" role="tab" data-dd-tab="storage" aria-controls="dd-storage" aria-selected="false">Storage</button>
+    <button type="button" role="tab" data-dd-tab="runtime" aria-controls="dd-runtime" aria-selected="false">Runtime</button>
+    <button type="button" role="tab" data-dd-tab="plugins" aria-controls="dd-plugins" aria-selected="false">Plugins</button>
+    <button type="button" role="tab" data-dd-tab="about" aria-controls="dd-about" aria-selected="false">About</button>
+  </div>
+
+  <div class="dd-body">
+    <section class="dd-panel" id="dd-document" data-dd-panel="document" role="tabpanel" aria-labelledby="doc-settings-title">
+      <!-- The export decides a *copy's* mode, chrome and storage; these two decide what
+           reopening *this* file does. They are not the same question, and the confusion is
+           worth one sentence of copy rather than a control nobody can place. -->
+      <p>What this file does when it is reopened. A copy made by <b>File › Save as…</b> has its
+        own mode, chrome and storage — those are the export's, not these.</p>
       <!-- No `mode` control, and none is coming back: a view-mode save marks the editing
            assets `absent` (`policy.js`), so a file rewritten that way can never be edited
            again. A viewer is an *export* — File → Save as… → HTML → Viewer (read-only)… —
            which makes a copy and leaves this file alone. -->
       <div class="ds-row">
         <label class="grow"><input type="checkbox" data-ds="editable"> Content is editable</label>
-        <span class="ds-hint">readers cannot type</span>
+        <span class="ds-hint">off: locked for anyone who opens this file</span>
       </div>
       <div class="ds-row">
         <label class="grow"><input type="checkbox" data-ds="toolbar"> Show chrome</label>
-        <span class="ds-hint">the ribbon, or a viewer’s bar</span>
+        <span class="ds-hint">off: distraction-free, still this mode</span>
+      </div>
+      <div class="ds-row">
+        <span class="grow">Author</span>
+        <input type="text" data-ds="author" spellcheck="false" aria-label="Author name">
+        <span class="ds-hint">written into comments</span>
       </div>
     </section>
 
-    <section class="ds-sect" data-ds-section="size">
-      <h3>Size &amp; loading</h3>
-      <p>Applies when you save.</p>
+    <section class="dd-panel" id="dd-storage" data-dd-panel="storage" role="tabpanel" hidden>
+      <p>Applies when you save. Rows are capabilities, not files.</p>
       <div class="ds-row">
         <span class="grow">Warn above</span>
         <input type="number" data-ds="threshold" min="0" step="0.5" aria-label="Warning threshold in megabytes"> <span class="ds-unit">MB</span>
@@ -85,8 +109,7 @@
       <div class="ds-hint" data-ds-total></div>
     </section>
 
-    <section class="ds-sect" data-ds-section="runtime">
-      <h3>Runtime</h3>
+    <section class="dd-panel" id="dd-runtime" data-dd-panel="runtime" role="tabpanel" hidden>
       <p>Which version of the code this file runs. Pinned by tag, verified by SHA-384.</p>
       <div class="ds-row">
         <span class="grow"><code data-ds-pin>@—</code>
@@ -101,9 +124,27 @@
         <span class="ds-hint">per asset</span>
       </div>
     </section>
+
+    <section class="dd-panel" id="dd-plugins" data-dd-panel="plugins" role="tabpanel" hidden>
+      <!-- Filled by src/plugins.js on first activation: the panel is a host element, and the
+           plugin module owns everything inside it (install, storage, updates). -->
+      <div data-dd-plugins></div>
+    </section>
+
+    <section class="dd-panel" id="dd-about" data-dd-panel="about" role="tabpanel" hidden>
+      <p>What this file is, and what it is carrying.</p>
+      <table class="ds-ledger">
+        <tbody data-dd-facts></tbody>
+      </table>
+      <div class="ds-row">
+        <span class="grow">Diagnostics</span>
+        <button type="button" class="ds-chip" data-dd-copy>Copy</button>
+      </div>
+      <pre class="dd-diag" data-dd-diag hidden></pre>
+    </section>
   </div>
 
-  <div class="ds-foot">
+  <div class="dd-foot">
     <span class="ds-pending" data-ds-pending hidden></span>
     <span class="grow"></span>
     <button type="button" data-ds-cancel>Cancel</button>

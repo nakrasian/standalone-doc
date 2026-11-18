@@ -86,6 +86,8 @@ const open = async (page, file = "editor.html") => {
   await page.waitForFunction(() => ["ready", "failed"].includes(globalThis.StandaloneDoc?.state), null, { timeout: 20_000 });
   await page.evaluate(() => document.querySelector("[data-settings-open]").click());
   await expect(page.locator("#doc-settings-dialog")).toBeVisible();
+  /* The pin lives on the Runtime panel: the dialog opens on Document. */
+  await page.click('[data-dd-tab="runtime"]');
 };
 
 const block = (page) => page.evaluate(() => JSON.parse(document.getElementById("asset-manifest").textContent));

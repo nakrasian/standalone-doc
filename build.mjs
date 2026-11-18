@@ -366,6 +366,9 @@ function buildManifest(assets, previous) {
   /* Where to look for a newer release. Authored, because only the document's owner knows
      which host may name one; the loader falls back to the base's moving sibling. */
   if (previous?.catalog) manifest.catalog = previous.catalog;
+  /* Whether a flavour carries its plugin catalog inline. Authored for the same reason:
+     it is a size decision, and only the distributor knows whether they ship plugins. */
+  if (previous?.pluginCatalog === true) manifest.pluginCatalog = true;
   return { manifest, preserved };
 }
 
@@ -601,6 +604,43 @@ function readCatalog() {
   return JSON.parse(read(PLUGINS));
 }
 
+/**
+ * Every way an in-document catalog snapshot can be unusable.
+ *
+ * A block is optional, so absent is not a problem. Present, it has to be a *true* claim: the
+ * same schema the published catalog uses, the tag it was taken at (so a reader can tell it
+ * went stale, instead of a bundle install failing as "not the manifest the catalog pins"),
+ * absolute urls for self-contained entries, and a *relative* manifest path for bundles —
+ * relative is what makes a bundle ride the tag the document pins (docs/PLUGINS.md §6).
+ */
+function pluginCatalogProblems(body, manifest) {
+  const problems = [];
+  const match = /<script id="plugin-catalog" type="application\/json">([\s\S]*?)<\/script>/.exec(body);
+  if (!match) return manifest.pluginCatalog ? ["pluginCatalog is on but the block is missing"] : [];
+  if (!manifest.pluginCatalog) problems.push("carries a #plugin-catalog block the manifest does not ask for");
+  let block;
+  try {
+    block = JSON.parse(match[1]);
+  } catch (error) {
+    return [...problems, `#plugin-catalog is not JSON — ${error.message}`];
+  }
+  if (block.schema !== 1) problems.push(`#plugin-catalog schema is ${block.schema}, expected 1`);
+  const tag = tagOf(manifest.cdnBase);
+  if (block.tag !== tag) problems.push(`#plugin-catalog says it was taken at ${block.tag}, the document pins ${tag}`);
+  for (const [id, entry] of Object.entries(block.assets || {})) {
+    for (const version of entry.versions || []) {
+      if (!/^https?:\/\//.test(String(version.url || ""))) problems.push(`#plugin-catalog asset "${id}" has no absolute url`);
+      if (!/^sha384-[A-Za-z0-9+/]{64}$/.test(String(version.sha384 || ""))) problems.push(`#plugin-catalog asset "${id}" has no sha384`);
+    }
+  }
+  for (const [id, entry] of Object.entries(block.bundles || {})) {
+    if (!entry.manifest) problems.push(`#plugin-catalog bundle "${id}" names no manifest`);
+    else if (/^[a-z]+:\/\//i.test(String(entry.manifest))) problems.push(`#plugin-catalog bundle "${id}" has an absolute manifest — it must ride this document's tag`);
+    if (!/^sha384-[A-Za-z0-9+/]{64}$/.test(String(entry.sha384 || ""))) problems.push(`#plugin-catalog bundle "${id}" has no sha384`);
+  }
+  return problems;
+}
+
 /** Every way the authored catalog can be unusable. Empty array means publishable. */
 function catalogProblems(catalog) {
   const problems = [];
@@ -658,6 +698,39 @@ function catalogDocument(catalog, { base = null } = {}) {
     assets: catalog.assets || {},
     bundles: Object.fromEntries(publishedBundles({ base }).map(({ manifest, entry }) => [manifest.id, entry])),
   };
+}
+
+/**
+ * The plugin catalog as a block inside a document — an *option*, off unless a manifest asks
+ * for it.
+ *
+ * Why a snapshot and not a dependency: a `file://` page cannot fetch a relative url
+ * (lab/007), so without this the Plugins sheet is empty exactly where a document is most
+ * useful. Why opt-in: a catalog that grows is bytes in every document, and a catalog is a
+ * *proposal* — a file that never installs a plugin should not pay for one.
+ *
+ *   manifest.json  "pluginCatalog": true
+ *
+ * The block carries `tag`, which the published catalog does not: the snapshot knows when it
+ * was taken, and that is the only thing that makes staleness a fact instead of a guess. A
+ * bundle's `manifest` stays *relative* on purpose — `installBundle()` resolves it against
+ * `catalogBase()`, i.e. the tag this document pins, so snapshot and manifest agree by
+ * construction and neither can be re-pointed by the catalog (docs/PLUGINS.md §6).
+ */
+function pluginCatalogBlock(manifest) {
+  const catalog = catalogDocument(readCatalog(), { base: null });
+  const doc = {schema: 1, generated: catalog.generated, tag: tagOf(manifest.cdnBase), ...catalog};
+  return `<script id="plugin-catalog" type="application/json">${JSON.stringify(doc).replace(/</g, "\\u003c")}</script>`;
+}
+
+/** Splice the optional catalog block in right after the asset manifest. */
+function withPluginCatalog(html, manifest) {
+  if (!manifest.pluginCatalog) return html;
+  const marker = `<script id="asset-manifest"`;
+  const start = html.indexOf(marker);
+  if (start < 0) return html;
+  const end = html.indexOf("</script>", start) + "</script>".length;
+  return html.slice(0, end) + "\n" + pluginCatalogBlock(manifest) + html.slice(end);
 }
 
 function previousManifest() {
@@ -894,6 +967,29 @@ async function cmdCheck({ exit = true } = {}) {
     }
     if (exists(`${DIST}/viewer.html`) && read(`${DIST}/viewer.html`) !== buildViewer(html, m)) {
       all.push(`${DIST}/viewer.html is stale — run: node build.mjs build`);
+    }
+    /* A flavour's manifest is a claim about its own body, and it has to be true:
+         `inline` with no block - the file says it carries bytes it does not have;
+         `absent` with a block  - the file says it dropped what it still carries.
+       Both were possible (`lab/014` measured the first at 238.6 KB in viewer.html), and
+       both turn every size-by-mode reading — and any later "adopt the other mode" — into
+       a guess. The check is offline and cheap: the block list is in the same file. */
+    for (const name of ["editor", "slim", "viewer"]) {
+      const file = `${DIST}/${name}.html`;
+      if (!exists(file)) continue;
+      const body = read(file);
+      const declared = /<script id="asset-manifest" type="application\/json">([\s\S]*?)<\/script>/.exec(body);
+      if (!declared) continue;
+      const present = new Set([...body.matchAll(/<!-- @asset id="([^"]+)"/g)].map((match) => match[1]));
+      for (const problem of pluginCatalogProblems(body, m)) all.push(`${name}.html: ${problem} — run: node build.mjs build`);
+      for (const entry of JSON.parse(declared[1]).assets || []) {
+        if (entry.mode === "inline" && !present.has(entry.id)) {
+          all.push(`${name}.html declares "${entry.id}" inline and carries no block for it — run: node build.mjs build`);
+        }
+        if (entry.mode === "absent" && present.has(entry.id)) {
+          all.push(`${name}.html declares "${entry.id}" absent and still carries its block — run: node build.mjs build`);
+        }
+      }
     }
   } catch (err) {
     all.push(`manifest: ${err.message}`);
@@ -1206,7 +1302,7 @@ function buildSlim(html, manifest) {
   for (const asset of manifest.assets) {
     if (asset.role !== "infra") slim = withoutAsset(slim, asset.id);
   }
-  return slim;
+  return withPluginCatalog(slim, manifest);
 }
 
 /** Assets a given mode needs — the build-time twin of the loader's filter. */
@@ -1235,20 +1331,25 @@ function buildEditor(html, manifest) {
   for (const asset of manifest.assets) {
     if (!edit.has(asset.id)) out = withoutAsset(out, asset.id);
   }
-  return out;
+  return withPluginCatalog(out, manifest);
 }
 
 function buildViewer(html, manifest) {
   const view = new Set(manifest.assets.filter((asset) => inMode(asset, "view")).map((asset) => asset.id));
-  /* Everything this flavour keeps is in the file, so it is declared inline even when the
-     manifest says `online` for editors (the viewer bar). Otherwise a viewer would fetch
-     what it already carries. */
-  const inline = Object.fromEntries([...view].map((id) => [id, "inline"]));
-  let out = withDocSettings(withDocManifest(html, docManifest(manifest, inline)), docSettings(manifest, {mode: "view", toolbar: true}));
+  /* Both halves are declared, and neither is inherited:
+       kept     -> `inline`, because the copy carries it (the viewer bar is `online` here
+                   for an editor, and this copy must not fetch what it already has);
+       stripped -> `absent`, the author's word for "this left the file" (invariant 19).
+     It used to inherit the source's `inline` for what it stripped, so `dist/viewer.html`
+     claimed 238.6 KB of bytes it does not carry — a fiction every size-by-mode reading
+     then repeated (lab/014). `url` + `integrity` stay on the entry, so the declaration
+     says where the bytes are as well as that they are not here. */
+  const modes = Object.fromEntries(manifest.assets.map((asset) => [asset.id, view.has(asset.id) ? "inline" : "absent"]));
+  let out = withDocSettings(withDocManifest(html, docManifest(manifest, modes)), docSettings(manifest, {mode: "view", toolbar: true}));
   for (const asset of manifest.assets) {
     if (!view.has(asset.id)) out = withoutAsset(out, asset.id);
   }
-  return out;
+  return withPluginCatalog(out, manifest);
 }
 
 /* ------------------------------------------------------- runtime catalog */

@@ -30,10 +30,13 @@ const GEAR = '#ui-ribbon [data-menu][aria-label="Document settings"]';
 const settingsBlock = (page) =>
   page.evaluate(() => JSON.parse(document.getElementById("doc-settings").textContent));
 
-async function openSheet(page) {
+/* One dialog, five panels: a test that touches a control says which panel it lives in, the
+   same way an author clicks a tab. The default is the one the gear opens on. */
+async function openSheet(page, tab = null) {
   await page.click(GEAR);
   await page.click("#ui-ribbon [data-settings-open]");
   await page.waitForFunction(() => document.getElementById("doc-settings-dialog")?.open === true);
+  if (tab) await page.click(`[data-dd-tab="${tab}"]`);
 }
 
 test("the gear menu carries settings, shortcuts and plugins, and no separate shortcuts button", async ({ page }) => {
@@ -139,7 +142,7 @@ test("the sheet writes editability and chrome, and never the mode", async ({ pag
 
 test("a preset writes a preset, a row edit writes the map", async ({ page }) => {
   await load(page);
-  await openSheet(page);
+  await openSheet(page, "storage");
 
   await page.click('[data-preset="slim"]');
   await page.click("[data-ds-done]");
@@ -147,7 +150,7 @@ test("a preset writes a preset, a row edit writes the map", async ({ page }) => 
   expect(preset.policy).toBe("slim");
   expect(preset.assets).toBeUndefined();
 
-  await openSheet(page);
+  await openSheet(page, "storage");
   await page.selectOption('[data-ds-rows] tr[data-row="editor"] select', "absent");
   await page.click("[data-ds-done]");
   const map = await settingsBlock(page);
@@ -160,14 +163,14 @@ test("a preset writes a preset, a row edit writes the map", async ({ page }) => 
 
 test("'don't ask again' records the decline, and re-arm clears it", async ({ page }) => {
   await load(page);
-  await openSheet(page);
+  await openSheet(page, "storage");
 
   await page.check("[data-ds='never']");
   await page.click("[data-ds-done]");
   const declined = await settingsBlock(page);
   expect(declined.thresholdDeclined).toBeGreaterThan(100_000);
 
-  await openSheet(page);
+  await openSheet(page, "storage");
   await page.click("[data-ds='arm']");
   await page.click("[data-ds-done]");
   expect((await settingsBlock(page)).thresholdDeclined).toBeUndefined();
@@ -175,7 +178,7 @@ test("'don't ask again' records the decline, and re-arm clears it", async ({ pag
 
 test("the load timeout is a setting, not a manifest field", async ({ page }) => {
   await load(page);
-  await openSheet(page);
+  await openSheet(page, "runtime");
 
   const initial = await page.evaluate(() => ({
     field: document.querySelector("[data-ds='timeout']").value,
@@ -282,26 +285,30 @@ test("a plain save does not invent a policy key", async ({ page }) => {
   expect(settings.ui).toBe("ribbon");
 });
 
-test("the size readout opens the sheet at Size & loading", async ({ page }) => {
+test("the size readout opens the dialog on Storage", async ({ page }) => {
   await load(page);
-  /* The second door: the number that asks "why is this file big?" answers it. */
+  /* The second door: the number that asks "why is this file big?" answers it — and it is the
+     one thing that decides which panel is showing. */
   await page.click("[data-stats]");
   await page.waitForFunction(() => document.getElementById("doc-settings-dialog")?.open === true);
 
-  const visible = await page.evaluate(() => {
+  const seen = await page.evaluate(() => {
     const dialog = document.getElementById("doc-settings-dialog");
-    const section = dialog.querySelector('[data-ds-section="size"]');
-    const body = dialog.querySelector(".ds-body");
-    const inner = body.getBoundingClientRect();
-    const outer = section.getBoundingClientRect();
-    return { open: dialog.open, inView: outer.top < inner.bottom && outer.bottom > inner.top };
+    const selected = dialog.querySelector('[data-dd-tab][aria-selected="true"]')?.dataset.ddTab;
+    const panel = dialog.querySelector('[data-dd-panel="storage"]');
+    return {
+      open: dialog.open,
+      selected,
+      panelVisible: !panel.hidden && panel.getBoundingClientRect().height > 40,
+      otherHidden: dialog.querySelector('[data-dd-panel="document"]').hidden,
+    };
   });
-  expect(visible).toEqual({open: true, inView: true});
+  expect(seen).toEqual({open: true, selected: "storage", panelVisible: true, otherHidden: true});
 });
 
 test("a preset reaches the saved file", async ({ page }) => {
   await load(page);
-  await openSheet(page);
+  await openSheet(page, "storage");
   await page.click('[data-preset="slim"]');
   await page.click("[data-ds-done]");
 
@@ -318,4 +325,50 @@ test("a preset reaches the saved file", async ({ page }) => {
   expect(result.settings.policy).toBe("slim");
   expect(result.toolbarBlock).toBe(false);
   expect(result.validate).toEqual([]);
+});
+
+test("one dialog, five panels, and only one of them is showing", async ({ page }) => {
+  await load(page);
+  await page.click(GEAR);
+  await page.click("#ui-ribbon [data-settings-open]");
+  await page.waitForFunction(() => document.getElementById("doc-settings-dialog")?.open === true);
+
+  const panels = () => page.evaluate(() => {
+    const dialog = document.getElementById("doc-settings-dialog");
+    return {
+      selected: dialog.querySelector('[data-dd-tab][aria-selected="true"]')?.dataset.ddTab,
+      visible: [...dialog.querySelectorAll("[data-dd-panel]")].filter((panel) => !panel.hidden).map((panel) => panel.dataset.ddPanel),
+      tabs: [...dialog.querySelectorAll("[data-dd-tab]")].map((tab) => tab.dataset.ddTab),
+    };
+  });
+
+  expect(await panels()).toEqual({selected: "document", visible: ["document"], tabs: ["document", "storage", "runtime", "plugins", "about"]});
+  /* The mode is stated once, in the head, and is not a control: a viewer is an export. */
+  expect(await page.evaluate(() => document.querySelector("[data-dd-state]").textContent)).toContain("edit mode");
+  expect(await page.locator("[data-dd-panel] select[data-ds='mode']").count()).toBe(0);
+
+  for (const name of ["storage", "runtime", "about"]) {
+    await page.click(`[data-dd-tab="${name}"]`);
+    expect(await panels()).toEqual({selected: name, visible: [name], tabs: ["document", "storage", "runtime", "plugins", "about"]});
+  }
+});
+
+test("About reads the file rather than inventing numbers, and the report is the registry's", async ({ page }) => {
+  await load(page);
+  await page.click(GEAR);
+  await page.click("#ui-ribbon [data-settings-open]");
+  await page.click('[data-dd-tab="about"]');
+
+  const shown = await page.evaluate(() => ({
+    facts: [...document.querySelectorAll("[data-dd-facts] tr")].map((tr) => tr.firstElementChild.textContent),
+    file: [...document.querySelectorAll("[data-dd-facts] tr")].find((tr) => tr.firstElementChild.textContent === "File")?.lastElementChild.textContent,
+    diag: document.querySelector("[data-dd-diag]").textContent,
+    modules: Object.keys(StandaloneDoc.modules).length,
+  }));
+  expect(shown.facts).toEqual(["File", "Asset bodies", "Loaded now", "Pinned tag", "Host API"]);
+  expect(shown.file).toMatch(/^\d+(\.\d+)? (KB|MB)$/);
+  /* The same text the failure card copies: one implementation, in the registry. */
+  expect(shown.diag).toBe(await page.evaluate(() => StandaloneDoc.diagnostics()));
+  expect(shown.diag).toContain(`modules:  ${await page.evaluate(() => Object.keys(StandaloneDoc.modules).join(", "))}`);
+  expect(shown.modules).toBeGreaterThan(5);
 });

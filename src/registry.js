@@ -188,6 +188,41 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   }
 
   /** The release index, or null. Never a document failure: nothing is recorded. */
+  /** The tag this document pins, or null for a base that is not a tag (a dev build). */
+  const tagOf = (base = manifest().cdnBase) => /@([^/]+)\//.exec(String(base || ""))?.[1] ?? null;
+
+  /** `X.Y.Z`, with or without a leading `v`; anything unparseable sorts below a release. */
+  function isNewer(a, b) {
+    const parts = (tag) => String(tag || "").replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+    const left = parts(a);
+    const right = parts(b);
+    for (let i = 0; i < 3; i += 1) {
+      if ((left[i] || 0) !== (right[i] || 0)) return (left[i] || 0) > (right[i] || 0);
+    }
+    return false;
+  }
+
+  /**
+   * What an update would move, in one place.
+   *
+   * Two callers asked this question and answered it differently — the failure card (which
+   * applies at once, because a boot that failed has no toolbar) and Document settings (which
+   * drafts, because a pin is a document fact and nothing is decided before Done). They also
+   * duplicated the plumbing: read the index, compare tags, fetch `runtime/<tag>.json`. The
+   * policy is per-caller; the plumbing is not.
+   */
+  async function compareUpdate({ fetchEntry = false } = {}) {
+    const current = tagOf();
+    const index = await catalog();
+    const latest = index?.latest ?? null;
+    const newer = Boolean(current && latest && isNewer(latest, current));
+    const entry = newer && fetchEntry ? await release(latest) : null;
+    const date = (index?.releases || []).find((item) => item.tag === latest)?.date || null;
+    /* `readable` is not `newer`: a catalog that could not be read and a release that is not
+       newer are different news, and only one of them is worth alarming an author about. */
+    return {current, latest, newer, entry, date, readable: index !== null};
+  }
+
   async function catalog() {
     const url = catalogUrl();
     if (!url) return null;
@@ -463,12 +498,43 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
 
   /* Only constructed modules: infrastructure is already running, and a plugin is
      built by require(), not by boot. */
-  function order() {
+  function planned() {
     const mode = settings().mode;
     return manifest()
-      .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode) && !isPlugin(asset))
-      .sort((a, b) => a.order - b.order)
+      .assets.filter((asset) => inMode(asset, mode) && !isPlugin(asset))
+      .sort((a, b) => a.order - b.order);
+  }
+
+  function order() {
+    return planned()
+      .filter((asset) => asset.kind === "js" && asset.role !== "infra")
       .map((asset) => asset.id);
+  }
+
+  /**
+   * A paste-ready report of this document's runtime state.
+   *
+   * Data, not prose: the boot dialog and the About panel both show it, and neither owns it.
+   * `order` is what a boot attempt asked for — the modules, not every asset — because that
+   * is what a reader can compare against the rows they saw.
+   */
+  function diagnostics({ order: modulesOrder = null } = {}) {
+    const lines = [
+      "standalone-doc boot",
+      `state:    ${state}`,
+      `document: ${location.href}`,
+      `modules:  ${(modulesOrder || Object.keys(modules)).join(", ") || "—"}`,
+      "",
+    ];
+    for (const error of errors) {
+      lines.push(`[${error.kind || error.phase}] ${error.id}: ${error.message}`);
+      if (error.url) lines.push(`url: ${error.url}`);
+      if (error.expected) lines.push(`expected ${error.expected}`, `actual   ${error.actual}`);
+      if (error.stack) lines.push(error.stack);
+      lines.push("");
+    }
+    lines.push(`user agent: ${navigator.userAgent}`);
+    return lines.join("\n");
   }
 
   async function sha384(buffer) {
@@ -745,18 +811,20 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     errors.length = 0;
     pending.clear();
 
-    const mode = settings().mode;
     /* Plugins are never built here. A document must open when a plugin is missing,
        damaged or switched off, and keeping them out of this list is what keeps boot's
        fail-closed contract about *this document's own* assets. */
-    const assets = manifest()
-      .assets.filter((asset) => inMode(asset, mode) && !isPlugin(asset))
-      .sort((a, b) => a.order - b.order);
+    const assets = planned();
     const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
-    emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
+    const online = assets.filter((asset) => asset.mode === "online");
+    emit("start", {
+      order: jsAssets.map((asset) => asset.id),
+      assets: assets.map((asset) => asset.id),
+      total: jsAssets.length,
+      fetched: online.length,
+    });
 
     /* 1. Load in parallel: I/O is order-free. */
-    const online = assets.filter((asset) => asset.mode === "online");
     const loaded = new Map();
     const outcomes = await Promise.allSettled(
       online.map(async (asset) => {
@@ -963,9 +1031,14 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     boot,
     retry,
     order,
+    planned,
+    diagnostics,
     manifest,
     catalogUrl,
     catalog,
+    compareUpdate,
+    tagOf,
+    isNewer,
     release,
     repin,
     modules,

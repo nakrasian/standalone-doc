@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 457808
+    "bytes": 483395
   },
   "assets": [
     {
@@ -12,12 +12,12 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 34360
+      "bytes": 36006
     },
     {
       "id": "boot-ui-styles",
       "kind": "css",
-      "bytes": 6454
+      "bytes": 6726
     },
     {
       "id": "sprite",
@@ -52,12 +52,12 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 44212
+      "bytes": 47383
     },
     {
       "id": "boot-ui",
       "kind": "js",
-      "bytes": 17077
+      "bytes": 20169
     },
     {
       "id": "apply-settings",
@@ -112,12 +112,12 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 66648
+      "bytes": 72058
     },
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 46897
+      "bytes": 55957
     },
     {
       "id": "export",
@@ -127,7 +127,7 @@
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 7318
+      "bytes": 10231
     },
     {
       "id": "bootstrap",
@@ -136,9 +136,9 @@
     }
   ],
   "flavors": {
-    "index.html": 457808,
-    "asset-bodies": 441799,
-    "markup-and-runtime": 16009,
-    "dist/slim.html": 81317
+    "index.html": 483395,
+    "asset-bodies": 467363,
+    "markup-and-runtime": 16032,
+    "dist/slim.html": 87875
   }
 }

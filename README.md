@@ -232,6 +232,11 @@ demand, verified before it runs, with an in-place failure card when it is missin
 a broken file. Contributions (insert, export, panel, command) are declared in the manifest and
 rendered by the host, so a plugin extends the surface without occupying it.
 
+**Document settings is one dialog with five panels** — Document, Storage, Runtime, Plugins,
+About. The pin, the storage decision and the plugin pins belong to the same file, so they are
+one dialog with one Done: nothing but the plugin pins is written before it, and a plugin update
+sits on that plugin's row, never in a runtime sweep.
+
 **Plugins → Available** lists two shapes. A *module* is one self-contained ES file proposed by
 `plugins.json`. A *bundle* is one plugin with many assets (the pandoc exporter: eight of them,
 including two engines on npm), and there the catalog carries a pointer rather than a copy of
@@ -245,7 +250,9 @@ enforced, not advisory: `sealed` has no network, `sandboxed` is today's figure s
 
 ## Status
 
-`v0.8.0` is published: module conversion, the dependency contract and its audit, the
+`v0.9.0` adds one document dialog, `absent` written by every flavour, a per-asset boot
+progress line, plugin updates on the row, and an optional in-file plugin catalog. `v0.8.0`
+brought: module conversion, the dependency contract and its audit, the
 registry and `boot()` with diagnostics, the CDN loader, save-time materialization with
 policies, the plugin manager, the update flow, a viewer flavour, export, and a library a
 document can name — with the viewer as an export rather than a mode. Next is the host itself

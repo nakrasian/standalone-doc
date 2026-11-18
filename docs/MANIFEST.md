@@ -100,14 +100,34 @@ a reader who saves it as an editor cannot PUT over the document it came from.
 ## 3. `#plugin-catalog` — optional
 
 ```html
-<script id="plugin-catalog" type="application/json">{"schema":1,…}</script>
+<script id="plugin-catalog" type="application/json">{"schema":1,"tag":"v0.8.2","assets":{},"bundles":{}}</script>
 ```
 
-An in-file copy of the plugin catalog (the same shape `dist/registry.json` publishes), so an
-offline document can offer plugins with zero requests. The loader prefers it when present
-and falls back to the catalog at `cdnBase`'s sibling. This repository's own flavours do not
-emit it — a catalog that grows would be bytes in every document — but a distribution that
-ships plugins can.
+An in-file copy of the plugin catalog (the same shape `dist/registry.json` publishes, plus a
+`tag`), so an offline document can offer plugins with zero requests: a `file://` page cannot
+fetch a relative url (`lab/007`), which is exactly where a document is most useful. The
+Plugins panel prefers the block when present and falls back to the catalog at `cdnBase`'s
+sibling.
+
+**It is an option, and it is generated.** `manifest.json`'s `"pluginCatalog": true` makes every
+flavour carry it (`build.mjs#pluginCatalogBlock`); the block is never hand-written, `check`
+refuses one the manifest did not ask for, and refuses one taken at a different tag than the
+document pins. This repository leaves it **off** — a catalog that grows would be bytes in every
+document, and the built flavours are what the browser fixtures start from, so a baked-in
+snapshot would silently shadow every fixture catalog. A distribution that ships plugins flips
+the one field.
+
+Two rules that make the snapshot honest rather than merely present:
+
+- **`tag` is the tag the snapshot was taken at**, and it is what makes staleness a fact. A
+  bundle's `manifest` is *relative* (`plugins/<id>.json`) and `installBundle()` resolves it
+  against this document's own `cdnBase` — so snapshot and manifest agree by construction, and
+  a re-pin is what breaks that agreement. The panel says so ("taken at v0.8.2; this file pins
+  v0.9.0") and offers **Refresh**, which re-reads `<cdnBase>/../registry.json` and rewrites the
+  block (a document change: it marks the file dirty).
+- **A parseable block with no tables is not a catalog.** The panel falls through to the network
+  rather than showing an empty "Available" list, which reads exactly like "nothing is
+  published".
 
 ## 4. Plugins in the manifest
 

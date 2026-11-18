@@ -298,7 +298,9 @@
       "late": [
         "export"
       ],
-      "optional": [],
+      "optional": [
+        "plugins"
+      ],
       "provides": [
         "save",
         "serialize",
@@ -326,7 +328,8 @@
         "wire",
         "unwire",
         "openPanel",
-        "openSheet",
+        "renderPanel",
+        "updateCount",
         "install"
       ]
     },

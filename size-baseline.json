@@ -1,12 +1,12 @@
 {
   "source": {
-    "bytes": 457808
+    "bytes": 482843
   },
   "assets": [
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 66648
+      "bytes": 72058
     },
     {
       "id": "figures",
@@ -16,12 +16,12 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 46897
+      "bytes": 55655
     },
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 44212
+      "bytes": 47383
     },
     {
       "id": "export",
@@ -31,12 +31,17 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 34360
+      "bytes": 36138
     },
     {
       "id": "policy",
       "kind": "js",
       "bytes": 20536
+    },
+    {
+      "id": "boot-ui",
+      "kind": "js",
+      "bytes": 20169
     },
     {
       "id": "editor",
@@ -49,14 +54,14 @@
       "bytes": 17422
     },
     {
-      "id": "boot-ui",
-      "kind": "js",
-      "bytes": 17077
-    },
-    {
       "id": "page-styles",
       "kind": "css",
       "bytes": 11151
+    },
+    {
+      "id": "dialogs",
+      "kind": "html",
+      "bytes": 9849
     },
     {
       "id": "pagination",
@@ -64,14 +69,9 @@
       "bytes": 9654
     },
     {
-      "id": "dialogs",
-      "kind": "html",
-      "bytes": 7318
-    },
-    {
       "id": "boot-ui-styles",
       "kind": "css",
-      "bytes": 6454
+      "bytes": 6726
     },
     {
       "id": "viewer-bar-styles",
@@ -135,9 +135,9 @@
     }
   ],
   "flavors": {
-    "index.html": 457808,
-    "asset-bodies": 441799,
-    "markup-and-runtime": 16009,
-    "dist/slim.html": 81317
+    "index.html": 482843,
+    "asset-bodies": 466811,
+    "markup-and-runtime": 16032,
+    "dist/slim.html": 87875
   }
 }

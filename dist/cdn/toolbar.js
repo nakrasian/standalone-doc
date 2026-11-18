@@ -316,7 +316,50 @@ export function createToolbar(deps = {}) {
 
   let settingsDraft = null;
 
-  function openDocSettings({section} = {}) {
+  /* Which panel is showing. One dialog, five questions; the tab is a view of the draft, not
+     a second draft. */
+  const TABS = ["document", "storage", "runtime", "plugins", "about"];
+  let activeTab = "document";
+
+  function selectTab(name) {
+    const dialog = settingsDialog();
+    if (!dialog || !TABS.includes(name)) return;
+    activeTab = name;
+    for (const tab of dialog.querySelectorAll("[data-dd-tab]")) {
+      tab.setAttribute("aria-selected", String(tab.dataset.ddTab === name));
+    }
+    for (const panel of dialog.querySelectorAll("[data-dd-panel]")) {
+      panel.hidden = panel.dataset.ddPanel !== name;
+    }
+    /* The Plugins panel is a host element: `plugins.js` owns everything inside it, and it is
+       mounted on first activation because that mount is the one that reads a catalog (a
+       network call, an author may never want it). */
+    if (name === "plugins") mountPluginsPanel();
+    if (name === "about") paintAbout();
+  }
+
+  function mountPluginsPanel() {
+    const host = settingsDialog()?.querySelector("[data-dd-plugins]");
+    if (!host) return;
+    /* `optional`, not a dep: plugins is built after the toolbar (order 95 > 90), and the
+       getter is read when the tab opens, not when this module is constructed. */
+    const plugins = deps.optional("plugins")();
+    if (!plugins || typeof plugins.renderPanel !== "function") {
+      if (!host.childElementCount) host.textContent = "No plugin module in this document.";
+      return;
+    }
+    const loading = plugins.renderPanel(host);
+    /* The tab is where "two plugins have newer versions" is *noticed*; the row is where it is
+       acted on. Counting needs the catalog, so it lands when the panel has read it. */
+    if (loading && typeof loading.then === "function") {
+      loading.then((count) => {
+        const tab = settingsDialog()?.querySelector('[data-dd-tab="plugins"]');
+        if (tab) tab.textContent = count ? `Plugins · ${count}` : "Plugins";
+      }).catch(() => {});
+    }
+  }
+
+  function openDocSettings({tab} = {}) {
     const dialog = settingsDialog();
     if (!dialog) return;
     const settings = globalThis.StandaloneDoc.settings();
@@ -324,6 +367,7 @@ export function createToolbar(deps = {}) {
       mode: settings.mode,
       editable: settings.editable,
       toolbar: settings.toolbar,
+      author: settings.author || "",
       thresholdMb: toMb(settings.saveThresholdBytes),
       timeoutMs: settings.timeoutMs,
       never: Number(settings.thresholdDeclined) > 0,
@@ -334,9 +378,7 @@ export function createToolbar(deps = {}) {
     };
     paintDocSettings();
     if (!dialog.open) dialog.showModal();
-    if (section) {
-      dialog.querySelector(`[data-ds-section="${section}"]`)?.scrollIntoView({block: "nearest"});
-    }
+    selectTab(tab || activeTab || "document");
   }
 
   function closeDocSettings() {
@@ -370,6 +412,7 @@ export function createToolbar(deps = {}) {
     dialog.querySelector("[data-ds='threshold']").value = String(draft.thresholdMb);
     dialog.querySelector("[data-ds='timeout']").value = String(draft.timeoutMs);
     dialog.querySelector("[data-ds='never']").checked = draft.never;
+    dialog.querySelector("[data-ds='author']").value = draft.author;
     dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
       ? "quiet until the file doubles"
       : "the prompt returns when the file doubles";
@@ -448,6 +491,47 @@ export function createToolbar(deps = {}) {
     const pending = dialog.querySelector("[data-ds-pending]");
     pending.hidden = sameBlock(readSettingsBlock(), settingsPatch());
     pending.textContent = "Unsaved";
+
+    const state = dialog.querySelector("[data-dd-state]");
+    if (state) {
+      state.textContent = `${draft.mode} mode${draft.repin ? ` · pin ${draft.repin.tag} pending` : ""}`;
+      state.dataset.mode = draft.mode;
+    }
+  }
+
+  /* About: the numbers an author asks for when the file is too big, and the report they are
+     asked to paste when it will not open. Both are read, never invented. */
+  function paintAbout() {
+    const dialog = settingsDialog();
+    if (!dialog) return;
+    const manifest = globalThis.StandaloneDoc.manifest();
+    const assets = manifest.assets || [];
+    const infra = assets.filter((asset) => asset.role === "infra").reduce((sum, asset) => sum + (asset.bytes || 0), 0);
+    const bodies = assets.reduce((sum, asset) => sum + (asset.bytes || 0), 0);
+    const file = document.documentElement.outerHTML.length;
+    const facts = [
+      ["File", saveKilobytes(file)],
+      ["Asset bodies", `${saveKilobytes(bodies)} · ${saveKilobytes(infra)} of it infrastructure`],
+      ["Loaded now", `${Object.keys(globalThis.StandaloneDoc.modules || {}).length} modules`],
+      ["Pinned tag", /@([^/]+)\//.exec(manifest.cdnBase || "")?.[1] ?? "unpinned"],
+      ["Host API", String(globalThis.StandaloneDoc.hostApi)],
+    ];
+    const body = dialog.querySelector("[data-dd-facts]");
+    if (body) {
+      body.replaceChildren();
+      for (const [key, value] of facts) {
+        const tr = document.createElement("tr");
+        const name = document.createElement("td");
+        name.textContent = key;
+        const cell = document.createElement("td");
+        cell.className = "num";
+        cell.textContent = value;
+        tr.append(name, cell);
+        body.append(tr);
+      }
+    }
+    const diag = dialog.querySelector("[data-dd-diag]");
+    if (diag) diag.textContent = globalThis.StandaloneDoc.diagnostics();
   }
 
   /** The settings block the draft would produce. Pure: comparing it is how we know
@@ -465,6 +549,10 @@ export function createToolbar(deps = {}) {
     next.editable = draft.mode === "edit" ? draft.editable : false;
     next.toolbar = draft.toolbar;
     next.saveThresholdBytes = Math.max(0, toBytes(draft.thresholdMb || 0));
+    /* An author name is written only when there is one: a document with no comments has
+       nobody to attribute, and an empty string in every file is a change for nothing. */
+    if (draft.author && draft.author.trim()) next.author = draft.author.trim();
+    else delete next.author;
     next.timeoutMs = Math.max(0, Math.round(Number(draft.timeoutMs) || 0));
 
     if (draft.never) {
@@ -498,17 +586,6 @@ export function createToolbar(deps = {}) {
   }
 
   const registry = () => globalThis.StandaloneDoc;
-
-  /** `vX.Y.Z` comparison; anything unparseable sorts below a release. */
-  function newerTag(a, b) {
-    const parts = (tag) => String(tag || "").replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
-    const left = parts(a);
-    const right = parts(b);
-    for (let i = 0; i < 3; i += 1) {
-      if ((left[i] || 0) !== (right[i] || 0)) return (left[i] || 0) > (right[i] || 0);
-    }
-    return false;
-  }
 
   /**
    * "Check for updates…" — the deliberate path to a newer release, as opposed to the
@@ -551,13 +628,13 @@ export function createToolbar(deps = {}) {
     button.textContent = "Checking…";
     say("Reading the release index…");
     try {
-      const index = await api.catalog();
-      if (!index) {
+      /* One question, one implementation: the failure card asks the same thing and applies it
+         at once, because a failed boot has no toolbar to press Done on. */
+      const {current, latest, newer, entry, readable} = await api.compareUpdate({fetchEntry: true});
+      if (!readable) {
         say("Could not read the release index (offline, or the catalog is missing). Nothing changed.", "warn");
         return;
       }
-      const current = /@([^/]+)\//.exec(String(api.manifest().cdnBase || ""))?.[1] ?? null;
-      const latest = index.latest;
       if (!current) {
         say("This document has no tag to compare against. Nothing changed.", "warn");
         return;
@@ -566,11 +643,10 @@ export function createToolbar(deps = {}) {
         say(`Already on the newest release (${current}).`, "ok");
         return;
       }
-      if (!newerTag(latest, current)) {
+      if (!newer) {
         say(`The index offers ${latest}; this copy is on ${current}, which is newer. Nothing changed.`, "ok");
         return;
       }
-      const entry = await api.release(latest);
       settingsDraft.repin = entry;
       paintDocSettings();
       say(`${latest} is available. Press Done to point this file at it: the running window keeps ${current}, and every copy you save from now on runs ${latest}.`, "ok");
@@ -604,6 +680,27 @@ export function createToolbar(deps = {}) {
     });
     dialog.querySelector("[data-ds='timeout']").addEventListener("change", (event) => {
       settingsDraft.timeoutMs = Math.round(Number(event.target.value) || 0);
+    });
+    dialog.querySelector("[data-ds='author']").addEventListener("change", (event) => {
+      settingsDraft.author = event.target.value;
+      paintDocSettings();
+    });
+    for (const tab of dialog.querySelectorAll("[data-dd-tab]")) {
+      tab.addEventListener("click", () => selectTab(tab.dataset.ddTab));
+    }
+    dialog.querySelector("[data-dd-copy]").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const text = globalThis.StandaloneDoc.diagnostics();
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copied";
+      } catch {
+        /* No clipboard permission: show it, so it can be selected by hand. */
+        const diag = settingsDialog()?.querySelector("[data-dd-diag]");
+        if (diag) diag.hidden = false;
+        button.textContent = "Select above";
+      }
+      setTimeout(() => { button.textContent = "Copy"; }, 1400);
     });
     dialog.querySelector("[data-ds='never']").addEventListener("change", (event) => {
       settingsDraft.never = event.target.checked;
@@ -1320,7 +1417,12 @@ export function createToolbar(deps = {}) {
     /* The size readout is the second door: it is the number that makes an author ask
        "why is this file big?", so it opens the sheet where that is answered. */
     const statsHit = e.target.closest("[data-stats]");
-    if (statsHit) {closeAllMenus(); openDocSettings({section: "size"}); return;}
+    if (statsHit) {closeAllMenus(); openDocSettings({tab: "storage"}); return;}
+
+    /* A plugin's home is a panel of the document dialog, so its menu items and the Plugins
+       command open the same dialog at the same tab. */
+    const pluginsItem = e.target.closest("[data-plugins-open]");
+    if (pluginsItem) {closeAllMenus(); openDocSettings({tab: "plugins"}); return;}
 
     const submenuBtn = e.target.closest("[data-submenu-trigger]");
     if (submenuBtn) {toggleSubmenu(submenuBtn); return;}

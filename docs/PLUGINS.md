@@ -249,6 +249,23 @@ document's `cdnBase`, the base's parent directory has to be where `<dir>` is ser
 Point `--base` somewhere else and the sheet reads *that* address's catalog, which is usually
 the last release: correct behaviour, and the reason a dev build used to offer nothing.
 
+### Updating an installed plugin
+
+The Plugins panel compares each installed plugin's `version` with the catalog's: a *module*
+against `assets[id].versions[0]`, a *bundle* against `bundles[id].version`. A newer version puts
+**Update to x.y.z** on that plugin's row, and only there — the Runtime panel notices a count on
+the tab, it never moves a plugin pin as a side effect of a runtime update.
+
+The pin *is* the install, so an upgrade is an install that may overwrite: the entry is
+rewritten, the assets the new version no longer names are dropped, and `enabled` survives (an
+author who switched a plugin off did not ask for it back on by accepting an update). A level of
+trust is a consent, not a field: an update that does not widen the island reuses the existing
+record, and one that widens asks again.
+
+**The same version carrying different bytes is not an update.** The row says *Bytes differ* and
+the action refuses: that is a different plugin wearing the same name, and calling it an upgrade
+would launder the substitution.
+
 ## 7. Versioning
 
 `plugins[id].api` is the host API the plugin needs; absent means `1`. The registry refuses a

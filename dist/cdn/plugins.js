@@ -277,17 +277,21 @@ export function createPlugins(deps = {}) {
   }
 
 
-  /* ------------------------------------------------------------------- the sheet */
+  /* ------------------------------------------------------------------- the panel */
   /*
    * The author-facing half: what is in this file, what could be, and how to add one from
-   * a url. Storage (inline vs fetched) is *not* here — that decision lives in Document
-   * settings, and a second control for it would be the third copy of the same rows.
+   * a url. Storage (inline vs fetched) is *not* here — that decision lives in the Storage
+   * panel, and a second control for it would be the third copy of the same rows.
    *
-   * Built in JS on purpose: the sheet is session state, tagged `data-plugin-ui`, and the
-   * save path drops it like any other runtime node.
+   * A *panel*, not a dialog: `toolbar.js` owns the document dialog and its tabs, and hands
+   * this module an empty element on first activation (order 95 > 90, so it is asked for
+   * through the optional edge, read at that moment and never at construction — the audit
+   * parses source text, and a call written in a comment is an edge to itself). Built in JS
+   * on purpose — it is session state, tagged `data-plugin-ui`, and the save path drops it
+   * like any other runtime node.
    */
 
-  let sheet = null;
+  let panel = null;
   let catalog = null;
   let catalogError = null;
   let foot = "";
@@ -324,15 +328,61 @@ export function createPlugins(deps = {}) {
     const el = document.getElementById("plugin-catalog");
     if (!el) return null;
     try {
-      return JSON.parse(el.textContent);
+      const parsed = JSON.parse(el.textContent);
+      /* Parseable is not the same as useful: `{}` in the block would win over the network and
+         show an empty list, which reads exactly like "nothing is published". Fall through
+         unless there is at least one table to show. */
+      if (!parsed || (parsed.schema !== 1 && !parsed.assets && !parsed.bundles)) return null;
+      if (!parsed.assets && !parsed.bundles) return null;
+      return parsed;
     } catch {
       return null;
     }
   }
 
+  /** The tag this document pins, or null for a base that is not a tag (a dev build). */
+  const pinnedTag = () => /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1] ?? null;
+
+  /** A snapshot taken at another tag is a claim about bytes this file does not pin. */
+  const catalogStale = () => Boolean(catalog?.tag && pinnedTag() && catalog.tag !== pinnedTag());
+
+  /**
+   * Re-read the catalog from the tag this document pins and rewrite the snapshot.
+   *
+   * A snapshot is true only at the tag it was taken at: a bundle's `manifest` resolves
+   * against the document's own `cdnBase` (`catalogBase()`), so after a re-pin the old
+   * snapshot names a manifest hash the new tag does not serve, and an install would fail as
+   * "not the manifest the catalog pins" — a true statement that reads like a tampering
+   * report. Refreshing is the honest fix, and it is one request the author asked for.
+   */
+  async function refreshCatalog() {
+    const url = catalogUrl();
+    const tag = pinnedTag();
+    say(`Reading ${url}…`);
+    let next = null;
+    try {
+      const fetched = await registry.prefetch(url);
+      next = JSON.parse(fetched.text);
+    } catch (error) {
+      return say(`${url} could not be read (${(error && error.message) || error}). Nothing was changed.`);
+    }
+    if (!next || typeof next !== "object" || !(next.assets || next.bundles)) {
+      return say(`${url} is not a plugin catalog. Nothing was changed.`);
+    }
+    const el = document.getElementById("plugin-catalog");
+    if (!el) return say("This file has no #plugin-catalog block to refresh — add one by building with `pluginCatalog`.");
+    el.textContent = JSON.stringify({schema: 1, generated: next.generated, tag, assets: next.assets || {}, bundles: next.bundles || {}});
+    catalog = JSON.parse(el.textContent);
+    catalogFrom = "this file";
+    catalogError = null;
+    status.markDirty();
+    renderSheet();
+    say(`Catalog refreshed from ${url} (${tag || "untagged"}). Save to keep it.`);
+  }
+
   const say = (text) => {
     foot = text;
-    if (sheet) sheet.querySelector("[data-ps-foot]").textContent = text;
+    if (panel) panel.querySelector("[data-ps-foot]").textContent = text;
   };
 
   function element(tag, className, text) {
@@ -349,7 +399,13 @@ export function createPlugins(deps = {}) {
   /* Bytes under a kilobyte are common in a catalog (a 477-byte module) and "0 KB" is a lie
      the eye reads as empty. One formatter, because a bundle's total and an asset's size are
      the same claim at two scales. */
-  const sizeLabel = (bytes) => !bytes ? "" : bytes < 2048 ? `${bytes} bytes` : `${Math.round(bytes / 1024)} KB`;
+  const sizeLabel = (bytes) => {
+    if (!bytes) return "";
+    if (bytes < 2048) return `${bytes} bytes`;
+    /* A bundle is measured in MB (an 87 MB engine reads as "85154 KB" otherwise), and a
+       formatter that stops at KB is a formatter that lies about the unit. */
+    return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   function assetRows(entry, manifest) {
     const table = element("table", "ps-assets");
@@ -405,7 +461,22 @@ export function createPlugins(deps = {}) {
     remove.dataset.remove = id;
     remove.addEventListener("click", () => uninstall(id));
 
-    main.append(name, version, island, used, element("span", "ps-grow"), toggle, remove);
+    /* An upgrade belongs to the plugin, so it lives on the plugin's row: the catalog data is
+       per-entry, the trust decision is per-plugin, and a runtime bump must not change a
+       plugin behind the author's back. */
+    const found = updateState(id);
+    const update = found && found.state !== "same" ? element("button", "ps-btn ps-primary") : null;
+    if (update) {
+      update.dataset.update = id;
+      update.textContent = found.state === "tampered" ? "Bytes differ" : `Update to ${found.candidate.version}`;
+      update.addEventListener("click", () => upgrade(id));
+      if (found.state === "tampered") {
+        update.classList.remove("ps-primary");
+        update.title = "The catalog serves different bytes under the version this file pins.";
+      }
+    }
+
+    main.append(name, version, island, used, element("span", "ps-grow"), ...(update ? [update] : []), toggle, remove);
     row.append(main);
 
     const error = (registry.errors || []).find((item) => item.id === id);
@@ -537,7 +608,8 @@ export function createPlugins(deps = {}) {
   }
 
   function renderSheet() {
-    if (!sheet) return;
+    if (!panel) return;
+    const sheet = panel;
     const manifest = manifestJSON() || { assets: [], plugins: {} };
     const plugins = manifest.plugins || {};
     const search = (sheet.querySelector("[data-ps-search]").value || "").trim().toLowerCase();
@@ -575,7 +647,26 @@ export function createPlugins(deps = {}) {
     }
 
     const from = sheet.querySelector("[data-ps-from]");
-    if (from) from.textContent = catalog ? `· ${catalogFrom}` : catalogFrom ? `· ${catalogFrom}` : "";
+    if (from) from.textContent = catalog ? `· ${catalogFrom}${catalog.tag ? ` @${catalog.tag}` : ""}` : catalogFrom ? `· ${catalogFrom}` : "";
+
+    /* A stale snapshot is not an error, it is a fact with an action: the bundles it names are
+       pinned to another tag, so they would fail their manifest hash check. Refreshing is one
+       request, and only offered when there is a block to write. */
+    const stale = sheet.querySelector("[data-ps-stale]");
+    if (stale) {
+      const isStale = catalogStale();
+      stale.hidden = !isStale;
+      if (isStale) {
+        stale.textContent = `This catalog snapshot was taken at ${catalog.tag}; this file pins ${pinnedTag()}. `;
+        if (document.getElementById("plugin-catalog")) {
+          const refresh = element("button", "ps-btn", "Refresh from this file's tag");
+          refresh.addEventListener("click", () => refreshCatalog());
+          stale.append(refresh);
+        } else {
+          stale.append(document.createTextNode("Only a document that carries its catalog can refresh it."));
+        }
+      }
+    }
 
     const advanced = sheet.querySelector('[data-ps-form]');
     advanced.replaceChildren(formRow());
@@ -588,12 +679,12 @@ export function createPlugins(deps = {}) {
       || "Installing pins url + sha384. Storage (inline or fetched) is set in Document settings.";
   }
 
-  function buildSheet() {
-    const dialog = element("dialog", "plugin-sheet");
+  function buildPanel(container) {
+    container.replaceChildren();
+    const dialog = element("div", "ps-root");
     dialog.setAttribute("data-plugin-ui", "");
     dialog.innerHTML = `
       <div class="ps-head">
-        <h2>Plugins</h2>
         <p class="ps-sub" data-ps-sub></p>
         <input class="ps-search" type="search" data-ps-search placeholder="Search plugins…" aria-label="Search plugins">
         <div class="ps-nav">
@@ -611,6 +702,7 @@ export function createPlugins(deps = {}) {
         <section class="ps-sect" data-ps-section="available">
           <h3>Available <span class="ps-from" data-ps-from></span></h3>
           <p>From this runtime's catalog. Installing pins <code>url + sha384</code> into this file.</p>
+          <p class="ps-hint ps-stale" data-ps-stale hidden></p>
           <div data-ps-list="available"></div>
         </section>
         <section class="ps-sect" data-ps-section="advanced">
@@ -622,27 +714,32 @@ export function createPlugins(deps = {}) {
       </div>
       <div class="ps-foot">
         <span class="ps-hint" data-ps-foot></span>
-        <button class="ps-btn ps-primary" data-ps-done>Done</button>
       </div>`;
 
     dialog.querySelector("[data-ps-search]").addEventListener("input", () => renderSheet());
-    dialog.querySelector("[data-ps-done]").addEventListener("click", () => dialog.close());
     for (const chip of dialog.querySelectorAll("[data-ps-jump]")) {
       chip.addEventListener("click", () => {
         for (const other of dialog.querySelectorAll("[data-ps-jump]")) other.setAttribute("aria-pressed", String(other === chip));
         dialog.querySelector(`[data-ps-section="${chip.dataset.psJump}"]`).scrollIntoView({ block: "start", behavior: "smooth" });
       });
     }
-    document.body.append(dialog);
+    container.append(dialog);
     return dialog;
   }
 
-  function openSheet() {
-    if (!sheet) sheet = buildSheet();
+  /**
+   * Fill the document dialog's Plugins panel. Called on first activation (and on every
+   * later activation), because reading the catalog is a network call an author may never
+   * want — the panel is mounted by the tab, not by boot.
+   */
+  function renderPanel(container) {
+    if (!container) return null;
+    if (!panel || panel.parentElement !== container) panel = buildPanel(container);
     foot = "";
     renderSheet();
-    if (!sheet.open) sheet.showModal();
-    loadCatalog().then(() => renderSheet()).catch(() => renderSheet());
+    return loadCatalog()
+      .then(() => { renderSheet(); return updateCount(); })
+      .catch(() => { renderSheet(); return 0; });
   }
 
   let catalogFrom = null;
@@ -770,10 +867,74 @@ export function createPlugins(deps = {}) {
     renderSheet();
   }
 
-  async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null, contributes = null, api = 1 }) {
+  /** The catalog's proposal for one id, in the shape either installer takes. */
+  function catalogCandidate(id) {
+    const bundle = catalog?.bundles?.[id];
+    if (bundle) return {kind: "bundle", version: bundle.version || null, sha384: bundle.sha384 || null, entry: bundle};
+    const asset = catalog?.assets?.[id];
+    const latest = (asset?.versions || [])[0];
+    if (latest) return {kind: "asset", version: latest.version || null, sha384: latest.sha384 || null, entry: latest, asset};
+    return null;
+  }
+
+  /**
+   * What the catalog says about a plugin this file already pins.
+   *
+   * `tampered` is deliberately not `newer`: the same version carrying different bytes is a
+   * different plugin wearing the same name, and offering it as an "update" would launder the
+   * substitution. Only a single-module pin can be compared without fetching, because its
+   * `integrity` is in this file; a bundle's identity is its manifest hash, which the catalog
+   * names and the document does not repeat.
+   */
+  function updateState(id) {
+    const record = (manifestJSON()?.plugins || {})[id];
+    if (!record) return null;
+    const candidate = catalogCandidate(id);
+    if (!candidate || !candidate.version) return null;
+    const pinned = record.version || null;
+    if (!pinned) return {candidate, state: "newer"};
+    if (candidate.version === pinned) {
+      const assetId = record.entry || id;
+      const asset = (manifestJSON().assets || []).find((entry) => entry.id === assetId);
+      if (candidate.kind === "asset" && asset && candidate.sha384 && asset.integrity && asset.integrity !== candidate.sha384) {
+        return {candidate, state: "tampered"};
+      }
+      return {candidate, state: "same"};
+    }
+    return {candidate, state: registry.isNewer(candidate.version, pinned) ? "newer" : "same"};
+  }
+
+  /** How many installed plugins have a newer version in the catalog (the tab badge). */
+  const updateCount = () => Object.keys(manifestJSON()?.plugins || {})
+    .filter((id) => updateState(id)?.state === "newer").length;
+
+  /**
+   * Move one plugin to the catalog's version.
+   *
+   * The pin is the install, so this is an install that is allowed to overwrite: the entry is
+   * rewritten, the assets it no longer names are dropped, and `enabled` survives (an author
+   * who switched a plugin off did not ask for it back on by accepting an update).
+   */
+  async function upgrade(id) {
+    const found = updateState(id);
+    if (!found) return say(`The catalog has no version of ${id}.`);
+    if (found.state === "tampered") {
+      return say(`${id} ${found.candidate.version} is pinned to different bytes than the catalog serves — `
+        + "that is not an update, and nothing was changed.");
+    }
+    if (found.state !== "newer") return say(`${id} is already on ${found.candidate.version}.`);
+    const keep = (manifestJSON()?.plugins || {})[id] || {};
+    if (found.candidate.kind === "bundle") {
+      await installBundle(id, found.candidate.entry, {replace: true, keep});
+    } else {
+      await installFrom(id, found.candidate.asset || {label: keep.label}, found.candidate.entry, {replace: true, keep});
+    }
+  }
+
+  async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null, contributes = null, api = 1 }, { replace = false, keep = null } = {}) {
     const next = manifestJSON();
     if (!next) return say("this document has no asset manifest");
-    if (next.plugins?.[id]) return say(`${label || id} is already in this file.`);
+    if (next.plugins?.[id] && !replace) return say(`${label || id} is already in this file.`);
     const wanted = Number(api) || 1;
     if (wanted > registry.hostApi) {
       return say(`${label || id} needs host API ${wanted}; this document provides ${registry.hostApi}. Nothing was added.`);
@@ -796,7 +957,7 @@ export function createPlugins(deps = {}) {
          catalog. */
       api: wanted,
       island,
-      enabled: true,
+      enabled: keep ? keep.enabled !== false : true,
       entry: id,
       assets: [id],
       /* A catalog entry carries what the plugin offers, because an installed plugin that
@@ -804,7 +965,7 @@ export function createPlugins(deps = {}) {
          no declarations were published with it. */
       contributes: contributes && typeof contributes === "object" ? contributes : {},
     };
-    next.assets = next.assets || [];
+    next.assets = (next.assets || []).filter((asset) => asset.id !== id);
     next.assets.push({
       id,
       kind: "js",
@@ -829,7 +990,7 @@ export function createPlugins(deps = {}) {
     renderSheet();
   }
 
-  function installFrom(id, asset, latest) {
+  function installFrom(id, asset, latest, options = {}) {
     if (!latest.url || !latest.sha384) return say(`${asset.label || id} has no pinned version in the catalog.`);
     install(id, {
       label: asset.label || id,
@@ -843,7 +1004,7 @@ export function createPlugins(deps = {}) {
       /* Contributions may be per version (a plugin can start contributing something new),
          so the version wins over the asset. */
       contributes: latest.contributes || asset.contributes || null,
-    });
+    }, options);
   }
 
   /* The catalog's directory: `cdnBase` minus `/cdn` plus `registry.json`, so the sibling of
@@ -879,10 +1040,10 @@ export function createPlugins(deps = {}) {
    * and the pins inside it are well-formed. The assets themselves are *not* fetched: 55 MB of
    * engines is a first-export cost, and the loader verifies each one when it is used.
    */
-  async function installBundle(id, asset) {
+  async function installBundle(id, asset, { replace = false, keep = null } = {}) {
     const next = manifestJSON();
     if (!next) return say("this document has no asset manifest");
-    if (next.plugins?.[id]) return say(`${asset.label || id} is already in this file.`);
+    if (next.plugins?.[id] && !replace) return say(`${asset.label || id} is already in this file.`);
     if (!asset.manifest) return say(`${asset.label || id} has no manifest to read.`);
 
     let url;
@@ -930,7 +1091,7 @@ export function createPlugins(deps = {}) {
       version: bundle.version || asset.version || null,
       api,
       island,
-      enabled: true,
+      enabled: keep ? keep.enabled !== false : true,
       entry: bundle.entry || id,
       assets: assets.map((incoming) => incoming.id),
       contributes: bundle.contributes && typeof bundle.contributes === "object" ? bundle.contributes : {},
@@ -947,17 +1108,13 @@ export function createPlugins(deps = {}) {
     } catch {
       /* shown on the row */
     }
-    say(`${bundle.label || id} pinned — ${assets.length} asset${assets.length === 1 ? "" : "s"}. Save to write it into the file.`);
+    say(`${bundle.label || id} ${replace ? "updated" : "pinned"} — ${assets.length} asset${assets.length === 1 ? "" : "s"}. Save to write it into the file.`);
     renderSheet();
   }
 
   /* ------------------------------------------------------------------- wiring */
 
   document.addEventListener("click", (event) => {
-    if (event.target.closest("[data-plugins-open]")) {
-      openSheet();
-      return;
-    }
     const insertButton = event.target.closest("[data-plugin-insert]");
     if (insertButton) {
       const [id, itemId] = insertButton.dataset.pluginInsert.split(":");
@@ -1013,5 +1170,5 @@ export function createPlugins(deps = {}) {
 
   activateUi();
 
-  return { activateUi, wire, unwire, openPanel, openSheet, install };
+  return { activateUi, wire, unwire, openPanel, renderPanel, updateCount, install };
 }

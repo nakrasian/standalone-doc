@@ -18,6 +18,11 @@
   let ui = null;
   let showTimer = null;
   let lastStart = {order: [], total: 0};
+  /* The plan this boot is executing, and the rows that show it. `plan.fetched`/`built` are
+     what the bar is made of: the fetch is the slow half and it used to own no part of it. */
+  let plan = {byId: new Map(), byUrl: new Map(), fetched: 0, fetchedDone: 0, modules: 0, built: 0};
+  const rows = new Map();
+  let timelineFrame = 0;
   const failures = [];
   /* The recovery flow. `offered` is the release this card proposed; `updating` is the tag
      being applied, set before retry() so the "ready" handler knows the boot was a repair
@@ -81,19 +86,92 @@
     if (el?.dialog.open) el.dialog.close();
   }
 
-  function renderRows(order) {
+  /* Presentation only, like the label: bytes are the document's, not the wire's. A pin says
+     what this file carries, and a brotli figure would be a second truth nobody can check. */
+  const sizeOf = (asset) => {
+    const bytes = Number(asset.bytes) || 0;
+    if (!bytes) return "";
+    return bytes < 2048 ? `${bytes} bytes` : `${Math.round(bytes / 1024)} KB`;
+  };
+
+  /* One row per asset this document boots, not one per module: `order` is 13 modules, and a
+     slim document fetches 19 files — the three slowest are a stylesheet, a fragment and the
+     sprite (lab/013). Rows come from the registry's plan, so the list cannot disagree with
+     what boot actually does. */
+  function renderPlan() {
     const el = ensure();
     if (!el) return;
     el.rows.replaceChildren();
-    for (const id of order) {
+    rows.clear();
+    plan = {byId: new Map(), byUrl: new Map(), fetched: 0, fetchedDone: 0, modules: 0, built: 0};
+    for (const asset of registry.planned ? registry.planned() : []) {
+      /* Infrastructure is already running: it is not something to wait for. */
+      if (asset.role === "infra") continue;
+      plan.byId.set(asset.id, asset);
+      if (asset.url) plan.byUrl.set(asset.url, asset);
+      const module = asset.kind === "js";
+      if (module) plan.modules++;
+      const carried = asset.mode !== "online";
+      if (!carried) plan.fetched++;
+
       const row = document.createElement("li");
       row.className = "boot-row";
-      row.dataset.state = "pending";
-      row.dataset.id = id;
+      row.dataset.id = asset.id;
+      /* An inline stylesheet or fragment is *done* the moment it is parsed; an inline
+         module is not, and the construct events move it from `carried` to `ok`. */
+      row.dataset.state = carried ? "carried" : "pending";
       row.innerHTML = '<span class="boot-dot" aria-hidden="true"></span><span class="boot-name"></span><span class="boot-detail"></span>';
-      row.querySelector(".boot-name").textContent = label(id);
+      row.querySelector(".boot-name").textContent = label(asset.id);
+      row.querySelector(".boot-detail").textContent = carried
+        ? `in this file${sizeOf(asset) ? ` · ${sizeOf(asset)}` : ""}`
+        : "waiting for the CDN";
       el.rows.append(row);
+      rows.set(asset.id, row);
     }
+    paintBar();
+    watchFetches();
+  }
+
+  /* The fetch owns 0..0.6 of the bar and construction owns 0.6..1. Without that split the
+     construct handler's `done/total` would overwrite the fetch progress downwards the moment
+     the first module builds. */
+  function paintBar() {
+    const fetchShare = plan.fetched ? 0.6 * (plan.fetchedDone / plan.fetched) : 0;
+    const buildShare = plan.modules ? 0.4 * (plan.built / plan.modules) : 0;
+    setBar(Math.min(1, fetchShare + buildShare));
+  }
+
+  /**
+   * Paint the fetch phase from the browser's own timeline.
+   *
+   * No registry event is involved, and none is missing: `performance.getEntriesByType` is
+   * append-only on completion and carries duration and (with jsDelivr's
+   * `timing-allow-origin: *`) sizes. An event would be a second truth for the same fact
+   * (lab/013 measured both).
+   */
+  function watchFetches() {
+    cancelAnimationFrame(timelineFrame);
+    if (!plan.fetched) return;
+    let seen = 0;
+    const step = () => {
+      const entries = performance.getEntriesByType("resource");
+      for (; seen < entries.length; seen++) {
+        const entry = entries[seen];
+        const asset = plan.byUrl.get(entry.name);
+        if (!asset) continue;
+        const row = rows.get(asset.id);
+        if (!row || row.dataset.state !== "pending") continue;
+        row.dataset.state = "fetched";
+        const ms = entry.duration ? ` · ${Math.round(entry.duration)} ms` : "";
+        row.querySelector(".boot-detail").textContent = `verified · ${sizeOf(asset)}${ms}`;
+        plan.fetchedDone++;
+      }
+      paintBar();
+      if (plan.fetchedDone < plan.fetched && registry.state === "booting") {
+        timelineFrame = requestAnimationFrame(step);
+      }
+    };
+    timelineFrame = requestAnimationFrame(step);
   }
 
   function reset() {
@@ -101,6 +179,8 @@
     failures.length = 0;
     offered = null;
     offersAllowed = true;
+    cancelAnimationFrame(timelineFrame);
+    rows.clear();
     if (!el) return;
     el.error.hidden = true;
     el.retry.hidden = true;
@@ -117,25 +197,9 @@
     setBar(0);
   }
 
-  function diagnosticsText() {
-    const el = ensure();
-    const lines = [
-      "standalone-doc boot",
-      `state:    ${registry.state}`,
-      `document: ${location.href}`,
-      `modules:  ${(lastStart.order || []).join(", ") || "—"}`,
-      "",
-    ];
-    for (const failure of failures) {
-      lines.push(`[${failure.kind || failure.phase}] ${failure.id}: ${failure.message}`);
-      if (failure.url) lines.push(`url: ${failure.url}`);
-      if (failure.expected) lines.push(`expected ${failure.expected}`, `actual   ${failure.actual}`);
-      if (failure.stack) lines.push(failure.stack);
-      lines.push("");
-    }
-    lines.push(`user agent: ${navigator.userAgent}`);
-    return lines.join("\n");
-  }
+  /* One implementation, in the registry, because the About panel shows the same report and
+     a second copy is how two diagnostics came to disagree in the first place. */
+  const diagnosticsText = () => registry.diagnostics({order: lastStart.order});
 
   /* One card per failure mode: the copy is the product here. */
   function copyFor(failure) {
@@ -171,7 +235,7 @@
     el.sub.textContent = "Aborted — nothing has been changed on disk";
     /* Mark the row that failed: the registry emits "active" and then aborts, so
        without this the last row would sit on "starting…" forever. */
-    const failedRow = el.rows.querySelector(`.boot-row[data-id="${failure.id}"]`);
+    const failedRow = rows.get(failure.id) || el.rows.querySelector(`.boot-row[data-id="${failure.id}"]`);
     if (failedRow) {
       failedRow.dataset.state = "failed";
       failedRow.querySelector(".boot-detail").textContent = "failed";
@@ -192,8 +256,7 @@
 
   /* ---------------------------------------------------------------- recovery */
 
-  /** The tag this document pins, or null for a base that is not a tag (a dev build). */
-  const pinnedTag = () => /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1] ?? null;
+  const pinnedTag = () => registry.tagOf();
 
   /**
    * Offer a newer release when the failure looks like a stale pin.
@@ -209,17 +272,14 @@
   async function offerUpdate(failure) {
     const el = ensure();
     if (!el || !["integrity", "http"].includes(failure.kind)) return;
-    const current = pinnedTag();
-    if (!current) return;
-    const index = await registry.catalog();
+    const {current, latest, newer, date: when} = await registry.compareUpdate();
     /* The card may have moved on while the catalog was in flight. */
     if (!offersAllowed || registry.state !== "failed" || !el.error || el.error.hidden) return;
-    if (!index || !index.latest || index.latest === current) return;
-    offered = {index, from: current, to: index.latest};
-    const when = index.releases?.find((release) => release.tag === index.latest)?.date;
-    el.updateText.textContent = `${index.latest}${when ? ` (${when})` : ""} exists; this document pins ${current}. `
+    if (!current || !newer) return;
+    offered = {from: current, to: latest};
+    el.updateText.textContent = `${latest}${when ? ` (${when})` : ""} exists; this document pins ${current}. `
       + "Updating rewrites its pin and fetches that release — nothing on disk changes until you save.";
-    el.updateGo.textContent = `Update to ${index.latest}`;
+    el.updateGo.textContent = `Update to ${latest}`;
     el.update.hidden = false;
     el.updateGo.hidden = false;
   }
@@ -359,15 +419,14 @@
   registry.on("start", (detail) => {
     lastStart = detail;
     reset();
-    renderRows(detail.order);
+    renderPlan();
     const el = ensure();
     if (el) {
-      const assets = registry.manifest().assets || [];
-      const online = assets.filter((asset) => asset.mode === "online").length;
       const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
-      el.sub.textContent = online
-        ? `${detail.total} modules · ${online} fetched from the CDN${version ? ` · ${version}` : ""}`
-        : `${detail.total} modules · everything embedded in this file`;
+      const files = plan.fetched;
+      el.sub.textContent = files
+        ? `${plan.modules} modules · ${files} files fetched from the CDN${version ? ` · ${version}` : ""}`
+        : `${plan.modules} modules · everything embedded in this file`;
     }
     scheduleOpen();
   });
@@ -378,13 +437,13 @@
     /* A plugin builds long after the dialog closed, with its own small asset list.
        The boot progress is about this document's modules, so it stays out of it. */
     if (detail.lazy) return;
-    const row = el.rows.querySelector(`.boot-row[data-id="${detail.id}"]`);
+    const row = rows.get(detail.id);
     if (row) {
-      row.dataset.state = detail.state;
-      row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "starting…";
+      row.dataset.state = detail.state === "ok" ? "ok" : "active";
+      row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "building…";
     }
-    const done = detail.state === "ok" ? detail.index + 1 : detail.index;
-    setBar(0.95 * (done / Math.max(1, detail.total)));
+    if (detail.state === "ok") plan.built++;
+    paintBar();
   });
 
   registry.on("ready", (detail) => {

@@ -1249,15 +1249,49 @@
     #doc-settings-dialog:focus,
     #doc-settings-dialog:focus-visible { outline: none; }
 
-    #doc-settings-dialog .ds-head { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
-    #doc-settings-dialog .ds-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
-    #doc-settings-dialog .ds-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
-    #doc-settings-dialog .ds-body { padding: 4px 20px 8px; overflow-y: auto; max-height: 62dvh; }
+    #doc-settings-dialog .dd-head {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 16px 20px 10px; border-bottom: 1px solid var(--line);
+    }
+    #doc-settings-dialog .dd-title { flex: 1 1 auto; min-width: 0; }
+    #doc-settings-dialog .dd-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    #doc-settings-dialog .dd-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    /* The mode a file is in, in the head: it is the one fact that changes what every panel
+       means, and it is not a control (a viewer is an export, not a setting). */
+    #doc-settings-dialog .dd-state {
+      flex: 0 0 auto; margin: 2px 0 0; padding: 3px 8px; border-radius: 99px;
+      border: 1px solid var(--line); background: var(--chrome-bg); color: var(--muted);
+      font-size: 11px;
+    }
+    #doc-settings-dialog .dd-state[data-mode="edit"] { color: #1a7f47; border-color: #cfe6d8; }
 
-    #doc-settings-dialog .ds-sect { border-bottom: 1px solid #f0f2f5; padding: 13px 0; }
-    #doc-settings-dialog .ds-sect:last-child { border-bottom: 0; }
-    #doc-settings-dialog .ds-sect > h3 { margin: 0 0 2px; font-size: 12.5px; font-weight: 650; }
-    #doc-settings-dialog .ds-sect > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+    #doc-settings-dialog .dd-tabs {
+      display: flex; gap: 2px; padding: 8px 14px 0; border-bottom: 1px solid var(--line);
+    }
+    #doc-settings-dialog .dd-tabs button {
+      font: inherit; font-size: 12.5px; padding: 6px 10px 8px; cursor: pointer;
+      border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted);
+      border-radius: 6px 6px 0 0;
+    }
+    #doc-settings-dialog .dd-tabs button:hover { background: var(--chrome-bg); color: var(--ink); }
+    #doc-settings-dialog .dd-tabs button[aria-selected="true"] {
+      color: var(--ink); border-bottom-color: var(--accent); font-weight: 600;
+    }
+    #doc-settings-dialog .dd-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+    #doc-settings-dialog .dd-body { padding: 12px 20px 10px; overflow-y: auto; max-height: 62dvh; }
+    #doc-settings-dialog .dd-panel[hidden] { display: none; }
+    #doc-settings-dialog .dd-panel > p { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+    #doc-settings-dialog .dd-diag {
+      margin: 8px 0 0; max-height: 200px; overflow: auto; padding: 9px 11px;
+      border: 1px solid var(--line); border-radius: 7px; background: #f7f8fa; color: #3d4450;
+      font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap;
+    }
+    #doc-settings-dialog .dd-diag[hidden] { display: none; }
+    #doc-settings-dialog .dd-foot {
+      display: flex; gap: 10px; align-items: center; padding: 11px 20px;
+      border-top: 1px solid var(--line); background: var(--chrome-bg);
+    }
 
     #doc-settings-dialog .ds-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
     #doc-settings-dialog .ds-row .grow { flex: 1 1 auto; }
@@ -1409,98 +1443,89 @@
     }
     dialog.plugin-panel .pp-body { padding: 14px 18px 18px; overflow-y: auto; max-height: 64dvh; }
 
-    /* ---- plugins sheet ----
-       Sibling of Document settings, not a tab in it: that sheet prices what is in the file,
-       this one decides what gets in. Built at runtime and tagged `data-plugin-ui`. */
-    dialog.plugin-sheet {
-      width: min(700px, calc(100vw - 32px));
-      max-height: min(86dvh, 800px);
-      padding: 0;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
-      color: var(--ink);
-      font: 13px/1.45 system-ui, -apple-system, sans-serif;
-      overflow: hidden;
-    }
-    dialog.plugin-sheet::backdrop { background: rgba(16, 22, 30, .34); }
-    dialog.plugin-sheet:focus,
-    dialog.plugin-sheet:focus-visible { outline: none; }
+    /* ---- the Plugins panel ----
+       A panel of the document dialog, not a sibling sheet: settings prices what is in the file,
+       plugins decides what gets in, and the pin, the storage and the update belong to the same
+       file. `src/plugins.js` owns everything inside `[data-dd-plugins]`; the `ps-*` names are
+       older than this shell and are kept so the module keeps its own vocabulary. */
+    [data-dd-plugins] { display: grid; }
+    [data-dd-plugins] .ps-head { padding: 0 0 8px; }
+    [data-dd-plugins] .ps-head h2 { display: none; }
 
-    .plugin-sheet .ps-head { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
-    .plugin-sheet .ps-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
-    .plugin-sheet .ps-sub { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
-    .plugin-sheet .ps-search {
+    [data-dd-plugins] .ps-sub { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+    [data-dd-plugins] .ps-search {
       width: 100%; height: 30px; margin-top: 9px; padding: 0 9px;
       font: inherit; font-size: 12.5px; border: 1px solid var(--line); border-radius: 7px;
       background: #fff; color: var(--ink);
     }
-    .plugin-sheet .ps-nav { display: flex; gap: 6px; margin-top: 9px; }
-    .plugin-sheet .ps-chip {
+    [data-dd-plugins] .ps-nav { display: flex; gap: 6px; margin-top: 9px; }
+    [data-dd-plugins] .ps-chip {
       font: inherit; font-size: 12px; height: 26px; padding: 0 10px; border-radius: 99px;
       border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
     }
-    .plugin-sheet .ps-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    [data-dd-plugins] .ps-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-    .plugin-sheet .ps-body { padding: 4px 20px 8px; overflow-y: auto; max-height: 62dvh; }
-    .plugin-sheet .ps-sect { border-bottom: 1px solid #f0f2f5; padding: 13px 0; }
-    .plugin-sheet .ps-sect:last-child { border-bottom: 0; }
-    .plugin-sheet .ps-sect > h3 { margin: 0 0 2px; font-size: 12.5px; font-weight: 650; }
-    .plugin-sheet .ps-sect > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+    [data-dd-plugins] .ps-body { padding: 0; }
+    [data-dd-plugins] .ps-sect { border-bottom: 1px solid #f0f2f5; padding: 11px 0; }
+    [data-dd-plugins] .ps-sect:last-child { border-bottom: 0; }
+    [data-dd-plugins] .ps-sect[hidden] { display: none; }
+    [data-dd-plugins] .ps-sect > h3 { margin: 0 0 2px; font-size: 12.5px; font-weight: 650; }
+    [data-dd-plugins] .ps-sect > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
 
-    .plugin-sheet .ps-row { border-bottom: 1px solid #f0f2f5; padding: 9px 0; }
-    .plugin-sheet .ps-row:last-child { border-bottom: 0; }
-    .plugin-sheet .ps-main { display: flex; align-items: baseline; gap: 7px; }
-    .plugin-sheet .ps-name { font-weight: 650; font-size: 12.5px; }
-    .plugin-sheet .ps-version { color: var(--muted); font-variant-numeric: tabular-nums; }
-    .plugin-sheet .ps-badge {
+    [data-dd-plugins] .ps-row { border-bottom: 1px solid #f0f2f5; padding: 9px 0; }
+    [data-dd-plugins] .ps-row:last-child { border-bottom: 0; }
+    [data-dd-plugins] .ps-main { display: flex; align-items: baseline; gap: 7px; }
+    [data-dd-plugins] .ps-name { font-weight: 650; font-size: 12.5px; }
+    [data-dd-plugins] .ps-version { color: var(--muted); font-variant-numeric: tabular-nums; }
+    [data-dd-plugins] .ps-badge {
       padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 600;
       border: 1px solid #d8dde5; color: #5b6270; background: #f7f9fb;
     }
-    .plugin-sheet .ps-badge[data-island="trusted"] { border-color: #e3c9a6; color: #8a5a12; background: #fdf6ea; }
-    .plugin-sheet .ps-used { color: var(--muted); font-size: 11.5px; }
-    .plugin-sheet .ps-grow { flex: 1 1 auto; }
-    .plugin-sheet .ps-switch { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11.5px; cursor: pointer; }
-    .plugin-sheet .ps-hint { color: var(--muted); font-size: 11.5px; margin: 4px 0 0; }
-    .plugin-sheet .ps-why { margin: 4px 0 0; color: #b3261e; font-size: 11.5px; }
-    .plugin-sheet .ps-btn {
+    [data-dd-plugins] .ps-badge[data-island="trusted"] { border-color: #e3c9a6; color: #8a5a12; background: #fdf6ea; }
+    [data-dd-plugins] .ps-used { color: var(--muted); font-size: 11.5px; }
+    [data-dd-plugins] .ps-grow { flex: 1 1 auto; }
+    [data-dd-plugins] .ps-switch { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11.5px; cursor: pointer; }
+    [data-dd-plugins] .ps-hint { color: var(--muted); font-size: 11.5px; margin: 4px 0 0; }
+    [data-dd-plugins] .ps-why { margin: 4px 0 0; color: #b3261e; font-size: 11.5px; }
+    [data-dd-plugins] .ps-btn {
       font: inherit; font-size: 11.5px; height: 26px; padding: 0 10px; border-radius: 6px;
       border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
     }
-    .plugin-sheet .ps-btn.ps-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
-    .plugin-sheet .ps-btn:disabled { opacity: .45; cursor: default; }
+    [data-dd-plugins] .ps-btn.ps-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    [data-dd-plugins] .ps-btn:disabled { opacity: .45; cursor: default; }
     /* White-on-accent at 45% is unreadable: a disabled primary goes grey, not faint. */
-    .plugin-sheet .ps-btn.ps-primary:disabled {
+    [data-dd-plugins] .ps-btn.ps-primary:disabled {
       background: #eef1f5; border-color: var(--line); color: #7b828d; opacity: 1;
     }
-    .plugin-sheet .ps-details { margin-top: 5px; }
-    .plugin-sheet .ps-details > summary { cursor: pointer; color: #4a515c; font-size: 11.5px; padding: 2px 0; }
-    .plugin-sheet .ps-assets { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 4px; }
-    .plugin-sheet .ps-assets th,
-    .plugin-sheet .ps-assets td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #f2f4f7; }
-    .plugin-sheet .ps-assets th { color: var(--muted); font-weight: 600; }
-    .plugin-sheet .ps-num { text-align: right; font-variant-numeric: tabular-nums; }
-    .plugin-sheet .ps-asset-id { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
-    .plugin-sheet .ps-empty { color: var(--muted); font-size: 12px; }
-    .plugin-sheet .ps-from { color: var(--muted); font-weight: 400; font-size: 11px; }
+    [data-dd-plugins] .ps-details { margin-top: 5px; }
+    [data-dd-plugins] .ps-details > summary { cursor: pointer; color: #4a515c; font-size: 11.5px; padding: 2px 0; }
+    [data-dd-plugins] .ps-assets { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 4px; }
+    [data-dd-plugins] .ps-assets th,
+    [data-dd-plugins] .ps-assets td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #f2f4f7; }
+    [data-dd-plugins] .ps-assets th { color: var(--muted); font-weight: 600; }
+    [data-dd-plugins] .ps-num { text-align: right; font-variant-numeric: tabular-nums; }
+    [data-dd-plugins] .ps-asset-id { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+    [data-dd-plugins] .ps-empty { color: var(--muted); font-size: 12px; }
+    [data-dd-plugins] .ps-from { color: var(--muted); font-weight: 400; font-size: 11px; }
 
-    .plugin-sheet .ps-form { display: grid; gap: 7px; }
-    .plugin-sheet .ps-field { display: flex; gap: 8px; align-items: center; }
-    .plugin-sheet .ps-field label { width: 52px; flex: 0 0 auto; color: var(--muted); font-size: 11.5px; }
-    .plugin-sheet .ps-field input {
+    [data-dd-plugins] .ps-form { display: grid; gap: 7px; }
+    [data-dd-plugins] .ps-field { display: flex; gap: 8px; align-items: center; }
+    [data-dd-plugins] .ps-field label { width: 52px; flex: 0 0 auto; color: var(--muted); font-size: 11.5px; }
+    [data-dd-plugins] .ps-field input {
       flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px; font: inherit; font-size: 12px;
       border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink);
     }
-    .plugin-sheet .ps-mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
-    .plugin-sheet .ps-result { margin: 0; font-size: 11.5px; min-height: 16px; color: var(--muted); }
-    .plugin-sheet .ps-result[data-tone="ok"] { color: #1a7f47; }
-    .plugin-sheet .ps-result[data-tone="bad"] { color: #b3261e; }
+    [data-dd-plugins] .ps-mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+    [data-dd-plugins] .ps-result { margin: 0; font-size: 11.5px; min-height: 16px; color: var(--muted); }
+    [data-dd-plugins] .ps-result[data-tone="ok"] { color: #1a7f47; }
+    [data-dd-plugins] .ps-result[data-tone="bad"] { color: #b3261e; }
 
-    .plugin-sheet .ps-foot {
-      display: flex; gap: 10px; align-items: center; padding: 11px 20px;
-      border-top: 1px solid var(--line); background: var(--chrome-bg);
+    [data-dd-plugins] .ps-foot {
+      display: flex; gap: 10px; align-items: center; padding: 9px 0 0;
+      border-top: 1px solid var(--line); margin-top: 4px;
     }
-    .plugin-sheet .ps-foot .ps-hint { flex: 1 1 auto; margin: 0; }
+    [data-dd-plugins] .ps-foot .ps-hint { flex: 1 1 auto; margin: 0; }
+    [data-dd-plugins] .ps-foot [data-ps-done] { display: none; }
 
     /* ---- the trusted-content confirmation ----
        The one dialog that is a decision rather than a form: a warm edge, not a red one. */
@@ -1612,6 +1637,11 @@
     #boot-dialog button.primary { background: var(--boot-accent); border-color: var(--boot-accent); color: #fff; }
     #boot-dialog button:focus-visible { outline: 2px solid var(--boot-accent); outline-offset: 2px; }
 
+    /* Invariant 16, stated once: an element-selector display outranks the UA sheet's
+       `[hidden] { display: none }`, so the intent is written down here rather than repeated on
+       every component that can be hidden. */
+    #boot-dialog [hidden] { display: none; }
+
     #boot-dialog .boot-bar {
       height: 5px; border-radius: 99px; background: #eceef2; overflow: hidden; margin: 2px 0 12px;
     }
@@ -1633,10 +1663,13 @@
     #boot-dialog .boot-row[data-state="active"] .boot-name { color: var(--boot-accent); }
     #boot-dialog .boot-row[data-state="active"] .boot-dot { background: var(--boot-accent); animation: boot-pulse 1s infinite; }
     #boot-dialog .boot-row[data-state="ok"] .boot-dot { background: var(--boot-ok); }
-    #boot-dialog .boot-row[data-state="failed"] .boot-dot,
-    #boot-dialog .boot-row[data-state="fail"] .boot-dot { background: var(--boot-danger); }
-    #boot-dialog .boot-row[data-state="failed"] .boot-name,
-    #boot-dialog .boot-row[data-state="fail"] .boot-name { color: var(--boot-danger); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-dot { background: var(--boot-danger); }
+    #boot-dialog .boot-row[data-state="failed"] .boot-name { color: var(--boot-danger); }
+
+    /* The two phases are one list: `fetched` means the bytes are here and verified, `carried`
+       means the file already had them. Neither is a module that still has to build. */
+    #boot-dialog .boot-row[data-state="fetched"] .boot-dot { background: var(--boot-ok); }
+    #boot-dialog .boot-row[data-state="carried"] { opacity: .8; }
 
     @keyframes boot-pulse { 50% { opacity: .35; } }
 
@@ -1644,7 +1677,6 @@
       display: grid; grid-template-columns: 18px 1fr; gap: 8px;
       margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--boot-line);
     }
-    #boot-dialog .boot-error[hidden] { display: none; }
     #boot-dialog .boot-error-icon { color: var(--boot-danger); }
     #boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
     #boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
@@ -1655,16 +1687,13 @@
       margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--boot-line); border-radius: 8px;
       background: var(--boot-paper); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
     }
-    #boot-dialog .boot-update[hidden] { display: none; }
     #boot-dialog .boot-update-text { margin: 0; flex: 1 1 220px; font-size: 12.5px; color: var(--boot-ink); }
-    #boot-dialog .boot-update-go[hidden] { display: none; }
 
     #boot-dialog .boot-diag {
       margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
       background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11px; white-space: pre-wrap; max-height: 220px; overflow: auto;
     }
-    #boot-dialog .boot-diag[hidden] { display: none; }
 
     @media (prefers-reduced-motion: reduce) {
       #boot-dialog .boot-fill { transition: none; }
@@ -2652,7 +2681,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9716,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/page-styles.css","integrity":"sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":30445,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/toolbar-styles.css","integrity":"sha384-EkUEr9ZYLyTyC38REswcqFVCbFYIIhhkjdK4Imsakq6qmxEmgUnODg8sNRIv9O+I"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6015,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5428,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/viewer-bar-styles.css","integrity":"sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":40605,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":15586,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2511,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/apply-settings.js","integrity":"sha384-W27FmRTUi+abfTouH0lZr7ClON9VEPoOOXp6mrAwAgSkm+zrzC2aG2jFsIhx/gZH"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":3421,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/session.js","integrity":"sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":8575,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/pagination.js","integrity":"sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":18729,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/policy.js","integrity":"sha384-l2rHTNsDyh8ADksBL+JNZ3Gua3UueqUKRHTBEPJoLxbfCXRraIRLkDPI5elC+gIa"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":61210,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/toolbar.js","integrity":"sha384-x1bneenX61Hbuz2VZejGBaFErS8oZInni5EUTlGRe7Mu2pICCc6xf1snG0BWYuEX"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":43199,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/plugins.js","integrity":"sha384-UVQhv10bilnTcqI5ssy8UlHQuf0zIW0TRo//QQqn8V5+9SN4Db1dSlK+1so34VCl"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":38169,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/export.js","integrity":"sha384-6SQoXEaXO+qrpbKZJiRcjOXmjK/LKRLZYZFZmJWAm14aC+0Fov4WXMw4UMUuxB06"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":7027,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/dialogs.html","integrity":"sha384-jp7Xpfa+Ksop+DGRVMEA7K9tiG26sK4cK+8rEmaLqTerVABM1Zf7d3lOnHUANNeY"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9716,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/page-styles.css","integrity":"sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":31995,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/toolbar-styles.css","integrity":"sha384-O5AWfeuCwqXSApqGNXG/6tAD5/BPSGk9Eyy2Cja4ThJVnZJrS8JtoBnwcqlxU1XV"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5428,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/viewer-bar-styles.css","integrity":"sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":43504,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2511,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/apply-settings.js","integrity":"sha384-W27FmRTUi+abfTouH0lZr7ClON9VEPoOOXp6mrAwAgSkm+zrzC2aG2jFsIhx/gZH"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":3421,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/session.js","integrity":"sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":8575,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/pagination.js","integrity":"sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":18729,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/policy.js","integrity":"sha384-l2rHTNsDyh8ADksBL+JNZ3Gua3UueqUKRHTBEPJoLxbfCXRraIRLkDPI5elC+gIa"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":66232,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/toolbar.js","integrity":"sha384-86CxUW97eOrGCkm+6w5Rei/JFpz/3ZvX1gP1mXMozO8onb1+P28vhFswG5yXkBuc"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":38169,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/export.js","integrity":"sha384-6SQoXEaXO+qrpbKZJiRcjOXmjK/LKRLZYZFZmJWAm14aC+0Fov4WXMw4UMUuxB06"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":9864,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn/dialogs.html","integrity":"sha384-7KGHvqWypSp+JryRQqqmCk35KuKXSJoMNMESHCnW57lTd1TM9RKV46BNX63bvf+8"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -2845,6 +2874,41 @@
       }
 
       /** The release index, or null. Never a document failure: nothing is recorded. */
+      /** The tag this document pins, or null for a base that is not a tag (a dev build). */
+      const tagOf = (base = manifest().cdnBase) => /@([^/]+)\//.exec(String(base || ""))?.[1] ?? null;
+
+      /** `X.Y.Z`, with or without a leading `v`; anything unparseable sorts below a release. */
+      function isNewer(a, b) {
+        const parts = (tag) => String(tag || "").replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+        const left = parts(a);
+        const right = parts(b);
+        for (let i = 0; i < 3; i += 1) {
+          if ((left[i] || 0) !== (right[i] || 0)) return (left[i] || 0) > (right[i] || 0);
+        }
+        return false;
+      }
+
+      /**
+       * What an update would move, in one place.
+       *
+       * Two callers asked this question and answered it differently — the failure card (which
+       * applies at once, because a boot that failed has no toolbar) and Document settings (which
+       * drafts, because a pin is a document fact and nothing is decided before Done). They also
+       * duplicated the plumbing: read the index, compare tags, fetch `runtime/<tag>.json`. The
+       * policy is per-caller; the plumbing is not.
+       */
+      async function compareUpdate({ fetchEntry = false } = {}) {
+        const current = tagOf();
+        const index = await catalog();
+        const latest = index?.latest ?? null;
+        const newer = Boolean(current && latest && isNewer(latest, current));
+        const entry = newer && fetchEntry ? await release(latest) : null;
+        const date = (index?.releases || []).find((item) => item.tag === latest)?.date || null;
+        /* `readable` is not `newer`: a catalog that could not be read and a release that is not
+           newer are different news, and only one of them is worth alarming an author about. */
+        return {current, latest, newer, entry, date, readable: index !== null};
+      }
+
       async function catalog() {
         const url = catalogUrl();
         if (!url) return null;
@@ -3120,12 +3184,43 @@
 
       /* Only constructed modules: infrastructure is already running, and a plugin is
          built by require(), not by boot. */
-      function order() {
+      function planned() {
         const mode = settings().mode;
         return manifest()
-          .assets.filter((asset) => asset.kind === "js" && asset.role !== "infra" && inMode(asset, mode) && !isPlugin(asset))
-          .sort((a, b) => a.order - b.order)
+          .assets.filter((asset) => inMode(asset, mode) && !isPlugin(asset))
+          .sort((a, b) => a.order - b.order);
+      }
+
+      function order() {
+        return planned()
+          .filter((asset) => asset.kind === "js" && asset.role !== "infra")
           .map((asset) => asset.id);
+      }
+
+      /**
+       * A paste-ready report of this document's runtime state.
+       *
+       * Data, not prose: the boot dialog and the About panel both show it, and neither owns it.
+       * `order` is what a boot attempt asked for — the modules, not every asset — because that
+       * is what a reader can compare against the rows they saw.
+       */
+      function diagnostics({ order: modulesOrder = null } = {}) {
+        const lines = [
+          "standalone-doc boot",
+          `state:    ${state}`,
+          `document: ${location.href}`,
+          `modules:  ${(modulesOrder || Object.keys(modules)).join(", ") || "—"}`,
+          "",
+        ];
+        for (const error of errors) {
+          lines.push(`[${error.kind || error.phase}] ${error.id}: ${error.message}`);
+          if (error.url) lines.push(`url: ${error.url}`);
+          if (error.expected) lines.push(`expected ${error.expected}`, `actual   ${error.actual}`);
+          if (error.stack) lines.push(error.stack);
+          lines.push("");
+        }
+        lines.push(`user agent: ${navigator.userAgent}`);
+        return lines.join("\n");
       }
 
       async function sha384(buffer) {
@@ -3402,18 +3497,20 @@
         errors.length = 0;
         pending.clear();
 
-        const mode = settings().mode;
         /* Plugins are never built here. A document must open when a plugin is missing,
            damaged or switched off, and keeping them out of this list is what keeps boot's
            fail-closed contract about *this document's own* assets. */
-        const assets = manifest()
-          .assets.filter((asset) => inMode(asset, mode) && !isPlugin(asset))
-          .sort((a, b) => a.order - b.order);
+        const assets = planned();
         const jsAssets = assets.filter((asset) => asset.kind === "js" && asset.role !== "infra");
-        emit("start", { order: jsAssets.map((asset) => asset.id), total: jsAssets.length });
+        const online = assets.filter((asset) => asset.mode === "online");
+        emit("start", {
+          order: jsAssets.map((asset) => asset.id),
+          assets: assets.map((asset) => asset.id),
+          total: jsAssets.length,
+          fetched: online.length,
+        });
 
         /* 1. Load in parallel: I/O is order-free. */
-        const online = assets.filter((asset) => asset.mode === "online");
         const loaded = new Map();
         const outcomes = await Promise.allSettled(
           online.map(async (asset) => {
@@ -3620,9 +3717,14 @@
         boot,
         retry,
         order,
+        planned,
+        diagnostics,
         manifest,
         catalogUrl,
         catalog,
+        compareUpdate,
+        tagOf,
+        isNewer,
         release,
         repin,
         modules,
@@ -3657,6 +3759,11 @@
       let ui = null;
       let showTimer = null;
       let lastStart = {order: [], total: 0};
+      /* The plan this boot is executing, and the rows that show it. `plan.fetched`/`built` are
+         what the bar is made of: the fetch is the slow half and it used to own no part of it. */
+      let plan = {byId: new Map(), byUrl: new Map(), fetched: 0, fetchedDone: 0, modules: 0, built: 0};
+      const rows = new Map();
+      let timelineFrame = 0;
       const failures = [];
       /* The recovery flow. `offered` is the release this card proposed; `updating` is the tag
          being applied, set before retry() so the "ready" handler knows the boot was a repair
@@ -3720,19 +3827,92 @@
         if (el?.dialog.open) el.dialog.close();
       }
 
-      function renderRows(order) {
+      /* Presentation only, like the label: bytes are the document's, not the wire's. A pin says
+         what this file carries, and a brotli figure would be a second truth nobody can check. */
+      const sizeOf = (asset) => {
+        const bytes = Number(asset.bytes) || 0;
+        if (!bytes) return "";
+        return bytes < 2048 ? `${bytes} bytes` : `${Math.round(bytes / 1024)} KB`;
+      };
+
+      /* One row per asset this document boots, not one per module: `order` is 13 modules, and a
+         slim document fetches 19 files — the three slowest are a stylesheet, a fragment and the
+         sprite (lab/013). Rows come from the registry's plan, so the list cannot disagree with
+         what boot actually does. */
+      function renderPlan() {
         const el = ensure();
         if (!el) return;
         el.rows.replaceChildren();
-        for (const id of order) {
+        rows.clear();
+        plan = {byId: new Map(), byUrl: new Map(), fetched: 0, fetchedDone: 0, modules: 0, built: 0};
+        for (const asset of registry.planned ? registry.planned() : []) {
+          /* Infrastructure is already running: it is not something to wait for. */
+          if (asset.role === "infra") continue;
+          plan.byId.set(asset.id, asset);
+          if (asset.url) plan.byUrl.set(asset.url, asset);
+          const module = asset.kind === "js";
+          if (module) plan.modules++;
+          const carried = asset.mode !== "online";
+          if (!carried) plan.fetched++;
+
           const row = document.createElement("li");
           row.className = "boot-row";
-          row.dataset.state = "pending";
-          row.dataset.id = id;
+          row.dataset.id = asset.id;
+          /* An inline stylesheet or fragment is *done* the moment it is parsed; an inline
+             module is not, and the construct events move it from `carried` to `ok`. */
+          row.dataset.state = carried ? "carried" : "pending";
           row.innerHTML = '<span class="boot-dot" aria-hidden="true"></span><span class="boot-name"></span><span class="boot-detail"></span>';
-          row.querySelector(".boot-name").textContent = label(id);
+          row.querySelector(".boot-name").textContent = label(asset.id);
+          row.querySelector(".boot-detail").textContent = carried
+            ? `in this file${sizeOf(asset) ? ` · ${sizeOf(asset)}` : ""}`
+            : "waiting for the CDN";
           el.rows.append(row);
+          rows.set(asset.id, row);
         }
+        paintBar();
+        watchFetches();
+      }
+
+      /* The fetch owns 0..0.6 of the bar and construction owns 0.6..1. Without that split the
+         construct handler's `done/total` would overwrite the fetch progress downwards the moment
+         the first module builds. */
+      function paintBar() {
+        const fetchShare = plan.fetched ? 0.6 * (plan.fetchedDone / plan.fetched) : 0;
+        const buildShare = plan.modules ? 0.4 * (plan.built / plan.modules) : 0;
+        setBar(Math.min(1, fetchShare + buildShare));
+      }
+
+      /**
+       * Paint the fetch phase from the browser's own timeline.
+       *
+       * No registry event is involved, and none is missing: `performance.getEntriesByType` is
+       * append-only on completion and carries duration and (with jsDelivr's
+       * `timing-allow-origin: *`) sizes. An event would be a second truth for the same fact
+       * (lab/013 measured both).
+       */
+      function watchFetches() {
+        cancelAnimationFrame(timelineFrame);
+        if (!plan.fetched) return;
+        let seen = 0;
+        const step = () => {
+          const entries = performance.getEntriesByType("resource");
+          for (; seen < entries.length; seen++) {
+            const entry = entries[seen];
+            const asset = plan.byUrl.get(entry.name);
+            if (!asset) continue;
+            const row = rows.get(asset.id);
+            if (!row || row.dataset.state !== "pending") continue;
+            row.dataset.state = "fetched";
+            const ms = entry.duration ? ` · ${Math.round(entry.duration)} ms` : "";
+            row.querySelector(".boot-detail").textContent = `verified · ${sizeOf(asset)}${ms}`;
+            plan.fetchedDone++;
+          }
+          paintBar();
+          if (plan.fetchedDone < plan.fetched && registry.state === "booting") {
+            timelineFrame = requestAnimationFrame(step);
+          }
+        };
+        timelineFrame = requestAnimationFrame(step);
       }
 
       function reset() {
@@ -3740,6 +3920,8 @@
         failures.length = 0;
         offered = null;
         offersAllowed = true;
+        cancelAnimationFrame(timelineFrame);
+        rows.clear();
         if (!el) return;
         el.error.hidden = true;
         el.retry.hidden = true;
@@ -3756,25 +3938,9 @@
         setBar(0);
       }
 
-      function diagnosticsText() {
-        const el = ensure();
-        const lines = [
-          "standalone-doc boot",
-          `state:    ${registry.state}`,
-          `document: ${location.href}`,
-          `modules:  ${(lastStart.order || []).join(", ") || "—"}`,
-          "",
-        ];
-        for (const failure of failures) {
-          lines.push(`[${failure.kind || failure.phase}] ${failure.id}: ${failure.message}`);
-          if (failure.url) lines.push(`url: ${failure.url}`);
-          if (failure.expected) lines.push(`expected ${failure.expected}`, `actual   ${failure.actual}`);
-          if (failure.stack) lines.push(failure.stack);
-          lines.push("");
-        }
-        lines.push(`user agent: ${navigator.userAgent}`);
-        return lines.join("\n");
-      }
+      /* One implementation, in the registry, because the About panel shows the same report and
+         a second copy is how two diagnostics came to disagree in the first place. */
+      const diagnosticsText = () => registry.diagnostics({order: lastStart.order});
 
       /* One card per failure mode: the copy is the product here. */
       function copyFor(failure) {
@@ -3810,7 +3976,7 @@
         el.sub.textContent = "Aborted — nothing has been changed on disk";
         /* Mark the row that failed: the registry emits "active" and then aborts, so
            without this the last row would sit on "starting…" forever. */
-        const failedRow = el.rows.querySelector(`.boot-row[data-id="${failure.id}"]`);
+        const failedRow = rows.get(failure.id) || el.rows.querySelector(`.boot-row[data-id="${failure.id}"]`);
         if (failedRow) {
           failedRow.dataset.state = "failed";
           failedRow.querySelector(".boot-detail").textContent = "failed";
@@ -3831,8 +3997,7 @@
 
       /* ---------------------------------------------------------------- recovery */
 
-      /** The tag this document pins, or null for a base that is not a tag (a dev build). */
-      const pinnedTag = () => /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1] ?? null;
+      const pinnedTag = () => registry.tagOf();
 
       /**
        * Offer a newer release when the failure looks like a stale pin.
@@ -3848,17 +4013,14 @@
       async function offerUpdate(failure) {
         const el = ensure();
         if (!el || !["integrity", "http"].includes(failure.kind)) return;
-        const current = pinnedTag();
-        if (!current) return;
-        const index = await registry.catalog();
+        const {current, latest, newer, date: when} = await registry.compareUpdate();
         /* The card may have moved on while the catalog was in flight. */
         if (!offersAllowed || registry.state !== "failed" || !el.error || el.error.hidden) return;
-        if (!index || !index.latest || index.latest === current) return;
-        offered = {index, from: current, to: index.latest};
-        const when = index.releases?.find((release) => release.tag === index.latest)?.date;
-        el.updateText.textContent = `${index.latest}${when ? ` (${when})` : ""} exists; this document pins ${current}. `
+        if (!current || !newer) return;
+        offered = {from: current, to: latest};
+        el.updateText.textContent = `${latest}${when ? ` (${when})` : ""} exists; this document pins ${current}. `
           + "Updating rewrites its pin and fetches that release — nothing on disk changes until you save.";
-        el.updateGo.textContent = `Update to ${index.latest}`;
+        el.updateGo.textContent = `Update to ${latest}`;
         el.update.hidden = false;
         el.updateGo.hidden = false;
       }
@@ -3998,15 +4160,14 @@
       registry.on("start", (detail) => {
         lastStart = detail;
         reset();
-        renderRows(detail.order);
+        renderPlan();
         const el = ensure();
         if (el) {
-          const assets = registry.manifest().assets || [];
-          const online = assets.filter((asset) => asset.mode === "online").length;
           const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
-          el.sub.textContent = online
-            ? `${detail.total} modules · ${online} fetched from the CDN${version ? ` · ${version}` : ""}`
-            : `${detail.total} modules · everything embedded in this file`;
+          const files = plan.fetched;
+          el.sub.textContent = files
+            ? `${plan.modules} modules · ${files} files fetched from the CDN${version ? ` · ${version}` : ""}`
+            : `${plan.modules} modules · everything embedded in this file`;
         }
         scheduleOpen();
       });
@@ -4017,13 +4178,13 @@
         /* A plugin builds long after the dialog closed, with its own small asset list.
            The boot progress is about this document's modules, so it stays out of it. */
         if (detail.lazy) return;
-        const row = el.rows.querySelector(`.boot-row[data-id="${detail.id}"]`);
+        const row = rows.get(detail.id);
         if (row) {
-          row.dataset.state = detail.state;
-          row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "starting…";
+          row.dataset.state = detail.state === "ok" ? "ok" : "active";
+          row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "building…";
         }
-        const done = detail.state === "ok" ? detail.index + 1 : detail.index;
-        setBar(0.95 * (done / Math.max(1, detail.total)));
+        if (detail.state === "ok") plan.built++;
+        paintBar();
       });
 
       registry.on("ready", (detail) => {
@@ -7659,7 +7820,50 @@
 
       let settingsDraft = null;
 
-      function openDocSettings({section} = {}) {
+      /* Which panel is showing. One dialog, five questions; the tab is a view of the draft, not
+         a second draft. */
+      const TABS = ["document", "storage", "runtime", "plugins", "about"];
+      let activeTab = "document";
+
+      function selectTab(name) {
+        const dialog = settingsDialog();
+        if (!dialog || !TABS.includes(name)) return;
+        activeTab = name;
+        for (const tab of dialog.querySelectorAll("[data-dd-tab]")) {
+          tab.setAttribute("aria-selected", String(tab.dataset.ddTab === name));
+        }
+        for (const panel of dialog.querySelectorAll("[data-dd-panel]")) {
+          panel.hidden = panel.dataset.ddPanel !== name;
+        }
+        /* The Plugins panel is a host element: `plugins.js` owns everything inside it, and it is
+           mounted on first activation because that mount is the one that reads a catalog (a
+           network call, an author may never want it). */
+        if (name === "plugins") mountPluginsPanel();
+        if (name === "about") paintAbout();
+      }
+
+      function mountPluginsPanel() {
+        const host = settingsDialog()?.querySelector("[data-dd-plugins]");
+        if (!host) return;
+        /* `optional`, not a dep: plugins is built after the toolbar (order 95 > 90), and the
+           getter is read when the tab opens, not when this module is constructed. */
+        const plugins = deps.optional("plugins")();
+        if (!plugins || typeof plugins.renderPanel !== "function") {
+          if (!host.childElementCount) host.textContent = "No plugin module in this document.";
+          return;
+        }
+        const loading = plugins.renderPanel(host);
+        /* The tab is where "two plugins have newer versions" is *noticed*; the row is where it is
+           acted on. Counting needs the catalog, so it lands when the panel has read it. */
+        if (loading && typeof loading.then === "function") {
+          loading.then((count) => {
+            const tab = settingsDialog()?.querySelector('[data-dd-tab="plugins"]');
+            if (tab) tab.textContent = count ? `Plugins · ${count}` : "Plugins";
+          }).catch(() => {});
+        }
+      }
+
+      function openDocSettings({tab} = {}) {
         const dialog = settingsDialog();
         if (!dialog) return;
         const settings = globalThis.StandaloneDoc.settings();
@@ -7667,6 +7871,7 @@
           mode: settings.mode,
           editable: settings.editable,
           toolbar: settings.toolbar,
+          author: settings.author || "",
           thresholdMb: toMb(settings.saveThresholdBytes),
           timeoutMs: settings.timeoutMs,
           never: Number(settings.thresholdDeclined) > 0,
@@ -7677,9 +7882,7 @@
         };
         paintDocSettings();
         if (!dialog.open) dialog.showModal();
-        if (section) {
-          dialog.querySelector(`[data-ds-section="${section}"]`)?.scrollIntoView({block: "nearest"});
-        }
+        selectTab(tab || activeTab || "document");
       }
 
       function closeDocSettings() {
@@ -7713,6 +7916,7 @@
         dialog.querySelector("[data-ds='threshold']").value = String(draft.thresholdMb);
         dialog.querySelector("[data-ds='timeout']").value = String(draft.timeoutMs);
         dialog.querySelector("[data-ds='never']").checked = draft.never;
+        dialog.querySelector("[data-ds='author']").value = draft.author;
         dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
           ? "quiet until the file doubles"
           : "the prompt returns when the file doubles";
@@ -7791,6 +7995,47 @@
         const pending = dialog.querySelector("[data-ds-pending]");
         pending.hidden = sameBlock(readSettingsBlock(), settingsPatch());
         pending.textContent = "Unsaved";
+
+        const state = dialog.querySelector("[data-dd-state]");
+        if (state) {
+          state.textContent = `${draft.mode} mode${draft.repin ? ` · pin ${draft.repin.tag} pending` : ""}`;
+          state.dataset.mode = draft.mode;
+        }
+      }
+
+      /* About: the numbers an author asks for when the file is too big, and the report they are
+         asked to paste when it will not open. Both are read, never invented. */
+      function paintAbout() {
+        const dialog = settingsDialog();
+        if (!dialog) return;
+        const manifest = globalThis.StandaloneDoc.manifest();
+        const assets = manifest.assets || [];
+        const infra = assets.filter((asset) => asset.role === "infra").reduce((sum, asset) => sum + (asset.bytes || 0), 0);
+        const bodies = assets.reduce((sum, asset) => sum + (asset.bytes || 0), 0);
+        const file = document.documentElement.outerHTML.length;
+        const facts = [
+          ["File", saveKilobytes(file)],
+          ["Asset bodies", `${saveKilobytes(bodies)} · ${saveKilobytes(infra)} of it infrastructure`],
+          ["Loaded now", `${Object.keys(globalThis.StandaloneDoc.modules || {}).length} modules`],
+          ["Pinned tag", /@([^/]+)\//.exec(manifest.cdnBase || "")?.[1] ?? "unpinned"],
+          ["Host API", String(globalThis.StandaloneDoc.hostApi)],
+        ];
+        const body = dialog.querySelector("[data-dd-facts]");
+        if (body) {
+          body.replaceChildren();
+          for (const [key, value] of facts) {
+            const tr = document.createElement("tr");
+            const name = document.createElement("td");
+            name.textContent = key;
+            const cell = document.createElement("td");
+            cell.className = "num";
+            cell.textContent = value;
+            tr.append(name, cell);
+            body.append(tr);
+          }
+        }
+        const diag = dialog.querySelector("[data-dd-diag]");
+        if (diag) diag.textContent = globalThis.StandaloneDoc.diagnostics();
       }
 
       /** The settings block the draft would produce. Pure: comparing it is how we know
@@ -7808,6 +8053,10 @@
         next.editable = draft.mode === "edit" ? draft.editable : false;
         next.toolbar = draft.toolbar;
         next.saveThresholdBytes = Math.max(0, toBytes(draft.thresholdMb || 0));
+        /* An author name is written only when there is one: a document with no comments has
+           nobody to attribute, and an empty string in every file is a change for nothing. */
+        if (draft.author && draft.author.trim()) next.author = draft.author.trim();
+        else delete next.author;
         next.timeoutMs = Math.max(0, Math.round(Number(draft.timeoutMs) || 0));
 
         if (draft.never) {
@@ -7841,17 +8090,6 @@
       }
 
       const registry = () => globalThis.StandaloneDoc;
-
-      /** `vX.Y.Z` comparison; anything unparseable sorts below a release. */
-      function newerTag(a, b) {
-        const parts = (tag) => String(tag || "").replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
-        const left = parts(a);
-        const right = parts(b);
-        for (let i = 0; i < 3; i += 1) {
-          if ((left[i] || 0) !== (right[i] || 0)) return (left[i] || 0) > (right[i] || 0);
-        }
-        return false;
-      }
 
       /**
        * "Check for updates…" — the deliberate path to a newer release, as opposed to the
@@ -7894,13 +8132,13 @@
         button.textContent = "Checking…";
         say("Reading the release index…");
         try {
-          const index = await api.catalog();
-          if (!index) {
+          /* One question, one implementation: the failure card asks the same thing and applies it
+             at once, because a failed boot has no toolbar to press Done on. */
+          const {current, latest, newer, entry, readable} = await api.compareUpdate({fetchEntry: true});
+          if (!readable) {
             say("Could not read the release index (offline, or the catalog is missing). Nothing changed.", "warn");
             return;
           }
-          const current = /@([^/]+)\//.exec(String(api.manifest().cdnBase || ""))?.[1] ?? null;
-          const latest = index.latest;
           if (!current) {
             say("This document has no tag to compare against. Nothing changed.", "warn");
             return;
@@ -7909,11 +8147,10 @@
             say(`Already on the newest release (${current}).`, "ok");
             return;
           }
-          if (!newerTag(latest, current)) {
+          if (!newer) {
             say(`The index offers ${latest}; this copy is on ${current}, which is newer. Nothing changed.`, "ok");
             return;
           }
-          const entry = await api.release(latest);
           settingsDraft.repin = entry;
           paintDocSettings();
           say(`${latest} is available. Press Done to point this file at it: the running window keeps ${current}, and every copy you save from now on runs ${latest}.`, "ok");
@@ -7947,6 +8184,27 @@
         });
         dialog.querySelector("[data-ds='timeout']").addEventListener("change", (event) => {
           settingsDraft.timeoutMs = Math.round(Number(event.target.value) || 0);
+        });
+        dialog.querySelector("[data-ds='author']").addEventListener("change", (event) => {
+          settingsDraft.author = event.target.value;
+          paintDocSettings();
+        });
+        for (const tab of dialog.querySelectorAll("[data-dd-tab]")) {
+          tab.addEventListener("click", () => selectTab(tab.dataset.ddTab));
+        }
+        dialog.querySelector("[data-dd-copy]").addEventListener("click", async (event) => {
+          const button = event.currentTarget;
+          const text = globalThis.StandaloneDoc.diagnostics();
+          try {
+            await navigator.clipboard.writeText(text);
+            button.textContent = "Copied";
+          } catch {
+            /* No clipboard permission: show it, so it can be selected by hand. */
+            const diag = settingsDialog()?.querySelector("[data-dd-diag]");
+            if (diag) diag.hidden = false;
+            button.textContent = "Select above";
+          }
+          setTimeout(() => { button.textContent = "Copy"; }, 1400);
         });
         dialog.querySelector("[data-ds='never']").addEventListener("change", (event) => {
           settingsDraft.never = event.target.checked;
@@ -8663,7 +8921,12 @@
         /* The size readout is the second door: it is the number that makes an author ask
            "why is this file big?", so it opens the sheet where that is answered. */
         const statsHit = e.target.closest("[data-stats]");
-        if (statsHit) {closeAllMenus(); openDocSettings({section: "size"}); return;}
+        if (statsHit) {closeAllMenus(); openDocSettings({tab: "storage"}); return;}
+
+        /* A plugin's home is a panel of the document dialog, so its menu items and the Plugins
+           command open the same dialog at the same tab. */
+        const pluginsItem = e.target.closest("[data-plugins-open]");
+        if (pluginsItem) {closeAllMenus(); openDocSettings({tab: "plugins"}); return;}
 
         const submenuBtn = e.target.closest("[data-submenu-trigger]");
         if (submenuBtn) {toggleSubmenu(submenuBtn); return;}
@@ -9088,17 +9351,21 @@
       }
 
 
-      /* ------------------------------------------------------------------- the sheet */
+      /* ------------------------------------------------------------------- the panel */
       /*
        * The author-facing half: what is in this file, what could be, and how to add one from
-       * a url. Storage (inline vs fetched) is *not* here — that decision lives in Document
-       * settings, and a second control for it would be the third copy of the same rows.
+       * a url. Storage (inline vs fetched) is *not* here — that decision lives in the Storage
+       * panel, and a second control for it would be the third copy of the same rows.
        *
-       * Built in JS on purpose: the sheet is session state, tagged `data-plugin-ui`, and the
-       * save path drops it like any other runtime node.
+       * A *panel*, not a dialog: `toolbar.js` owns the document dialog and its tabs, and hands
+       * this module an empty element on first activation (order 95 > 90, so it is asked for
+       * through the optional edge, read at that moment and never at construction — the audit
+       * parses source text, and a call written in a comment is an edge to itself). Built in JS
+       * on purpose — it is session state, tagged `data-plugin-ui`, and the save path drops it
+       * like any other runtime node.
        */
 
-      let sheet = null;
+      let panel = null;
       let catalog = null;
       let catalogError = null;
       let foot = "";
@@ -9135,15 +9402,61 @@
         const el = document.getElementById("plugin-catalog");
         if (!el) return null;
         try {
-          return JSON.parse(el.textContent);
+          const parsed = JSON.parse(el.textContent);
+          /* Parseable is not the same as useful: `{}` in the block would win over the network and
+             show an empty list, which reads exactly like "nothing is published". Fall through
+             unless there is at least one table to show. */
+          if (!parsed || (parsed.schema !== 1 && !parsed.assets && !parsed.bundles)) return null;
+          if (!parsed.assets && !parsed.bundles) return null;
+          return parsed;
         } catch {
           return null;
         }
       }
 
+      /** The tag this document pins, or null for a base that is not a tag (a dev build). */
+      const pinnedTag = () => /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1] ?? null;
+
+      /** A snapshot taken at another tag is a claim about bytes this file does not pin. */
+      const catalogStale = () => Boolean(catalog?.tag && pinnedTag() && catalog.tag !== pinnedTag());
+
+      /**
+       * Re-read the catalog from the tag this document pins and rewrite the snapshot.
+       *
+       * A snapshot is true only at the tag it was taken at: a bundle's `manifest` resolves
+       * against the document's own `cdnBase` (`catalogBase()`), so after a re-pin the old
+       * snapshot names a manifest hash the new tag does not serve, and an install would fail as
+       * "not the manifest the catalog pins" — a true statement that reads like a tampering
+       * report. Refreshing is the honest fix, and it is one request the author asked for.
+       */
+      async function refreshCatalog() {
+        const url = catalogUrl();
+        const tag = pinnedTag();
+        say(`Reading ${url}…`);
+        let next = null;
+        try {
+          const fetched = await registry.prefetch(url);
+          next = JSON.parse(fetched.text);
+        } catch (error) {
+          return say(`${url} could not be read (${(error && error.message) || error}). Nothing was changed.`);
+        }
+        if (!next || typeof next !== "object" || !(next.assets || next.bundles)) {
+          return say(`${url} is not a plugin catalog. Nothing was changed.`);
+        }
+        const el = document.getElementById("plugin-catalog");
+        if (!el) return say("This file has no #plugin-catalog block to refresh — add one by building with `pluginCatalog`.");
+        el.textContent = JSON.stringify({schema: 1, generated: next.generated, tag, assets: next.assets || {}, bundles: next.bundles || {}});
+        catalog = JSON.parse(el.textContent);
+        catalogFrom = "this file";
+        catalogError = null;
+        status.markDirty();
+        renderSheet();
+        say(`Catalog refreshed from ${url} (${tag || "untagged"}). Save to keep it.`);
+      }
+
       const say = (text) => {
         foot = text;
-        if (sheet) sheet.querySelector("[data-ps-foot]").textContent = text;
+        if (panel) panel.querySelector("[data-ps-foot]").textContent = text;
       };
 
       function element(tag, className, text) {
@@ -9160,7 +9473,13 @@
       /* Bytes under a kilobyte are common in a catalog (a 477-byte module) and "0 KB" is a lie
          the eye reads as empty. One formatter, because a bundle's total and an asset's size are
          the same claim at two scales. */
-      const sizeLabel = (bytes) => !bytes ? "" : bytes < 2048 ? `${bytes} bytes` : `${Math.round(bytes / 1024)} KB`;
+      const sizeLabel = (bytes) => {
+        if (!bytes) return "";
+        if (bytes < 2048) return `${bytes} bytes`;
+        /* A bundle is measured in MB (an 87 MB engine reads as "85154 KB" otherwise), and a
+           formatter that stops at KB is a formatter that lies about the unit. */
+        return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      };
 
       function assetRows(entry, manifest) {
         const table = element("table", "ps-assets");
@@ -9216,7 +9535,22 @@
         remove.dataset.remove = id;
         remove.addEventListener("click", () => uninstall(id));
 
-        main.append(name, version, island, used, element("span", "ps-grow"), toggle, remove);
+        /* An upgrade belongs to the plugin, so it lives on the plugin's row: the catalog data is
+           per-entry, the trust decision is per-plugin, and a runtime bump must not change a
+           plugin behind the author's back. */
+        const found = updateState(id);
+        const update = found && found.state !== "same" ? element("button", "ps-btn ps-primary") : null;
+        if (update) {
+          update.dataset.update = id;
+          update.textContent = found.state === "tampered" ? "Bytes differ" : `Update to ${found.candidate.version}`;
+          update.addEventListener("click", () => upgrade(id));
+          if (found.state === "tampered") {
+            update.classList.remove("ps-primary");
+            update.title = "The catalog serves different bytes under the version this file pins.";
+          }
+        }
+
+        main.append(name, version, island, used, element("span", "ps-grow"), ...(update ? [update] : []), toggle, remove);
         row.append(main);
 
         const error = (registry.errors || []).find((item) => item.id === id);
@@ -9348,7 +9682,8 @@
       }
 
       function renderSheet() {
-        if (!sheet) return;
+        if (!panel) return;
+        const sheet = panel;
         const manifest = manifestJSON() || { assets: [], plugins: {} };
         const plugins = manifest.plugins || {};
         const search = (sheet.querySelector("[data-ps-search]").value || "").trim().toLowerCase();
@@ -9386,7 +9721,26 @@
         }
 
         const from = sheet.querySelector("[data-ps-from]");
-        if (from) from.textContent = catalog ? `· ${catalogFrom}` : catalogFrom ? `· ${catalogFrom}` : "";
+        if (from) from.textContent = catalog ? `· ${catalogFrom}${catalog.tag ? ` @${catalog.tag}` : ""}` : catalogFrom ? `· ${catalogFrom}` : "";
+
+        /* A stale snapshot is not an error, it is a fact with an action: the bundles it names are
+           pinned to another tag, so they would fail their manifest hash check. Refreshing is one
+           request, and only offered when there is a block to write. */
+        const stale = sheet.querySelector("[data-ps-stale]");
+        if (stale) {
+          const isStale = catalogStale();
+          stale.hidden = !isStale;
+          if (isStale) {
+            stale.textContent = `This catalog snapshot was taken at ${catalog.tag}; this file pins ${pinnedTag()}. `;
+            if (document.getElementById("plugin-catalog")) {
+              const refresh = element("button", "ps-btn", "Refresh from this file's tag");
+              refresh.addEventListener("click", () => refreshCatalog());
+              stale.append(refresh);
+            } else {
+              stale.append(document.createTextNode("Only a document that carries its catalog can refresh it."));
+            }
+          }
+        }
 
         const advanced = sheet.querySelector('[data-ps-form]');
         advanced.replaceChildren(formRow());
@@ -9399,12 +9753,12 @@
           || "Installing pins url + sha384. Storage (inline or fetched) is set in Document settings.";
       }
 
-      function buildSheet() {
-        const dialog = element("dialog", "plugin-sheet");
+      function buildPanel(container) {
+        container.replaceChildren();
+        const dialog = element("div", "ps-root");
         dialog.setAttribute("data-plugin-ui", "");
         dialog.innerHTML = `
       <div class="ps-head">
-        <h2>Plugins</h2>
         <p class="ps-sub" data-ps-sub></p>
         <input class="ps-search" type="search" data-ps-search placeholder="Search plugins…" aria-label="Search plugins">
         <div class="ps-nav">
@@ -9422,6 +9776,7 @@
         <section class="ps-sect" data-ps-section="available">
           <h3>Available <span class="ps-from" data-ps-from></span></h3>
           <p>From this runtime's catalog. Installing pins <code>url + sha384</code> into this file.</p>
+          <p class="ps-hint ps-stale" data-ps-stale hidden></p>
           <div data-ps-list="available"></div>
         </section>
         <section class="ps-sect" data-ps-section="advanced">
@@ -9433,27 +9788,32 @@
       </div>
       <div class="ps-foot">
         <span class="ps-hint" data-ps-foot></span>
-        <button class="ps-btn ps-primary" data-ps-done>Done</button>
       </div>`;
 
         dialog.querySelector("[data-ps-search]").addEventListener("input", () => renderSheet());
-        dialog.querySelector("[data-ps-done]").addEventListener("click", () => dialog.close());
         for (const chip of dialog.querySelectorAll("[data-ps-jump]")) {
           chip.addEventListener("click", () => {
             for (const other of dialog.querySelectorAll("[data-ps-jump]")) other.setAttribute("aria-pressed", String(other === chip));
             dialog.querySelector(`[data-ps-section="${chip.dataset.psJump}"]`).scrollIntoView({ block: "start", behavior: "smooth" });
           });
         }
-        document.body.append(dialog);
+        container.append(dialog);
         return dialog;
       }
 
-      function openSheet() {
-        if (!sheet) sheet = buildSheet();
+      /**
+       * Fill the document dialog's Plugins panel. Called on first activation (and on every
+       * later activation), because reading the catalog is a network call an author may never
+       * want — the panel is mounted by the tab, not by boot.
+       */
+      function renderPanel(container) {
+        if (!container) return null;
+        if (!panel || panel.parentElement !== container) panel = buildPanel(container);
         foot = "";
         renderSheet();
-        if (!sheet.open) sheet.showModal();
-        loadCatalog().then(() => renderSheet()).catch(() => renderSheet());
+        return loadCatalog()
+          .then(() => { renderSheet(); return updateCount(); })
+          .catch(() => { renderSheet(); return 0; });
       }
 
       let catalogFrom = null;
@@ -9581,10 +9941,74 @@
         renderSheet();
       }
 
-      async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null, contributes = null, api = 1 }) {
+      /** The catalog's proposal for one id, in the shape either installer takes. */
+      function catalogCandidate(id) {
+        const bundle = catalog?.bundles?.[id];
+        if (bundle) return {kind: "bundle", version: bundle.version || null, sha384: bundle.sha384 || null, entry: bundle};
+        const asset = catalog?.assets?.[id];
+        const latest = (asset?.versions || [])[0];
+        if (latest) return {kind: "asset", version: latest.version || null, sha384: latest.sha384 || null, entry: latest, asset};
+        return null;
+      }
+
+      /**
+       * What the catalog says about a plugin this file already pins.
+       *
+       * `tampered` is deliberately not `newer`: the same version carrying different bytes is a
+       * different plugin wearing the same name, and offering it as an "update" would launder the
+       * substitution. Only a single-module pin can be compared without fetching, because its
+       * `integrity` is in this file; a bundle's identity is its manifest hash, which the catalog
+       * names and the document does not repeat.
+       */
+      function updateState(id) {
+        const record = (manifestJSON()?.plugins || {})[id];
+        if (!record) return null;
+        const candidate = catalogCandidate(id);
+        if (!candidate || !candidate.version) return null;
+        const pinned = record.version || null;
+        if (!pinned) return {candidate, state: "newer"};
+        if (candidate.version === pinned) {
+          const assetId = record.entry || id;
+          const asset = (manifestJSON().assets || []).find((entry) => entry.id === assetId);
+          if (candidate.kind === "asset" && asset && candidate.sha384 && asset.integrity && asset.integrity !== candidate.sha384) {
+            return {candidate, state: "tampered"};
+          }
+          return {candidate, state: "same"};
+        }
+        return {candidate, state: registry.isNewer(candidate.version, pinned) ? "newer" : "same"};
+      }
+
+      /** How many installed plugins have a newer version in the catalog (the tab badge). */
+      const updateCount = () => Object.keys(manifestJSON()?.plugins || {})
+        .filter((id) => updateState(id)?.state === "newer").length;
+
+      /**
+       * Move one plugin to the catalog's version.
+       *
+       * The pin is the install, so this is an install that is allowed to overwrite: the entry is
+       * rewritten, the assets it no longer names are dropped, and `enabled` survives (an author
+       * who switched a plugin off did not ask for it back on by accepting an update).
+       */
+      async function upgrade(id) {
+        const found = updateState(id);
+        if (!found) return say(`The catalog has no version of ${id}.`);
+        if (found.state === "tampered") {
+          return say(`${id} ${found.candidate.version} is pinned to different bytes than the catalog serves — `
+            + "that is not an update, and nothing was changed.");
+        }
+        if (found.state !== "newer") return say(`${id} is already on ${found.candidate.version}.`);
+        const keep = (manifestJSON()?.plugins || {})[id] || {};
+        if (found.candidate.kind === "bundle") {
+          await installBundle(id, found.candidate.entry, {replace: true, keep});
+        } else {
+          await installFrom(id, found.candidate.asset || {label: keep.label}, found.candidate.entry, {replace: true, keep});
+        }
+      }
+
+      async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null, contributes = null, api = 1 }, { replace = false, keep = null } = {}) {
         const next = manifestJSON();
         if (!next) return say("this document has no asset manifest");
-        if (next.plugins?.[id]) return say(`${label || id} is already in this file.`);
+        if (next.plugins?.[id] && !replace) return say(`${label || id} is already in this file.`);
         const wanted = Number(api) || 1;
         if (wanted > registry.hostApi) {
           return say(`${label || id} needs host API ${wanted}; this document provides ${registry.hostApi}. Nothing was added.`);
@@ -9607,7 +10031,7 @@
              catalog. */
           api: wanted,
           island,
-          enabled: true,
+          enabled: keep ? keep.enabled !== false : true,
           entry: id,
           assets: [id],
           /* A catalog entry carries what the plugin offers, because an installed plugin that
@@ -9615,7 +10039,7 @@
              no declarations were published with it. */
           contributes: contributes && typeof contributes === "object" ? contributes : {},
         };
-        next.assets = next.assets || [];
+        next.assets = (next.assets || []).filter((asset) => asset.id !== id);
         next.assets.push({
           id,
           kind: "js",
@@ -9640,7 +10064,7 @@
         renderSheet();
       }
 
-      function installFrom(id, asset, latest) {
+      function installFrom(id, asset, latest, options = {}) {
         if (!latest.url || !latest.sha384) return say(`${asset.label || id} has no pinned version in the catalog.`);
         install(id, {
           label: asset.label || id,
@@ -9654,7 +10078,7 @@
           /* Contributions may be per version (a plugin can start contributing something new),
              so the version wins over the asset. */
           contributes: latest.contributes || asset.contributes || null,
-        });
+        }, options);
       }
 
       /* The catalog's directory: `cdnBase` minus `/cdn` plus `registry.json`, so the sibling of
@@ -9690,10 +10114,10 @@
        * and the pins inside it are well-formed. The assets themselves are *not* fetched: 55 MB of
        * engines is a first-export cost, and the loader verifies each one when it is used.
        */
-      async function installBundle(id, asset) {
+      async function installBundle(id, asset, { replace = false, keep = null } = {}) {
         const next = manifestJSON();
         if (!next) return say("this document has no asset manifest");
-        if (next.plugins?.[id]) return say(`${asset.label || id} is already in this file.`);
+        if (next.plugins?.[id] && !replace) return say(`${asset.label || id} is already in this file.`);
         if (!asset.manifest) return say(`${asset.label || id} has no manifest to read.`);
 
         let url;
@@ -9741,7 +10165,7 @@
           version: bundle.version || asset.version || null,
           api,
           island,
-          enabled: true,
+          enabled: keep ? keep.enabled !== false : true,
           entry: bundle.entry || id,
           assets: assets.map((incoming) => incoming.id),
           contributes: bundle.contributes && typeof bundle.contributes === "object" ? bundle.contributes : {},
@@ -9758,17 +10182,13 @@
         } catch {
           /* shown on the row */
         }
-        say(`${bundle.label || id} pinned — ${assets.length} asset${assets.length === 1 ? "" : "s"}. Save to write it into the file.`);
+        say(`${bundle.label || id} ${replace ? "updated" : "pinned"} — ${assets.length} asset${assets.length === 1 ? "" : "s"}. Save to write it into the file.`);
         renderSheet();
       }
 
       /* ------------------------------------------------------------------- wiring */
 
       document.addEventListener("click", (event) => {
-        if (event.target.closest("[data-plugins-open]")) {
-          openSheet();
-          return;
-        }
         const insertButton = event.target.closest("[data-plugin-insert]");
         if (insertButton) {
           const [id, itemId] = insertButton.dataset.pluginInsert.split(":");
@@ -9824,7 +10244,7 @@
 
       activateUi();
 
-      return { activateUi, wire, unwire, openPanel, openSheet, install };
+      return { activateUi, wire, unwire, openPanel, renderPanel, updateCount, install };
     }
     StandaloneDoc.register("plugins", createPlugins);
   </script>
@@ -10296,32 +10716,56 @@
   </dialog>
 
   <dialog id="doc-settings-dialog" aria-labelledby="doc-settings-title">
-    <div class="ds-head">
-      <h2 id="doc-settings-title">Document settings</h2>
-      <p data-ds-sub>Stored in this file.</p>
+    <!-- One dialog, one draft, one Done. The panels are tabs rather than a longer scroll
+         because settings, storage, the pin and the plugins are four different questions, and a
+         single sheet made the least frequent one the hardest to find (lab/014 measured the
+         duplicated update path this replaces). Panel internals keep their old class prefixes:
+         `ds-*` is behaviour and storage, `ps-*` is the Plugins panel, and both predate this
+         shell. Empty panels are not rendered — a tab that is never opened does no work. -->
+    <div class="dd-head">
+      <div class="dd-title">
+        <h2 id="doc-settings-title">Document</h2>
+        <p data-ds-sub>Stored in this file.</p>
+      </div>
+      <p class="dd-state" data-dd-state></p>
     </div>
 
-    <div class="ds-body">
-      <section class="ds-sect">
-        <h3>Behaviour</h3>
-        <p>Applies the next time this file is opened — the loader enforces it, not the markup.</p>
+    <div class="dd-tabs" role="tablist" aria-label="Document panels">
+      <button type="button" role="tab" data-dd-tab="document" aria-controls="dd-document" aria-selected="true">Document</button>
+      <button type="button" role="tab" data-dd-tab="storage" aria-controls="dd-storage" aria-selected="false">Storage</button>
+      <button type="button" role="tab" data-dd-tab="runtime" aria-controls="dd-runtime" aria-selected="false">Runtime</button>
+      <button type="button" role="tab" data-dd-tab="plugins" aria-controls="dd-plugins" aria-selected="false">Plugins</button>
+      <button type="button" role="tab" data-dd-tab="about" aria-controls="dd-about" aria-selected="false">About</button>
+    </div>
+
+    <div class="dd-body">
+      <section class="dd-panel" id="dd-document" data-dd-panel="document" role="tabpanel" aria-labelledby="doc-settings-title">
+        <!-- The export decides a *copy's* mode, chrome and storage; these two decide what
+             reopening *this* file does. They are not the same question, and the confusion is
+             worth one sentence of copy rather than a control nobody can place. -->
+        <p>What this file does when it is reopened. A copy made by <b>File › Save as…</b> has its
+          own mode, chrome and storage — those are the export's, not these.</p>
         <!-- No `mode` control, and none is coming back: a view-mode save marks the editing
              assets `absent` (`policy.js`), so a file rewritten that way can never be edited
              again. A viewer is an *export* — File → Save as… → HTML → Viewer (read-only)… —
              which makes a copy and leaves this file alone. -->
         <div class="ds-row">
           <label class="grow"><input type="checkbox" data-ds="editable"> Content is editable</label>
-          <span class="ds-hint">readers cannot type</span>
+          <span class="ds-hint">off: locked for anyone who opens this file</span>
         </div>
         <div class="ds-row">
           <label class="grow"><input type="checkbox" data-ds="toolbar"> Show chrome</label>
-          <span class="ds-hint">the ribbon, or a viewer’s bar</span>
+          <span class="ds-hint">off: distraction-free, still this mode</span>
+        </div>
+        <div class="ds-row">
+          <span class="grow">Author</span>
+          <input type="text" data-ds="author" spellcheck="false" aria-label="Author name">
+          <span class="ds-hint">written into comments</span>
         </div>
       </section>
 
-      <section class="ds-sect" data-ds-section="size">
-        <h3>Size &amp; loading</h3>
-        <p>Applies when you save.</p>
+      <section class="dd-panel" id="dd-storage" data-dd-panel="storage" role="tabpanel" hidden>
+        <p>Applies when you save. Rows are capabilities, not files.</p>
         <div class="ds-row">
           <span class="grow">Warn above</span>
           <input type="number" data-ds="threshold" min="0" step="0.5" aria-label="Warning threshold in megabytes"> <span class="ds-unit">MB</span>
@@ -10347,8 +10791,7 @@
         <div class="ds-hint" data-ds-total></div>
       </section>
 
-      <section class="ds-sect" data-ds-section="runtime">
-        <h3>Runtime</h3>
+      <section class="dd-panel" id="dd-runtime" data-dd-panel="runtime" role="tabpanel" hidden>
         <p>Which version of the code this file runs. Pinned by tag, verified by SHA-384.</p>
         <div class="ds-row">
           <span class="grow"><code data-ds-pin>@—</code>
@@ -10363,9 +10806,27 @@
           <span class="ds-hint">per asset</span>
         </div>
       </section>
+
+      <section class="dd-panel" id="dd-plugins" data-dd-panel="plugins" role="tabpanel" hidden>
+        <!-- Filled by src/plugins.js on first activation: the panel is a host element, and the
+             plugin module owns everything inside it (install, storage, updates). -->
+        <div data-dd-plugins></div>
+      </section>
+
+      <section class="dd-panel" id="dd-about" data-dd-panel="about" role="tabpanel" hidden>
+        <p>What this file is, and what it is carrying.</p>
+        <table class="ds-ledger">
+          <tbody data-dd-facts></tbody>
+        </table>
+        <div class="ds-row">
+          <span class="grow">Diagnostics</span>
+          <button type="button" class="ds-chip" data-dd-copy>Copy</button>
+        </div>
+        <pre class="dd-diag" data-dd-diag hidden></pre>
+      </section>
     </div>
 
-    <div class="ds-foot">
+    <div class="dd-foot">
       <span class="ds-pending" data-ds-pending hidden></span>
       <span class="grow"></span>
       <button type="button" data-ds-cancel>Cancel</button>

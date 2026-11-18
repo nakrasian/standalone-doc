@@ -53,12 +53,25 @@ const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s
  * (`<base>/registry.json`) resolves to a file this spec controls. The document itself
  * is fully inline, so nothing else is fetched.
  */
-function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCatalog = false, bundle = false, tamper = false } = {}) {
+function makeDoc({
+  pinned = false, catalog = true, withFigure = false, inlineCatalog = false, bundle = false,
+  tamper = false, catalogVersion = "2.0.0", catalogJs = PLUGIN_JS, catalogTag = null,
+  catalogIsland = "trusted", pinDir = null,
+} = {}) {
   fs.mkdirSync(FILES, { recursive: true });
   fs.writeFileSync(path.join(FILES, "widget-plugin.js"), PLUGIN_JS);
   fs.writeFileSync(path.join(FILES, "widget-lib.js"), LIB_JS);
+  /* The bytes the *catalog* proposes, which are not necessarily the bytes this file pins —
+     that difference is what an update and a substitution both are. */
+  /* Same bytes, same url: only a *different* proposal needs its own file, so the fixtures that
+     are about installing keep pointing where a real catalog would. */
+  const catalogFile = catalogJs === PLUGIN_JS ? "widget-plugin.js" : "widget-plugin-catalog.js";
+  if (catalogFile !== "widget-plugin.js") fs.writeFileSync(path.join(FILES, catalogFile), catalogJs);
 
-  let html = EDITOR.replace(/"cdnBase":"[^"]*"/, `"cdnBase":"${LOCAL}/cdn"`);
+  /* A tag-shaped base is what a *released* document has; `pinDir` fabricates one
+     (`<dir>/t@v0.9.0/cdn`) so staleness and refresh can be tested without a release. */
+  const base = pinDir ? `${LOCAL}/${pinDir}/cdn` : `${LOCAL}/cdn`;
+  let html = EDITOR.replace(/"cdnBase":"[^"]*"/, `"cdnBase":"${base}"`);
   const manifest = JSON.parse(MANIFEST_RE.exec(html)[2]);
 
   if (pinned) {
@@ -136,13 +149,13 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCat
       assets: bundle ? {} : {
         widget: {
           label: "Widgets",
-          island: "trusted",
+          island: catalogIsland,
           description: "A widget from the catalog.",
           versions: [{
-            version: "2.0.0",
-            url: `${LOCAL}/widget-plugin.js`,
-            sha384: sha384(PLUGIN_JS),
-            bytes: byteLength(PLUGIN_JS),
+            version: catalogVersion,
+            url: `${LOCAL}/${catalogFile}`,
+            sha384: sha384(catalogJs),
+            bytes: byteLength(catalogJs),
             factory: "createWidget",
             /* what the plugin offers travels with the proposal: an installed plugin that
                contributed a menu must keep contributing it */
@@ -152,15 +165,33 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCat
       },
       ...(bundle ? { bundles: { widget: bundleEntry() } } : {}),
   });
-  if (catalog) fs.writeFileSync(path.join(FILES, "registry.json"), catalogJson);
-  else fs.rmSync(path.join(FILES, "registry.json"), { force: true });
+  if (catalog) {
+    fs.writeFileSync(path.join(FILES, "registry.json"), catalogJson);
+    if (pinDir) {
+      fs.mkdirSync(path.join(FILES, pinDir), { recursive: true });
+      fs.writeFileSync(path.join(FILES, pinDir, "registry.json"), catalogJson);
+    }
+  } else {
+    fs.rmSync(path.join(FILES, "registry.json"), { force: true });
+    if (pinDir) fs.rmSync(path.join(FILES, pinDir, "registry.json"), { force: true });
+  }
 
-  const slug = [pinned && "pinned", !catalog && "nocat", withFigure && "fig", inlineCatalog && "inlinecat", bundle && (tamper ? "bundle-tampered" : "bundle")].filter(Boolean).join("-") || "base";
+  const slug = [
+    pinned && "pinned", !catalog && "nocat", withFigure && "fig",
+    inlineCatalog && (catalogTag ? `inlinecat-${catalogTag}` : "inlinecat"),
+    bundle && (tamper ? "bundle-tampered" : "bundle"),
+    catalogVersion !== "2.0.0" && `cat-${catalogVersion}`,
+    catalogJs !== PLUGIN_JS && "cat-other-bytes",
+    catalogIsland !== "trusted" && `island-${catalogIsland}`,
+    pinDir,
+  ].filter(Boolean).join("-") || "base";
   /* A document may carry its catalog: that is what makes "Available" work from disk,
      where a relative fetch is impossible (lab/007). */
   if (inlineCatalog) {
-    /* The same JSON, carried by the document instead of served next to it. */
-    const block = `<script id="plugin-catalog" type="application/json">${catalogJson.replace(/</g, "\\u003c")}</script>`;
+    /* The same JSON, carried by the document instead of served next to it. `catalogTag` is
+       what a snapshot knows about itself: the tag it was taken at. */
+    const carried = catalogTag ? JSON.stringify({...JSON.parse(catalogJson), tag: catalogTag}) : catalogJson;
+    const block = `<script id="plugin-catalog" type="application/json">${carried.replace(/</g, "\\u003c")}</script>`;
     const at = html.lastIndexOf("</body>");
     html = html.slice(0, at) + block + html.slice(at);
   }
@@ -170,13 +201,16 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCat
   return "/" + name;
 }
 
+/* The plugin sheet is a *panel* of the document dialog now: plugins, storage and the pin are
+   one file's business, and the menu item opens the dialog on that panel. */
 async function openSheet(page, url) {
   const problems = [];
   page.on("pageerror", (error) => problems.push(error.message));
   await page.goto(url);
   await page.waitForFunction(() => ["ready", "failed"].includes(globalThis.StandaloneDoc?.state), null, { timeout: 20_000 });
   await page.evaluate(() => document.querySelector("[data-plugins-open]").click());
-  await page.waitForSelector("dialog.plugin-sheet[open]");
+  await page.waitForSelector('#doc-settings-dialog[open] [data-dd-panel="plugins"]:not([hidden])');
+  await page.waitForSelector("[data-dd-plugins] .ps-root");
   return problems;
 }
 
@@ -193,7 +227,7 @@ async function confirmInstall(page) {
 
 const sheetState = (page) =>
   page.evaluate(() => {
-    const sheet = document.querySelector("dialog.plugin-sheet");
+    const sheet = document.querySelector("[data-dd-plugins]");
     const rows = [...sheet.querySelectorAll('[data-ps-list="installed"] .ps-row')].map((row) => ({
       id: row.dataset.id,
       name: row.querySelector(".ps-name")?.textContent,
@@ -203,7 +237,7 @@ const sheetState = (page) =>
       assets: row.querySelectorAll(".ps-assets tbody tr").length,
     }));
     return {
-      open: sheet.open,
+      open: document.getElementById("doc-settings-dialog").open,
       sub: sheet.querySelector("[data-ps-sub]").textContent,
       foot: sheet.querySelector("[data-ps-foot]").textContent,
       rows,
@@ -222,7 +256,8 @@ test("the sheet opens from both bars and says what is in the file", async ({ pag
   expect(state.empty).toContain("No plugins in this file");
   /* one entry per bar */
   expect(await page.evaluate(() => document.querySelectorAll("[data-plugins-open]").length)).toBe(2);
-  expect(await page.evaluate(() => document.querySelectorAll("dialog.plugin-sheet").length)).toBe(1);
+  /* One dialog, and no second sheet: the panel is a tab, not a sibling window. */
+  expect(await page.evaluate(() => document.querySelectorAll("dialog.plugin-sheet, dialog[data-plugin-ui]").length)).toBe(0);
   expect(problems).toEqual([]);
 });
 
@@ -532,4 +567,132 @@ test("a bundle whose manifest is not the one the catalog pins is refused", async
   expect(refused.foot).toContain("is not the manifest the catalog pins");
   expect(refused.plugins).toEqual([]);
   expect(refused.assets).toBe(refused.before);
+});
+
+/* ---------------------------------------------------------------- updates and staleness */
+
+/* A plugin's upgrade belongs to the plugin, not to the runtime: the catalog data is per
+   entry, the trust decision is per plugin, and a runtime bump must not change a plugin
+   behind the author's back. So the row carries the update and the Runtime panel only
+   *notices* — the count lives on the tab label. */
+test("an installed plugin with a newer version offers the update on its row, and the tab counts it", async ({ page }) => {
+  const newer = `export function createWidget() {\n  return {activate() { return {command: {ping: () => { globalThis.__pinged2 = true; }}}; }};\n}\n`;
+  await openSheet(page, makeDoc({pinned: true, catalogVersion: "2.1.0", catalogJs: newer, catalogIsland: "sealed"}));
+  await page.waitForFunction(() => !!document.querySelector('[data-update="widget"]'));
+
+  const offered = await page.evaluate(() => ({
+    label: document.querySelector('[data-update="widget"]').textContent,
+    rowVersion: document.querySelector('[data-ps-list="installed"] .ps-version').textContent,
+    tab: document.querySelector('[data-dd-tab="plugins"]').textContent,
+    pinned: JSON.parse(document.getElementById("asset-manifest").textContent).plugins.widget.version,
+  }));
+  expect(offered.label).toBe("Update to 2.1.0");
+  expect(offered.rowVersion).toBe("v2.0.0");
+  expect(offered.tab).toBe("Plugins · 1");
+  expect(offered.pinned).toBe("2.0.0");
+
+  await page.evaluate(() => document.querySelector('[data-update="widget"]').click());
+  await page.waitForFunction(() => JSON.parse(document.getElementById("asset-manifest").textContent).plugins.widget.version === "2.1.0");
+  const after = await page.evaluate(() => {
+    const manifest = JSON.parse(document.getElementById("asset-manifest").textContent);
+    return {
+      asset: manifest.assets.find((asset) => asset.id === "widget"),
+      enabled: manifest.plugins.widget.enabled,
+      updateGone: !document.querySelector('[data-update="widget"]'),
+    };
+  });
+  /* The pin moved: url + integrity + size are the catalog's, and the row stops offering it. */
+  expect(after.asset.url).toContain("widget-plugin-catalog.js");
+  expect(after.asset.integrity).toBe(sha384(newer));
+  expect(after.asset.bytes).toBe(byteLength(newer));
+  expect(after.enabled).toBe(true);
+  expect(after.updateGone).toBe(true);
+});
+
+test("the same version with different bytes is a substitution, not an update", async ({ page }) => {
+  const impostor = `export function createWidget() {\n  return {activate() { return {command: {ping: () => { globalThis.__stolen = true; }}}; }};\n}\n`;
+  await openSheet(page, makeDoc({pinned: true, catalogVersion: "2.0.0", catalogJs: impostor, catalogIsland: "sealed"}));
+  await page.waitForFunction(() => !!document.querySelector('[data-update="widget"]'));
+
+  const before = await page.evaluate(() => document.getElementById("asset-manifest").textContent);
+  const row = await page.evaluate(() => ({
+    label: document.querySelector('[data-update="widget"]').textContent,
+    title: document.querySelector('[data-update="widget"]').title,
+    primary: document.querySelector('[data-update="widget"]').classList.contains("ps-primary"),
+    tab: document.querySelector('[data-dd-tab="plugins"]').textContent,
+  }));
+  expect(row.label).toBe("Bytes differ");
+  expect(row.primary).toBe(false);
+  expect(row.title).toContain("different bytes");
+  /* It is not offered as an upgrade, so it is not counted as one. */
+  expect(row.tab).toBe("Plugins");
+
+  await page.evaluate(() => document.querySelector('[data-update="widget"]').click());
+  await page.waitForFunction(() => /not an update/.test(document.querySelector("[data-ps-foot]").textContent));
+  expect(await page.evaluate(() => document.getElementById("asset-manifest").textContent)).toBe(before);
+});
+
+/* A snapshot is true only at the tag it was taken at, because a bundle's manifest resolves
+   against the document's own base. After a re-pin the old snapshot names a manifest hash the
+   new tag does not serve, and an install would fail as "not the manifest the catalog pins" —
+   a true statement that reads like a tampering report. */
+test("a catalog snapshot from another tag is named, and can be refreshed in place", async ({ page }) => {
+  await openSheet(page, makeDoc({pinned: true, inlineCatalog: true, catalogTag: "v0.0.9", pinDir: "t@v0.9.0"}));
+  await page.waitForFunction(() => {
+    const note = document.querySelector("[data-ps-stale]");
+    return note && !note.hidden && /v0\.0\.9/.test(note.textContent);
+  });
+
+  const before = await page.evaluate(() => ({
+    note: document.querySelector("[data-ps-stale]").textContent,
+    tag: JSON.parse(document.getElementById("plugin-catalog").textContent).tag,
+    dirty: !document.querySelector("[data-dirty]")?.hidden,
+    from: document.querySelector("[data-ps-from]").textContent,
+  }));
+  expect(before.note).toContain("taken at v0.0.9");
+  expect(before.note).toContain("this file pins");
+  expect(before.tag).toBe("v0.0.9");
+  expect(before.dirty).toBe(false);
+  expect(before.from).toContain("this file");
+
+  /* Refreshing reads the catalog the document's own base names, and rewrites the block at
+     the tag this file pins. It is a document change, so it is dirty and needs a save. */
+  await page.evaluate(() => document.querySelector("[data-ps-stale] button").click());
+  await page.waitForFunction(() => {
+    const el = document.getElementById("plugin-catalog");
+    return el && JSON.parse(el.textContent).tag !== "v0.0.9";
+  });
+  const after = await page.evaluate(() => ({
+    tag: JSON.parse(document.getElementById("plugin-catalog").textContent).tag,
+    staleHidden: document.querySelector("[data-ps-stale]").hidden,
+    dirty: !document.querySelector("[data-dirty]")?.hidden,
+    foot: document.querySelector("[data-ps-foot]").textContent,
+  }));
+  expect(after.tag).toBe("v0.9.0");
+  expect(after.staleHidden).toBe(true);
+  expect(after.dirty).toBe(true);
+  expect(after.foot).toContain("refreshed");
+});
+
+/* A panel is markup plus the rules scoped to its host, and the host is `[data-dd-plugins]`.
+   The first cut scoped the `ps-*` rules to `[data-plugin-panel]` — which is the *attribute a
+   plugin's panel button carries*, not the panel — so the panel rendered with no styles at all
+   and menu buttons picked up its grid. These two computed values can only come from the
+   panel's own rules, so the mistake cannot ship silently again. */
+test("the Plugins panel is styled by its own rules, not left to the UA sheet", async ({ page }) => {
+  await openSheet(page, makeDoc({ pinned: true }));
+  const styled = await page.evaluate(() => {
+    const host = document.querySelector("[data-dd-plugins]");
+    const search = host.querySelector(".ps-search");
+    const badge = host.querySelector(".ps-badge") || host.querySelector(".ps-badge");
+    return {
+      searchRadius: getComputedStyle(search).borderRadius,
+      badgeRadius: badge ? getComputedStyle(badge).borderRadius : null,
+      /* the host is a grid container; a plugin's panel *button* must not be */
+      hostDisplay: getComputedStyle(host).display,
+    };
+  });
+  expect(styled.searchRadius).toBe("7px");
+  expect(styled.badgeRadius).toBe("99px");
+  expect(styled.hostDisplay).toBe("grid");
 });

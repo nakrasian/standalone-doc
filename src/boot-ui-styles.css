@@ -63,6 +63,11 @@ html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boo
 #boot-dialog button.primary { background: var(--boot-accent); border-color: var(--boot-accent); color: #fff; }
 #boot-dialog button:focus-visible { outline: 2px solid var(--boot-accent); outline-offset: 2px; }
 
+/* Invariant 16, stated once: an element-selector display outranks the UA sheet's
+   `[hidden] { display: none }`, so the intent is written down here rather than repeated on
+   every component that can be hidden. */
+#boot-dialog [hidden] { display: none; }
+
 #boot-dialog .boot-bar {
   height: 5px; border-radius: 99px; background: #eceef2; overflow: hidden; margin: 2px 0 12px;
 }
@@ -84,10 +89,13 @@ html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boo
 #boot-dialog .boot-row[data-state="active"] .boot-name { color: var(--boot-accent); }
 #boot-dialog .boot-row[data-state="active"] .boot-dot { background: var(--boot-accent); animation: boot-pulse 1s infinite; }
 #boot-dialog .boot-row[data-state="ok"] .boot-dot { background: var(--boot-ok); }
-#boot-dialog .boot-row[data-state="failed"] .boot-dot,
-#boot-dialog .boot-row[data-state="fail"] .boot-dot { background: var(--boot-danger); }
-#boot-dialog .boot-row[data-state="failed"] .boot-name,
-#boot-dialog .boot-row[data-state="fail"] .boot-name { color: var(--boot-danger); }
+#boot-dialog .boot-row[data-state="failed"] .boot-dot { background: var(--boot-danger); }
+#boot-dialog .boot-row[data-state="failed"] .boot-name { color: var(--boot-danger); }
+
+/* The two phases are one list: `fetched` means the bytes are here and verified, `carried`
+   means the file already had them. Neither is a module that still has to build. */
+#boot-dialog .boot-row[data-state="fetched"] .boot-dot { background: var(--boot-ok); }
+#boot-dialog .boot-row[data-state="carried"] { opacity: .8; }
 
 @keyframes boot-pulse { 50% { opacity: .35; } }
 
@@ -95,7 +103,6 @@ html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boo
   display: grid; grid-template-columns: 18px 1fr; gap: 8px;
   margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--boot-line);
 }
-#boot-dialog .boot-error[hidden] { display: none; }
 #boot-dialog .boot-error-icon { color: var(--boot-danger); }
 #boot-dialog .boot-error-title { margin: 0 0 3px; font-size: 13px; font-weight: 650; }
 #boot-dialog .boot-error-body { margin: 0; color: var(--boot-muted); font-size: 12.5px; overflow-wrap: anywhere; }
@@ -106,16 +113,13 @@ html[data-boot-state="failed"] body > :not(script):not(style):not(link):not(#boo
   margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--boot-line); border-radius: 8px;
   background: var(--boot-paper); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
 }
-#boot-dialog .boot-update[hidden] { display: none; }
 #boot-dialog .boot-update-text { margin: 0; flex: 1 1 220px; font-size: 12.5px; color: var(--boot-ink); }
-#boot-dialog .boot-update-go[hidden] { display: none; }
 
 #boot-dialog .boot-diag {
   margin: 10px 0 0; max-height: 180px; padding: 9px 11px; border: 1px solid var(--boot-line); border-radius: 7px;
   background: #f7f8fa; color: #3d4450; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px; white-space: pre-wrap; max-height: 220px; overflow: auto;
 }
-#boot-dialog .boot-diag[hidden] { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   #boot-dialog .boot-fill { transition: none; }
