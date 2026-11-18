@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import zlib from "node:zlib";
+import { entries } from "../../tools/reproducible.mjs";
 import { fileURLToPath } from "node:url";
 
 /* The exporter as a plugin, end to end, in a browser:
@@ -173,23 +174,63 @@ test("the plugin exports a .docx with the figure embedded", async ({ page }) => 
   expect(docx.subarray(0, 2).toString("latin1")).toBe("PK");
   expect(docx.length).toBeGreaterThan(8_000);
   expect(docx.includes(Buffer.from("word/media/"))).toBe(true);
-  expect(docx.includes(Buffer.from("word/document.xml"))).toBe(true);
+
+  /* …and the body must be OOXML. This is the assertion that was missing when the docx went
+     out with the *Typst* template written into word/document.xml: zip magic, a media part and
+     a file called document.xml were all present, so the test passed and Word refused the
+     file. A container is not a document. */
+  const document = entries(docx).find((entry) => entry.name === "word/document.xml").data.toString("utf8");
+  expect(document.startsWith("<?xml")).toBe(true);
+  expect(document).toContain("<w:document");
+  expect(document).toContain("<w:pgSz");           /* the reference docx's page */
+  expect(document).not.toContain("typst");         /* the template did not leak in */
+  expect(document).toContain("Recombinase systems");
   expect(problems).toEqual([]);
 });
 
-test("a text target refuses when the document has figures", async ({ page }) => {
+test("a text target brings its figures with it", async ({ page }) => {
   test.slow();
   await load(page, makeDoc());
-  await page.waitForSelector('[data-plugin-export="pandoc:typ"]', {state: "attached", timeout: 30_000});
+  await page.waitForSelector('[data-plugin-export="pandoc:md"]', {state: "attached", timeout: 30_000});
 
-  /* The refusal is a message from the host (`refuse()` emits `plugin-refused`), not a silent
-     download of a .typ that points at a file the reader does not have. */
-  const said = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") said.push(message.text());
+  /* A `.md` that says `![](fig-01.png)` is honest only if fig-01.png arrives too: the host
+     downloads the extras after the document, so one click is still one document. */
+  const downloads = [];
+  page.on("download", async (download) => {
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    downloads.push({name: download.suggestedFilename(), bytes: Buffer.concat(chunks)});
   });
-  await page.evaluate(() => document.querySelector('[data-plugin-export="pandoc:typ"]').click());
-  await expect.poll(() => said.join(" "), {timeout: 180_000}).toContain("several files");
+
+  await page.evaluate(() => document.querySelector('[data-plugin-export="pandoc:md"]').click());
+  await expect.poll(() => downloads.length, {timeout: 180_000}).toBe(2);
+
+  const markdown = downloads.find((file) => file.name === "document.md");
+  const figure = downloads.find((file) => file.name === "fig-01.png");
+  expect(markdown).toBeTruthy();
+  expect(figure).toBeTruthy();
+  expect(markdown.bytes.toString("utf8")).toContain("](fig-01.png)");
+  expect(figure.bytes.subarray(1, 4).toString("latin1")).toBe("PNG");
+});
+
+test("a figure with no source is refused, visibly", async ({ page }) => {
+  test.slow();
+  /* The figure exists in the DOM but its store entry is gone, so materialize() reports it —
+     and the refusal has to be something a person can see, not a console line. */
+  const url = makeDoc();
+  const html = fs.readFileSync(path.join(ROOT, url.replace(/^\//, "")), "utf8")
+    .replace(/<script id="figure-store" type="application\/json">[\s\S]*?<\/script>/,
+      '<script id="figure-store" type="application/json">{"version":1,"figures":{}}</script>');
+  fs.writeFileSync(path.join(ROOT, url.replace(/^\//, "")), html);
+
+  await load(page, url);
+  await page.waitForSelector('[data-plugin-export="pandoc:docx"]', {state: "attached", timeout: 30_000});
+  await page.evaluate(() => document.querySelector('[data-plugin-export="pandoc:docx"]').click());
+
+  const dialog = page.locator("#plugin-refusal");
+  await expect(dialog).toBeVisible({timeout: 180_000});
+  await expect(dialog).toContainText("no captured source");
 });
 
 test("PDF with figures: .typ through the wasm typesetter", async ({ page }) => {

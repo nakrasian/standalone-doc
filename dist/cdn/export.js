@@ -140,7 +140,10 @@ export function createExport(deps = {}) {
     });
 
     clone.querySelectorAll("script").forEach((n) => n.remove());
-    clone.querySelectorAll("#app-toolbar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog,[data-emoji-menu],[data-menu-panel]").forEach((n) => n.remove());
+    /* Chrome, by id: the ribbon and the viewer bar are both chrome, and a static document
+       carries neither. `index.html` holds every mode's chrome at once, which is how a missing
+       entry here shows up as a viewer bar printed into an exported editor. */
+    clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog,[data-emoji-menu],[data-menu-panel]").forEach((n) => n.remove());
     clone.querySelector('body > svg[width="0"]')?.remove();
     clone.querySelector("#content")?.removeAttribute("contenteditable");
     clone.querySelector("#content")?.removeAttribute("spellcheck");

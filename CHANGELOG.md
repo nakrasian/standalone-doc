@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **A document can name the library it lives in, and Save obeys.** `#doc-settings.cloud` is
+`{id, api?}`; when it is present, the save sink PUTs the serialized document to that object
+instead of downloading a file, and the JSON door treats a followed redirect as what it is —
+an Access login page arriving with status 200 — rather than as a successful save. Absent or
+malformed, the field means "a file", which is what every document written before it existed
+is, so nothing migrates and the button keeps its old meaning on disk. The endpoint is stored
+relative on purpose: a document copied to another host must not drag the old origin with it.
+
+- **The library chooses the save policy.** A hosted document keeps its assets `online`
+(`slim`), because one runtime serving many documents is the only reason to host the runtime at
+all: a save that inlined everything turned a 77 kB document into 400 kB, which is five times
+the storage, five times the transfer, and no shared cache. A file still gets whatever policy
+its author chose — the sink decides, not the document.
+
+- **Publish a read-only link**, from File → *Publish a read-only link…* — `serialize()` pointed
+at `mode: "view"`, POSTed, and shown as a copyable dialog. Not a flag on the private file and
+not a mode flip on the stored bytes: a save in edit mode marks the viewer's assets `absent`
+(`policy.js`), so a flipped copy boots into the failure card. The copy leaves `cloud` behind,
+so a reader who saves it as an editor writes a file rather than overwriting the original. The
+menu item is hidden when the document names no library (`html[data-cloud="off"]`).
+
 ## v0.6.2 — 2026-11-17
 
 ### Added
@@ -132,7 +157,41 @@ exits 1, because pandoc is not a PDF writer and the browser's print path already
 cannot import, so it is bundled into one module by `tools/shim.mjs`, and the artifact is
 committed because a plugin must be a self-contained file at a pinned URL).
 
+- **A text target carries its figures, and a refusal is something you can see.** `.md` and
+`.typ` used to be offered only for figure-free documents — a plugin returned one file and the
+host had no archive step — so the entries were there and did nothing visible. A contribution
+may now return `extras`, which the host downloads after the document (spaced, so a browser
+asks once); and `refuse()` opens a host-owned dialog instead of writing a console line, which
+is what "I clicked and nothing happened" was. The dialog is `data-plugin-ui`, so a save drops
+it like any other session state.
+
+- **`npm run demo` — a document with the exporter installed, to click through.** Writes
+`.test-tmp/plugin-demo.html`, pinning the seven assets the plugin needs (url + sha384 each,
+including the 27 MB typesetter), with a figure whose source is in `#figure-store`. `npm run dev`
+and open the URL; `Save as… ▸ Word (.docx)…` and `PDF (typeset)…` are the shipped code paths.
+
 ### Fixed
+
+- **The browser's .docx contained the Typst template.** `plugins/pandoc-export` attached the
+look per *document* rather than per *writer*, so `--template sd-template.typ` reached pandoc
+for docx too — and the docx writer writes whatever template it is given into
+`word/document.xml`. The file was a valid zip with a media part and a `document.xml`, so the
+test passed; Word offered its text-recovery converter. The template now goes only to typst and
+the reference docx only to Word, and the test reads `word/document.xml` and asserts it is
+OOXML (`<w:document`, `<w:pgSz`, no `typst`) — a container is not a document.
+
+- **A static export carried the viewer bar.** `buildStatic()` removed the editor's chrome by id
+and the viewer bar was never on the list, so exporting `index.html` (which holds *every*
+mode's chrome) printed a reader's bar into the document — 1 034 words of it according to the
+audit, which is how it was found. `#viewer-bar` is chrome like `#app-toolbar` and now goes.
+
+- **A CSS comment that named `<script>` swallowed the document.** `viewer-bar-styles.css`
+documented the v0.6.2 bug with the literal tag inside a `/* … */` comment; a browser is
+untroubled, and pandoc — which is not a browser — treats everything after an unclosed
+`<script` as script text, so the export became two paragraphs of CSS. Reworded, and
+`tools/export.mjs` now refuses a materialized document whose `<script`/`</script>` counts
+disagree, with a sentence that names this exact cause. The audit caught it first (headings
+1 → 0, words 7 → 1 034), which is the argument for the audit.
 
 - **A block painted its own source when its id was shared.** An asset block is found by its
   id (`script[id="<assetId>"]`), and `viewer-bar-markup` gives its root the same id as the

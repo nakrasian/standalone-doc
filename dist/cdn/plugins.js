@@ -225,10 +225,19 @@ export function createPlugins(deps = {}) {
     }
   }
 
-  function download({name = "export.txt", mime, text, bytes}) {
+  function download({name = "export.txt", mime, text, bytes, extras = []}) {
     /* A binary result has no honest default type, so the plugin must say. */
     const type = mime || (bytes == null ? "text/plain" : "application/octet-stream");
-    const blob = new Blob([bytes == null ? text : bytes], { type });
+    save(new Blob([bytes == null ? text : bytes], { type }), name);
+    /* A text target names its figures, so they travel beside it — one file per figure, spaced
+       so a browser that asks "allow multiple downloads?" is asked once, not five times. */
+    extras.forEach((extra, index) => setTimeout(() => {
+      const extraType = extra.mime || type;
+      save(new Blob([extra.bytes == null ? extra.text : extra.bytes], {type: extraType}), extra.name);
+    }, 250 * (index + 1)));
+  }
+
+  function save(blob, name) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -242,7 +251,29 @@ export function createPlugins(deps = {}) {
     const error = { kind: "construct", id, message };
     console.error(`plugin "${id}" ${message}`);
     signals.emit("plugin-refused", error);
+    /* A console line is not an answer to a click. The host owns this dialog — the plugin
+       never draws chrome — and it is session state (`data-plugin-ui`), so a save drops it. */
+    announce(message);
     return false;
+  }
+
+  function announce(message) {
+    let dialog = document.getElementById("plugin-refusal");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = "plugin-refusal";
+      dialog.setAttribute("data-plugin-ui", "");
+      dialog.innerHTML = `<form method="dialog">
+        <h2>That export is not possible yet</h2>
+        <p data-refusal-message></p>
+        <div class="dialog-actions">
+          <button class="primary" value="close" autofocus>Close</button>
+        </div>
+      </form>`;
+      document.body.append(dialog);
+    }
+    dialog.querySelector("[data-refusal-message]").textContent = message;
+    if (!dialog.open) dialog.showModal();
   }
 
 

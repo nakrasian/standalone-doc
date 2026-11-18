@@ -1,13 +1,16 @@
 # pandoc-export — a plugin
 
 Exports the document as **Word (.docx)**, as **PDF** (typeset by Typst, figures included), and
-as **Typst (.typ)** or **Markdown (.md)** when the document has no figures. Everything runs in
-the tab: no server, no upload.
+as **Typst (.typ)** or **Markdown (.md)**. Everything runs in the tab: no server, no upload.
 
     Save as… ▸ Word (.docx)…        a real .docx, figures embedded
     Save as… ▸ PDF (typeset)…       pandoc → .typ → typst.wasm → PDF, fonts embedded
-    Save as… ▸ Typst (.typ)…        one file, when there is nothing to reference
-    Save as… ▸ Markdown (.md)…       ditto
+    Save as… ▸ Typst (.typ)…        the source, plus its figure files
+    Save as… ▸ Markdown (.md)…      the source, plus its figure files
+
+A text format names its figures (`image("fig-01.png")`, `![](fig-01.png)`), so the host
+downloads the document first and then each figure — one click, a small burst of files. Chrome
+asks once whether to allow multiple downloads the first time.
 
 ## Two PDFs, and why both exist
 
@@ -64,12 +67,15 @@ The 58.6 MB is fetched **on the first export**, not when the plugin loads: `bin`
 never prefetched (a plugin's cost is decided by the click, not by its contents). The
 conversion after that is ~1 s; the compile happens once per page load.
 
-## Why the text targets refuse figures
+## Text targets carry their figures
 
-`pandoc` writes `image("fig-01.png")`, which is two files. A plugin contribution returns one
-file, and the host's download has no archive step, so the honest answer is a refusal with a
-reason: use `npm run export` (the CLI writes the figure beside the `.typ`) or the browser's
-**PDF ▸ Captured figures**. Word embeds its figures, so it is unaffected.
+`pandoc` writes `image("fig-01.png")`, which is two files; the contribution returns the text
+plus `extras`, and the host downloads each extra after it. Word embeds its figures, so it is
+one file and unaffected.
+
+**What is not offered** is a *refusal without a reason*: if a figure could not be captured
+(`materialize()` reports it), the export is refused and the host shows a dialog saying which
+figure — the same `--on-missing=fail` the CLI defaults to.
 
 ## Fonts
 

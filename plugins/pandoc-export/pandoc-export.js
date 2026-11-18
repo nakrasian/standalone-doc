@@ -124,19 +124,6 @@ export function createPandocExport() {
     }
   }
 
-  function recipeFor(target, figures) {
-    const settings = (() => {
-      try { return JSON.parse(document.getElementById("export-settings")?.textContent || "null"); }
-      catch { return null; }
-    })();
-    const recipe = settings?.recipe || {};
-    if (!figures) {
-      /* Single-file text targets only when there is nothing to reference. */
-      return {to: {typ: "typst", md: "markdown-smart"}[target] || target, ext: {typ: "typ", md: "md"}[target]};
-    }
-    return null;
-  }
-
   return {
     async activate(host) {
       const settings = host.settings();
@@ -167,19 +154,21 @@ export function createPandocExport() {
         }
         const files = {"sd-export.lua": filter || new TextDecoder().decode(await host.bytes("sd-export-lua"))};
         for (const file of materialized.files) files[file.name] = new Blob([dataUrlBytes(file.dataUrl)]);
-        const reference = await optionalBytes(host, "sd-reference");
-        const template = await optionalBytes(host, "sd-template-typ");
-        const wanted = target === "docx"
-          ? {to: "docx", ext: "docx"}
-          : recipeFor(target, materialized.files.length);
-        if (!wanted) {
-          throw new Error(`a .${target} with figures is several files and a plugin returns one; `
-            + `use the CLI (npm run export) or Save as… ▸ PDF ▸ Captured figures`);
-        }
-        /* `host.bytes()` hands back an ArrayBuffer; the writer wants something it can call
-           `arrayBuffer()` on, which is a Blob. */
+
+        /* The look is attached *per writer*, and getting this wrong is how a docx ended up
+           containing the Typst template: `--template` is a text-format option, and the docx
+           writer happily wrote whatever it was given into word/document.xml. Word offers a
+           reference docx or nothing. */
+        const wantsReference = target === "docx";
+        const wantsTemplate = target === "typ";
+        const reference = wantsReference ? await optionalBytes(host, "sd-reference") : null;
+        const template = wantsTemplate ? await optionalBytes(host, "sd-template-typ") : null;
         if (reference) files["reference.docx"] = new Blob([reference]);
         if (template) files["sd-template.typ"] = new TextDecoder().decode(template);
+
+        const wanted = target === "docx"
+          ? {to: "docx", ext: "docx"}
+          : {to: {typ: "typst", md: "markdown-smart"}[target], ext: {typ: "typ", md: "md"}[target]};
 
         const pandoc = await ready();
         const result = await pandoc.convert({
@@ -202,6 +191,13 @@ export function createPandocExport() {
             typ: "text/vnd.typst", md: "text/markdown",
           }[wanted.ext] || "application/octet-stream",
           bytes: blob,
+          /* A `.typ` or `.md` names its figures; they travel beside it rather than as base64
+             inside it. The host downloads each of these as its own file. */
+          extras: wanted.ext === "docx" ? [] : materialized.files.map((file) => ({
+            name: file.name,
+            mime: file.dataUrl.slice(5, file.dataUrl.indexOf(";")),
+            bytes: new Blob([dataUrlBytes(file.dataUrl)]),
+          })),
         };
       }
 

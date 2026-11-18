@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 427622
+    "bytes": 429375
   },
   "assets": [
     {
@@ -37,7 +37,7 @@
     {
       "id": "viewer-bar-styles",
       "kind": "css",
-      "bytes": 6205
+      "bytes": 6215
     },
     {
       "id": "viewer-bar",
@@ -117,12 +117,12 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 37321
+      "bytes": 38775
     },
     {
       "id": "export",
       "kind": "js",
-      "bytes": 39037
+      "bytes": 39326
     },
     {
       "id": "dialogs",
@@ -136,8 +136,8 @@
     }
   ],
   "flavors": {
-    "index.html": 427622,
-    "asset-bodies": 411613,
+    "index.html": 429375,
+    "asset-bodies": 413366,
     "markup-and-runtime": 16009,
     "dist/slim.html": 79459
   }

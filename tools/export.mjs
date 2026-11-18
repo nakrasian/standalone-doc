@@ -150,6 +150,18 @@ try {
     fs.writeFileSync(path.join(staged, file.name), Buffer.from(base64, "base64"));
   }
 
+  /* A `<script` with no `</script>` is not a style bug, it is a parse bug: pandoc treats
+     everything after an unclosed script as script text, so the document converts to two
+     paragraphs of whatever came next. It happened — a CSS *comment* inside a `<style>` block
+     that mentioned the tag by name. Cheap to detect, otherwise very confusing. */
+  const opens = (materialized.html.match(/<script\b/gi) || []).length;
+  const closes = (materialized.html.match(/<\/script\s*>/gi) || []).length;
+  if (opens !== closes) {
+    fail(`the materialized document has ${opens} "<script" and ${closes} "</script>".\n`
+      + `  An engine will read everything after the unclosed one as script text. Look for a\n`
+      + `  <style> block whose content mentions the tag — a CSS comment did, once.`);
+  }
+
   const missing = materialized.problems.filter((problem) => /no captured source/.test(problem));
   if (missing.length && onMissing === "fail") {
     fail(`not exported — ${missing.join("; ")}.\n`

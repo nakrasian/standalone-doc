@@ -5,8 +5,8 @@
    values, repeated on purpose.
 
    Every selector is qualified `header#viewer-bar`, not `#viewer-bar`: an asset id is
-   also the id of its block, so the `viewer-bar` *script* carried the same id as this
-   bar's root. `#viewer-bar { display: flex }` then matched the `<script>` too, outranked
+   also the id of its block, so the `viewer-bar` script element carried the same id as this
+   bar's root. `#viewer-bar { display: flex }` then matched the script element too, outranked
    the UA sheet, and painted the module's source below the toolbar in index.html and in
    every viewer file. The tag keeps the sheet off the block; `page-styles.css` holds the
    general rule. */
