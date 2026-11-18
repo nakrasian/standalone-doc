@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 449686
+    "bytes": 457808
   },
   "assets": [
     {
@@ -14,6 +14,11 @@
       "bytes": 61281
     },
     {
+      "id": "plugins",
+      "kind": "js",
+      "bytes": 46897
+    },
+    {
       "id": "registry",
       "kind": "js",
       "bytes": 44212
@@ -22,11 +27,6 @@
       "id": "export",
       "kind": "js",
       "bytes": 39716
-    },
-    {
-      "id": "plugins",
-      "kind": "js",
-      "bytes": 38775
     },
     {
       "id": "toolbar-styles",
@@ -135,8 +135,8 @@
     }
   ],
   "flavors": {
-    "index.html": 449686,
-    "asset-bodies": 433677,
+    "index.html": 457808,
+    "asset-bodies": 441799,
     "markup-and-runtime": 16009,
     "dist/slim.html": 81317
   }
