@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 422611
+    "bytes": 429375
   },
   "assets": [
     {
@@ -16,17 +16,17 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 41829
-    },
-    {
-      "id": "plugins",
-      "kind": "js",
-      "bytes": 36862
+      "bytes": 42354
     },
     {
       "id": "export",
       "kind": "js",
-      "bytes": 35156
+      "bytes": 39326
+    },
+    {
+      "id": "plugins",
+      "kind": "js",
+      "bytes": 38775
     },
     {
       "id": "toolbar-styles",
@@ -51,7 +51,7 @@
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 16919
+      "bytes": 17065
     },
     {
       "id": "page-styles",
@@ -71,7 +71,7 @@
     {
       "id": "viewer-bar-styles",
       "kind": "css",
-      "bytes": 6205
+      "bytes": 6215
     },
     {
       "id": "sprite",
@@ -135,9 +135,9 @@
     }
   ],
   "flavors": {
-    "index.html": 422611,
-    "asset-bodies": 406602,
+    "index.html": 429375,
+    "asset-bodies": 413366,
     "markup-and-runtime": 16009,
-    "dist/slim.html": 78934
+    "dist/slim.html": 79459
   }
 }

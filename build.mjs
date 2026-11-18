@@ -1712,7 +1712,10 @@ async function cmdRelease({ version, dryRun = false } = {}) {
      files that changed (all of them, on a first release) is cheaper than debugging it. */
   const slug = /cdn\.jsdelivr\.net\/gh\/([^/@]+\/[^/@]+)@/.exec(nextBase)?.[1];
   const files = ["dist/editor.html", "dist/slim.html", "dist/viewer.html",
-    ...manifest.assets.filter((asset) => asset.role !== "infra").map((asset) => `dist/cdn/${asset.id}.${extensionFor(asset.kind)}`)];
+    ...manifest.assets.filter((asset) => asset.role !== "infra").map((asset) => `dist/cdn/${asset.id}.${extensionFor(asset.kind)}`),
+    /* A plugin is published under `dist/` too, so its paths are new at this tag and jsDelivr
+       has to be told about them as well — including the manifest a document installs from. */
+    ...publishedPlugins().keys()];
 
   console.log("");
   console.log("release: the mechanical part is done and green. Next, by hand:");
