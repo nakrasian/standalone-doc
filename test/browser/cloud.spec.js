@@ -169,7 +169,10 @@ test("the viewer copy takes its options with it, and this file is untouched", as
   const download = page.waitForEvent("download", { timeout: 20_000 });
   await page.evaluate(() => StandaloneDoc.modules.toolbar.viewer({ toolbar: false, policy: "inline" }));
   const saved = await download;
-  expect(saved.suggestedFilename()).toMatch(/ \(read-only\)\.html$/);
+  /* WebKit rewrites the spaces in a suggested filename to `_` (measured: CI's Linux build
+     yields `Standalone_HTML_Doc_(read-only).html`, while this repo's macOS build keeps them).
+     The claim is the suffix and the extension — the separator is the browser's business. */
+  expect(saved.suggestedFilename().replace(/_/g, " ")).toMatch(/ \(read-only\)\.html$/);
   const copy = fs.readFileSync(await saved.path(), "utf8");
   const shape = await shapeOf(page, copy);
 

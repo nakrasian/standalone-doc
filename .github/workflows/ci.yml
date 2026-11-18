@@ -37,9 +37,10 @@ jobs:
   browser:
     name: browser (${{ matrix.project }})
     runs-on: ubuntu-latest
-    # Chromium blocks; WebKit/Firefox are advisory until they have a clean
-    # streak, per the plan.
-    continue-on-error: ${{ matrix.project != 'chromium' }}
+    # Every engine blocks. The browser a reader has is the only behaviour that counts, and an
+    # advisory job that can go red without failing the run is how a WebKit-only regression
+    # survived five pushes (v0.8.0 → v0.8.2): the run stayed green while `browser (webkit)`
+    # was red. `fail-fast: false` keeps the other two reporting when one is.
     strategy:
       fail-fast: false
       matrix:
