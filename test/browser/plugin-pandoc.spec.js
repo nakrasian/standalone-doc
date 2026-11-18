@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 
 /* The exporter as a plugin, end to end, in a browser:
@@ -29,8 +30,55 @@ const SHIM = "plugins/pandoc-export/wasi-shim.js";
 const FILTER = "tools/sd-export.lua";
 const TEMPLATE = "tools/sd-template.typ";
 const REFERENCE = "tools/reference.docx";
+/* The second stage: typst's wasm compiler and its bundle, from the devDependencies. */
+const TYPST_BUNDLE = "node_modules/@myriaddreamin/typst.ts/dist/esm/contrib/all-in-one-lite.bundle.js";
+const TYPST_WASM = "node_modules/@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm";
 const WASM = "node_modules/pandoc-wasm/src/pandoc.wasm";
-const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAKUlEQVR42mNkYPhfz0AEYBxVSF+FjAwMDAz///9nQCcYqDCgwwAAG3kJ+0lKJzQAAAAASUVORK5CYII=";
+/* A real PNG, built byte by byte: typst is stricter than a browser about a malformed deflate
+   stream, and a fixture that only one of the two accepts is a trap for the next person. */
+function png(width, height, pixel) {
+  const crcTable = Array.from({length: 256}, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buffer) => {
+    let c = 0xffffffff;
+    for (const byte of buffer) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type, data) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc(body));
+    return Buffer.concat([length, body, sum]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 2;
+  const raw = Buffer.alloc(height * (1 + width * 3));
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (1 + width * 3);
+    for (let x = 0; x < width; x += 1) {
+      const [r, g, b] = pixel(x, y);
+      raw[row + 1 + x * 3] = r;
+      raw[row + 2 + x * 3] = g;
+      raw[row + 3 + x * 3] = b;
+    }
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", zlib.deflateSync(raw, {level: 9})),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+const PNG = "data:image/png;base64," + png(48, 32, (x, y) =>
+  (Math.abs(y - (x * 32) / 48) < 2 ? [47, 111, 237] : [246, 248, 250])).toString("base64");
 
 /** An editor document with the plugin pinned, and one figure for it to capture. */
 function makeDoc({ figure = true } = {}) {
@@ -47,6 +95,8 @@ function makeDoc({ figure = true } = {}) {
     asset("sd-export-lua", "bin", FILTER, 315),
     asset("sd-template-typ", "bin", TEMPLATE, 316),
     asset("sd-reference", "bin", REFERENCE, 317),
+    asset("typst-bundle", "bin", TYPST_BUNDLE, 330),
+    asset("typst-compiler", "bin", TYPST_WASM, 331),
     {
       ...asset("pandoc-export", "js", PLUGIN, 320),
       factory: "createPandocExport",
@@ -56,12 +106,14 @@ function makeDoc({ figure = true } = {}) {
     pandoc: {
       label: "Pandoc export", version: "0.1.0", island: "sealed", enabled: true,
       entry: "pandoc-export",
-      assets: ["pandoc", "wasi-shim", "sd-export-lua", "sd-template-typ", "sd-reference", "pandoc-export"],
+      assets: ["pandoc", "wasi-shim", "sd-export-lua", "sd-template-typ", "sd-reference",
+        "typst-bundle", "typst-compiler", "pandoc-export"],
       contributes: {
         export: [
           { id: "docx", label: "Word (.docx)…" },
           { id: "typ", label: "Typst (.typ)…" },
           { id: "md", label: "Markdown (.md)…" },
+          { id: "pdf", label: "PDF (typeset)…" },
         ],
       },
     },
@@ -138,6 +190,28 @@ test("a text target refuses when the document has figures", async ({ page }) => 
   });
   await page.evaluate(() => document.querySelector('[data-plugin-export="pandoc:typ"]').click());
   await expect.poll(() => said.join(" "), {timeout: 180_000}).toContain("several files");
+});
+
+test("PDF with figures: .typ through the wasm typesetter", async ({ page }) => {
+  test.slow();
+  await load(page, makeDoc());
+  await page.waitForSelector('[data-plugin-export="pandoc:pdf"]', {state: "attached", timeout: 30_000});
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download", {timeout: 240_000}),
+    page.evaluate(() => document.querySelector('[data-plugin-export="pandoc:pdf"]').click()),
+  ]);
+  expect(download.suggestedFilename()).toBe("document.pdf");
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const pdf = Buffer.concat(chunks);
+
+  /* A real PDF from the real compiler: %PDF- magic, an object graph, and big enough to be
+     a page with a figure rather than an error stub. */
+  expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  expect(pdf.length).toBeGreaterThan(10_000);
+  expect(pdf.includes(Buffer.from("/Type /Page"))).toBe(true);
 });
 
 test("a figure-free document exports as .typ", async ({ page }) => {

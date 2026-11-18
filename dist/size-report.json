@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 427476
+    "bytes": 427622
   },
   "assets": [
     {
@@ -27,7 +27,7 @@
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 16919
+      "bytes": 17065
     },
     {
       "id": "viewer-bar-markup",
@@ -136,8 +136,8 @@
     }
   ],
   "flavors": {
-    "index.html": 427476,
-    "asset-bodies": 411467,
+    "index.html": 427622,
+    "asset-bodies": 411613,
     "markup-and-runtime": 16009,
     "dist/slim.html": 79459
   }

@@ -79,8 +79,8 @@
       "order": 12,
       "tag": "header",
       "file": "src/toolbar-markup.html",
-      "bytes": 15664,
-      "sha384": "sha384-aTWXYs9oPMEYi5IlCEaPEr2derZp9mIC9vN0ei9zRCowlTM1vNxajf9euFOCKcGd",
+      "bytes": 15810,
+      "sha384": "sha384-4TTM3vMLLCvtH9icCvnuVUjK5feLSFjCfqKltMzbRMJGBBk9GuzOUPRFU5id/E6j",
       "mode": "inline",
       "requiredBy": [
         "edit"

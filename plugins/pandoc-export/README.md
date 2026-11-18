@@ -1,12 +1,25 @@
 # pandoc-export — a plugin
 
-Exports the document as **Word (.docx)**, and as **Typst (.typ)** or **Markdown (.md)** when
-the document has no figures. The conversion runs in the tab: no server, no upload, no network
-after the runtime is fetched once.
+Exports the document as **Word (.docx)**, as **PDF** (typeset by Typst, figures included), and
+as **Typst (.typ)** or **Markdown (.md)** when the document has no figures. Everything runs in
+the tab: no server, no upload.
 
     Save as… ▸ Word (.docx)…        a real .docx, figures embedded
+    Save as… ▸ PDF (typeset)…       pandoc → .typ → typst.wasm → PDF, fonts embedded
     Save as… ▸ Typst (.typ)…        one file, when there is nothing to reference
     Save as… ▸ Markdown (.md)…       ditto
+
+## Two PDFs, and why both exist
+
+    PDF ▸ Print (standard)…          the browser's dialog: instant, your fonts, its headers
+    PDF ▸ Print (captured figures)…  same, after capturing figures so islands appear
+    PDF ▸ PDF (typeset)…             this plugin: Typst's engine, template page, real type
+
+Print is instant and uses whatever the reader's browser has; it is the one to use when the
+point is paper *now*. Typeset is a download: `tools/sd-template.typ` decides the page, the
+fonts are embedded, figures are captured at 2×, and the same `.typ` can be kept or handed to a
+native `typst`. They are different artefacts, so they are named differently — "print" versus
+"typeset" — and neither is pretending to be the other.
 
 ## What a document pins
 
@@ -20,6 +33,9 @@ the only source of bytes, and the host is the only thing that hashes):
 | `sd-export-lua` | `bin` | ~8 KB | `tools/sd-export.lua` — **`bin`, not `js`**: a `js` asset is *evaluated*, and Lua is not JavaScript. There is no text kind yet (see `docs/PLUGINS.md`). |
 | `sd-template-typ` | `bin` | ~3 KB | optional: `tools/sd-template.typ`, so `.typ` looks like the CLI's |
 | `sd-reference` | `bin` | 12 KB | optional: `tools/reference.docx`, so `.docx` looks like the CLI's |
+| `typst-bundle` | `bin` | 211 KB | optional, for PDF: `typst.ts`'s all-in-one bundle (one file, no imports) |
+| `typst-compiler` | `bin` | 27 MB | optional, for PDF: `typst.wasm` |
+| `typst-font-*` | `bin` | ~0.5 MB each | optional, for PDF: each one pinned means one fewer request to jsDelivr |
 
 A manifest entry looks like this (the `url`/`integrity` are what the document carries):
 
@@ -54,6 +70,13 @@ conversion after that is ~1 s; the compile happens once per page load.
 file, and the host's download has no archive step, so the honest answer is a refusal with a
 reason: use `npm run export` (the CLI writes the figure beside the `.typ`) or the browser's
 **PDF ▸ Captured figures**. Word embeds its figures, so it is unaffected.
+
+## Fonts
+
+The wasm compiler ships **no fonts**. With `typst-font-*` assets pinned the plugin hands them
+to `loadFonts()` and the PDF needs nothing from the network; without them it asks jsDelivr for
+typst's default text set (~4.4 MB, from `typst-assets@v0.13.1`). A document that must typeset
+offline should pin its fonts — the same rule as every other byte.
 
 ## Determinism
 

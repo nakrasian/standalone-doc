@@ -105,6 +105,20 @@ embedded (zip magic, `word/media/`, > 8 KB), a .typ when the document has no fig
 refusal with a reason when it does — a `.typ` that references `fig-01.png` is two files, and a
 contribution returns one.
 
+- **PDF with figures, in the tab — and two PDFs that say which they are.** The exporter now
+typesets through `typst.ts`: `pandoc → .typ → typst.wasm → PDF`, figures included. Measured in
+Chromium: **1.5 s** for a one-page document with a figure, from a 27 MB compiler plus a 211 KB
+bundle, both pinned as `bin` assets and fetched on the first PDF. `typst.ts` is pinned as its
+all-in-one bundle because a plugin loaded from a `blob:` URL cannot resolve the package's
+internal imports, and the fonts are the document's own `typst-font-*` assets when it has them
+(jsDelivr's default text set otherwise — the compiler ships none). The napi build in the lab
+could not decode images; the wasm build can, which is the reason this is the one that shipped.
+
+The two options are now named for what they do: **Print (standard)** and **Print (captured
+figures)** in the browser's dialog, instant and using the reader's fonts, versus **PDF
+(typeset)** from the plugin, which brings its own page, its own type and its own figures. Same
+`PDF` menu, three entries, no ambiguity about which one you are getting.
+
 - **`pandoc-wasm` is a devDependency, so `npm run export` needs no install.** `tools/engine.mjs`
 is one recipe with two engines: `native` (pandoc on PATH — faster, and the only one that can
 hand a PDF to an external typesetter) and `wasm` (the same binary the plugin runs, which is

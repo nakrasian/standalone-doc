@@ -9,6 +9,10 @@
  *                                          not JavaScript; there is no text kind yet)
  *   "sd-reference"    kind: bin   12 KB    optional: tools/reference.docx (Word look)
  *   "sd-template-typ" kind: bin   ~3 KB    optional: tools/sd-template.typ (Typst look)
+ *   "typst-bundle"    kind: bin   211 KB   optional: typst.ts's all-in-one bundle, for PDF
+ *   "typst-compiler"  kind: bin   27 MB    optional: typst's wasm compiler, for PDF
+ *   "typst-font-*"    kind: bin   ~0.5 MB  optional, one per font file; without them the PDF
+ *                                          asks jsDelivr for the default text fonts
  *
  * It never fetches its own runtime (invariant 13): `host.bytes()` is the only source of a
  * byte, and the host is the only thing that verifies. It also never builds its own HTML —
@@ -94,6 +98,19 @@ export function createPandocExport() {
         },
       };
     });
+  }
+
+  /* The compiler has no filesystem. This is the whole bridge: three methods keyed by a path
+     prefix, which is the convention typst.ts uses for an in-memory workspace. */
+  function memoryModel() {
+    const files = new Map();
+    return {
+      insert(path, bytes) { files.set(path, bytes); },
+      getMTime: (path) => (files.has(path) ? new Date() : undefined),
+      isFile: (path) => files.has(path),
+      readAll: (path) => files.get(path),
+      getRealPath: (path) => path,
+    };
   }
 
   /* A plugin is loaded from a blob:, so it cannot import. The shim arrives as verified text
@@ -188,11 +205,67 @@ export function createPandocExport() {
         };
       }
 
+      /* The second stage: `.typ` → PDF, in the tab. typst.ts is pinned as a bundle because a
+         blob: module cannot resolve its internal imports; the compiler is a 27 MB wasm; the
+         fonts come from the document's own `typst-font-*` assets when it has them, and from
+         jsDelivr when it does not (which is why the label says so). */
+      let typst = null;
+      async function compileTypst(typ, figures) {
+        if (!typst) {
+          typst = await importText(new TextDecoder().decode(await host.bytes("typst-bundle")));
+        }
+        const wasm = await host.bytes("typst-compiler");
+        const fonts = [];
+        for (const asset of (host.manifest().assets || [])) {
+          if (!asset.id.startsWith("typst-font-")) continue;
+          try { fonts.push(new Uint8Array(await host.bytes(asset.id))); } catch { /* not this document's */ }
+        }
+        const workspace = memoryModel();
+        workspace.insert("/@memory/document.typ", new TextEncoder().encode(typ));
+        for (const file of figures) workspace.insert(`/@memory/${file.name}`, dataUrlBytes(file.dataUrl));
+
+        typst.$typst.setCompilerInitOptions({
+          getModule: async () => new Uint8Array(wasm),
+          beforeBuild: [fonts.length
+            ? typst.loadFonts(fonts)
+            : typst.preloadRemoteFonts([], {assets: ["text"]})],
+        });
+        typst.$typst.use(typst.TypstSnippet.withAccessModel(workspace));
+        const pdf = await typst.$typst.pdf({mainFilePath: "/@memory/document.typ"});
+        if (!pdf) throw new Error("typst produced no PDF");
+        return new Blob([pdf], {type: "application/pdf"});
+      }
+
+      async function exportPdf() {
+        const materialized = await host.use("materialize").build({format: "png", media: "files"});
+        if (!materialized) throw new Error("materialization was cancelled");
+        if (materialized.problems.length) throw new Error(`not exported: ${materialized.problems.join("; ")}`);
+        const files = {"sd-export.lua": filter || new TextDecoder().decode(await host.bytes("sd-export-lua"))};
+        const template = await optionalBytes(host, "sd-template-typ");
+        if (template) files["sd-template.typ"] = new TextDecoder().decode(template);
+        const pandoc = await ready();
+        const typ = await pandoc.convert({
+          from: "html", to: "typst", standalone: true, filters: ["sd-export.lua"],
+          "output-file": "out.typ",
+          ...(template ? {template: "sd-template.typ"} : {}),
+        }, materialized.html, files);
+        const typBlob = typ.files["out.typ"];
+        if (!typBlob) throw new Error("pandoc produced no .typ");
+        /* Figures are handed to the compiler by name, exactly as the .typ references them. */
+        const figures = materialized.files.map((file) => ({name: file.name, dataUrl: file.dataUrl}));
+        return {
+          name: "document.pdf",
+          mime: "application/pdf",
+          bytes: await compileTypst(await typBlob.text(), figures),
+        };
+      }
+
       return {
         export: {
           docx: () => exportTo("docx"),
           typ: () => exportTo("typ"),
           md: () => exportTo("md"),
+          pdf: () => exportPdf(),
         },
         deactivate() {
           engine = null;

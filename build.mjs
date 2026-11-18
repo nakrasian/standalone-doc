@@ -1598,7 +1598,9 @@ async function cmdVerifyCdn({ tag = null } = {}) {
 }
 
 function cmdDev() {
-  const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png" };
+  /* .wasm is not decoration: `WebAssembly.instantiateStreaming` refuses anything but
+     application/wasm, and this server exists so a document that fetches can be tested. */
+  const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".wasm": "application/wasm" };
   const port = Number(process.env.PORT || 8080);
   http
     .createServer((req, res) => {

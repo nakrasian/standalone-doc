@@ -132,6 +132,7 @@ index.html          canonical editor. Hand-editable. Assets marked with @asset c
 manifest.json       asset registry: id, kind, order, file, bytes, sha384, mode, requiredBy
 build.mjs           split | combine | verify | check | build | report | catalog | dev  (zero deps)
 tools/              export.mjs + sd-export.lua + the census: the document → engine path
+plugins/            pandoc-export/: Word, PDF (typeset by Typst) and text, in the tab
 src/                one file per asset, generated from index.html by `split`
 dist/               build output (committed: the CDN serves these at a tag)
 dist/runtime.json   releases a document may re-pin to; one manifest per tag in dist/runtime/
