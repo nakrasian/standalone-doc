@@ -12,6 +12,7 @@
     "split": "node build.mjs split",
     "combine": "node build.mjs combine",
     "build": "node build.mjs build",
+    "release": "node build.mjs release",
     "verify": "node build.mjs verify",
     "check": "node build.mjs check",
     "report": "node build.mjs report",
