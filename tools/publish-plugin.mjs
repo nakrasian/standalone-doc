@@ -113,6 +113,10 @@ export function published() {
     id: "pandoc-export",
     label: "Pandoc export",
     version: "0.1.0",
+    /* The host contract this plugin is written against (`docs/PLUGINS.md` §Versioning). The
+       registry refuses a plugin that asks for a newer host, which is what makes it safe for a
+       plugin to be versioned — and tagged — independently of the runtime. */
+    api: 1,
     island: "sealed",
     entry: "pandoc-export",
     about: "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. "
