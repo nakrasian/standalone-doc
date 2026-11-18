@@ -21,7 +21,7 @@ edit by hand; `npm run check` fails if this file is stale.
 | toolbar | 90 | zoom, editor, figures, status, policy, session | export | `save`, `serialize`, `validate`, `settings` | edit |
 | viewer-bar | 92 | pagination, zoom, figures, signals, session | — | `save`, `sync`, `openPanel`, `setHidden`, `isHidden` | view |
 | plugins | 95 | signals, figures, status | — | `activateUi`, `wire`, `unwire`, `openPanel`, `openSheet`, `install` | edit |
-| export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
+| export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `buildStatic`, `validateStatic`, `figureFiles`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
 | bootstrap | 120 | — | — | _infrastructure_ | * |
 ```
 

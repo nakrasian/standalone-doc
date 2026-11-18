@@ -83,7 +83,25 @@ export function createExport(deps = {}) {
     return "data:image/svg+xml," + encodeURIComponent(svg);
   }
 
-  function buildStatic(captures) {
+  const FIGURE_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp",
+    "image/gif": "gif", "image/svg+xml": "svg"};
+  const mimeOf = (dataUrl) => /^data:([^;,]+)/.exec(dataUrl || "")?.[1] || "image/png";
+  /* One naming rule, shared by the HTML that references a figure and the files a caller
+     has to put beside it. Flat on purpose: pandoc's wasm build has no directories, so a
+     name that works there works everywhere. */
+  const figureFile = (index, dataUrl) =>
+    `fig-${String(index + 1).padStart(2, "0")}.${FIGURE_EXT[mimeOf(dataUrl)] || "png"}`;
+
+  /* The bytes for `media: "files"`. A data URL is right for one self-contained file and
+     wrong elsewhere: LaTeX drops it, Typst inlines every byte as a number, Markdown
+     base64s the prose. */
+  function figureFiles(captures) {
+    return (captures || []).flatMap((capture, i) => capture?.ok && capture.dataUrl
+      ? [{name: figureFile(i, capture.dataUrl), mime: mimeOf(capture.dataUrl), dataUrl: capture.dataUrl}]
+      : []);
+  }
+
+  function buildStatic(captures, {media = "data-uri"} = {}) {
     const clone = document.documentElement.cloneNode(true);
     const figures = [...clone.querySelectorAll("#content figure.figure")];
     const byId = new Map(captures.map((c) => [c.id, c]));
@@ -92,19 +110,29 @@ export function createExport(deps = {}) {
       const capture = captures[i] || byId.get(figure.dataset.figureId) || null;
       const frame = figure.querySelector(".figure-frame");
       const caption = (figure.querySelector("figcaption")?.textContent || "").trim();
+      const captured = Boolean(capture && capture.ok && capture.dataUrl);
       const img = document.createElement("img");
       img.alt = caption;
-      img.src = capture && capture.ok && capture.dataUrl
-        ? capture.dataUrl
+      img.src = captured
+        ? (media === "files" ? figureFile(i, capture.dataUrl) : capture.dataUrl)
         : placeholder(caption);
       img.style.cssText = "display:block;width:100%;height:100%;object-fit:contain";
+      /* The authored width (`data-w`, `data-scale` before 0.6) is otherwise lost to the
+         frame's CSS. `width` is the one attribute pandoc, a printer and a browser read. */
+      const width = Number(figure.dataset.w ?? figure.dataset.scale);
+      if (Number.isFinite(width) && width > 0 && width <= 1) {
+        img.setAttribute("width", `${Math.round(width * 100)}%`);
+      }
       if (frame) {
         frame.replaceChildren(img);
         frame.removeAttribute("data-runtime");
       }
       figure.removeAttribute("data-selected");
       figure.removeAttribute("data-mounted");
-      figure.removeAttribute("data-missing");
+      /* The marker is the truth, so it travels: a caller that must not ship a placeholder
+         can refuse the file rather than guess from a red image. */
+      if (captured) figure.removeAttribute("data-missing");
+      else figure.setAttribute("data-missing", "");
       figure.setAttribute("contenteditable", "false");
       figure.querySelector("figcaption")?.setAttribute("contenteditable", "false");
     });
@@ -167,7 +195,7 @@ export function createExport(deps = {}) {
     return "<!doctype html>\n" + clone.outerHTML;
   }
 
-  function validateStatic(html) {
+  function validateStatic(html, {media = "data-uri"} = {}) {
     const problems = [];
     if (!html.startsWith("<!doctype html>")) problems.push("missing doctype");
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -177,8 +205,16 @@ export function createExport(deps = {}) {
     const figures = [...doc.querySelectorAll("#content figure.figure")];
     figures.forEach((figure, i) => {
       const img = figure.querySelector(".figure-frame img");
+      /* A placeholder is a card, not a figure: report it so a `fail` caller can refuse. */
+      if (figure.hasAttribute("data-missing")) {
+        problems.push(`figure ${i + 1} has no captured source`);
+      }
       if (!img) problems.push(`figure ${i + 1} has no image`);
-      else if (!/^data:image\//.test(img.getAttribute("src") || "")) {
+      else if (media === "files") {
+        if (!/^fig-\d{2}\.(png|jpg|webp|gif|svg)$/.test(img.getAttribute("src") || "")) {
+          problems.push(`figure ${i + 1} image is not a figure file`);
+        }
+      } else if (!/^data:image\//.test(img.getAttribute("src") || "")) {
         problems.push(`figure ${i + 1} image is not a data URL`);
       }
     });
@@ -224,7 +260,8 @@ export function createExport(deps = {}) {
     progress.update((p.index - 1 + stepFrac) / p.total, progressLabel(p.step, p.ms));
   }
 
-  async function capture() {
+  /* The target decides the format: WebP for the HTML export, never for Word 2013. */
+  async function capture({format = "webp"} = {}) {
     const controller = new AbortController();
     window.__exportAbort = false;
     const total = content.querySelectorAll("figure.figure").length;
@@ -233,7 +270,7 @@ export function createExport(deps = {}) {
       const captures = await figures.captureAll({
         lib: SNAPSHOT_LIB,
         pixelRatio: 2,
-        format: "webp",
+        format,
         quality: 0.9,
         signal: controller.signal,
         onProgress: (p) => {
@@ -249,13 +286,13 @@ export function createExport(deps = {}) {
     }
   }
 
-  async function captureAndBuild() {
-    const {captures, aborted} = await capture();
+  async function captureAndBuild({format = "webp", media = "data-uri"} = {}) {
+    const {captures, aborted} = await capture({format});
     if (aborted) return null;
-    const html = buildStatic(captures);
-    const problems = validateStatic(html);
+    const html = buildStatic(captures, {media});
+    const problems = validateStatic(html, {media});
     if (problems.length) throw new Error(problems.join("; "));
-    return {html, captures};
+    return {html, captures, files: media === "files" ? figureFiles(captures) : []};
   }
 
   async function exportStatic() {
@@ -344,6 +381,6 @@ export function createExport(deps = {}) {
 
   window.addEventListener("beforeprint", syncPrintPage);
 
-  return {begin, capture, captureAndBuild, buildStatic, validateStatic, download,
+  return {begin, capture, captureAndBuild, buildStatic, validateStatic, figureFiles, download,
     syncPrintPage, printLive, printCaptured};
 }

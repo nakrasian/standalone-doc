@@ -526,8 +526,8 @@
       "order": 95,
       "tag": "script",
       "file": "src/plugins.js",
-      "bytes": 33872,
-      "sha384": "sha384-ZKVUrxpVFbU+EBmdsBMpJNQ8688Fg417mJ8OtF4+yQGV06v9UIGcbwEDkiv1LoJV",
+      "bytes": 34303,
+      "sha384": "sha384-vgUMNM5HazeqbqnxE5CXCJc3OLCTzbyfbOd1aBGqApZpqjNZYrDxMFFCzur45xuB",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -555,8 +555,8 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 33881,
-      "sha384": "sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ",
+      "bytes": 36326,
+      "sha384": "sha384-lsnOn0TVjAW49Ip59FIx7rYbpc5+9hqc2qh/RzHS63veab28f1uspGEznxCk35Zi",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -574,6 +574,7 @@
         "captureAndBuild",
         "buildStatic",
         "validateStatic",
+        "figureFiles",
         "download",
         "syncPrintPage",
         "printLive",

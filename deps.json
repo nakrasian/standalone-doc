@@ -349,6 +349,7 @@
         "captureAndBuild",
         "buildStatic",
         "validateStatic",
+        "figureFiles",
         "download",
         "syncPrintPage",
         "printLive",

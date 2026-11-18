@@ -42,6 +42,9 @@ const PLUGIN_JS = `export function createTile() {
         },
         export: {
           outline: async () => ({ name: "outline.txt", mime: "text/plain", text: "outline from the plugin" }),
+          /* A .docx is a zip: the host has to take bytes, or no binary format exists. */
+          binary: async () => ({ name: "tile.bin", mime: "application/octet-stream",
+            bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x01, 0xff]) }),
         },
         panel: {
           inspector: (body) => {
@@ -74,7 +77,7 @@ const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s
 /** An editor document with one plugin pinned that contributes an insert and an export. */
 function makeDoc({ contributes = {
   insert: [{ id: "tile", label: "Tile", island: "sealed" }],
-  export: [{ id: "outline", label: "Outline…" }],
+  export: [{ id: "outline", label: "Outline…" }, { id: "binary", label: "Binary…" }],
   panel: [{ id: "inspector", label: "Tile inspector" }],
   command: [{ id: "stamp", label: "Stamp a paragraph" }],
 } } = {}) {
@@ -154,7 +157,7 @@ test("a UI plugin is built at boot, and its entries are in both bars", async ({ 
   expect(state.insertButtons).toEqual([1, 1]);
   expect(state.insertHidden).toEqual([false, false]);
   expect(state.exportHosts).toBe(2);
-  expect(state.exportButtons).toEqual([1, 1]);
+  expect(state.exportButtons).toEqual([2, 2]);
   expect(state.label).toBe("Tiles");
   expect(state.state).toBe("ready");
   expect(problems).toEqual([]);
@@ -339,6 +342,22 @@ test("an export contribution downloads through the host", async ({ page }) => {
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
   expect(Buffer.concat(chunks).toString("utf8")).toBe("outline from the plugin");
+});
+
+test("an export contribution may return bytes", async ({ page }) => {
+  await load(page, makeDoc());
+  await page.waitForSelector('[data-plugin-export="tile:binary"]', { state: "attached" });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.evaluate(() => document.querySelector('[data-plugin-export="tile:binary"]').click()),
+  ]);
+  expect(download.suggestedFilename()).toBe("tile.bin");
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  /* Bytes out, byte for byte — not a string that happened to survive UTF-8. */
+  expect([...Buffer.concat(chunks)]).toEqual([0x50, 0x4b, 0x03, 0x04, 0x00, 0x01, 0xff]);
 });
 
 test("a plugin with no UI contribution is not built at boot", async ({ page }) => {

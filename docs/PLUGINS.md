@@ -109,13 +109,18 @@ plugin cannot add a menu item that is not in its declaration.
 | kind | implementation | the host does |
 |---|---|---|
 | `insert` | `insert[id](ctx) → {html, caption?, island?}` | inserts a figure, writes the pin into the store |
-| `export` | `export[id]() → {name, mime, text}` | builds the Blob and the download |
+| `export` | `export[id]() → {name, mime, text \| bytes}` | builds the Blob and the download |
 | `panel` | `panel[id](body)` | creates a modal dialog and hands you an empty body |
 | `command` | `command[id]()` | runs it; you act through capabilities |
 
 Contributions that only exist as UI (`insert`, `export`, `panel`, `command`) make the plugin
 **build at boot** in an editor — a menu entry cannot be lazy. A plugin that only contributes a
 runtime waits for a figure to ask.
+
+An export returns `text` for a text format and `bytes` (`ArrayBuffer`, typed array or `Blob`)
+for everything a writer actually emits — a `.docx` is a zip, and as a string it would be a
+lie. `mime` defaults to `text/plain` for `text` and is required in practice for `bytes`;
+the host builds the Blob, so the plugin never touches a download anchor.
 
 ## 4. Islands
 

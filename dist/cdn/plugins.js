@@ -213,15 +213,22 @@ export function createPlugins(deps = {}) {
     if (!handler) return refuse(id, `does not implement export "${itemId}"`);
     try {
       const file = await handler();
-      if (!file || file.text == null) return refuse(id, `export "${itemId}" returned no text`);
+      /* Text for a text format; bytes for what a writer actually emits. A .docx is a zip;
+         as a string it would be a lie, and as base64 the host's problem rather than the
+         format's. */
+      if (!file || (file.text == null && file.bytes == null)) {
+        return refuse(id, `export "${itemId}" returned neither text nor bytes`);
+      }
       download(file);
     } catch (error) {
       refuse(id, `export "${itemId}" failed: ${(error && error.message) || error}`);
     }
   }
 
-  function download({ name = "export.txt", mime = "text/plain", text }) {
-    const blob = new Blob([text], { type: mime });
+  function download({name = "export.txt", mime, text, bytes}) {
+    /* A binary result has no honest default type, so the plugin must say. */
+    const type = mime || (bytes == null ? "text/plain" : "application/octet-stream");
+    const blob = new Blob([bytes == null ? text : bytes], { type });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;

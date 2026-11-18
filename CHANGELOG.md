@@ -2,6 +2,39 @@
 
 ## v0.6.2 — 2026-11-17
 
+### Added
+
+- **An export contribution may return bytes.** `export[id]()` could only return `text`, and
+the host built `new Blob([text])` — which no binary format can survive. A `.docx` is a zip,
+a `.pptx` a package, a `.pdf` a stream: as a string each would be a lie about what the plugin
+produced, and as base64 the host's problem rather than the format's. A contribution now
+returns `{name, mime, text}` *or* `{name, mime, bytes}`, and a contribution that returns
+neither is refused with a sentence rather than an empty download. `bytes` widens nothing: it
+is the same host-owned download, the same session's worth of no new global, and a file the
+plugin never names twice. Measured by `test/browser/contributions.spec.js` — seven exact
+bytes out, byte for byte.
+
+- **A figure carries the width its author set, and says when it could not be captured.**
+The static export replaced every figure with an `<img>` sized by the frame's CSS, so the
+authored `data-w` (0.2–1) was silently dropped — the precise thing that a Word file, a Typst
+file or a printed page needs in order to honour it. The image now carries `width="80%"`,
+which is the one spelling pandoc, a printer and a browser all read. And `buildStatic()` used
+to *clear* `data-missing` whether or not it had a capture, so a red "figure could not be
+captured" card became indistinguishable from a figure; the marker now travels, and
+`validateStatic()` reports it. The HTML export keeps working (a placeholder is still
+better than no file), but a caller whose contract is `fail` can now refuse — which is what
+the export pipeline being built needs.
+
+- **`buildStatic(captures, {media})` and `figureFiles(captures)`** — the seam between "one
+self-contained file" and "a document an engine converts". `media: "data-uri"` is the
+default and today's behaviour; `media: "files"` references `fig-01.png` and returns the
+bytes to put beside it, under one naming rule that both use. A data URL is right for a
+single file and wrong elsewhere: LaTeX drops the image, Typst inlines every byte as a
+decimal number, Markdown inlines the base64 into the prose. `capture({format})` and
+`captureAndBuild({format, media})` pass it through, because the target decides the format —
+WebP for the HTML export, never for Word 2013. No UI changes; nothing in the editor calls
+the new modes yet.
+
 ### Fixed
 
 - **A block painted its own source when its id was shared.** An asset block is found by its
@@ -15,9 +48,12 @@
 
 ### Size
 
-index 411.2 → 412.7 KB · editor 399.6 → 400.3 KB · viewer 181.4 → 182.8 KB · slim unchanged
+index 411.2 → 415.7 KB · editor 399.6 → 403.3 KB · viewer 181.4 → 182.8 KB · slim unchanged
 (the viewer's bar sheet is `mode: online`, so a viewer pays for the qualifiers; an editor
-pays only for the one general rule).
+pays only for the one general rule). Of this release's +4.5 KB, 3.0 KB is the export seam —
+`export` 35.2 → 37.7 KB, `plugins` 36.9 → 37.3 KB — carried by an editor and by no flavour
+that cannot export: `slim.html` inlines the manifest but fetches `export`, and a viewer
+never had it.
 
 ## v0.6.1 — 2026-11-17
 
