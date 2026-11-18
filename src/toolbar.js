@@ -204,10 +204,31 @@ export function createToolbar(deps = {}) {
     clone.querySelector("title").textContent = title;
 
     /* Assets last: the policy decides what travels, and it rewrites both JSON
-       blocks in the clone. A failure here is a failed save, not a partial file. */
-    const planned = policy.planned({policy: options.policy, overrides: options.overrides});
+       blocks in the clone. A failure here is a failed save, not a partial file.
+       `mode` is what makes a copy in another mode possible: a publish is a save in view
+       mode, and the plan drops the editing assets rather than offloading them, so the
+       copy cannot edit even if someone hands it an editor. */
+    const planned = policy.planned({
+      policy: options.policy,
+      overrides: options.overrides,
+      mode: options.mode,
+      absentOutside: options.absentOutside === true,
+    });
     const {problems} = await policy.apply(clone, planned);
     if (problems.length) throw new Error(`save policy: ${problems.join("; ")}`);
+
+    /* Chrome is not the policy's business — it is what the copy *shows*, not what it
+       carries — so an export sets it here, on the block the policy just wrote. */
+    if (options.toolbar !== undefined) {
+      const block = clone.querySelector("#doc-settings");
+      if (block) {
+        try {
+          const stored = JSON.parse(block.textContent || "{}");
+          stored.toolbar = Boolean(options.toolbar);
+          block.textContent = JSON.stringify(stored);
+        } catch { /* a corrupt block is boot's problem, not the export's */ }
+      }
+    }
 
     return {title, html: "<!doctype html>\n" + clone.outerHTML, planned};
   }
@@ -338,9 +359,11 @@ export function createToolbar(deps = {}) {
     const base = String(manifest.cdnBase || "");
     const pin = /@([^/]+)/.exec(base)?.[1] ?? "unpinned";
 
-    dialog.querySelector("[data-ds='mode']").value = draft.mode;
-    dialog.querySelector("[data-ds='editable']").checked = draft.editable && draft.mode === "edit";
-    dialog.querySelector("[data-ds='editable']").disabled = draft.mode !== "edit";
+    /* `mode` is deliberately absent from this sheet: it is not a setting of a file you are
+       editing, it is what an export produces (see `viewer()`). `editable` is the setting
+       that can restrict this file, and it is always available because this file is always
+       an editor. */
+    dialog.querySelector("[data-ds='editable']").checked = draft.editable;
     /* "Show chrome" now: the editor's ribbon, or a viewer's bar. Neither mode overrides
        the other, so the control is always honest and always editable. */
     dialog.querySelector("[data-ds='toolbar']").checked = draft.toolbar;
@@ -434,6 +457,8 @@ export function createToolbar(deps = {}) {
     const current = readSettingsBlock();
     /* Storage keys come from the policy, so "the default plan" writes nothing. */
     const next = policy.settingsFragment(draft.planned, current);
+    /* Preserved, never chosen: a document's mode comes from its own block (a build
+       flavour or an export), and this sheet may not rewrite it. */
     next.mode = draft.mode;
     /* A setting can restrict a mode, never contradict it — the loader clamps too.
        `toolbar` is chrome, not the editor's ribbon, so it survives a mode change. */
@@ -566,10 +591,8 @@ export function createToolbar(deps = {}) {
     if (!dialog || dialog.dataset.wired) return;
     dialog.dataset.wired = "1";
 
-    dialog.querySelector("[data-ds='mode']").addEventListener("change", (event) => {
-      settingsDraft.mode = event.target.value;
-      paintDocSettings();
-    });
+    /* No `[data-ds='mode']` listener: the sheet has no mode control. A file's mode comes
+       from its own block, and producing a viewer is an export (`viewer()`). */
     dialog.querySelector("[data-ds='editable']").addEventListener("change", (event) => {
       settingsDraft.editable = event.target.checked;
     });
@@ -828,7 +851,196 @@ export function createToolbar(deps = {}) {
     } catch { /* a corrupt settings block is boot's problem, not the save path's */ }
   }
 
+  /* ------------------------------------------------------------ the two sinks
+   *
+   * One save path, two destinations: the file it came from (a download — a browser
+   * cannot write a file back) and the library that serves it. Which one is a property of
+   * the document (`#doc-settings.cloud`), not of the button, so the same ⌘S is correct
+   * wherever the file is opened — and a copy that lost the field keeps downloading.
+   *
+   * The library also *chooses the policy*. A hosted document keeps its assets `online`,
+   * because that is what lets one runtime serve every document in the library, and what
+   * stops a save from turning 77 kB into 400 kB of inlined copies.
+   */
+  const library = () => {
+    const registry = globalThis.StandaloneDoc;
+    const settings = registry && registry.settings ? registry.settings() : {};
+    return settings.cloud || null;
+  };
+
+  /**
+   * The JSON door, with the trap named.
+   *
+   * An expired session does not answer 401: Access redirects to a login page, `fetch`
+   * follows it, and the response is HTML with status 200. The content type is the only
+   * thing that tells the two apart, so it is what this checks — a save that treats a
+   * login page as success is the one bug this path exists to prevent.
+   */
+  async function call(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      headers: {"content-type": "text/html; charset=utf-8", ...(options.headers || {})},
+    });
+    const type = response.headers.get("content-type") || "";
+    if (!type.includes("application/json")) {
+      /* A page where data was expected: an expired session (Access redirects and `fetch`
+         follows), a mistyped endpoint, or something in front of the host. All three mean
+         the same thing to the person saving, so the message names the one they can act
+         on — and the status, because a 200 here is the whole trap. */
+      throw new Error(
+        response.redirected || type.includes("text/html")
+          ? "signed out — reopen this document to sign in (the library answered with a page, not data)"
+          : `unexpected response (${response.status})`,
+      );
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+    return body;
+  }
+
+  /**
+   * A copy is not a source.
+   *
+   * The published file must not carry the write target, or a reader who saves it as an
+   * editor would PUT over the document it was copied from — and a link that can be
+   * turned back into the original is not a read-only link.
+   */
+  function detach(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const block = doc.getElementById("doc-settings");
+    if (block) {
+      try {
+        const settings = JSON.parse(block.textContent || "{}");
+        delete settings.cloud;
+        block.textContent = JSON.stringify(settings);
+      } catch { /* a corrupt block is boot's problem, not the publish path's */ }
+    }
+    return "<!doctype html>\n" + doc.documentElement.outerHTML;
+  }
+
+  /* The link is what a publish produces, so it gets a dialog rather than a status line:
+     it has to be readable, selectable, and still there while it is pasted. */
+  function showPublished(url) {
+    const dialog = document.getElementById("publish-dialog");
+    if (!dialog) {
+      console.info("Published:", url);
+      return;
+    }
+    const field = dialog.querySelector("[data-publish-url]");
+    field.value = new URL(url, location.href).href;
+    dialog.showModal();
+    field.select();
+  }
+
+  function wirePublish() {
+    const dialog = document.getElementById("publish-dialog");
+    if (!dialog) return;
+    dialog.querySelector("[data-publish-copy]")?.addEventListener("click", async () => {
+      const field = dialog.querySelector("[data-publish-url]");
+      try {
+        await navigator.clipboard.writeText(field.value);
+      } catch {
+        /* Copy needs a secure context; a `file://` copy of this dialog still gets the
+           selected text, which is one keystroke away. */
+        field.select();
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------ the viewer
+   *
+   * A viewer is an *export*, not a mode of the file you are editing. That is a safety
+   * property, not a preference: `policy.js` marks the editing assets `absent` in a
+   * view-mode save, so a file rewritten that way can never be edited again — only
+   * replaced by an older copy. So the viewer is built as a copy, and the two choices
+   * that used to be settings *of the file* travel with the copy instead: whether it shows
+   * chrome, and whether it carries its assets (mailable, opens from disk) or fetches them
+   * (small, one shared runtime).
+   */
+
+  const VIEWER_POLICIES = policy.PRESETS;
+
+  /** Ask for the copy's two options. `null` when the author closes the dialog. */
+  function askViewer() {
+    const dialog = document.getElementById("viewer-dialog");
+    if (!dialog) return Promise.resolve(null);
+    /* Publishing needs somewhere to publish; downloading never does. */
+    const publish = dialog.querySelector("[data-viewer-publish]");
+    if (publish) publish.hidden = !library();
+    dialog.querySelector("[data-viewer-toolbar]").checked = true;
+    dialog.querySelector("[data-viewer-policy]").value = "slim";
+    return new Promise((resolve) => {
+      dialog.addEventListener(
+        "close",
+        () => {
+          const destination = dialog.returnValue;
+          if (destination !== "download" && destination !== "library") return resolve(null);
+          resolve({
+            destination,
+            toolbar: dialog.querySelector("[data-viewer-toolbar]").checked,
+            policy: dialog.querySelector("[data-viewer-policy]").value,
+          });
+        },
+        { once: true },
+      );
+      dialog.showModal();
+    });
+  }
+
+  /**
+   * Build a read-only copy and send it somewhere: a download, or the library this document
+   * belongs to. Never this file — a failed export leaves the document exactly as it was,
+   * down to the dirty dot, which is the whole reason it is not a setting.
+   */
+  async function viewer({toolbar = true, policy: preset = "slim", destination = "download"} = {}) {
+    let copy;
+    try {
+      copy = await serialize({
+        mode: "view",
+        toolbar: Boolean(toolbar),
+        policy: VIEWER_POLICIES.includes(preset) ? preset : "slim",
+        /* A copy is a flavour, not a save: what this mode cannot use is *gone* from the
+           declaration, so nobody can flip the copy back into an editor by editing a field. */
+        absentOutside: true,
+      });
+    } catch (error) {
+      console.error("Viewer aborted:", error && error.message ? error.message : error);
+      return;
+    }
+
+    const problems = validate(copy.html);
+    if (problems.length) {
+      console.error("Viewer aborted:", problems);
+      return;
+    }
+
+    /* A copy is not a source: it must not carry the write target. */
+    const html = detach(copy.html);
+    const target = library();
+
+    if (destination === "library" && target) {
+      try {
+        const {url} = await call(`${target.api}/${target.id}/share`, {method: "POST", body: html});
+        showPublished(url);
+      } catch (error) {
+        console.error("Publish failed:", error && error.message ? error.message : error);
+      }
+      return;
+    }
+
+    const name = `${copy.title.replace(/[\\/:*?"<>|]+/g, "-")} (read-only).html`;
+    const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   async function save(options = {}) {
+    /* `to: "file"` is the deliberate way out of the library — a copy you keep. */
+    const target = options.to === "file" ? null : library();
     let serialized;
     const attempt = async (opts) => {
       try {
@@ -840,7 +1052,10 @@ export function createToolbar(deps = {}) {
       }
     };
 
-    serialized = await attempt(options);
+    /* The sink picks the policy: a hosted document keeps its assets where every other
+       document in the library can share them. A file keeps whatever the author chose,
+       which is why the default is only applied when there is somewhere to send bytes. */
+    serialized = await attempt(target ? {policy: "slim", ...options} : options);
     if (!serialized) return;
 
     /* Over the document's own threshold: ask once, with real numbers. The dialog is
@@ -870,6 +1085,20 @@ export function createToolbar(deps = {}) {
       status.markDirty();
       return;
     }
+
+    if (target) {
+      try {
+        await call(`${target.api}/${target.id}`, {method: "PUT", headers: {"x-doc-title": title}, body: html});
+        status.save(html.length);
+      } catch (error) {
+        /* A failed copy must not look saved: the dot stays on and the reason is one
+           console line — the same shape as a failed serialise, on purpose. */
+        console.error("Save to library failed:", error && error.message ? error.message : error);
+        status.markDirty();
+      }
+      return;
+    }
+
     const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
     const a = document.createElement("a");
     a.href = url;
@@ -1106,6 +1335,7 @@ export function createToolbar(deps = {}) {
     const figureBtn = e.target.closest("[data-figure-pick]");
     const exportBtn = e.target.closest("[data-export]");
     const saveBtn = e.target.closest("[data-save]");
+    const viewerBtn = e.target.closest("[data-viewer]");
     const shortcutBtn = e.target.closest("[data-shortcuts]");
     const zoomBtn = e.target.closest("[data-zoom]");
 
@@ -1121,6 +1351,7 @@ export function createToolbar(deps = {}) {
     if (figureBtn) {figures.pick(figureBtn.dataset.figurePick); return;}
     if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
     if (exportBtn) {exporter().begin(exportBtn.dataset.export); return;}
+    if (viewerBtn) {askViewer().then((choice) => choice && viewer(choice)); return;}
     if (saveBtn) {save(); return;}
     if (shortcutBtn) {showShortcuts(); return;}
 
@@ -1221,6 +1452,7 @@ export function createToolbar(deps = {}) {
   zoom.syncUI();
 
   wireDocSettings();
+  wirePublish();
   syncChromeButtons(document.body.dataset.ui || "ribbon");
-  return {save, serialize, validate, settings: openDocSettings};
+  return {save, serialize, validate, viewer, settings: openDocSettings};
 }

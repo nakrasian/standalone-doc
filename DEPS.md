@@ -18,7 +18,7 @@ edit by hand; `npm run check` fails if this file is stale.
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `usage`, `blockOf`, `settingsFragment`, `PRESETS` | edit |
-| toolbar | 90 | zoom, editor, figures, status, policy, session | export | `save`, `serialize`, `validate`, `settings` | edit |
+| toolbar | 90 | zoom, editor, figures, status, policy, session | export | `save`, `serialize`, `validate`, `viewer`, `settings` | edit |
 | viewer-bar | 92 | pagination, zoom, figures, signals, session | — | `save`, `sync`, `openPanel`, `setHidden`, `isHidden` | view |
 | plugins | 95 | signals, figures, status | — | `activateUi`, `wire`, `unwire`, `openPanel`, `openSheet`, `install` | edit |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `materialize`, `buildStatic`, `validateStatic`, `figureFiles`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |

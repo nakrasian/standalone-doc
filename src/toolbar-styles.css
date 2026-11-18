@@ -850,6 +850,77 @@ dialog#shortcuts-dialog::backdrop {
 #doc-settings-dialog .ds-note[data-tone="warn"] { color: #b45309; }
 #doc-settings-dialog .ds-note[data-tone="ok"] { color: #2f7d4f; }
 
+/* The publish dialog. One field and one button: the link is the whole product of the
+   action, so it gets the width, the selection and the monospace. Everything else here is
+   the same frame the other sheets use — a dialog that is not in `dialog#<id>` gets the UA
+   default, which is how this one shipped unstyled the first time. */
+#publish-dialog,
+#viewer-dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+#publish-dialog::backdrop,
+#viewer-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+#publish-dialog:focus,
+#publish-dialog:focus-visible,
+#viewer-dialog:focus,
+#viewer-dialog:focus-visible { outline: none; }
+
+#publish-dialog form,
+#viewer-dialog form { padding: 18px 20px 16px; }
+#publish-dialog h2,
+#viewer-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+#publish-dialog .sp-sub,
+#viewer-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
+#publish-dialog .sp-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+
+/* The two rows are `.sp-row`, whose rules are shared with the save-policy sheet: the
+   label wraps, the control does not. */
+#viewer-dialog .sp-row { border-top: 0; padding: 6px 0; }
+#viewer-dialog .sp-text .sp-why { display: block; }
+#viewer-dialog .sp-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; }
+
+#publish-dialog input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--hover);
+  color: var(--ink);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#publish-dialog input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--paper);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+#publish-dialog .dialog-actions,
+#viewer-dialog .dialog-actions {
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+#publish-dialog .dialog-actions button,
+#viewer-dialog .dialog-actions button {
+  height: 30px; padding: 0 14px; font: inherit;
+  border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer;
+}
+#publish-dialog .dialog-actions button.primary,
+#viewer-dialog .dialog-actions button.primary {
+  border-color: var(--accent); background: var(--accent); color: #fff;
+}
+
 #doc-settings-dialog .ds-chips { display: flex; gap: 6px; }
 #doc-settings-dialog .ds-chip {
   font: inherit; font-size: 12px; height: 26px; padding: 0 10px; border-radius: 99px;

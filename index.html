@@ -1275,6 +1275,77 @@
     #doc-settings-dialog .ds-note[data-tone="warn"] { color: #b45309; }
     #doc-settings-dialog .ds-note[data-tone="ok"] { color: #2f7d4f; }
 
+    /* The publish dialog. One field and one button: the link is the whole product of the
+       action, so it gets the width, the selection and the monospace. Everything else here is
+       the same frame the other sheets use — a dialog that is not in `dialog#<id>` gets the UA
+       default, which is how this one shipped unstyled the first time. */
+    #publish-dialog,
+    #viewer-dialog {
+      width: min(520px, calc(100vw - 32px));
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+      color: var(--ink);
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    #publish-dialog::backdrop,
+    #viewer-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+    #publish-dialog:focus,
+    #publish-dialog:focus-visible,
+    #viewer-dialog:focus,
+    #viewer-dialog:focus-visible { outline: none; }
+
+    #publish-dialog form,
+    #viewer-dialog form { padding: 18px 20px 16px; }
+    #publish-dialog h2,
+    #viewer-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    #publish-dialog .sp-sub,
+    #viewer-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
+    #publish-dialog .sp-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+
+    /* The two rows are `.sp-row`, whose rules are shared with the save-policy sheet: the
+       label wraps, the control does not. */
+    #viewer-dialog .sp-row { border-top: 0; padding: 6px 0; }
+    #viewer-dialog .sp-text .sp-why { display: block; }
+    #viewer-dialog .sp-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; }
+
+    #publish-dialog input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--hover);
+      color: var(--ink);
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    #publish-dialog input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--paper);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    #publish-dialog .dialog-actions,
+    #viewer-dialog .dialog-actions {
+      gap: 8px;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    #publish-dialog .dialog-actions button,
+    #viewer-dialog .dialog-actions button {
+      height: 30px; padding: 0 14px; font: inherit;
+      border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer;
+    }
+    #publish-dialog .dialog-actions button.primary,
+    #viewer-dialog .dialog-actions button.primary {
+      border-color: var(--accent); background: var(--accent); color: #fff;
+    }
+
     #doc-settings-dialog .ds-chips { display: flex; gap: 6px; }
     #doc-settings-dialog .ds-chip {
       font: inherit; font-size: 12px; height: 26px; padding: 0 10px; border-radius: 99px;
@@ -1789,6 +1860,10 @@
                     <button data-menu-item data-export="html-interactive"
                       data-save>Interactive (.html)</button>
                     <button data-menu-item data-export="html-static">Static with captured figures…</button>
+                    <!-- A viewer is an export, not a mode of this file: a view-mode save marks
+                         the editing assets `absent`, so a file rewritten that way cannot be
+                         edited again. The copy is what gets the two choices. -->
+                    <button data-menu-item data-viewer>Viewer (read-only)…</button>
                   </div>
                 </div>
 
@@ -2577,7 +2652,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9716,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/page-styles.css","integrity":"sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":28024,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/toolbar-styles.css","integrity":"sha384-AODULm0CK5Cctz60fWF1flhdw4cNJUZTdAmMHemxDXBL66jNFE6P0LISBQCJxAYQ"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6015,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15810,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/toolbar-markup.html","integrity":"sha384-4TTM3vMLLCvtH9icCvnuVUjK5feLSFjCfqKltMzbRMJGBBk9GuzOUPRFU5id/E6j"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5428,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/viewer-bar-styles.css","integrity":"sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":38851,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":15586,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1708,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/apply-settings.js","integrity":"sha384-rhh0bJv4v7DaSarFFPF8W5cnOV9Hb5+J6psnWoW2LA+f1ckdjokllDl2/4TfGZAv"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":3421,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/session.js","integrity":"sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":8575,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/pagination.js","integrity":"sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":17828,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/policy.js","integrity":"sha384-BFyyzN8jvBqka+ubH3mnVMnDJS65I7Xzak5CxgrAvfKmFyajx/x2drb9SWCi+3oN"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":51121,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/toolbar.js","integrity":"sha384-av13apuezynAnnKKGCsyVA0aTvSo2MccVMpDdp5wGf4Ex8oik7YuUALZZdMhK9qM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":35665,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/plugins.js","integrity":"sha384-WfpksCCLoFjyoVbI2JkvoFU2Et+A7o37ZdwQvh72Hc1qFzqFfJLTtLzpEU+egh6b"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":37795,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/export.js","integrity":"sha384-W0axmtKTwlfYo0obT4ZuYVKy42DAZ9PIUvQ4VP+ia++Io55l4rwASAIaKDKHGlpL"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4813,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/dialogs.html","integrity":"sha384-bo3qDdsB0rDBy51tG7hbB2NhlNZczo12KVH/hxOCOxOYWMjqCaVz06EQcZnn6dqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9716,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/page-styles.css","integrity":"sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":30445,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/toolbar-styles.css","integrity":"sha384-EkUEr9ZYLyTyC38REswcqFVCbFYIIhhkjdK4Imsakq6qmxEmgUnODg8sNRIv9O+I"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6015,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5428,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/viewer-bar-styles.css","integrity":"sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":40605,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":15586,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2511,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/apply-settings.js","integrity":"sha384-W27FmRTUi+abfTouH0lZr7ClON9VEPoOOXp6mrAwAgSkm+zrzC2aG2jFsIhx/gZH"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":3421,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/session.js","integrity":"sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":8575,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/pagination.js","integrity":"sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":18729,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/policy.js","integrity":"sha384-l2rHTNsDyh8ADksBL+JNZ3Gua3UueqUKRHTBEPJoLxbfCXRraIRLkDPI5elC+gIa"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":61210,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/toolbar.js","integrity":"sha384-x1bneenX61Hbuz2VZejGBaFErS8oZInni5EUTlGRe7Mu2pICCc6xf1snG0BWYuEX"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":35665,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/plugins.js","integrity":"sha384-WfpksCCLoFjyoVbI2JkvoFU2Et+A7o37ZdwQvh72Hc1qFzqFfJLTtLzpEU+egh6b"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":38169,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/export.js","integrity":"sha384-6SQoXEaXO+qrpbKZJiRcjOXmjK/LKRLZYZFZmJWAm14aC+0Fov4WXMw4UMUuxB06"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":7027,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/cdn/dialogs.html","integrity":"sha384-jp7Xpfa+Ksop+DGRVMEA7K9tiG26sK4cK+8rEmaLqTerVABM1Zf7d3lOnHUANNeY"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -2675,6 +2750,30 @@
         return parsed;
       }
 
+      /* Where a document saves when it is not a file on disk.
+       *
+       * Two facts, both checked here rather than at the save: which object, and which
+       * endpoint. A block that cannot name both is treated exactly like no block at all —
+       * a document that cannot say where it belongs is a file, and its Save button
+       * downloads. That is this field's whole compatibility story: every document written
+       * before it existed keeps behaving as one.
+       */
+      function cloudOf(value) {
+        const id = value && typeof value.id === "string" ? value.id : "";
+        if (!/^[a-z0-9][a-z0-9-]{2,63}$/.test(id)) return null;
+        /* Relative on purpose. The endpoint is a convention of the host the document is
+           opened against; an absolute one would pin a document to an origin it may later be
+           copied away from, which is the opposite of what the field is for. */
+        const api = typeof value.api === "string" && /^\/[A-Za-z0-9._~/-]*$/.test(value.api) ? value.api : "/api/docs";
+        /* The endpoint is relative, so it is only addressable from an http(s) origin. A copy
+           re-opened from disk is a file whatever its block says — and that is not pedantry:
+           without it, ⌘S on a downloaded document tries to PUT to `file:///api/docs/<id>`,
+           fails, and leaves the document unsaveable, while the viewer dialog offers a
+           "Copy to library" button that cannot work. */
+        if (typeof location === "undefined" || !/^https?:$/.test(location.protocol)) return null;
+        return {id, api: api.replace(/\/+$/, "")};
+      }
+
       /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
          read as a fallback for documents saved before the block existed (one release
          of compatibility, not a permanent second source of truth). */
@@ -2709,6 +2808,9 @@
           policy: authored?.policy ?? null,
           assets: authored?.assets ?? null,
           thresholdDeclined: Number(authored?.thresholdDeclined) || 0,
+          /* The library this document belongs to, or null for a file. Read live by the
+             toolbar's save, so the settings sheet can write it and the next ⌘S obeys. */
+          cloud: cloudOf(authored && authored.cloud),
         };
         return settingsParsed;
       }
@@ -3961,12 +4063,23 @@
         /* Chrome visibility is a setting of its own, not a consequence of the mode: a
            read-only copy may still want the toolbar for print or zoom. */
         root.dataset.toolbar = settings.toolbar ? "on" : "off";
+        /* Where this file saves, announced for the same reason: chrome reads it, and no menu
+           item should have to re-parse the settings block to decide whether to exist. A file
+           says `off` before the first paint, so the File menu never offers a library it does
+           not have. */
+        root.dataset.cloud = settings.cloud ? "on" : "off";
 
         /* A built flavour carries only the chrome its mode builds, but `index.html` is the
            source of all of them and a hand-edited copy can carry a block it never runs. Paint
            the chrome this mode owns, and only that — the bar is a viewer's. */
         const viewerBar = document.getElementById("viewer-bar");
         if (viewerBar) viewerBar.hidden = settings.mode !== "view";
+        /* The same rule the other way round, and it is not symmetry for its own sake: a
+           document saved with its editor inline and then switched to view mode carries the
+           ribbon's markup without the module that drives it. Dead furniture is worse than
+           absent furniture, and a view-mode file has a bar of its own to paint. */
+        const ribbon = document.getElementById("app-toolbar");
+        if (ribbon) ribbon.hidden = settings.mode !== "edit";
 
         const content = document.getElementById("content");
         if (!content) return;
@@ -6827,7 +6940,7 @@
        * figures that need each plugin; `baseBytes` is the document minus its asset
        * bodies, so the estimate is comparable to the file about to be written.
        */
-      function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, baseBytes = 0} = {}) {
+      function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, baseBytes = 0, absentOutside = false} = {}) {
         const decisions = [...((manifest && manifest.assets) || [])]
           .sort((a, b) => (a.order || 0) - (b.order || 0))
           .map((asset) => {
@@ -6850,7 +6963,7 @@
         const inlineBytes = decisions
           .filter((decision) => decision.to === "inline")
           .reduce((sum, decision) => sum + decision.bytes, 0);
-        return {policy, mode, usage, decisions, inlineBytes, estimate: baseBytes + inlineBytes};
+        return {policy, mode, usage, absentOutside, decisions, inlineBytes, estimate: baseBytes + inlineBytes};
       }
 
       /** The asset states a plan produces, ignoring the loader (never a choice). */
@@ -7125,7 +7238,17 @@
             continue;
           }
           if (present) changed.push(decision.id);
-          if (entry && entry.mode !== decision.to) {
+          /* `absent` is a declaration — "the author removed this" — and it is written down.
+             An asset that is merely outside this mode is a different thing: it leaves this
+             file, but forgetting where its bytes live makes the other mode impossible to
+             produce later. That is not hypothetical: an edit-mode save used to mark the
+             viewer's assets `absent`, so an edited document could no longer be exported as a
+             viewer at all — there was nothing left to fetch. A *flavour* is the case that
+             wants the declaration gone (a copy that cannot be flipped back into an editor),
+             so it asks for it with `absentOutside`. */
+          const merelyOutside =
+            decision.to === "absent" && !planned.absentOutside && entry && !inMode(entry, planned.mode);
+          if (entry && entry.mode !== decision.to && !merelyOutside) {
             entry.mode = decision.to;
             manifestChanged = true;
           }
@@ -7193,7 +7316,7 @@
         return registry && registry.settings ? registry.settings() : settings;
       };
 
-      function planned({policy, overrides, mode, baseBytes = 0} = {}) {
+      function planned({policy, overrides, mode, baseBytes = 0, absentOutside = false} = {}) {
         const registry = env.StandaloneDoc;
         const manifest = registry && registry.manifest ? registry.manifest() : {assets: []};
         const current = liveSettings();
@@ -7205,6 +7328,7 @@
           overrides: chosen.overrides,
           usage: usage(),
           baseBytes,
+          absentOutside,
         });
       }
 
@@ -7423,10 +7547,31 @@
         clone.querySelector("title").textContent = title;
 
         /* Assets last: the policy decides what travels, and it rewrites both JSON
-           blocks in the clone. A failure here is a failed save, not a partial file. */
-        const planned = policy.planned({policy: options.policy, overrides: options.overrides});
+           blocks in the clone. A failure here is a failed save, not a partial file.
+           `mode` is what makes a copy in another mode possible: a publish is a save in view
+           mode, and the plan drops the editing assets rather than offloading them, so the
+           copy cannot edit even if someone hands it an editor. */
+        const planned = policy.planned({
+          policy: options.policy,
+          overrides: options.overrides,
+          mode: options.mode,
+          absentOutside: options.absentOutside === true,
+        });
         const {problems} = await policy.apply(clone, planned);
         if (problems.length) throw new Error(`save policy: ${problems.join("; ")}`);
+
+        /* Chrome is not the policy's business — it is what the copy *shows*, not what it
+           carries — so an export sets it here, on the block the policy just wrote. */
+        if (options.toolbar !== undefined) {
+          const block = clone.querySelector("#doc-settings");
+          if (block) {
+            try {
+              const stored = JSON.parse(block.textContent || "{}");
+              stored.toolbar = Boolean(options.toolbar);
+              block.textContent = JSON.stringify(stored);
+            } catch { /* a corrupt block is boot's problem, not the export's */ }
+          }
+        }
 
         return {title, html: "<!doctype html>\n" + clone.outerHTML, planned};
       }
@@ -7557,9 +7702,11 @@
         const base = String(manifest.cdnBase || "");
         const pin = /@([^/]+)/.exec(base)?.[1] ?? "unpinned";
 
-        dialog.querySelector("[data-ds='mode']").value = draft.mode;
-        dialog.querySelector("[data-ds='editable']").checked = draft.editable && draft.mode === "edit";
-        dialog.querySelector("[data-ds='editable']").disabled = draft.mode !== "edit";
+        /* `mode` is deliberately absent from this sheet: it is not a setting of a file you are
+           editing, it is what an export produces (see `viewer()`). `editable` is the setting
+           that can restrict this file, and it is always available because this file is always
+           an editor. */
+        dialog.querySelector("[data-ds='editable']").checked = draft.editable;
         /* "Show chrome" now: the editor's ribbon, or a viewer's bar. Neither mode overrides
            the other, so the control is always honest and always editable. */
         dialog.querySelector("[data-ds='toolbar']").checked = draft.toolbar;
@@ -7653,6 +7800,8 @@
         const current = readSettingsBlock();
         /* Storage keys come from the policy, so "the default plan" writes nothing. */
         const next = policy.settingsFragment(draft.planned, current);
+        /* Preserved, never chosen: a document's mode comes from its own block (a build
+           flavour or an export), and this sheet may not rewrite it. */
         next.mode = draft.mode;
         /* A setting can restrict a mode, never contradict it — the loader clamps too.
            `toolbar` is chrome, not the editor's ribbon, so it survives a mode change. */
@@ -7785,10 +7934,8 @@
         if (!dialog || dialog.dataset.wired) return;
         dialog.dataset.wired = "1";
 
-        dialog.querySelector("[data-ds='mode']").addEventListener("change", (event) => {
-          settingsDraft.mode = event.target.value;
-          paintDocSettings();
-        });
+        /* No `[data-ds='mode']` listener: the sheet has no mode control. A file's mode comes
+           from its own block, and producing a viewer is an export (`viewer()`). */
         dialog.querySelector("[data-ds='editable']").addEventListener("change", (event) => {
           settingsDraft.editable = event.target.checked;
         });
@@ -8047,7 +8194,196 @@
         } catch { /* a corrupt settings block is boot's problem, not the save path's */ }
       }
 
+      /* ------------------------------------------------------------ the two sinks
+       *
+       * One save path, two destinations: the file it came from (a download — a browser
+       * cannot write a file back) and the library that serves it. Which one is a property of
+       * the document (`#doc-settings.cloud`), not of the button, so the same ⌘S is correct
+       * wherever the file is opened — and a copy that lost the field keeps downloading.
+       *
+       * The library also *chooses the policy*. A hosted document keeps its assets `online`,
+       * because that is what lets one runtime serve every document in the library, and what
+       * stops a save from turning 77 kB into 400 kB of inlined copies.
+       */
+      const library = () => {
+        const registry = globalThis.StandaloneDoc;
+        const settings = registry && registry.settings ? registry.settings() : {};
+        return settings.cloud || null;
+      };
+
+      /**
+       * The JSON door, with the trap named.
+       *
+       * An expired session does not answer 401: Access redirects to a login page, `fetch`
+       * follows it, and the response is HTML with status 200. The content type is the only
+       * thing that tells the two apart, so it is what this checks — a save that treats a
+       * login page as success is the one bug this path exists to prevent.
+       */
+      async function call(url, options = {}) {
+        const response = await fetch(url, {
+          credentials: "same-origin",
+          ...options,
+          headers: {"content-type": "text/html; charset=utf-8", ...(options.headers || {})},
+        });
+        const type = response.headers.get("content-type") || "";
+        if (!type.includes("application/json")) {
+          /* A page where data was expected: an expired session (Access redirects and `fetch`
+             follows), a mistyped endpoint, or something in front of the host. All three mean
+             the same thing to the person saving, so the message names the one they can act
+             on — and the status, because a 200 here is the whole trap. */
+          throw new Error(
+            response.redirected || type.includes("text/html")
+              ? "signed out — reopen this document to sign in (the library answered with a page, not data)"
+              : `unexpected response (${response.status})`,
+          );
+        }
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+        return body;
+      }
+
+      /**
+       * A copy is not a source.
+       *
+       * The published file must not carry the write target, or a reader who saves it as an
+       * editor would PUT over the document it was copied from — and a link that can be
+       * turned back into the original is not a read-only link.
+       */
+      function detach(html) {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const block = doc.getElementById("doc-settings");
+        if (block) {
+          try {
+            const settings = JSON.parse(block.textContent || "{}");
+            delete settings.cloud;
+            block.textContent = JSON.stringify(settings);
+          } catch { /* a corrupt block is boot's problem, not the publish path's */ }
+        }
+        return "<!doctype html>\n" + doc.documentElement.outerHTML;
+      }
+
+      /* The link is what a publish produces, so it gets a dialog rather than a status line:
+         it has to be readable, selectable, and still there while it is pasted. */
+      function showPublished(url) {
+        const dialog = document.getElementById("publish-dialog");
+        if (!dialog) {
+          console.info("Published:", url);
+          return;
+        }
+        const field = dialog.querySelector("[data-publish-url]");
+        field.value = new URL(url, location.href).href;
+        dialog.showModal();
+        field.select();
+      }
+
+      function wirePublish() {
+        const dialog = document.getElementById("publish-dialog");
+        if (!dialog) return;
+        dialog.querySelector("[data-publish-copy]")?.addEventListener("click", async () => {
+          const field = dialog.querySelector("[data-publish-url]");
+          try {
+            await navigator.clipboard.writeText(field.value);
+          } catch {
+            /* Copy needs a secure context; a `file://` copy of this dialog still gets the
+               selected text, which is one keystroke away. */
+            field.select();
+          }
+        });
+      }
+
+      /* ------------------------------------------------------------ the viewer
+       *
+       * A viewer is an *export*, not a mode of the file you are editing. That is a safety
+       * property, not a preference: `policy.js` marks the editing assets `absent` in a
+       * view-mode save, so a file rewritten that way can never be edited again — only
+       * replaced by an older copy. So the viewer is built as a copy, and the two choices
+       * that used to be settings *of the file* travel with the copy instead: whether it shows
+       * chrome, and whether it carries its assets (mailable, opens from disk) or fetches them
+       * (small, one shared runtime).
+       */
+
+      const VIEWER_POLICIES = policy.PRESETS;
+
+      /** Ask for the copy's two options. `null` when the author closes the dialog. */
+      function askViewer() {
+        const dialog = document.getElementById("viewer-dialog");
+        if (!dialog) return Promise.resolve(null);
+        /* Publishing needs somewhere to publish; downloading never does. */
+        const publish = dialog.querySelector("[data-viewer-publish]");
+        if (publish) publish.hidden = !library();
+        dialog.querySelector("[data-viewer-toolbar]").checked = true;
+        dialog.querySelector("[data-viewer-policy]").value = "slim";
+        return new Promise((resolve) => {
+          dialog.addEventListener(
+            "close",
+            () => {
+              const destination = dialog.returnValue;
+              if (destination !== "download" && destination !== "library") return resolve(null);
+              resolve({
+                destination,
+                toolbar: dialog.querySelector("[data-viewer-toolbar]").checked,
+                policy: dialog.querySelector("[data-viewer-policy]").value,
+              });
+            },
+            { once: true },
+          );
+          dialog.showModal();
+        });
+      }
+
+      /**
+       * Build a read-only copy and send it somewhere: a download, or the library this document
+       * belongs to. Never this file — a failed export leaves the document exactly as it was,
+       * down to the dirty dot, which is the whole reason it is not a setting.
+       */
+      async function viewer({toolbar = true, policy: preset = "slim", destination = "download"} = {}) {
+        let copy;
+        try {
+          copy = await serialize({
+            mode: "view",
+            toolbar: Boolean(toolbar),
+            policy: VIEWER_POLICIES.includes(preset) ? preset : "slim",
+            /* A copy is a flavour, not a save: what this mode cannot use is *gone* from the
+               declaration, so nobody can flip the copy back into an editor by editing a field. */
+            absentOutside: true,
+          });
+        } catch (error) {
+          console.error("Viewer aborted:", error && error.message ? error.message : error);
+          return;
+        }
+
+        const problems = validate(copy.html);
+        if (problems.length) {
+          console.error("Viewer aborted:", problems);
+          return;
+        }
+
+        /* A copy is not a source: it must not carry the write target. */
+        const html = detach(copy.html);
+        const target = library();
+
+        if (destination === "library" && target) {
+          try {
+            const {url} = await call(`${target.api}/${target.id}/share`, {method: "POST", body: html});
+            showPublished(url);
+          } catch (error) {
+            console.error("Publish failed:", error && error.message ? error.message : error);
+          }
+          return;
+        }
+
+        const name = `${copy.title.replace(/[\\/:*?"<>|]+/g, "-")} (read-only).html`;
+        const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+
       async function save(options = {}) {
+        /* `to: "file"` is the deliberate way out of the library — a copy you keep. */
+        const target = options.to === "file" ? null : library();
         let serialized;
         const attempt = async (opts) => {
           try {
@@ -8059,7 +8395,10 @@
           }
         };
 
-        serialized = await attempt(options);
+        /* The sink picks the policy: a hosted document keeps its assets where every other
+           document in the library can share them. A file keeps whatever the author chose,
+           which is why the default is only applied when there is somewhere to send bytes. */
+        serialized = await attempt(target ? {policy: "slim", ...options} : options);
         if (!serialized) return;
 
         /* Over the document's own threshold: ask once, with real numbers. The dialog is
@@ -8089,6 +8428,20 @@
           status.markDirty();
           return;
         }
+
+        if (target) {
+          try {
+            await call(`${target.api}/${target.id}`, {method: "PUT", headers: {"x-doc-title": title}, body: html});
+            status.save(html.length);
+          } catch (error) {
+            /* A failed copy must not look saved: the dot stays on and the reason is one
+               console line — the same shape as a failed serialise, on purpose. */
+            console.error("Save to library failed:", error && error.message ? error.message : error);
+            status.markDirty();
+          }
+          return;
+        }
+
         const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
         const a = document.createElement("a");
         a.href = url;
@@ -8325,6 +8678,7 @@
         const figureBtn = e.target.closest("[data-figure-pick]");
         const exportBtn = e.target.closest("[data-export]");
         const saveBtn = e.target.closest("[data-save]");
+        const viewerBtn = e.target.closest("[data-viewer]");
         const shortcutBtn = e.target.closest("[data-shortcuts]");
         const zoomBtn = e.target.closest("[data-zoom]");
 
@@ -8340,6 +8694,7 @@
         if (figureBtn) {figures.pick(figureBtn.dataset.figurePick); return;}
         if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
         if (exportBtn) {exporter().begin(exportBtn.dataset.export); return;}
+        if (viewerBtn) {askViewer().then((choice) => choice && viewer(choice)); return;}
         if (saveBtn) {save(); return;}
         if (shortcutBtn) {showShortcuts(); return;}
 
@@ -8440,8 +8795,9 @@
       zoom.syncUI();
 
       wireDocSettings();
+      wirePublish();
       syncChromeButtons(document.body.dataset.ui || "ribbon");
-      return {save, serialize, validate, settings: openDocSettings};
+      return {save, serialize, validate, viewer, settings: openDocSettings};
     }
     StandaloneDoc.register("toolbar", createToolbar);
   </script>
@@ -9712,7 +10068,11 @@
 
       async function begin(kind) {
         if (busy) return;
-        if (kind === "html-interactive") {toolbar.save(); return;}
+        /* A file destination, always: "Save as… → HTML → Interactive" is the way to get a copy
+           you can send, so it must not be routed into the library sink by a document that
+           happens to name one. `to: "file"` is also what keeps the copy's assets the author's
+           choice — a hosted document saves `slim`, which needs the network to open. */
+        if (kind === "html-interactive") {toolbar.save({to: "file"}); return;}
         if (kind === "print-live") {printLive(); return;}
         busy = true;
         const buttons = [...document.querySelectorAll("[data-export]")];
@@ -9791,17 +10151,13 @@
       <section class="ds-sect">
         <h3>Behaviour</h3>
         <p>Applies the next time this file is opened — the loader enforces it, not the markup.</p>
-        <div class="ds-row">
-          <span class="grow">Mode</span>
-          <select data-ds="mode" aria-label="Document mode">
-            <option value="edit">edit — full editor</option>
-            <option value="view">view — read only</option>
-            <option value="comment">comment — annotate (not built yet)</option>
-          </select>
-        </div>
+        <!-- No `mode` control, and none is coming back: a view-mode save marks the editing
+             assets `absent` (`policy.js`), so a file rewritten that way can never be edited
+             again. A viewer is an *export* — File → Save as… → HTML → Viewer (read-only)… —
+             which makes a copy and leaves this file alone. -->
         <div class="ds-row">
           <label class="grow"><input type="checkbox" data-ds="editable"> Content is editable</label>
-          <span class="ds-hint">edit mode only</span>
+          <span class="ds-hint">readers cannot type</span>
         </div>
         <div class="ds-row">
           <label class="grow"><input type="checkbox" data-ds="toolbar"> Show chrome</label>
@@ -9861,6 +10217,49 @@
       <button type="button" data-ds-cancel>Cancel</button>
       <button type="button" class="primary" data-ds-done>Done</button>
     </div>
+  </dialog>
+
+  <dialog id="viewer-dialog" aria-labelledby="viewer-title">
+    <form method="dialog">
+      <h2 id="viewer-title">Viewer (read-only)</h2>
+      <p class="sp-sub">A copy in view mode. This file is not changed: the copy carries no
+        editor, so there is nothing in it to edit and nothing that can write back.</p>
+      <div class="sp-row">
+        <span class="sp-text"><span class="sp-label">Show chrome</span>
+          <span class="sp-why">the reader’s bar: folio, title, Save a copy</span></span>
+        <input type="checkbox" data-viewer-toolbar aria-label="Show chrome">
+      </div>
+      <div class="sp-row">
+        <label class="sp-text" for="viewer-policy"><span class="sp-label">Loading</span>
+          <span class="sp-why">inline opens from disk; slim keeps one runtime for every copy</span></label>
+        <select id="viewer-policy" data-viewer-policy aria-label="Loading mode">
+          <option value="inline">inline — self-contained</option>
+          <option value="smart">smart — core inline, the rest fetched</option>
+          <option value="slim">slim — runtime by reference</option>
+        </select>
+      </div>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel">Cancel</button>
+        <button type="submit" value="download">Download</button>
+        <button type="submit" class="primary" value="library" data-viewer-publish hidden>Copy to library</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="publish-dialog" aria-labelledby="publish-title">
+    <form method="dialog">
+      <h2 id="publish-title">Read-only link</h2>
+      <p class="sp-sub">Anyone with this link can read the document. It is a copy in view
+        mode: nothing they do reaches this file, and the link can be revoked from the library.</p>
+      <input type="text" data-publish-url readonly aria-label="Read-only link"
+        spellcheck="false" autocomplete="off">
+      <p class="sp-note">The copy carries this release's assets by reference, so a reader
+        fetches the same runtime every other document in the library uses.</p>
+      <div class="dialog-actions">
+        <button type="button" data-publish-copy>Copy link</button>
+        <button class="primary" value="close" autofocus>Done</button>
+      </div>
+    </form>
   </dialog>
   </div>
 <!-- /@asset -->

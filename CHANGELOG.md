@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.8.0 — 2026-11-18
+
+### Added
+
+- **A document can name the library it lives in, and Save obeys.** `#doc-settings.cloud` is
+`{id, api?}`; when it is present, the save sink PUTs the serialized document to that object
+instead of downloading a file, and the JSON door treats a followed redirect as what it is —
+an Access login page arriving with status 200 — rather than as a successful save. Absent or
+malformed, the field means "a file", which is what every document written before it existed
+is, so nothing migrates and the button keeps its old meaning on disk. The endpoint is stored
+relative on purpose: a document copied to another host must not drag the old origin with it.
+
+- **The library chooses the save policy.** A hosted document keeps its assets `online`
+(`slim`), because one runtime serving many documents is the only reason to host the runtime
+at all: a save that inlined everything turned a 77 kB document into 400 kB, which is five
+times the storage, five times the transfer, and no shared cache. A file still gets whatever
+policy its author chose — the sink decides, not the document.
+
+- **A viewer is an export, not a mode.** File → *Save as… → HTML → Viewer (read-only)…* builds
+a copy with `serialize()` pointed at `mode: "view"`, carrying the two choices that belong to a
+copy rather than to a file: **show chrome** (the reader's bar) and **loading** (inline, smart or
+slim). It is then downloaded, or sent to the library as a link — the same copy, two
+destinations. Not a flag on the private file and not a mode flip on the stored bytes: a save in
+edit mode marks the viewer's assets `absent` (`policy.js`), so a flipped copy boots into the
+failure card. The copy leaves `cloud` behind, so a reader who saves it as an editor writes a
+file rather than overwriting the original.
+
+### Fixed
+
+- **A save no longer erases the other mode's declaration.** The mode gate marked every asset the
+current mode does not use as `absent`, so an edit-mode save destroyed the pin of the viewer's
+assets — and an edited document could never be exported as a viewer afterwards, because there was
+nothing left to fetch. `absent` is the author's word ("removed"); assets outside the mode leave
+the file and keep their declaration, which is also how the build flavours already describe
+themselves. An *export* asks for the other behaviour (`absentOutside`), because a copy that is
+handed to a reader should not be flippable back into an editor by editing one field.
+
+- **A copy re-opened from disk is a file.** `cloud.api` is relative, so it is only
+addressable from an http(s) origin — but the field travels with the document, so a copy
+downloaded from the library kept it, showed a *Copy to library* button that could only fail,
+and routed ⌘S into a PUT to `file:///api/docs/<id>`. A downloaded copy could not be saved at
+all, and said nothing while it did not. The sink is now derived from the document *and* the
+origin: on `file://` the field still says where the document came from, and the document
+behaves as the file it is.
+
+- **"Save as… → HTML → Interactive" is a file, wherever the document lives.** It shared the
+save sink, so on a hosted document it PUT to the library instead of downloading — and inherited
+the library's `slim` policy, which produces a copy that needs the network to open. The export
+now asks for the file destination explicitly, and keeps the author's policy.
+
+- **A view-mode document paints only the chrome its mode builds.** `apply-settings` hid the
+viewer's bar outside view mode; the reverse was missing, so a document carrying the editor's
+ribbon inline and switched to view mode painted dead furniture next to its own bar.
+
+### Changed
+
+- **Document settings no longer offers a mode.** The control could only ever turn an editor into
+a viewer, and a view-mode save drops the editing assets from the file — with no way back but an
+older copy. `editable` and `toolbar` remain, because they restrict a file that is still an
+editor. `mode` is still read from `#doc-settings` (every saved viewer depends on it) and still
+written by the build flavours; it is simply not something this sheet can set.
+
 ## v0.7.0 — 2026-11-17
 
 The release where a document can leave the editor: Word, a typeset PDF, Typst and Markdown,

@@ -54,9 +54,9 @@ test.beforeAll(() => {
   /* The stale release serves the tree's bytes with one module moved, so `signals` fails
      verification and everything else still parses. */
   const cdn = path.join(ROOT, "dist/cdn");
-  for (const name of fs.readdirSync(cdn)) {
-    write(`${FIX}/stale/@v0.3.0/dist/cdn/${name}`, fs.readFileSync(path.join(cdn, name)));
-  }
+  /* `cpSync`, not a readdir loop: `dist/cdn` now carries a published plugin bundle
+     (`plugins/<id>/…`), and reading that directory as if it were a file throws EISDIR. */
+  fs.cpSync(cdn, path.join(ROOT, `${FIX}/stale/@v0.3.0/dist/cdn`), { recursive: true });
   fs.appendFileSync(path.join(ROOT, `${FIX}/stale/@v0.3.0/dist/cdn/signals.js`), "\n/* stale release */\n");
 
   /* The release a broken document may re-pin to: the healthy tree, described. */

@@ -74,10 +74,9 @@ test.beforeAll(() => {
   /* The stale release: the real tree, with one asset's bytes moved by one comment. A hash
      mismatch that still leaves a valid module, so the failure is `integrity` and not `import`. */
   const cdn = path.join(ROOT, "dist/cdn");
-  for (const name of fs.readdirSync(cdn)) {
-    const body = fs.readFileSync(path.join(cdn, name));
-    write(`${FIX}/stale/@${STALE_TAG}/dist/cdn/${name}`, body);
-  }
+  /* `cpSync`, not a readdir loop: `dist/cdn` now carries a published plugin bundle
+     (`plugins/<id>/…`), and reading that directory as if it were a file throws EISDIR. */
+  fs.cpSync(cdn, path.join(ROOT, `${FIX}/stale/@${STALE_TAG}/dist/cdn`), { recursive: true });
   fs.appendFileSync(path.join(ROOT, `${FIX}/stale/@${STALE_TAG}/dist/cdn/editor.js`), "\n/* stale release */\n");
 
   write(`${FIX}/catalog/runtime/v0.3.1.json`, JSON.stringify(releaseEntry(), null, 2) + "\n");

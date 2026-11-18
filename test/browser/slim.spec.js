@@ -158,7 +158,16 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
       symbols: (html.match(/<symbol /g) || []).length,
       fragmentMarkers: (html.match(/@asset id=\"(sprite|toolbar-markup|figure-tools|dialogs)\"/g) || []).length,
       injectedStylesLeft: parsed.querySelectorAll("style[data-asset]").length,
-      stillOnline: /"mode":"online"/.test(html),
+      /* Nothing this mode *loads* is still online. An asset the mode does not use keeps
+         its declaration but no block: `absent` is the author's word, not the mode's, and a
+         save that erased it would leave the document unable to produce a viewer later. */
+      onlineInMode: JSON.parse(parsed.getElementById("asset-manifest").textContent).assets
+        .filter((asset) => (asset.requiredBy || ["*"]).some((need) => need === "*" || need === "edit"))
+        .filter((asset) => asset.mode === "online")
+        .map((asset) => asset.id),
+      viewerBlock: parsed.getElementById("viewer-bar") !== null,
+      viewerDeclared: JSON.parse(parsed.getElementById("asset-manifest").textContent).assets
+        .find((asset) => asset.id === "viewer-bar")?.mode ?? null,
       /* inline is the default, so materialising it stores no policy key. Parsed, not
          text-matched: "assets" also names the manifest's array. */
       storesPolicy: (() => {
@@ -174,7 +183,10 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
   expect(result.missingStyles).toEqual([]);
   /* Injected <style data-asset> is session state; it must not be saved twice. */
   expect(result.injectedStylesLeft).toBe(0);
-  expect(result.stillOnline).toBe(false);
+  expect(result.onlineInMode).toEqual([]);
+  /* The other mode's declaration survives, and its bytes do not travel. */
+  expect(result.viewerBlock).toBe(false);
+  expect(result.viewerDeclared).toBe("online");
   expect(result.storesPolicy).toBe(false);
   /* The chrome came back as markup, from the verified fragment plus its open tag. */
   expect(result.toolbar).toBe(true);

@@ -87,7 +87,6 @@ test("the sheet shows behaviour, storage and the pin", async ({ page }) => {
 
   const shown = await page.evaluate(() => ({
     open: document.getElementById("doc-settings-dialog").open,
-    mode: document.querySelector("[data-ds='mode']").value,
     rows: [...document.querySelectorAll("[data-ds-rows] tr")].map((tr) => ({
       key: tr.dataset.row,
       stored: tr.querySelector("select")?.value ?? "inline",
@@ -100,7 +99,10 @@ test("the sheet shows behaviour, storage and the pin", async ({ page }) => {
   }));
 
   expect(shown.open).toBe(true);
-  expect(shown.mode).toBe("edit");
+  /* `mode` is not a setting of a file you are editing: a view-mode save marks the editing
+     assets `absent`, and nothing in the editor can put them back. A viewer is an export
+     (File → Save as… → HTML → Viewer), so there is no control here to press by mistake. */
+  expect(await page.locator("[data-ds='mode']").count()).toBe(0);
   /* An edit-mode document: the base view and the editor, both inline by default — and a
      Viewer row, absent. The bar a viewer builds is chrome an editor never shows, so it is
      offered as a choice rather than silently carried. */
@@ -114,30 +116,24 @@ test("the sheet shows behaviour, storage and the pin", async ({ page }) => {
   expect(shown.threshold).toBe("2");
 });
 
-test("behaviour changes are written to the document and clamp against the mode", async ({ page }) => {
+test("the sheet writes editability and chrome, and never the mode", async ({ page }) => {
   await load(page);
   await openSheet(page);
 
-  await page.selectOption("[data-ds='mode']", "view");
-  /* A setting can restrict a mode, never contradict it — `editable` is clamped, because a
-     viewer has nothing to edit. `toolbar` is not: it means "show chrome", and a viewer has
-     chrome of its own (the bar), so forcing it off here used to strip the bar from a saved
-     viewer without anyone asking. */
-  const clamped = await page.evaluate(() => ({
-    editable: document.querySelector("[data-ds='editable']").checked,
-    editableDisabled: document.querySelector("[data-ds='editable']").disabled,
-    toolbar: document.querySelector("[data-ds='toolbar']").checked,
-    toolbarDisabled: document.querySelector("[data-ds='toolbar']").disabled,
-  }));
-  expect(clamped).toEqual({editable: false, editableDisabled: true, toolbar: true, toolbarDisabled: false});
-
+  await page.uncheck("[data-ds='editable']");
+  await page.uncheck("[data-ds='toolbar']");
   await page.click("[data-ds-done]");
+
   const settings = await settingsBlock(page);
-  expect(settings.mode).toBe("view");
+  /* The mode this file already had. There is no way to change it from a document you are
+     editing, because there is no way back: the editor assets are gone from a view-mode save. */
+  expect(settings.mode).toBe("edit");
   expect(settings.editable).toBe(false);
-  expect(settings.toolbar).toBe(true);
+  expect(settings.toolbar).toBe(false);
+  /* Behaviour applies on the next open — the loader enforces it, not this window. */
   expect(await page.evaluate(() => document.documentElement.dataset.toolbar)).toBe("on");
-  /* The document is now dirty: the change reaches disk on save, not before. */
+  expect(await page.evaluate(() => document.getElementById("content").isContentEditable)).toBe(true);
+  /* The document is dirty: the change reaches disk on save, not before. */
   expect(await page.evaluate(() => document.querySelector("[data-dirty]")?.hidden)).toBe(false);
 });
 
@@ -298,9 +294,9 @@ test("the size readout opens the sheet at Size & loading", async ({ page }) => {
     const body = dialog.querySelector(".ds-body");
     const inner = body.getBoundingClientRect();
     const outer = section.getBoundingClientRect();
-    return { open: dialog.open, mode: document.querySelector("[data-ds='mode']").value, inView: outer.top < inner.bottom && outer.bottom > inner.top };
+    return { open: dialog.open, inView: outer.top < inner.bottom && outer.bottom > inner.top };
   });
-  expect(visible).toEqual({open: true, mode: "edit", inView: true});
+  expect(visible).toEqual({open: true, inView: true});
 });
 
 test("a preset reaches the saved file", async ({ page }) => {

@@ -93,6 +93,30 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return parsed;
   }
 
+  /* Where a document saves when it is not a file on disk.
+   *
+   * Two facts, both checked here rather than at the save: which object, and which
+   * endpoint. A block that cannot name both is treated exactly like no block at all —
+   * a document that cannot say where it belongs is a file, and its Save button
+   * downloads. That is this field's whole compatibility story: every document written
+   * before it existed keeps behaving as one.
+   */
+  function cloudOf(value) {
+    const id = value && typeof value.id === "string" ? value.id : "";
+    if (!/^[a-z0-9][a-z0-9-]{2,63}$/.test(id)) return null;
+    /* Relative on purpose. The endpoint is a convention of the host the document is
+       opened against; an absolute one would pin a document to an origin it may later be
+       copied away from, which is the opposite of what the field is for. */
+    const api = typeof value.api === "string" && /^\/[A-Za-z0-9._~/-]*$/.test(value.api) ? value.api : "/api/docs";
+    /* The endpoint is relative, so it is only addressable from an http(s) origin. A copy
+       re-opened from disk is a file whatever its block says — and that is not pedantry:
+       without it, ⌘S on a downloaded document tries to PUT to `file:///api/docs/<id>`,
+       fails, and leaves the document unsaveable, while the viewer dialog offers a
+       "Copy to library" button that cannot work. */
+    if (typeof location === "undefined" || !/^https?:$/.test(location.protocol)) return null;
+    return {id, api: api.replace(/\/+$/, "")};
+  }
+
   /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
      read as a fallback for documents saved before the block existed (one release
      of compatibility, not a permanent second source of truth). */
@@ -127,6 +151,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       policy: authored?.policy ?? null,
       assets: authored?.assets ?? null,
       thresholdDeclined: Number(authored?.thresholdDeclined) || 0,
+      /* The library this document belongs to, or null for a file. Read live by the
+         toolbar's save, so the settings sheet can write it and the next ⌘S obeys. */
+      cloud: cloudOf(authored && authored.cloud),
     };
     return settingsParsed;
   }

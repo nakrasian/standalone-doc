@@ -38,6 +38,10 @@
                 <button data-menu-item data-export="html-interactive"
                   data-save>Interactive (.html)</button>
                 <button data-menu-item data-export="html-static">Static with captured figures…</button>
+                <!-- A viewer is an export, not a mode of this file: a view-mode save marks
+                     the editing assets `absent`, so a file rewritten that way cannot be
+                     edited again. The copy is what gets the two choices. -->
+                <button data-menu-item data-viewer>Viewer (read-only)…</button>
               </div>
             </div>
 

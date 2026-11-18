@@ -43,17 +43,13 @@
     <section class="ds-sect">
       <h3>Behaviour</h3>
       <p>Applies the next time this file is opened — the loader enforces it, not the markup.</p>
-      <div class="ds-row">
-        <span class="grow">Mode</span>
-        <select data-ds="mode" aria-label="Document mode">
-          <option value="edit">edit — full editor</option>
-          <option value="view">view — read only</option>
-          <option value="comment">comment — annotate (not built yet)</option>
-        </select>
-      </div>
+      <!-- No `mode` control, and none is coming back: a view-mode save marks the editing
+           assets `absent` (`policy.js`), so a file rewritten that way can never be edited
+           again. A viewer is an *export* — File → Save as… → HTML → Viewer (read-only)… —
+           which makes a copy and leaves this file alone. -->
       <div class="ds-row">
         <label class="grow"><input type="checkbox" data-ds="editable"> Content is editable</label>
-        <span class="ds-hint">edit mode only</span>
+        <span class="ds-hint">readers cannot type</span>
       </div>
       <div class="ds-row">
         <label class="grow"><input type="checkbox" data-ds="toolbar"> Show chrome</label>
@@ -113,4 +109,47 @@
     <button type="button" data-ds-cancel>Cancel</button>
     <button type="button" class="primary" data-ds-done>Done</button>
   </div>
+</dialog>
+
+<dialog id="viewer-dialog" aria-labelledby="viewer-title">
+  <form method="dialog">
+    <h2 id="viewer-title">Viewer (read-only)</h2>
+    <p class="sp-sub">A copy in view mode. This file is not changed: the copy carries no
+      editor, so there is nothing in it to edit and nothing that can write back.</p>
+    <div class="sp-row">
+      <span class="sp-text"><span class="sp-label">Show chrome</span>
+        <span class="sp-why">the reader’s bar: folio, title, Save a copy</span></span>
+      <input type="checkbox" data-viewer-toolbar aria-label="Show chrome">
+    </div>
+    <div class="sp-row">
+      <label class="sp-text" for="viewer-policy"><span class="sp-label">Loading</span>
+        <span class="sp-why">inline opens from disk; slim keeps one runtime for every copy</span></label>
+      <select id="viewer-policy" data-viewer-policy aria-label="Loading mode">
+        <option value="inline">inline — self-contained</option>
+        <option value="smart">smart — core inline, the rest fetched</option>
+        <option value="slim">slim — runtime by reference</option>
+      </select>
+    </div>
+    <div class="dialog-actions">
+      <button type="submit" value="cancel">Cancel</button>
+      <button type="submit" value="download">Download</button>
+      <button type="submit" class="primary" value="library" data-viewer-publish hidden>Copy to library</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="publish-dialog" aria-labelledby="publish-title">
+  <form method="dialog">
+    <h2 id="publish-title">Read-only link</h2>
+    <p class="sp-sub">Anyone with this link can read the document. It is a copy in view
+      mode: nothing they do reaches this file, and the link can be revoked from the library.</p>
+    <input type="text" data-publish-url readonly aria-label="Read-only link"
+      spellcheck="false" autocomplete="off">
+    <p class="sp-note">The copy carries this release's assets by reference, so a reader
+      fetches the same runtime every other document in the library uses.</p>
+    <div class="dialog-actions">
+      <button type="button" data-publish-copy>Copy link</button>
+      <button class="primary" value="close" autofocus>Done</button>
+    </div>
+  </form>
 </dialog>

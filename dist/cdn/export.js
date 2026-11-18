@@ -387,7 +387,11 @@ export function createExport(deps = {}) {
 
   async function begin(kind) {
     if (busy) return;
-    if (kind === "html-interactive") {toolbar.save(); return;}
+    /* A file destination, always: "Save as… → HTML → Interactive" is the way to get a copy
+       you can send, so it must not be routed into the library sink by a document that
+       happens to name one. `to: "file"` is also what keeps the copy's assets the author's
+       choice — a hosted document saves `slim`, which needs the network to open. */
+    if (kind === "html-interactive") {toolbar.save({to: "file"}); return;}
     if (kind === "print-live") {printLive(); return;}
     busy = true;
     const buttons = [...document.querySelectorAll("[data-export]")];

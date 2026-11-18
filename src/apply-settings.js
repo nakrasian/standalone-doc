@@ -15,12 +15,23 @@ export function createApplySettings(deps = {}) {
     /* Chrome visibility is a setting of its own, not a consequence of the mode: a
        read-only copy may still want the toolbar for print or zoom. */
     root.dataset.toolbar = settings.toolbar ? "on" : "off";
+    /* Where this file saves, announced for the same reason: chrome reads it, and no menu
+       item should have to re-parse the settings block to decide whether to exist. A file
+       says `off` before the first paint, so the File menu never offers a library it does
+       not have. */
+    root.dataset.cloud = settings.cloud ? "on" : "off";
 
     /* A built flavour carries only the chrome its mode builds, but `index.html` is the
        source of all of them and a hand-edited copy can carry a block it never runs. Paint
        the chrome this mode owns, and only that — the bar is a viewer's. */
     const viewerBar = document.getElementById("viewer-bar");
     if (viewerBar) viewerBar.hidden = settings.mode !== "view";
+    /* The same rule the other way round, and it is not symmetry for its own sake: a
+       document saved with its editor inline and then switched to view mode carries the
+       ribbon's markup without the module that drives it. Dead furniture is worse than
+       absent furniture, and a view-mode file has a bar of its own to paint. */
+    const ribbon = document.getElementById("app-toolbar");
+    if (ribbon) ribbon.hidden = settings.mode !== "edit";
 
     const content = document.getElementById("content");
     if (!content) return;

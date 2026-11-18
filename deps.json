@@ -303,6 +303,7 @@
         "save",
         "serialize",
         "validate",
+        "viewer",
         "settings"
       ]
     },

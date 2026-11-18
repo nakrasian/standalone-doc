@@ -76,7 +76,7 @@ cannot claim to be editable when this block says otherwise.
 | field | default | meaning |
 |---|---|---|
 | `schema` | `1` | Refused if unknown. |
-| `mode` | `edit` | `edit` · `view` · `comment`. Decides which `requiredBy` groups are built. |
+| `mode` | `edit` | `edit` · `view` · `comment`. Decides which `requiredBy` groups are built. **Not writable from a document you are editing**: a view-mode save marks the editing assets `absent`, so a file rewritten that way can never be edited again. A viewer is an export (`File → Save as… → HTML → Viewer`), which makes a copy. |
 | `editable` | `true` in edit mode | `false` locks `#content` regardless of the markup. A setting can restrict a mode, never grant one: `true` in view mode is still read-only. |
 | `toolbar` | `mode !== "view"` | **Show chrome** — the editor's ribbon, or a viewer's bar. Not "show the editor": a view-mode document has chrome of its own. A file saved before this meant "ribbon" never authored it, so it keeps its chrome-less look. |
 | `ui` | `ribbon` | `ribbon` or `minimal` — which editor chrome to paint. Presentation only; applied before first paint so a minimal file never flashes its ribbon. |
@@ -84,11 +84,18 @@ cannot claim to be editable when this block says otherwise.
 | `thresholdDeclined` | absent | The size at which the author said "don't ask again". The prompt re-arms at twice this. |
 | `timeoutMs` | `8000` | Per-asset load timeout. Behaviour, so it lives here and not in the manifest. |
 | `policy` | absent | The save preset the author chose: `inline`, `smart`, `slim`. Absent means `inline`. |
-| `assets` | absent | An explicit `{id: "inline" \| "online" \| "absent"}` map. **Wins over `policy`** and replaces it on write: a preset is a shorthand for a map, and writing both would be two answers to one question. |
+| `assets` | absent | An explicit `{id: "inline" \| "online" \| "absent"}` map. **Wins over `policy`** and replaces it on write: a preset is a shorthand for a map, and writing both would be two answers to one question. `absent` means the author removed the asset; an asset that is merely outside the current `mode` leaves the file but keeps its declaration, so the other mode can still be produced (an export, a viewer). |
+| `cloud` | absent | `{id, api?}` — the library this document belongs to. `id` is the object key (3–64 of `[a-z0-9-]`); `api` defaults to `/api/docs` and must be **relative**, so a document copied to another host does not drag its old origin with it. Absent, malformed, **or opened from `file://`** means a file: the endpoint is relative, so a copy re-opened from disk cannot address it, and a document that cannot reach its library downloads instead of failing. |
 
-`policy` and `assets` are what the save sheet edits. `mode`/`editable`/`toolbar` also travel
-here, which is why the sheet can offer "this copy opens in view mode" without touching the
-markup.
+`policy` and `assets` are what the save sheet edits, along with `editable` and `toolbar`.
+`mode` also travels here, but only a build flavour or an export writes it: the settings sheet
+reads it and preserves it, and offers no control for it.
+
+`cloud` changes what Save *is*, without changing the button: a document that names a library
+is written back to it (and its assets stay `online`, so every document in the library shares
+one runtime), while a document that names none is downloaded as before. A published copy is
+made by saving **in view mode** and then removing `cloud` from it — a copy is not a source, so
+a reader who saves it as an editor cannot PUT over the document it came from.
 
 ## 3. `#plugin-catalog` — optional
 

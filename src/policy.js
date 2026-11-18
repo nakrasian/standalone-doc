@@ -60,7 +60,7 @@ export function createPolicy(deps = {}) {
    * figures that need each plugin; `baseBytes` is the document minus its asset
    * bodies, so the estimate is comparable to the file about to be written.
    */
-  function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, baseBytes = 0} = {}) {
+  function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, baseBytes = 0, absentOutside = false} = {}) {
     const decisions = [...((manifest && manifest.assets) || [])]
       .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map((asset) => {
@@ -83,7 +83,7 @@ export function createPolicy(deps = {}) {
     const inlineBytes = decisions
       .filter((decision) => decision.to === "inline")
       .reduce((sum, decision) => sum + decision.bytes, 0);
-    return {policy, mode, usage, decisions, inlineBytes, estimate: baseBytes + inlineBytes};
+    return {policy, mode, usage, absentOutside, decisions, inlineBytes, estimate: baseBytes + inlineBytes};
   }
 
   /** The asset states a plan produces, ignoring the loader (never a choice). */
@@ -358,7 +358,17 @@ export function createPolicy(deps = {}) {
         continue;
       }
       if (present) changed.push(decision.id);
-      if (entry && entry.mode !== decision.to) {
+      /* `absent` is a declaration — "the author removed this" — and it is written down.
+         An asset that is merely outside this mode is a different thing: it leaves this
+         file, but forgetting where its bytes live makes the other mode impossible to
+         produce later. That is not hypothetical: an edit-mode save used to mark the
+         viewer's assets `absent`, so an edited document could no longer be exported as a
+         viewer at all — there was nothing left to fetch. A *flavour* is the case that
+         wants the declaration gone (a copy that cannot be flipped back into an editor),
+         so it asks for it with `absentOutside`. */
+      const merelyOutside =
+        decision.to === "absent" && !planned.absentOutside && entry && !inMode(entry, planned.mode);
+      if (entry && entry.mode !== decision.to && !merelyOutside) {
         entry.mode = decision.to;
         manifestChanged = true;
       }
@@ -426,7 +436,7 @@ export function createPolicy(deps = {}) {
     return registry && registry.settings ? registry.settings() : settings;
   };
 
-  function planned({policy, overrides, mode, baseBytes = 0} = {}) {
+  function planned({policy, overrides, mode, baseBytes = 0, absentOutside = false} = {}) {
     const registry = env.StandaloneDoc;
     const manifest = registry && registry.manifest ? registry.manifest() : {assets: []};
     const current = liveSettings();
@@ -438,6 +448,7 @@ export function createPolicy(deps = {}) {
       overrides: chosen.overrides,
       usage: usage(),
       baseBytes,
+      absentOutside,
     });
   }
 
