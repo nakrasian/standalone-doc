@@ -49,6 +49,21 @@ const PLUGIN_JS = `export function createWasmProbe() {
 }
 `;
 
+/** A plugin that does not touch its binary until it is asked to. */
+const LAZY_JS = `export function createLazyProbe() {
+  return {
+    async activate(host) {
+      let bytes = null;
+      globalThis.__lazy = {
+        fetched: () => bytes,
+        async load() { bytes = await host.bytes("probe-runtime"); return bytes.byteLength; },
+      };
+      return { deactivate() { bytes = null; } };
+    },
+  };
+}
+`;
+
 /** An editor document with one plugin bundling an inline wasm asset and an inline module. */
 function makeDoc() {
   let html = EDITOR;
@@ -112,6 +127,61 @@ test("boot leaves a plugin's binary alone; require() hands it over as bytes", as
   expect(after.five).toBe(5);
   expect(after.exports).toEqual(["add"]);
   expect(problems).toEqual([]);
+});
+
+test("a plugin's online binary is not fetched until host.bytes() asks", async ({ page }) => {
+  /* The bundle is loaded because its menu entry exists; the 41 bytes (or a 12 MB typst
+     compiler) are not, because this plugin did not ask for them. `buildPlugin()` used to
+     fetch every online asset of a bundle, so a plugin's cost was decided by its contents
+     rather than by the click. */
+  fs.mkdirSync(TMP, { recursive: true });
+  fs.writeFileSync(path.join(TMP, `probe-online-${process.pid}.wasm`), WASM);
+  const url = `/.test-tmp/probe-online-${process.pid}.wasm`;
+
+  let html = EDITOR;
+  const manifest = JSON.parse(MANIFEST_RE.exec(html)[2]);
+  manifest.assets.push(
+    {
+      id: "probe-runtime", kind: "bin", role: "module", order: 200, mode: "online",
+      category: "plugin", plugin: "lazy-probe", requiredBy: ["*"],
+      bytes: WASM.length, url, integrity: sha384(WASM),
+    },
+    {
+      id: "lazy-probe", kind: "js", role: "module", order: 210, mode: "inline",
+      category: "plugin", plugin: "lazy-probe", requiredBy: ["*"],
+      bytes: Buffer.byteLength(LAZY_JS), factory: "createLazyProbe",
+      url: `/.test-tmp/lazy-probe-${process.pid}.js`, integrity: sha384(Buffer.from(LAZY_JS)),
+    },
+  );
+  manifest.plugins = {
+    "lazy-probe": {
+      label: "Lazy probe", version: "1.0.0", island: "sealed", enabled: true,
+      entry: "lazy-probe", assets: ["probe-runtime", "lazy-probe"],
+    },
+  };
+  html = html.replace(MANIFEST_RE, (_, open, _json, close) => open + JSON.stringify(manifest) + close);
+  html = html.replace(BOOTSTRAP, `<!-- @asset id="probe-runtime" kind="bin" order="200" -->\n`
+    + `<script type="application/wasm" id="probe-runtime">${BASE64}</script>\n<!-- /@asset -->`
+    + `\n\n<!-- @asset id="lazy-probe" kind="js" order="210" -->\n<script type="module" id="lazy-probe">\n`
+    + `${LAZY_JS}\nStandaloneDoc.register("lazy-probe", createLazyProbe);\n</script>\n<!-- /@asset -->`
+    + `\n\n${BOOTSTRAP}`);
+  const name = `.test-tmp/bin-lazy-${process.pid}.html`;
+  fs.writeFileSync(path.join(ROOT, name), html);
+
+  const fetched = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith(`probe-online-${process.pid}.wasm`)) fetched.push(request.url());
+  });
+
+  await page.goto("/" + name);
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, { timeout: 20_000 });
+  await page.evaluate(() => StandaloneDoc.require("lazy-probe"));
+  await page.waitForFunction(() => !!globalThis.__lazy);
+
+  expect(fetched).toEqual([]);
+  const size = await page.evaluate(() => globalThis.__lazy.load());
+  expect(size).toBe(WASM.length);
+  expect(fetched).toHaveLength(1);
 });
 
 test("only bytes are readable from a binary asset, and only its own", async ({ page }) => {

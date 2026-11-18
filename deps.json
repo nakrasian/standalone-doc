@@ -347,6 +347,7 @@
         "begin",
         "capture",
         "captureAndBuild",
+        "materialize",
         "buildStatic",
         "validateStatic",
         "figureFiles",

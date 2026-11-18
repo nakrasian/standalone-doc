@@ -120,6 +120,7 @@ npm run dev         # http://127.0.0.1:8080 — always use this for anything tha
 npm run cdn:verify  # fetch every published asset and check its hash (needs network)
 npm test            # unit tests (node:test)
 npm run report      # size table, per asset
+npm run export -- doc.html --to=docx,typ,md    # needs pandoc 3 on PATH (tools/export.mjs)
 ```
 
 ## Repository layout
@@ -128,6 +129,7 @@ npm run report      # size table, per asset
 index.html          canonical editor. Hand-editable. Assets marked with @asset comments.
 manifest.json       asset registry: id, kind, order, file, bytes, sha384, mode, requiredBy
 build.mjs           split | combine | verify | check | build | report | catalog | dev  (zero deps)
+tools/              export.mjs + sd-export.lua + the census: the document → engine path
 src/                one file per asset, generated from index.html by `split`
 dist/               build output (committed: the CDN serves these at a tag)
 dist/runtime.json   releases a document may re-pin to; one manifest per tag in dist/runtime/

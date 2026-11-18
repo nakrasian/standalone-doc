@@ -89,6 +89,22 @@ test("media: \"files\" references a flat file, and figureFiles names it", async 
   expect(state.dataUriProblems).toContain("figure 1 image is not a data URL");
 });
 
+test("materialize is the plugin's door: it reports problems instead of throwing", async ({ page }) => {
+  await loadDoc(page);
+  const state = await page.evaluate(async () => {
+    const ex = globalThis.StandaloneDoc.modules.export;
+    /* A figure with no store entry cannot be captured — the materializer must come back
+       with a problem, not an exception, because whether that is fatal is the caller's
+       contract (`onMissing: fail`). */
+    const out = await ex.materialize({format: "png", media: "files"});
+    return {hasHtml: typeof out.html === "string" && out.html.length > 0, files: out.files, problems: out.problems};
+  });
+
+  expect(state.hasHtml).toBe(true);
+  expect(state.files).toEqual([]);
+  expect(state.problems).toContain("figure 1 has no captured source");
+});
+
 test("a figure with no capture is reported, not silently shipped", async ({ page }) => {
   await loadDoc(page);
   const state = await page.evaluate(() => {

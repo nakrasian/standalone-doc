@@ -797,8 +797,12 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     if (!assets.length) throw record(failure("missing", id, "has no assets in this document's manifest"));
 
     /* Same two phases as boot, for one bundle. Inline assets are already in the
-       document and need no fetch. */
-    const online = assets.filter((asset) => asset.mode === "online" && !factories[asset.id]);
+       document and need no fetch. A `bin` is the exception, and it is the whole point of
+       the kind: a wasm runtime is fetched by `bytesOf()` when the plugin asks for it, not
+       because the plugin was loaded. Without this, exporting Markdown would download a
+       typst compiler the target never uses. */
+    const online = assets.filter((asset) => asset.mode === "online"
+      && asset.kind !== "bin" && !factories[asset.id]);
     const loaded = new Map();
     const outcomes = await Promise.allSettled(
       online.map(async (asset) => {
@@ -816,6 +820,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     }
 
     for (const [position, asset] of assets.entries()) {
+      /* A binary is never constructed here either: `bytesOf()` is its only fetch, and
+         `host.bytes()` its only reader (invariant 13). */
+      if (asset.kind === "bin") continue;
       try {
         await constructOne(asset, { loaded, index: position, total: assets.length, lazy: true });
       } catch (error) {

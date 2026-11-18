@@ -172,8 +172,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 38354,
-      "sha384": "sha384-cjE0BRPbGiHdkaXhh7q/DCenCZfNKrKLrO8g7JfLyPp0M4e768hDhiNkQ+pznp15",
+      "bytes": 38851,
+      "sha384": "sha384-TZ0s6Y5kvML4AemErIL8Q1lieJzKLfWZtCfD3Yc61aGwMqoHLjmrrULAgMfEnzKl",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -555,8 +555,8 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 36326,
-      "sha384": "sha384-lsnOn0TVjAW49Ip59FIx7rYbpc5+9hqc2qh/RzHS63veab28f1uspGEznxCk35Zi",
+      "bytes": 37518,
+      "sha384": "sha384-QYC5XAMXctuGTYcBDXX25SImG3fcwSxBqNNTctn30YfGYIL6DZV9YcPtXFge5rRc",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -572,6 +572,7 @@
         "begin",
         "capture",
         "captureAndBuild",
+        "materialize",
         "buildStatic",
         "validateStatic",
         "figureFiles",

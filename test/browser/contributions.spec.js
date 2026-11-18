@@ -32,6 +32,9 @@ const PLUGIN_JS = `export function createTile() {
       let absent = "resolved";
       try { host.use("nothing-offers-this"); } catch (error) { absent = error.kind; }
       globalThis.__absentProvider = absent;
+      let materialize = "unavailable";
+      try { materialize = typeof host.use("materialize").build; } catch (error) { materialize = error.kind; }
+      globalThis.__materializeProvider = materialize;
       return {
         insert: {
           tile: async ({ contribution }) => ({
@@ -137,6 +140,7 @@ test("a UI plugin is built at boot, and its entries are in both bars", async ({ 
       editorProvider: globalThis.__editorProvider,
       statusProvider: globalThis.__statusProvider,
       absentProvider: globalThis.__absentProvider,
+      materializeProvider: globalThis.__materializeProvider,
       insertHosts: inserts.length,
       insertButtons: inserts.map((host) => host.querySelectorAll("[data-plugin-insert]").length),
       insertHidden: inserts.map((host) => host.hidden),
@@ -152,6 +156,8 @@ test("a UI plugin is built at boot, and its entries are in both bars", async ({ 
   expect(state.editorProvider).toBe("function");
   expect(state.statusProvider).toBe("function");
   expect(state.absentProvider).toBe("unavailable");
+  /* exporting is a capability the materializer offers; a plugin may call it, never own it */
+  expect(state.materializeProvider).toBe("function");
   /* the host element exists in both the ribbon and the minimal bar */
   expect(state.insertHosts).toBe(2);
   expect(state.insertButtons).toEqual([1, 1]);

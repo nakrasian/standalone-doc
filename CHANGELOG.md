@@ -35,6 +35,34 @@ decimal number, Markdown inlines the base64 into the prose. `capture({format})` 
 WebP for the HTML export, never for Word 2013. No UI changes; nothing in the editor calls
 the new modes yet.
 
+- **`npm run export` — a document in, a document out.** `tools/export.mjs` runs the file's
+own export module to capture its figures, stages the result as HTML plus `fig-01.png`, hands
+it to pandoc with one Lua filter (`tools/sd-export.lua`), and then *audits the result*: the
+materialized DOM is counted, pandoc's AST is counted, and any difference is a failed export
+rather than a warning. Three stages because each answers a different question, and because a
+second idea of "a figure" would disagree with the HTML export about figure 4. No dependency
+is added to this repository — the browser is the one the tests already install, and pandoc is
+a tool on `PATH` (`--pandoc=…` for another). What the lab measured, rather than assumed:
+`<article>` is skipped by the reader (children hoisted), `<p><ul>` parses correctly, `<u>` is
+a real `Underline` node, a caret paragraph is `Para [LineBreak]`, and a `data:` URI figure is
+an **empty** LaTeX figure — so the materializer writes `fig-01.png` and the engine is handed
+the bytes. `-M sd-target=<writer>` exists because a JSON conversion would otherwise take the
+html branch of every format-dependent decision the filter makes.
+
+- **`host.use("materialize")` — the one way a plugin may capture a document.** `export.js` is
+where figures are captured and chrome is dropped, but it offered no capability, so a plugin
+could not reach the materialized HTML at all. It now provides `{build}`: one function, which
+runs the host's own progress dialog and the same abort, and returns `{html, files, problems}`
+instead of throwing — whether a placeholder is fatal is the caller's contract
+(`onMissing: fail`), not the materializer's. A plugin may *be* an exporter; it may not become
+the export menu.
+
+- **A plugin's `bin` is no longer fetched because a plugin was loaded.** `buildPlugin()`
+fetched every online asset of a bundle in parallel and constructed each one, so a bundle
+carrying a 12 MB typst compiler downloaded it to export Markdown. `bin` assets are skipped in
+both phases: `bytesOf()` is their only fetch, `host.bytes()` their only reader — which is what
+`bin` was for (invariant 13), and what an export target needs.
+
 ### Fixed
 
 - **A block painted its own source when its id was shared.** An asset block is found by its
@@ -48,12 +76,13 @@ the new modes yet.
 
 ### Size
 
-index 411.2 → 415.7 KB · editor 399.6 → 403.3 KB · viewer 181.4 → 182.8 KB · slim unchanged
-(the viewer's bar sheet is `mode: online`, so a viewer pays for the qualifiers; an editor
-pays only for the one general rule). Of this release's +4.5 KB, 3.0 KB is the export seam —
-`export` 35.2 → 37.7 KB, `plugins` 36.9 → 37.3 KB — carried by an editor and by no flavour
-that cannot export: `slim.html` inlines the manifest but fetches `export`, and a viewer
-never had it.
+index 411.2 → 417.5 KB · editor 399.6 → 405.1 KB · viewer 181.4 → 183.4 KB · slim 77.1 →
+77.6 KB (the viewer's bar sheet is `mode: online`, so a viewer pays for the qualifiers; an
+editor pays only for the one general rule). The export seam is 3.0 KB of `export` + `plugins`,
+carried by an editor and by no flavour that cannot export: `slim.html` inlines the manifest but
+fetches `export`, and a viewer never had it. The 0.5 KB every flavour pays is the loader —
+two `kind !== "bin"` guards, which are inline by definition because the thing that verifies
+hashes cannot be a thing that might fail to arrive.
 
 ## v0.6.1 — 2026-11-17
 
