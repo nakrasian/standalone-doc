@@ -77,8 +77,14 @@ names its own `catalog`. jsDelivr caches branch refs, so a fresh release can lag
 catalog until that path is purged — measured, and worth knowing before suspecting the code:
 
 ```sh
-curl -s https://purge.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json
+node build.mjs purge --main       # the two mutable catalog files
+node build.mjs purge v0.9.0       # a release: its paths plus those two
 ```
+
+Purging is a **cache** operation and nothing else: the endpoint answers `finished` even for a
+path that does not exist, so it never tells you whether a release is correct. `verify-cdn` does
+that. What a purge is for is the failure this repository has actually hit — a failed GitHub
+fetch cached by the CDN, which serves one file as 404 while its neighbours are fine.
 
 ### The viewer's chrome
 

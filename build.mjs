@@ -1862,6 +1862,129 @@ function cmdDev() {
  * with the purges a brand-new tag needs, because jsDelivr caches a failed fetch forever
  * and the first person to hit it is a reader.
  */
+/**
+ * Every path a release publishes, in the order a purge wants them.
+ *
+ * One definition, two callers: `release` prints them and `purge` fetches them, and a list
+ * that is typed out twice is a list that drifts once.
+ */
+function publishedPaths(manifest) {
+  return [
+    "dist/editor.html", "dist/slim.html", "dist/viewer.html",
+    /* The catalog is fetched from the document's own tag (`<cdnBase>/../registry.json`), so
+       its path is new at every tag — and it is the file that makes a bundle discoverable. */
+    "dist/registry.json",
+    ...manifest.assets.filter((asset) => asset.role !== "infra")
+      .map((asset) => `dist/cdn/${asset.id}.${extensionFor(asset.kind)}`),
+    /* A plugin is published under `dist/` too, so its paths are new at this tag — including
+       the manifest a document installs from. */
+    ...publishedPlugins().keys(),
+  ];
+}
+
+const jsdelivrSlug = (base) => /cdn\.jsdelivr\.net\/gh\/([^/@]+\/[^/@]+)@/.exec(String(base || ""))?.[1] ?? null;
+
+/**
+ * Purge jsDelivr's cache for a release, in one command.
+ *
+ * What a purge is *for*, which is narrower than it looks: jsDelivr's own tool says purging
+ * "clears CDN caches only" and exists for "version-aliased urls". An exact tag is immutable,
+ * so its bytes cannot go stale — the reason to purge a tag's paths is the other failure this
+ * repository has actually hit: a *failed* GitHub fetch that the CDN cached, which serves one
+ * file as 404 while its neighbours are fine (`lab` history, v0.8.0). The two `@main` files are
+ * the genuinely mutable ones: the catalog a document reads to hear about releases.
+ *
+ *   node build.mjs purge                 # this cdnBase's tag + the two @main files
+ *   node build.mjs purge v0.9.0          # an explicit tag
+ *   node build.mjs purge --main          # only what is mutable (cheap, and usually enough)
+ *   node build.mjs purge --dry-run       # print the urls, touch nothing
+ *
+ * Two facts the endpoint teaches and the docs do not:
+ *
+ *   - it answers `{"status":"finished"}` even for a path or a ref that does not exist — a
+ *     purge is a cache operation and it never validates anything, so `verify-cdn` is the only
+ *     thing that proves a release;
+ *   - it reports `throttled` per path, and jsDelivr caches a repository's version list for up
+ *     to ten minutes after a tag appears. An immediate purge can therefore be a no-op; if it
+ *     says throttled, wait and run it again.
+ *
+ * Concurrency 4: jsDelivr throttles, so a burst of 34 is worse than 9 rounds of 4.
+ */
+async function cmdPurge({ tag = null, mainOnly = false, dryRun = false } = {}) {
+  const manifest = readManifest();
+  const base = String(manifest.cdnBase || "");
+  const slug = jsdelivrSlug(base);
+  const target = tag || /@([^/]+)\//.exec(base)?.[1] || null;
+  const paths = publishedPaths(manifest);
+  const main = ["dist/runtime.json", "dist/registry.json"];
+
+  if (!slug) {
+    /* A different host purges differently, and guessing is worse than a list. */
+    console.log(`purge: ${base || "(no cdnBase)"} is not a jsDelivr base — purge these ${paths.length} paths on your host:`);
+    for (const file of paths) console.log(`  ${file}`);
+    return;
+  }
+  if (!mainOnly && !target) {
+    console.error("purge: this base names no tag — pass one (`purge v0.9.0`) or use --main");
+    process.exit(1);
+  }
+
+  const urls = [
+    ...(mainOnly ? [] : paths.map((file) => `https://purge.jsdelivr.net/gh/${slug}@${target}/${file}`)),
+    ...main.map((file) => `https://purge.jsdelivr.net/gh/${slug}@main/${file}`),
+  ];
+  if (dryRun) {
+    console.log(`purge: --dry-run, ${urls.length} urls, nothing requested`);
+    for (const url of urls) console.log(`  ${url}`);
+    return;
+  }
+
+  const failures = [];
+  let done = 0;
+  const worker = async () => {
+    for (;;) {
+      const url = urls.shift();
+      if (!url) return;
+      let label;
+      try {
+        const response = await fetch(url, {headers: {"user-agent": "standalone-doc release"}});
+        const text = await response.text();
+        let status = null;
+        let throttled = false;
+        try {
+          const body = JSON.parse(text);
+          status = body.status ?? null;
+          /* Per-path, and it is the one answer that means "not now". */
+          const key = decodeURIComponent(new URL(url).pathname);
+          throttled = Boolean(body.paths?.[key]?.throttled);
+        } catch { /* not JSON: the status code is the answer */ }
+        const clean = response.ok && !throttled && (status === null || ["finished", "pending", "ok", "success"].includes(status));
+        label = throttled ? "throttled" : clean ? "ok" : status || `HTTP ${response.status}`;
+        if (!clean) failures.push({url, why: label});
+      } catch (error) {
+        label = (error && error.message) || "request failed";
+        failures.push({url, why: label});
+      }
+      done++;
+      console.log(`  ${label === "ok" ? "ok     " : "FAILED "} ${url.replace("https://purge.jsdelivr.net/", "")}`);
+    }
+  };
+  console.log(`purge: ${urls.length} urls (${mainOnly ? "the mutable catalog only" : `${target} + the mutable catalog`})`);
+  await Promise.all([worker(), worker(), worker(), worker()]);
+
+  if (failures.length) {
+    console.error(`purge: ${failures.length} of ${done} not clean`);
+    for (const failure of failures) console.error(`  ${failure.why}  ${failure.url}`);
+    console.error("purge: idempotent — run it again (jsDelivr caches a version list for up to 10 minutes");
+    console.error("purge: after a tag appears, so an immediate second run usually settles it)");
+    process.exit(1);
+  }
+  /* Said out loud because it is the thing people get wrong: this cleared a cache, it did not
+     check anything. The bytes are `verify-cdn`'s business. */
+  console.log(`purge: ${done} ok — a cache cleared, nothing verified.`);
+  console.log(`purge: next: node build.mjs verify-cdn${target ? ` --tag=${target}` : ""}`);
+}
+
 async function cmdRelease({ version, dryRun = false } = {}) {
   const usage = "release: usage: node build.mjs release <major.minor.patch> [--dry-run]";
   if (!/^\d+\.\d+\.\d+$/.test(String(version || ""))) {
@@ -1921,31 +2044,16 @@ async function cmdRelease({ version, dryRun = false } = {}) {
     process.exit(1);
   }
 
-  /* jsDelivr: a new tag is a new set of paths, and it caches a failed fetch. Purging the
-     files that changed (all of them, on a first release) is cheaper than debugging it. */
-  const slug = /cdn\.jsdelivr\.net\/gh\/([^/@]+\/[^/@]+)@/.exec(nextBase)?.[1];
-  const files = ["dist/editor.html", "dist/slim.html", "dist/viewer.html",
-    /* The catalog is fetched from the document's own tag (`<cdnBase>/../registry.json`), so
-       its path is new at every tag — and it is the file that makes a bundle discoverable. */
-    "dist/registry.json",
-    ...manifest.assets.filter((asset) => asset.role !== "infra").map((asset) => `dist/cdn/${asset.id}.${extensionFor(asset.kind)}`),
-    /* A plugin is published under `dist/` too, so its paths are new at this tag and jsDelivr
-       has to be told about them as well — including the manifest a document installs from. */
-    ...publishedPlugins().keys()];
-
+  const slug = jsdelivrSlug(nextBase);
   console.log("");
   console.log("release: the mechanical part is done and green. Next, by hand:");
   console.log(`  1. tag it   git tag -a ${tag} -m "${tag} — <one line>"`);
   console.log(`  2. push     git push origin main && git push origin ${tag}`);
-  if (slug) {
-    console.log(`  3. purge    jsDelivr caches a new tag's paths (and a failed fetch, forever):`);
-    console.log(`     for f in ${files.join(" ")}; do curl -s "https://purge.jsdelivr.net/gh/${slug}@${tag}/$f" > /dev/null; done`);
-    console.log(`     curl -s "https://purge.jsdelivr.net/gh/${slug}@main/dist/runtime.json" > /dev/null`);
-    console.log(`     curl -s "https://purge.jsdelivr.net/gh/${slug}@main/dist/registry.json" > /dev/null`);
-    console.log(`  4. verify   node build.mjs verify-cdn --tag=${tag}`);
-  } else {
-    console.log(`  3. purge    not a jsDelivr base — purge ${files.length} paths on your host, then verify`);
-  }
+  console.log(`  3. purge    ${slug
+    ? `node build.mjs purge ${tag}   (or --main: only the two mutable catalog files)`
+    : `node build.mjs purge   # prints the ${publishedPaths(manifest).length} paths for your host`}`);
+  console.log(`  4. verify   node build.mjs verify-cdn --tag=${tag}`);
+  console.log(`  5. open the tag's dist/slim.html from disk once — ready, 0 errors, only the CDN contacted`);
   console.log(`  5. catalog  npm run catalog && git commit -am "chore(catalog): ${tag}'s entry now carries its date" && git push`);
 }
 
@@ -1985,6 +2093,14 @@ switch (cmd) {
     break;
   case "verify-cdn":
     await cmdVerifyCdn({ tag: flags.find((flag) => flag.startsWith("--tag="))?.slice("--tag=".length) ?? null });
+    break;
+  case "purge":
+    await cmdPurge({
+      /* The tag is the first bare argument (`purge v0.9.0`), so the ritual reads like prose. */
+      tag: flags.find((flag) => !flag.startsWith("--")) ?? flags.find((flag) => flag.startsWith("--tag="))?.slice("--tag=".length) ?? null,
+      mainOnly: flags.includes("--main"),
+      dryRun: flags.includes("--dry-run"),
+    });
     break;
   case "dev":
     cmdDev();

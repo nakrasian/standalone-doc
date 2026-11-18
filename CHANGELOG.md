@@ -7,6 +7,17 @@ half of boot that was silent (Phase 7's B, C and D, measured in `lab/013`–`lab
 
 ### Added
 
+- **The release purge is one command** (`node build.mjs purge [tag]`, `--main`, `--dry-run`).
+  `release` used to print a 32-path `for f in …; do curl …; done` whose list was typed out beside
+  the manifest it came from; the paths are now one function (`publishedPaths()`, used by both
+  commands), the purge runs four at a time, reports each path (`ok` / `throttled` / why) and
+  exits non-zero if any did not settle. `--main` purges only the two mutable catalog files, which
+  is usually all a release needs — an exact tag's bytes cannot go stale, and the reason to purge a
+  tag is a *failed* fetch the CDN cached. Two things the endpoint teaches, recorded in the help
+  and the README: it answers `{"status":"finished"}` for a path or ref that does not exist (a purge
+  validates nothing — `verify-cdn` does), and it reports `throttled` per path because jsDelivr
+  caches a repository's version list for up to ten minutes after a tag appears.
+
 - **The boot dialog shows the fetch, not just the build.** `boot()` reported construction and
   said nothing during the fetch, which on a slow link is 99 % of the wait: `lab/013` measured
   4,331 ms of silence out of 4,358, with the bar flat at 0 % for all of it, while construction
