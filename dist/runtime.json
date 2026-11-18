@@ -96,7 +96,7 @@
     },
     {
       "tag": "v0.8.2",
-      "date": null,
+      "date": "2026-11-18",
       "base": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/cdn",
       "assets": 22,
       "manifest": "runtime/v0.8.2.json"
