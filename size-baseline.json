@@ -1,27 +1,27 @@
 {
   "source": {
-    "bytes": 429375
+    "bytes": 449686
   },
   "assets": [
+    {
+      "id": "toolbar",
+      "kind": "js",
+      "bytes": 66648
+    },
     {
       "id": "figures",
       "kind": "js",
       "bytes": 61281
     },
     {
-      "id": "toolbar",
-      "kind": "js",
-      "bytes": 55695
-    },
-    {
       "id": "registry",
       "kind": "js",
-      "bytes": 42354
+      "bytes": 44212
     },
     {
       "id": "export",
       "kind": "js",
-      "bytes": 39326
+      "bytes": 39716
     },
     {
       "id": "plugins",
@@ -31,7 +31,12 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 31687
+      "bytes": 34360
+    },
+    {
+      "id": "policy",
+      "kind": "js",
+      "bytes": 20536
     },
     {
       "id": "editor",
@@ -39,19 +44,14 @@
       "bytes": 19727
     },
     {
-      "id": "policy",
-      "kind": "js",
-      "bytes": 19591
+      "id": "toolbar-markup",
+      "kind": "html",
+      "bytes": 17422
     },
     {
       "id": "boot-ui",
       "kind": "js",
       "bytes": 17077
-    },
-    {
-      "id": "toolbar-markup",
-      "kind": "html",
-      "bytes": 17065
     },
     {
       "id": "page-styles",
@@ -62,6 +62,11 @@
       "id": "pagination",
       "kind": "js",
       "bytes": 9654
+    },
+    {
+      "id": "dialogs",
+      "kind": "html",
+      "bytes": 7318
     },
     {
       "id": "boot-ui-styles",
@@ -84,11 +89,6 @@
       "bytes": 5181
     },
     {
-      "id": "dialogs",
-      "kind": "html",
-      "bytes": 5030
-    },
-    {
       "id": "status",
       "kind": "js",
       "bytes": 4606
@@ -104,14 +104,14 @@
       "bytes": 3795
     },
     {
+      "id": "apply-settings",
+      "kind": "js",
+      "bytes": 2841
+    },
+    {
       "id": "progress",
       "kind": "js",
       "bytes": 1997
-    },
-    {
-      "id": "apply-settings",
-      "kind": "js",
-      "bytes": 1994
     },
     {
       "id": "signals",
@@ -135,9 +135,9 @@
     }
   ],
   "flavors": {
-    "index.html": 429375,
-    "asset-bodies": 413366,
+    "index.html": 449686,
+    "asset-bodies": 433677,
     "markup-and-runtime": 16009,
-    "dist/slim.html": 79459
+    "dist/slim.html": 81317
   }
 }
