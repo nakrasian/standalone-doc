@@ -120,7 +120,8 @@ npm run dev         # http://127.0.0.1:8080 — always use this for anything tha
 npm run cdn:verify  # fetch every published asset and check its hash (needs network)
 npm test            # unit tests (node:test)
 npm run report      # size table, per asset
-npm run export -- doc.html --to=docx,typ,md    # needs pandoc 3 on PATH (tools/export.mjs)
+npm run export -- doc.html --to=docx,typ,md    # tools/export.mjs — pandoc.wasm by default,
+                                               # --engine=native for a pandoc on PATH
 npm run reference                             # derive tools/reference.docx from the engine
 ```
 

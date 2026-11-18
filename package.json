@@ -23,9 +23,12 @@
     "test:all": "npm test && npm run test:browser",
     "catalog": "node build.mjs catalog",
     "export": "node tools/export.mjs",
-    "reference": "node tools/reference.mjs"
+    "reference": "node tools/reference.mjs",
+    "shim": "node tools/shim.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.1"
+    "@bjorn3/browser_wasi_shim": "^0.4.2",
+    "@playwright/test": "^1.65.1",
+    "pandoc-wasm": "^1.1.0"
   }
 }

@@ -122,6 +122,16 @@ for everything a writer actually emits — a `.docx` is a zip, and as a string i
 lie. `mime` defaults to `text/plain` for `text` and is required in practice for `bytes`;
 the host builds the Blob, so the plugin never touches a download anchor.
 
+A contribution returns **one** file. If a target needs companions — a `.typ` that references
+`fig-01.png` — say so and refuse, or produce a format that embeds them. There is no archive
+step for a plugin to borrow.
+
+**A note on text assets.** There is no way to pin a file that is *data*: a `js` asset is
+evaluated (so a Lua filter in a `js` slot fails to parse), and `bin` is the only kind that is
+never evaluated — `host.bytes()` plus `TextDecoder` is how the pandoc plugin carries its
+filter. A `kind: "text"` (or `json`) would be the honest primitive; until then, `bin` is the
+workaround and it costs nothing but a decoder.
+
 ## 4. Islands
 
 A figure's content mounts into an `iframe srcdoc` with a profile:

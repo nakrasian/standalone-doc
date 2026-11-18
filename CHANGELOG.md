@@ -92,6 +92,32 @@ carrying a 12 MB typst compiler downloaded it to export Markdown. `bin` assets a
 both phases: `bytesOf()` is their only fetch, `host.bytes()` their only reader — which is what
 `bin` was for (invariant 13), and what an export target needs.
 
+- **An exporter that runs in the tab: `plugins/pandoc-export/`.** Word, Typst and Markdown,
+converted by the same pandoc.wasm the CLI now uses, with nothing leaving the machine. It pins
+five assets (`pandoc` 58.6 MB `bin`, the bundled WASI shim, `tools/sd-export.lua` as a `bin`
+because a `js` asset would be *evaluated*, and optionally `tools/reference.docx` +
+`tools/sd-template.typ` so a browser export looks like a CLI one), reads them through
+`host.bytes`/`host.text`, and builds the HTML with `host.use("materialize")` — the editor's own
+capture path, so a `.docx` cannot disagree with the `.html` export about figure 4. The 58.6 MB
+is fetched on the **first export**: `bin` assets are never prefetched, which is the rule that
+made a lazily-loaded compiler possible at all. Three browser tests: a .docx with the figure
+embedded (zip magic, `word/media/`, > 8 KB), a .typ when the document has no figures, and a
+refusal with a reason when it does — a `.typ` that references `fig-01.png` is two files, and a
+contribution returns one.
+
+- **`pandoc-wasm` is a devDependency, so `npm run export` needs no install.** `tools/engine.mjs`
+is one recipe with two engines: `native` (pandoc on PATH — faster, and the only one that can
+hand a PDF to an external typesetter) and `wasm` (the same binary the plugin runs, which is
+what makes "the CLI and the browser agree" a testable claim rather than a hope). The default
+is native when a binary exists, wasm otherwise. `--to=pdf` writes the `.typ` **always** and
+compiles it with `typst` when one is installed; without one it says which command to run and
+exits 1, because pandoc is not a PDF writer and the browser's print path already exists.
+
+- **`npm run shim`** regenerates `plugins/pandoc-export/wasi-shim.js` from the devDependency
+(the shim is ESM-only because that is how it is published; a plugin loaded from a `blob:` URL
+cannot import, so it is bundled into one module by `tools/shim.mjs`, and the artifact is
+committed because a plugin must be a self-contained file at a pinned URL).
+
 ### Fixed
 
 - **A block painted its own source when its id was shared.** An asset block is found by its
