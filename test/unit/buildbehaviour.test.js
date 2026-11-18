@@ -239,27 +239,55 @@ test("a catalog proposal must be absolute, hashed, and an identifier factory", (
 test("build --base re-points the documents without touching a hash", () => {
   const out = path.join(".test-tmp", "base-build");
   const target = path.join(ROOT, out);
+  const base = "http://127.0.0.1:8080/.test-tmp/base-build/cdn";
   fs.rmSync(target, { recursive: true, force: true });
   try {
     const published = manifestOf(fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8"));
     const before = fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8");
+    const beforePlugin = fs.readFileSync(path.join(ROOT, "dist/plugins/pandoc-export.json"));
 
-    run(["build", "--base=http://127.0.0.1:8080/dist/cdn", `--out=${out}`]);
+    run(["build", `--base=${base}`, `--out=${out}`]);
 
     const dev = manifestOf(fs.readFileSync(path.join(target, "slim.html"), "utf8"));
-    assert.equal(dev.cdnBase, "http://127.0.0.1:8080/dist/cdn");
+    assert.equal(dev.cdnBase, base);
     assert.equal(published.assets.length, dev.assets.length);
     for (const [i, asset] of published.assets.entries()) {
       assert.equal(dev.assets[i].integrity, asset.integrity, `${asset.id}: a base moves the address, never the hash`);
       assert.equal(dev.assets[i].bytes, asset.bytes, `${asset.id}: bytes are the tree's`);
-      if (asset.url) assert.ok(dev.assets[i].url.startsWith("http://127.0.0.1:8080/dist/cdn/"), `${asset.id}: url re-pointed`);
+      if (asset.url) assert.ok(dev.assets[i].url.startsWith(`${base}/`), `${asset.id}: url re-pointed`);
       else assert.equal(dev.assets[i].url, undefined, `${asset.id}: infra has no url to move`);
       assert.equal(dev.assets[i].mode, asset.mode, `${asset.id}: materialisation is not the base's business`);
     }
-    assert.equal(dev.assets.find((a) => a.id === "editor").url, "http://127.0.0.1:8080/dist/cdn/editor.js");
+    assert.equal(dev.assets.find((a) => a.id === "editor").url, `${base}/editor.js`);
+
+    /* A dev base is a publication, not just documents: the sheet derives the catalog url from
+       `cdnBase`, so the cdn, the catalog and the bundle manifests have to be beside each other
+       or "Available" is empty — which is what "the plugin does not load pre-release" looked
+       like. */
+    assert.ok(fs.existsSync(path.join(target, "cdn/editor.js")), "the cdn the documents point at is written");
+    assert.ok(fs.existsSync(path.join(target, "cdn/plugins/pandoc-export/pandoc-export.js")),
+      "the plugin's own bytes travel with the dev base");
+
+    const registry = JSON.parse(fs.readFileSync(path.join(target, "registry.json"), "utf8"));
+    const bundle = registry.bundles?.["pandoc-export"];
+    assert.ok(bundle, "Plugins -> Available has a bundle to offer before the release");
+    assert.equal(bundle.manifest, "plugins/pandoc-export.json");
+    const manifestFile = path.join(target, bundle.manifest);
+    const bytes = fs.readFileSync(manifestFile);
+    assert.equal(bundle.sha384, "sha384-" + createHash("sha384").update(bytes).digest("base64"),
+      "the catalog hashes the manifest it just wrote");
+
+    const plugin = JSON.parse(bytes.toString("utf8"));
+    for (const asset of plugin.assets) {
+      if (asset.url.startsWith("https://cdn.jsdelivr.net/npm/")) continue;
+      assert.ok(asset.url.startsWith(`${base}/plugins/pandoc-export/`), `${asset.id}: pinned at the dev base`);
+    }
+    assert.ok(plugin.assets.find((a) => a.id === "typst-compiler").url.startsWith("https://cdn.jsdelivr.net/npm/"),
+      "a pin this repository does not publish keeps its address");
 
     /* The release artefacts are not touched: a dev base must never be committed. */
     assert.equal(fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8"), before);
+    assert.deepEqual(fs.readFileSync(path.join(ROOT, "dist/plugins/pandoc-export.json")), beforePlugin);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
   }
@@ -403,5 +431,59 @@ test("release --dry-run prints the plan and writes nothing", () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version.endsWith("99.0.0"), false);
   } finally {
     fs.writeFileSync(changelog, original);
+  }
+});
+
+/* The curated catalog (`plugins.json` → `dist/registry.json`) describes one self-contained
+   module per proposal. A bundle — one plugin, many assets, published as its own manifest —
+   has no such shape, so the catalog carries a *pointer* instead: `bundles[id]` names the
+   manifest, its size, and its sha384. It is derived from the bytes `published()` emits, which
+   is what makes the hash beside it true rather than copied. */
+test("the catalog names every published bundle, with the hash of its manifest", () => {
+  const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, "dist/registry.json"), "utf8"));
+  const file = path.join(ROOT, "dist/plugins/pandoc-export.json");
+  const bytes = fs.readFileSync(file);
+  const manifest = JSON.parse(bytes.toString("utf8"));
+
+  const bundle = catalog.bundles?.[manifest.id];
+  assert.ok(bundle, "dist/registry.json must offer the published plugin as a bundle");
+  assert.equal(bundle.manifest, "plugins/pandoc-export.json", "the path is relative to the catalog's own directory");
+  assert.equal(bundle.sha384, "sha384-" + createHash("sha384").update(bytes).digest("base64"));
+  assert.equal(bundle.bytes, bytes.length);
+  assert.equal(bundle.assets, manifest.assets.length);
+  assert.equal(bundle.api, manifest.api);
+  assert.ok(bundle.assetBytes > 0, "the row can price the bundle without reading the manifest");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, "plugins.json"), "utf8")).bundles, undefined,
+    "bundles are generated into dist/, never authored beside the single-module proposals");
+});
+
+test("check fails when a published manifest is not discoverable", () => {
+  const catalogFile = path.join(ROOT, "dist/registry.json");
+  const original = fs.readFileSync(catalogFile, "utf8");
+  try {
+    const catalog = JSON.parse(original);
+    delete catalog.bundles["pandoc-export"];
+    fs.writeFileSync(catalogFile, JSON.stringify(catalog, null, 2) + "\n");
+
+    const stale = runFailing(["check"]);
+    assert.ok(stale, "check should have failed");
+    assert.match(stale, /dist\/plugins\/pandoc-export\.json is not in dist\/registry\.json bundles/);
+  } finally {
+    fs.writeFileSync(catalogFile, original);
+    assert.equal(runFailing(["check"]), null, "the tree is green again");
+  }
+});
+
+test("check fails when a bundle's manifest disagrees with the bytes it pins", () => {
+  const file = path.join(ROOT, "dist/cdn/plugins/pandoc-export/sd-export.lua");
+  const original = fs.readFileSync(file);
+  try {
+    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("\n-- tampered\n")]));
+    const stale = runFailing(["check"]);
+    assert.ok(stale, "check should have failed");
+    assert.match(stale, /sd-export\.lua does not match its integrity|sd-export\.lua is \d+ bytes/);
+  } finally {
+    fs.writeFileSync(file, original);
+    assert.equal(runFailing(["check"]), null, "the tree is green again");
   }
 });

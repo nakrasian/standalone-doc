@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.8.1 — 2026-11-18
+
+### Added
+
+- **The published plugin is discoverable.** `dist/registry.json` now carries a `bundles` section
+beside `assets`: one entry per published plugin manifest, naming its path (relative to the
+catalog's own directory, so an install rides the tag the *document* pins), its size, and its
+own `sha384`. **Plugins → Available** lists it and installs it in one click — N asset entries
+and one `plugins` entry — instead of asking an author to copy JSON out of a README. The
+section is generated from the same `published()` bytes as the manifest, so the advertised hash
+and the pins cannot drift apart; `check` fails when a manifest in `dist/plugins/` is not named
+by the catalog, when the catalog names a bundle nothing publishes, or when a manifest's pins
+no longer match the bytes beside them.
+
+### Fixed
+
+- **`plugins[id].api` survives an install.** The published manifest declared its host API and
+both install paths dropped it, so the field existed only in the artifact. It is now written
+with the pin, and a manifest that needs a newer host is refused before anything is added.
+
+- **`verify-cdn` checks plugin bytes.** It fetched the runtime and the documents but not the
+plugin assets (they are not in `manifest.json`'s table), so a release could verify green while
+a first export 404'd. It now fetches each bundle manifest, checks it against the catalog's
+hash, then checks every asset whose url this repository serves.
+
+- **`release` purges `dist/registry.json`.** The catalog is fetched from the document's own tag
+and from `@main`; both paths were outside the purge list, so a new release could keep offering
+the previous catalog for hours.
+
 ## v0.8.0 — 2026-11-18
 
 ### Added

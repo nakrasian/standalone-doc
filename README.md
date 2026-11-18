@@ -34,10 +34,18 @@ that are true only once that tag exists. To run the tree you are editing **befor
 tagged, build against your own server instead — same hashes, different address:
 
 ```sh
-npm run dev &                                                   # serves dist/cdn
-node build.mjs build --base=http://127.0.0.1:8080/dist/cdn --out=.test-tmp/build
+npm run dev &                                                   # serves the tree, .test-tmp included
+node build.mjs build --base=http://127.0.0.1:8080/.test-tmp/build/cdn
 open .test-tmp/build/slim.html                                  # from disk, no tag involved
 ```
+
+A `--base` build writes a *publication*, not just documents: the cdn bytes, `registry.json`,
+and the plugin manifests, all re-pointed at the base, into `--out` (default
+`.test-tmp/build`). That is what makes **Plugins → Available** work before the release — the
+sheet derives the catalog url from `cdnBase`, so put the base's directory where the out
+directory is being served (the command above does: `.test-tmp/build/cdn` → serves
+`.test-tmp/build/`). Point `--base` elsewhere and the sheet reads *that* address's catalog,
+which is usually the last release.
 
 `--base` refuses to write into `dist/`, and `check` fails if `manifest.json`'s `cdnBase` is
 not a tag: a local or branch base must never be committed, because every fetch from it
@@ -223,6 +231,13 @@ A document can pin a plugin — a bundle of assets with a `plugins[]` record —
 demand, verified before it runs, with an in-place failure card when it is missing rather than
 a broken file. Contributions (insert, export, panel, command) are declared in the manifest and
 rendered by the host, so a plugin extends the surface without occupying it.
+
+**Plugins → Available** lists two shapes. A *module* is one self-contained ES file proposed by
+`plugins.json`. A *bundle* is one plugin with many assets (the pandoc exporter: eight of them,
+including two engines on npm), and there the catalog carries a pointer rather than a copy of
+the pins: it names the published manifest and that manifest's own `sha384`, the sheet fetches
+it, checks the bytes, then pins every asset it declares. One click, N assets, no JSON copied
+by hand — and a manifest the catalog did not hash is refused before anything is written.
 
 Read `docs/PLUGINS.md` before writing one. The three island profiles it describes are
 enforced, not advisory: `sealed` has no network, `sandboxed` is today's figure sandbox, and

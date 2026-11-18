@@ -346,6 +346,11 @@ export function createPlugins(deps = {}) {
     return figures.pluginUsage()[id] || 0;
   }
 
+  /* Bytes under a kilobyte are common in a catalog (a 477-byte module) and "0 KB" is a lie
+     the eye reads as empty. One formatter, because a bundle's total and an asset's size are
+     the same claim at two scales. */
+  const sizeLabel = (bytes) => !bytes ? "" : bytes < 2048 ? `${bytes} bytes` : `${Math.round(bytes / 1024)} KB`;
+
   function assetRows(entry, manifest) {
     const table = element("table", "ps-assets");
     const head = element("thead");
@@ -426,9 +431,7 @@ export function createPlugins(deps = {}) {
       element("span", "ps-name", asset.label || id),
       element("span", "ps-version", latest.version ? `v${latest.version}` : ""),
       island,
-      /* Bytes under a kilobyte are common in a catalog (a 477-byte module) and "0 KB" is
-         a lie the eye reads as empty. */
-      element("span", "ps-used", latest.bytes ? (latest.bytes < 2048 ? `${latest.bytes} bytes` : `${Math.round(latest.bytes / 1024)} KB`) : ""),
+      element("span", "ps-used", sizeLabel(latest.bytes)),
       element("span", "ps-grow"),
     );
     const install = element("button", "ps-btn ps-primary", "Install");
@@ -437,6 +440,37 @@ export function createPlugins(deps = {}) {
     main.append(install);
     row.append(main);
     if (asset.description) row.append(element("p", "ps-hint", asset.description));
+    return row;
+  }
+
+  /*
+   * A bundle is not an asset: the catalog names a manifest, and the manifest names its own
+   * assets. So the row can only say what the projection carries — size, asset count, island —
+   * and the manifest's own sha384 is why that projection is worth reading at all.
+   */
+  function bundleRow(id, asset) {
+    const row = element("div", "ps-row");
+    row.dataset.id = id;
+    row.dataset.state = "available";
+    const main = element("div", "ps-main");
+    const island = element("span", "ps-badge", asset.island || "sealed");
+    island.dataset.island = asset.island || "sealed";
+    const count = Number(asset.assets) || 0;
+    const size = asset.assetBytes ? ` · ${sizeLabel(asset.assetBytes)}` : "";
+    main.append(
+      element("span", "ps-name", asset.label || id),
+      element("span", "ps-version", asset.version ? `v${asset.version}` : ""),
+      island,
+      element("span", "ps-used", `${count} asset${count === 1 ? "" : "s"}${size}`),
+      element("span", "ps-grow"),
+    );
+    const install = element("button", "ps-btn ps-primary", "Install");
+    install.dataset.install = id;
+    install.dataset.installBundle = id;
+    install.addEventListener("click", () => installBundle(id, asset));
+    main.append(install);
+    row.append(main);
+    if (asset.about) row.append(element("p", "ps-hint", asset.about));
     return row;
   }
 
@@ -521,9 +555,14 @@ export function createPlugins(deps = {}) {
     }
 
     const available = Object.entries(catalog?.assets || {}).filter(([id, asset]) => !plugins[id] && (matches(id) || matches(asset.label || "")));
+    /* Bundles are listed beside single modules and install the same way; the difference is
+       that one row writes N assets. A bundle whose id is already installed is not offered,
+       which is the whole update story today: remove, then add. */
+    const bundles = Object.entries(catalog?.bundles || {}).filter(([id, asset]) => !plugins[id]
+      && (matches(id) || matches(asset.label || "") || matches(asset.about || "")));
     const availableList = sheet.querySelector('[data-ps-list="available"]');
     availableList.replaceChildren();
-    if (!available.length) {
+    if (!available.length && !bundles.length) {
       const why = catalogError
         ? `No catalog reachable (${catalogError}). Add a plugin by url below.`
         : catalog
@@ -531,6 +570,7 @@ export function createPlugins(deps = {}) {
           : "No catalog yet for this runtime — add a plugin by url below.";
       availableList.append(element("p", "ps-empty", why));
     } else {
+      for (const [id, asset] of bundles) availableList.append(bundleRow(id, asset));
       for (const [id, asset] of available) availableList.append(availableRow(id, asset));
     }
 
@@ -730,10 +770,14 @@ export function createPlugins(deps = {}) {
     renderSheet();
   }
 
-  async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null, contributes = null }) {
+  async function install(id, { label, url, integrity, bytes, factory = null, island = "sealed", version = null, contributes = null, api = 1 }) {
     const next = manifestJSON();
     if (!next) return say("this document has no asset manifest");
     if (next.plugins?.[id]) return say(`${label || id} is already in this file.`);
+    const wanted = Number(api) || 1;
+    if (wanted > registry.hostApi) {
+      return say(`${label || id} needs host API ${wanted}; this document provides ${registry.hostApi}. Nothing was added.`);
+    }
     if (wantsTrust(island, contributes)) {
       const ok = await confirmTrusted({ label: label || id, verb: "Add" });
       if (!ok) return say(`${label || id} was not added.`);
@@ -747,6 +791,10 @@ export function createPlugins(deps = {}) {
     next.plugins[id] = {
       label: label || id,
       version,
+      /* What the plugin was written against. Absent means 1, and the registry refuses a
+         newer one before activate() — so it has to travel with the pin, not just sit in the
+         catalog. */
+      api: wanted,
       island,
       enabled: true,
       entry: id,
@@ -791,10 +839,116 @@ export function createPlugins(deps = {}) {
       factory: latest.factory || null,
       island: asset.island || latest.island || "sealed",
       version: latest.version,
+      api: latest.api ?? asset.api ?? 1,
       /* Contributions may be per version (a plugin can start contributing something new),
          so the version wins over the asset. */
       contributes: latest.contributes || asset.contributes || null,
     });
+  }
+
+  /* The catalog's directory: `cdnBase` minus `/cdn` plus `registry.json`, so the sibling of
+     this file is the base a bundle's relative manifest path resolves against. */
+  const catalogBase = () => catalogUrl().replace(/registry\.json$/, "");
+
+  /**
+   * Everything about a manifest that would make this install fail, checked in the order a
+   * network can lie. The host trusts its own build gate, not a stranger's JSON.
+   */
+  function bundleFaults(bundle, id) {
+    if (!bundle || typeof bundle !== "object") return "it is not an object";
+    if (bundle.schema !== 1) return `its schema is ${bundle.schema}, expected 1`;
+    if (bundle.id !== id) return `it is "${bundle.id}", not "${id}"`;
+    if (!Array.isArray(bundle.assets) || !bundle.assets.length) return "it declares no assets";
+    /* Absolute, not https-only: `install()` allows either for a locally served plugin, and a
+       document that can pin a pasted http url can pin one a manifest names. The build gate is
+       where a *published* manifest is held to https. */
+    const bad = bundle.assets.find((asset) => !asset || !asset.id
+      || !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(String(asset.url || ""))
+      || !/^sha384-[A-Za-z0-9+/]{64}$/.test(String(asset.integrity || "")));
+    if (bad) return `asset "${(bad && bad.id) || "?"}" has no absolute url + sha384`;
+    if (bundle.entry && !bundle.assets.some((asset) => asset.id === bundle.entry)) {
+      return `its entry "${bundle.entry}" is not one of its assets`;
+    }
+    return null;
+  }
+
+  /**
+   * Install a bundle: one catalog row, N pinned assets.
+   *
+   * Two claims hold before anything is written — the manifest is the one the catalog hashed,
+   * and the pins inside it are well-formed. The assets themselves are *not* fetched: 55 MB of
+   * engines is a first-export cost, and the loader verifies each one when it is used.
+   */
+  async function installBundle(id, asset) {
+    const next = manifestJSON();
+    if (!next) return say("this document has no asset manifest");
+    if (next.plugins?.[id]) return say(`${asset.label || id} is already in this file.`);
+    if (!asset.manifest) return say(`${asset.label || id} has no manifest to read.`);
+
+    let url;
+    try {
+      url = new URL(asset.manifest, catalogBase()).toString();
+    } catch {
+      return say(`${asset.manifest} is not a url this document can resolve.`);
+    }
+    let fetched;
+    try {
+      fetched = await registry.prefetch(url);
+    } catch (error) {
+      return say(`${url} could not be read (${(error && error.message) || error}) — nothing was added.`);
+    }
+    /* The catalog's hash is the only thing standing between a tampered manifest and a
+       document that pins whatever it says. */
+    if (asset.sha384 && fetched.integrity !== asset.sha384) {
+      return say(`${url} is not the manifest the catalog pins — nothing was added.`);
+    }
+    let bundle;
+    try {
+      bundle = JSON.parse(fetched.text);
+    } catch {
+      return say(`${url} is not JSON — nothing was added.`);
+    }
+    const fault = bundleFaults(bundle, id);
+    if (fault) return say(`${url} is not installable: ${fault}. Nothing was added.`);
+    const api = Number(bundle.api ?? asset.api ?? 1) || 1;
+    if (api > registry.hostApi) {
+      return say(`${bundle.label || id} needs host API ${api}; this document provides ${registry.hostApi}. Nothing was added.`);
+    }
+    const island = bundle.island || asset.island || "sealed";
+    if (wantsTrust(island, bundle.contributes)) {
+      const ok = await confirmTrusted({ label: bundle.label || asset.label || id, verb: "Add" });
+      if (!ok) return say(`${bundle.label || id} was not added.`);
+    }
+    const assets = bundle.assets;
+    const clash = assets.find((incoming) => (next.assets || []).some(
+      (existing) => existing.id === incoming.id && existing.url !== incoming.url));
+    if (clash) return say(`"${clash.id}" is already pinned to a different url in this file — nothing was added.`);
+
+    next.plugins = next.plugins || {};
+    next.plugins[id] = {
+      label: bundle.label || asset.label || id,
+      version: bundle.version || asset.version || null,
+      api,
+      island,
+      enabled: true,
+      entry: bundle.entry || id,
+      assets: assets.map((incoming) => incoming.id),
+      contributes: bundle.contributes && typeof bundle.contributes === "object" ? bundle.contributes : {},
+    };
+    const incoming = new Set(assets.map((candidate) => candidate.id));
+    next.assets = (next.assets || []).filter((existing) => !incoming.has(existing.id));
+    for (const candidate of assets) {
+      const { id: assetId, ...rest } = candidate;
+      next.assets.push({ id: assetId, mode: "online", requiredBy: ["*"], category: "plugin", plugin: id, ...rest });
+    }
+    writeManifest(next);
+    try {
+      await registry.require(id);
+    } catch {
+      /* shown on the row */
+    }
+    say(`${bundle.label || id} pinned — ${assets.length} asset${assets.length === 1 ? "" : "s"}. Save to write it into the file.`);
+    renderSheet();
   }
 
   /* ------------------------------------------------------------------- wiring */

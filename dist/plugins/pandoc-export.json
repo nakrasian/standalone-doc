@@ -6,7 +6,7 @@
   "api": 1,
   "island": "sealed",
   "entry": "pandoc-export",
-  "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. Install by adding `assets` to #asset-manifest and this entry to its `plugins` map.",
+  "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. The engine itself is fetched on the first export; nothing is uploaded.",
   "assets": [
     {
       "id": "sd-export-lua",

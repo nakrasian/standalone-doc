@@ -198,6 +198,50 @@ A catalog is **advisory**. A document embeds the `url` + `sha384` it installed; 
 only proposes. A document may also carry its catalog inline (`#plugin-catalog`) so the list
 works offline.
 
+### Bundles
+
+A plugin that is a *bundle* — one plugin, many assets — has no entry in `assets`: that table is
+one self-contained module per proposal, and a bundle's pins live in a manifest it publishes
+beside itself. The catalog carries a pointer instead, generated into `dist/registry.json` from
+the same bytes `published()` emits:
+
+```json
+"bundles": {
+  "pandoc-export": {
+    "label": "Pandoc export", "version": "0.1.0", "api": 1, "island": "sealed",
+    "entry": "pandoc-export",
+    "manifest": "plugins/pandoc-export.json",
+    "bytes": 4435, "sha384": "sha384-…",
+    "assets": 8, "assetBytes": 87198155,
+    "about": "Word, typeset PDF, …"
+  }
+}
+```
+
+| field | meaning |
+|---|---|
+| `manifest` | Path **relative to the catalog's own directory** (`<cdnBase>/../`), so an install rides the tag the *document* pins — not whichever sibling the catalog was read from. |
+| `sha384`, `bytes` | Of that manifest file. The runtime fetches the manifest with `prefetch`, refuses it if the hash disagrees, and only then trusts the pins inside. A catalog can propose pins; it cannot rewrite them. |
+| `assets`, `assetBytes` | What the sheet shows in the row. It never reads the manifest to draw a list. |
+| `entry`, `api`, `island` | The plugin half, for the same preview and the same refusal an `assets` entry gets. |
+
+`bundles` is **generated, never authored**: `tools/publish-plugin.mjs` owns the manifest, `check`
+fails when the catalog and the manifest disagree, and fails again when a manifest exists in
+`dist/plugins/` that the catalog does not name — a published plugin nobody can discover is the
+failure that is easiest to ship and hardest to notice.
+
+Installing one writes N asset entries and one `plugins` entry, carrying `api` with it (absent
+means `1`). The assets are **not** fetched at install time: a 58 MB engine is a first-export
+cost, and the loader verifies each pin when it is used.
+
+**Testing one before its release.** `node build.mjs build --base=<url> --out=<dir>` writes a
+whole publication, not just documents: the cdn bytes, `registry.json`, and each bundle's
+manifest, every url re-pointed at the base. Because the sheet derives the catalog url from the
+document's `cdnBase`, the base's parent directory has to be where `<dir>` is served —
+`--base=http://127.0.0.1:8080/.test-tmp/build/cdn` with the default `--out` does exactly that.
+Point `--base` somewhere else and the sheet reads *that* address's catalog, which is usually
+the last release: correct behaviour, and the reason a dev build used to offer nothing.
+
 ## 7. Versioning
 
 `plugins[id].api` is the host API the plugin needs; absent means `1`. The registry refuses a

@@ -43,6 +43,9 @@ const PLUGIN_JS = `export function createWidget() {
 
 const sha384 = (text) => "sha384-" + createHash("sha384").update(text, "utf8").digest("base64");
 const byteLength = (text) => Buffer.byteLength(text, "utf8");
+/* A second module for the bundle fixture: a plain library, no factory, so the test proves
+   that "many assets" is the shape and not "the same asset twice". */
+const LIB_JS = `export const WIDGET_LIB = "1.2.3";\n`;
 const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s\S]*?)(<\/script>)/;
 
 /**
@@ -50,9 +53,10 @@ const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s
  * (`<base>/registry.json`) resolves to a file this spec controls. The document itself
  * is fully inline, so nothing else is fetched.
  */
-function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCatalog = false } = {}) {
+function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCatalog = false, bundle = false, tamper = false } = {}) {
   fs.mkdirSync(FILES, { recursive: true });
   fs.writeFileSync(path.join(FILES, "widget-plugin.js"), PLUGIN_JS);
+  fs.writeFileSync(path.join(FILES, "widget-lib.js"), LIB_JS);
 
   let html = EDITOR.replace(/"cdnBase":"[^"]*"/, `"cdnBase":"${LOCAL}/cdn"`);
   const manifest = JSON.parse(MANIFEST_RE.exec(html)[2]);
@@ -90,9 +94,46 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCat
       + '<div class="figure-frame" data-runtime="ephemeral"></div><figcaption>Widget figure</figcaption></figure>');
   }
 
+  /* One plugin, many assets: the catalog's whole contribution is the manifest's location and
+     its hash. The fixture's manifest is written beside the registry, which is where a real
+     one lives under the tag's `dist/`. */
+  const bundleManifest = bundle ? {
+    schema: 1,
+    id: "widget",
+    label: "Widgets (bundle)",
+    version: "3.0.0",
+    api: 1,
+    island: "sealed",
+    entry: "widget",
+    about: "Two assets, one switch.",
+    assets: [
+      { id: "widget-lib", kind: "js", role: "module", order: 300, mode: "online", category: "plugin", plugin: "widget", requiredBy: ["*"], bytes: byteLength(LIB_JS), url: `${LOCAL}/widget-lib.js`, integrity: sha384(LIB_JS) },
+      { id: "widget", kind: "js", role: "module", order: 301, mode: "online", category: "plugin", plugin: "widget", requiredBy: ["*"], bytes: byteLength(PLUGIN_JS), factory: "createWidget", url: `${LOCAL}/widget-plugin.js`, integrity: sha384(PLUGIN_JS) },
+    ],
+    contributes: { insert: [{ id: "tile", label: "Widget tile", island: "sealed" }] },
+  } : null;
+  const bundleJson = bundle ? JSON.stringify(bundleManifest, null, 2) + "\n" : null;
+  if (bundle) fs.writeFileSync(path.join(FILES, "widget-bundle.json"), bundleJson);
+  /* `tamper` rewrites the hash the catalog pins and leaves the manifest alone: two different
+     files disagreeing about the same bytes, which is the only thing standing between a
+     document and pins it never chose. */
+  const bundleEntry = () => ({
+    label: bundleManifest.label,
+    version: bundleManifest.version,
+    api: bundleManifest.api,
+    island: bundleManifest.island,
+    entry: bundleManifest.entry,
+    manifest: "widget-bundle.json",
+    bytes: byteLength(bundleJson),
+    sha384: tamper ? "sha384-" + "A".repeat(64) : sha384(bundleJson),
+    assets: bundleManifest.assets.length,
+    assetBytes: bundleManifest.assets.reduce((sum, asset) => sum + asset.bytes, 0),
+    about: bundleManifest.about,
+  });
+
   const catalogJson = JSON.stringify({
       schema: 1,
-      assets: {
+      assets: bundle ? {} : {
         widget: {
           label: "Widgets",
           island: "trusted",
@@ -109,11 +150,12 @@ function makeDoc({ pinned = false, catalog = true, withFigure = false, inlineCat
           }],
         },
       },
+      ...(bundle ? { bundles: { widget: bundleEntry() } } : {}),
   });
   if (catalog) fs.writeFileSync(path.join(FILES, "registry.json"), catalogJson);
   else fs.rmSync(path.join(FILES, "registry.json"), { force: true });
 
-  const slug = [pinned && "pinned", !catalog && "nocat", withFigure && "fig", inlineCatalog && "inlinecat"].filter(Boolean).join("-") || "base";
+  const slug = [pinned && "pinned", !catalog && "nocat", withFigure && "fig", inlineCatalog && "inlinecat", bundle && (tamper ? "bundle-tampered" : "bundle")].filter(Boolean).join("-") || "base";
   /* A document may carry its catalog: that is what makes "Available" work from disk,
      where a relative fetch is impossible (lab/007). */
   if (inlineCatalog) {
@@ -412,4 +454,82 @@ test("what the sheet installs survives a save, and the sheet itself does not", a
   expect(saved.mode).toBe("inline");
   expect(saved.block).toBe(true);
   expect(saved.problems).toEqual([]);
+});
+
+test("a catalog bundle installs its manifest's assets, not a single module", async ({ page }) => {
+  await openSheet(page, makeDoc({ bundle: true }));
+  await page.waitForFunction(() => !!document.querySelector("[data-install-bundle]"));
+
+  /* The row can only say what the projection carries: a count and a price, never the pins. */
+  const row = await page.evaluate(() => ({
+    name: document.querySelector('[data-ps-list="available"] .ps-name').textContent,
+    version: document.querySelector('[data-ps-list="available"] .ps-version').textContent,
+    summary: document.querySelector('[data-ps-list="available"] .ps-used').textContent,
+    hint: document.querySelector('[data-ps-list="available"] .ps-hint')?.textContent,
+  }));
+  expect(row.name).toBe("Widgets (bundle)");
+  expect(row.version).toBe("v3.0.0");
+  expect(row.summary).toContain("2 assets");
+  expect(row.hint).toContain("Two assets, one switch.");
+
+  await page.evaluate(() => document.querySelector("[data-install-bundle]").click());
+  await page.waitForFunction(() => Object.keys(JSON.parse(document.getElementById("asset-manifest").textContent).plugins || {}).includes("widget"));
+  await page.waitForFunction(() => document.querySelectorAll("[data-plugin-insert]").length > 0);
+
+  const state = await page.evaluate(() => {
+    const manifest = JSON.parse(document.getElementById("asset-manifest").textContent);
+    return {
+      plugin: manifest.plugins.widget,
+      assets: manifest.assets.filter((asset) => asset.plugin === "widget").map((asset) => ({
+        id: asset.id, category: asset.category, mode: asset.mode, plugin: asset.plugin,
+        url: asset.url, integrity: asset.integrity, factory: asset.factory,
+      })),
+      loaded: Boolean(StandaloneDoc.instance("widget")),
+      insertEntries: document.querySelectorAll("[data-plugin-insert]").length,
+      offered: Boolean(document.querySelector("[data-install-bundle]")),
+    };
+  });
+  /* The plugin entry is the manifest's, including the host API it declares — the field that
+     used to be dropped on the way in. */
+  expect(state.plugin.label).toBe("Widgets (bundle)");
+  expect(state.plugin.version).toBe("3.0.0");
+  expect(state.plugin.api).toBe(1);
+  expect(state.plugin.entry).toBe("widget");
+  expect(state.plugin.assets).toEqual(["widget-lib", "widget"]);
+  expect(state.plugin.contributes).toEqual({ insert: [{ id: "tile", label: "Widget tile", island: "sealed" }] });
+  /* Both pins landed, each as a plugin asset of this file. */
+  expect(state.assets.map((asset) => asset.id)).toEqual(["widget-lib", "widget"]);
+  for (const asset of state.assets) {
+    expect(asset.category).toBe("plugin");
+    expect(asset.plugin).toBe("widget");
+    expect(asset.mode).toBe("online");
+    expect(asset.integrity).toMatch(/^sha384-/);
+  }
+  expect(state.assets[1].factory).toBe("createWidget");
+  expect(state.assets[0].factory).toBeUndefined();
+  /* One click, N assets, and the capability works without a reload. */
+  expect(state.loaded).toBe(true);
+  expect(state.insertEntries).toBeGreaterThan(0);
+  expect(state.offered).toBe(false);
+});
+
+test("a bundle whose manifest is not the one the catalog pins is refused", async ({ page }) => {
+  await openSheet(page, makeDoc({ bundle: true, tamper: true }));
+  await page.waitForFunction(() => !!document.querySelector("[data-install-bundle]"));
+
+  const refused = await page.evaluate(async () => {
+    const before = JSON.parse(document.getElementById("asset-manifest").textContent);
+    document.querySelector("[data-install-bundle]").click();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const after = JSON.parse(document.getElementById("asset-manifest").textContent);
+    return {
+      foot: document.querySelector("[data-ps-foot]").textContent,
+      plugins: Object.keys(after.plugins || {}),
+      assets: after.assets.length,
+      before: before.assets.length,
+    };
+  });
+  expect(refused.foot).toContain("is not the manifest the catalog pins");
+  expect(refused.plugins).toEqual([]);
+  expect(refused.assets).toBe(refused.before);
 });

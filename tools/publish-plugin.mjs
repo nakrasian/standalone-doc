@@ -15,9 +15,11 @@
  * hash is the promise, the URL is only the address.
  *
  * Why a separate manifest file and not `plugins.json`: the curated catalog describes one ES
- * module per plugin, and this plugin is a bundle of eight assets. A catalog entry that can
- * describe a bundle is a schema change to a published, shipped file; the manifest is the
- * thing such a schema would point at.
+ * module per plugin, and this plugin is a bundle of eight assets. The catalog does not grow a
+ * second shape for it — it grows a *pointer*: `dist/registry.json` carries a `bundles` section
+ * whose entries name this manifest, its size, and its own sha384. The projection below is the
+ * only place the catalog learns about a bundle, and it is derived from the same bytes
+ * `published()` emits, so the advertised hash and the manifest cannot drift apart.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -30,6 +32,8 @@ const PUBLISHED = "dist/cdn/plugins/pandoc-export";
 const MANIFEST = "dist/plugins/pandoc-export.json";
 
 const sha384 = (buffer) => "sha384-" + createHash("sha384").update(buffer).digest("base64");
+/* Paths in messages are repo-relative in every other tool here; keep it that way. */
+const rel = (file) => path.relative(ROOT, file).split(path.sep).join("/");
 
 /* Copied into dist/, in the order a document builds them. `as` is the published filename; the
  * id is what the document's manifest and the plugin's `host.bytes()` use. */
@@ -77,8 +81,16 @@ const CONTRIBUTES = {
 };
 
 /** Everything publishing writes, as a map of path → bytes. Pure: no writes, no clock. */
-export function published() {
-  const cdnBase = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8")).cdnBase;
+/**
+ * Every published byte, keyed by the path it is committed at.
+ *
+ * `base` re-points the derived urls — the same arrangement `build --base` gives a document.
+ * A dev build has to carry its own manifest, or the plugin it advertises pins the tag the tree
+ * was built from instead of the bytes beside it.
+ */
+export function published({ base = null } = {}) {
+  const cdnBase = String(base || JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8")).cdnBase)
+    .replace(/\/$/, "");
   const out = new Map();
   const assets = [];
 
@@ -120,12 +132,110 @@ export function published() {
     island: "sealed",
     entry: "pandoc-export",
     about: "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. "
-      + "Install by adding `assets` to #asset-manifest and this entry to its `plugins` map.",
+      + "The engine itself is fetched on the first export; nothing is uploaded.",
     assets,
     contributes: CONTRIBUTES,
   };
   out.set(MANIFEST, Buffer.from(JSON.stringify(manifest, null, 2) + "\n"));
   return out;
+}
+
+/**
+ * Every published plugin manifest, parsed, with the catalog row derived from it.
+ *
+ * Derived, never authored: a bundle's pins are bytes in this tree, and hand-copying them into
+ * a JSON file is how a catalog starts lying. `bundles[id].manifest` is relative to the
+ * catalog's own directory (`dist/`), which is what makes an install ride the tag the
+ * *document* pins rather than whichever sibling the catalog happened to be read from.
+ */
+export function publishedBundles({ base = null } = {}) {
+  const bundles = [];
+  for (const [file, bytes] of published({ base })) {
+    if (!/^dist\/plugins\/[^/]+\.json$/.test(file)) continue;
+    const manifest = JSON.parse(bytes.toString("utf8"));
+    bundles.push({
+      file,
+      manifest,
+      entry: {
+        label: manifest.label,
+        version: manifest.version,
+        api: manifest.api ?? 1,
+        island: manifest.island,
+        entry: manifest.entry,
+        manifest: file.replace(/^dist\//, ""),
+        bytes: bytes.length,
+        sha384: sha384(bytes),
+        assets: manifest.assets.length,
+        assetBytes: manifest.assets.reduce((sum, asset) => sum + (Number(asset.bytes) || 0), 0),
+        about: manifest.about,
+      },
+    });
+  }
+  return bundles;
+}
+
+/** The cdnBase the current manifest.json pins; the authority for "bytes we publish". */
+function authoredCdnBase() {
+  return String(JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8")).cdnBase || "")
+    .replace(/\/$/, "");
+}
+
+const SHA384_RE = /^sha384-[A-Za-z0-9+/]{64}$/;
+const SLUG_RE = /^[a-z0-9][a-z0-9._-]*$/;
+
+/**
+ * Everything about a bundle manifest that would make an install fail, a document lie, or the
+ * catalog advertise a pin nobody can satisfy. Empty array means publishable.
+ *
+ * The hash check is the half `check` was missing: the manifest says what each asset's bytes
+ * hash to, and for the assets this repository serves, dist/ is where those bytes are. A
+ * manifest is only worth its promise if the promise is checked before it is published.
+ */
+export function bundleProblems(manifest, { cdnBase = authoredCdnBase() } = {}) {
+  const problems = [];
+  const say = (problem) => problems.push(`bundle ${JSON.stringify(manifest?.id)}: ${problem}`);
+  if (!manifest || typeof manifest !== "object") return ["bundle is not an object"];
+  if (manifest.schema !== 1) say(`schema is ${manifest.schema}, expected 1`);
+  if (!SLUG_RE.test(String(manifest.id || ""))) say("id must be a slug");
+  if (!manifest.label) say("label is required");
+  if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ""))) say(`version must be x.y.z, not ${JSON.stringify(manifest.version)}`);
+  if (!Number.isInteger(manifest.api) || manifest.api < 1) say("api must be a positive integer");
+  if (!["sealed", "sandboxed", "trusted"].includes(manifest.island)) say("island must be sealed, sandboxed or trusted");
+  if (!manifest.entry) say("entry is required (the asset whose factory is the plugin)");
+
+  const assets = Array.isArray(manifest.assets) ? manifest.assets : [];
+  if (!assets.length) say("assets must be a non-empty array");
+  const seen = new Set();
+  for (const asset of assets) {
+    const where = `asset ${JSON.stringify(asset?.id)}`;
+    if (!SLUG_RE.test(String(asset?.id || ""))) { problems.push(`${where}: id must be a slug`); continue; }
+    if (seen.has(asset.id)) problems.push(`${where}: id is used twice`);
+    seen.add(asset.id);
+    if (!["js", "css", "html", "bin"].includes(asset.kind)) problems.push(`${where}: kind must be js, css, html or bin`);
+    if (!["inline", "online"].includes(asset.mode)) problems.push(`${where}: mode must be inline or online`);
+    if (!Number.isInteger(asset.order)) problems.push(`${where}: order must be an integer`);
+    if (!Array.isArray(asset.requiredBy) || !asset.requiredBy.length) problems.push(`${where}: requiredBy must be a non-empty array`);
+    if (asset.category !== "plugin") problems.push(`${where}: category must be "plugin"`);
+    if (asset.plugin !== manifest.id) problems.push(`${where}: plugin must be ${JSON.stringify(manifest.id)}`);
+    if (!/^https:\/\//.test(String(asset.url || ""))) problems.push(`${where}: url must be absolute https://`);
+    if (!SHA384_RE.test(String(asset.integrity || ""))) problems.push(`${where}: integrity must be "sha384-" + 64 base64 characters`);
+    if (!Number.isInteger(asset.bytes) || asset.bytes <= 0) problems.push(`${where}: bytes must be a positive integer`);
+
+    /* Bytes this repository serves are in dist/ at a path derived from cdnBase, so the
+       manifest's promise can be checked here, offline, before anyone pins it. */
+    const url = String(asset.url || "");
+    if (!cdnBase || !url.startsWith(`${cdnBase}/`)) continue;
+    const file = path.join(ROOT, "dist", "cdn", url.slice(cdnBase.length + 1));
+    if (!fs.existsSync(file)) { problems.push(`${where}: ${rel(file)} is missing — run: node build.mjs build`); continue; }
+    const bytes = fs.readFileSync(file);
+    if (sha384(bytes) !== asset.integrity) problems.push(`${where}: ${rel(file)} does not match its integrity`);
+    else if (bytes.length !== asset.bytes) problems.push(`${where}: ${rel(file)} is ${bytes.length} bytes, the manifest says ${asset.bytes}`);
+  }
+
+  const entry = assets.find((asset) => asset?.id === manifest.entry);
+  if (manifest.entry && !entry) say(`entry "${manifest.entry}" is not one of its assets`);
+  else if (entry && !entry.factory) say(`entry "${manifest.entry}" carries no factory (a namespace is not a plugin)`);
+  return problems;
 }
 
 /** Compare what would be written with what is on disk. */
