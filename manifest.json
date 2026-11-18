@@ -18,8 +18,8 @@
       "order": 10,
       "tag": "style",
       "file": "src/page-styles.css",
-      "bytes": 9060,
-      "sha384": "sha384-51khLdAdDMaNJs+a33rdstpihIn4iBAd0LAP/Id8roTkAsl1kh49vY0oHF/vE70D",
+      "bytes": 9716,
+      "sha384": "sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -111,8 +111,8 @@
       "order": 21,
       "tag": "style",
       "file": "src/viewer-bar-styles.css",
-      "bytes": 4646,
-      "sha384": "sha384-8IfJXDr73fbT7xgHTWhRbCw3EcezE8u8iybtSGLmpzhbur0stqpS4HxYWPtc3xZd",
+      "bytes": 5418,
+      "sha384": "sha384-EPyBEFMhvwDh84Hp1dGtjLudw5YB8Esr7VVEgBkkGERibxu4ElLVigabm09QpT4l",
       "mode": "online",
       "requiredBy": [
         "view"

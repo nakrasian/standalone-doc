@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 421103
+    "bytes": 422611
   },
   "assets": [
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 10447
+      "bytes": 11151
     },
     {
       "id": "toolbar-styles",
@@ -37,7 +37,7 @@
     {
       "id": "viewer-bar-styles",
       "kind": "css",
-      "bytes": 5401
+      "bytes": 6205
     },
     {
       "id": "viewer-bar",
@@ -136,8 +136,8 @@
     }
   ],
   "flavors": {
-    "index.html": 421103,
-    "asset-bodies": 405094,
+    "index.html": 422611,
+    "asset-bodies": 406602,
     "markup-and-runtime": 16009,
     "dist/slim.html": 78934
   }

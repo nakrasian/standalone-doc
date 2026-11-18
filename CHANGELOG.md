@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.6.2 — 2026-11-17
+
+### Fixed
+
+- **A block painted its own source when its id was shared.** An asset block is found by its
+  id (`script[id="<assetId>"]`), and `viewer-bar-markup` gives its root the same id as the
+  `viewer-bar` script. `#viewer-bar { display: flex }` matched the `<script>` as well as the
+  bar, outranked the UA sheet's `script { display: none }`, and painted the module below the
+  toolbar — provenance header first, so it read as a stray `/*@compiled-from …*/` note — in
+  `index.html`, in every viewer file, and in every copy either one saved. The viewer bar's
+  sheet is now qualified `header#viewer-bar`, and `page-styles.css` states the general rule
+  (`script, style { display: none !important }`) so no stylesheet can make text of a block.
+
+### Size
+
+index 411.2 → 412.7 KB · editor 399.6 → 400.3 KB · viewer 181.4 → 182.8 KB · slim unchanged
+(the viewer's bar sheet is `mode: online`, so a viewer pays for the qualifiers; an editor
+pays only for the one general rule).
+
 ## v0.6.1 — 2026-11-17
 
 ### Fixed

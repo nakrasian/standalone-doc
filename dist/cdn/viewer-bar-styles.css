@@ -2,9 +2,16 @@
    It mirrors the editor's `#ui-minimal` bar (34px, folio left, title centred, Save
    right) with its own rules: `toolbar-styles.css` is `requiredBy: ["edit"]` and costs
    30.5 KB, which a viewer must not pay for two buttons. The tokens are the editor's
-   values, repeated on purpose. */
+   values, repeated on purpose.
 
-#viewer-bar {
+   Every selector is qualified `header#viewer-bar`, not `#viewer-bar`: an asset id is
+   also the id of its block, so the `viewer-bar` *script* carried the same id as this
+   bar's root. `#viewer-bar { display: flex }` then matched the `<script>` too, outranked
+   the UA sheet, and painted the module's source below the toolbar in index.html and in
+   every viewer file. The tag keeps the sheet off the block; `page-styles.css` holds the
+   general rule. */
+
+header#viewer-bar {
   --vb-ink: #1b1f24;
   --vb-muted: #6b7280;
   --vb-line: #dfe1e6;
@@ -30,18 +37,18 @@
 
 /* `toolbar` in #doc-settings means "show chrome". A viewer saved before this release
    never authored it, so it stays bar-less — see registry.settings(). */
-html[data-toolbar="off"] #viewer-bar {
+html[data-toolbar="off"] header#viewer-bar {
   display: none;
 }
 
 /* Reading, not authoring: the bar can step out of the way for this session. Its own
    children go, one restore button stays — hiding is never a dead end, and nothing about
    it reaches the file (`session.strip()` removes the attribute from a saved clone). */
-#viewer-bar[data-session-hidden] > :not([data-vb-restore]) {
+header#viewer-bar[data-session-hidden] > :not([data-vb-restore]) {
   display: none;
 }
 
-#viewer-bar[data-session-hidden] {
+header#viewer-bar[data-session-hidden] {
   justify-content: flex-end;
   height: 26px;
   border-bottom-color: transparent;
@@ -80,13 +87,13 @@ html[data-toolbar="off"] #viewer-bar {
   color: var(--vb-ink);
 }
 
-#viewer-bar .folio {
+header#viewer-bar .folio {
   min-width: 6.5em;
   font-variant-numeric: tabular-nums;
   color: #9aa1ab;
 }
 
-#viewer-bar .vb-title {
+header#viewer-bar .vb-title {
   max-width: 26em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -94,11 +101,11 @@ html[data-toolbar="off"] #viewer-bar {
   color: var(--vb-ink);
 }
 
-#viewer-bar .grow {
+header#viewer-bar .grow {
   flex: 1;
 }
 
-#viewer-bar button {
+header#viewer-bar button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -113,38 +120,41 @@ html[data-toolbar="off"] #viewer-bar {
   cursor: pointer;
 }
 
-/* Both halves of one trap: `#viewer-bar { display: flex }` and
-   `#viewer-bar button { display: inline-flex }` outrank the UA sheet's
+/* Both halves of one trap: `header#viewer-bar { display: flex }` and
+   `header#viewer-bar button { display: inline-flex }` outrank the UA sheet's
    `[hidden] { display: none }`, so a hidden bar (or a hidden button inside one) still
-   paints. Say the intent once, for the bar and for everything in it. */
-#viewer-bar[hidden],
-#viewer-bar [hidden] {
+   paints. Say the intent once, for the bar and for everything in it.
+
+   The qualifier above is the other half of that lesson: anything this sheet says about
+   "the bar" must not be able to land on the bar's asset block. */
+header#viewer-bar[hidden],
+header#viewer-bar [hidden] {
   display: none !important;
 }
 
-#viewer-bar button:hover {
+header#viewer-bar button:hover {
   background: var(--vb-hover);
 }
 
-#viewer-bar button:focus-visible {
+header#viewer-bar button:focus-visible {
   outline: 2px solid var(--vb-accent);
   outline-offset: 1px;
 }
 
-#viewer-bar button.save-text {
+header#viewer-bar button.save-text {
   color: var(--vb-accent);
   font-weight: 600;
 }
 
-#viewer-bar button[aria-expanded="true"] {
+header#viewer-bar button[aria-expanded="true"] {
   background: var(--vb-hover);
 }
 
-#viewer-bar .vb-wrap {
+header#viewer-bar .vb-wrap {
   position: relative;
 }
 
-#viewer-bar .vb-panel {
+header#viewer-bar .vb-panel {
   position: absolute;
   top: 32px;
   right: 0;
@@ -161,11 +171,11 @@ html[data-toolbar="off"] #viewer-bar {
   z-index: 50;
 }
 
-#viewer-bar .vb-panel[hidden] {
+header#viewer-bar .vb-panel[hidden] {
   display: none;
 }
 
-#viewer-bar .vb-row {
+header#viewer-bar .vb-row {
   display: flex;
   gap: 10px;
   align-items: baseline;
@@ -174,45 +184,45 @@ html[data-toolbar="off"] #viewer-bar {
   color: var(--vb-muted);
 }
 
-#viewer-bar .vb-row b {
+header#viewer-bar .vb-row b {
   margin-left: auto;
   color: var(--vb-ink);
   font-weight: 600;
 }
 
-#viewer-bar .vb-row code {
+header#viewer-bar .vb-row code {
   margin-left: auto;
   font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--vb-ink);
 }
 
-#viewer-bar .vb-sep {
+header#viewer-bar .vb-sep {
   height: 1px;
   margin: 9px 0;
   background: var(--vb-line);
 }
 
-#viewer-bar .vb-zoom {
+header#viewer-bar .vb-zoom {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-#viewer-bar .vb-zoom [data-zoom-label] {
+header#viewer-bar .vb-zoom [data-zoom-label] {
   min-width: 5.2em;
   text-align: center;
   font-size: 12px;
   color: var(--vb-ink);
 }
 
-#viewer-bar .vb-note {
+header#viewer-bar .vb-note {
   margin: 0;
   font-size: 11.5px;
   color: var(--vb-muted);
 }
 
 @media print {
-  #viewer-bar {
+  header#viewer-bar {
     display: none;
   }
 }

@@ -32,6 +32,20 @@
       box-sizing: border-box;
     }
 
+    /* An asset block is not page furniture.
+
+       A block is found by its id — `script[id="<assetId>"]` in the loader, the markers in
+       `build.mjs` — so an asset id can collide with the id a markup asset gives its own root
+       (`viewer-bar`: the bar's markup root and the bar's script shared one). The UA sheet's
+       `script { display: none }` loses to any author rule, including one about a *different*
+       element with that id, and the block then paints its source: header comment, whole module,
+       and the register() line. Assert the intent here, once, so no stylesheet can make source
+       text of a block. */
+    script,
+    style {
+      display: none !important;
+    }
+
     body {
       margin: 0;
       height: 100dvh;
@@ -2134,9 +2148,16 @@
        It mirrors the editor's `#ui-minimal` bar (34px, folio left, title centred, Save
        right) with its own rules: `toolbar-styles.css` is `requiredBy: ["edit"]` and costs
        30.5 KB, which a viewer must not pay for two buttons. The tokens are the editor's
-       values, repeated on purpose. */
+       values, repeated on purpose.
 
-    #viewer-bar {
+       Every selector is qualified `header#viewer-bar`, not `#viewer-bar`: an asset id is
+       also the id of its block, so the `viewer-bar` *script* carried the same id as this
+       bar's root. `#viewer-bar { display: flex }` then matched the `<script>` too, outranked
+       the UA sheet, and painted the module's source below the toolbar in index.html and in
+       every viewer file. The tag keeps the sheet off the block; `page-styles.css` holds the
+       general rule. */
+
+    header#viewer-bar {
       --vb-ink: #1b1f24;
       --vb-muted: #6b7280;
       --vb-line: #dfe1e6;
@@ -2162,18 +2183,18 @@
 
     /* `toolbar` in #doc-settings means "show chrome". A viewer saved before this release
        never authored it, so it stays bar-less — see registry.settings(). */
-    html[data-toolbar="off"] #viewer-bar {
+    html[data-toolbar="off"] header#viewer-bar {
       display: none;
     }
 
     /* Reading, not authoring: the bar can step out of the way for this session. Its own
        children go, one restore button stays — hiding is never a dead end, and nothing about
        it reaches the file (`session.strip()` removes the attribute from a saved clone). */
-    #viewer-bar[data-session-hidden] > :not([data-vb-restore]) {
+    header#viewer-bar[data-session-hidden] > :not([data-vb-restore]) {
       display: none;
     }
 
-    #viewer-bar[data-session-hidden] {
+    header#viewer-bar[data-session-hidden] {
       justify-content: flex-end;
       height: 26px;
       border-bottom-color: transparent;
@@ -2212,13 +2233,13 @@
       color: var(--vb-ink);
     }
 
-    #viewer-bar .folio {
+    header#viewer-bar .folio {
       min-width: 6.5em;
       font-variant-numeric: tabular-nums;
       color: #9aa1ab;
     }
 
-    #viewer-bar .vb-title {
+    header#viewer-bar .vb-title {
       max-width: 26em;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -2226,11 +2247,11 @@
       color: var(--vb-ink);
     }
 
-    #viewer-bar .grow {
+    header#viewer-bar .grow {
       flex: 1;
     }
 
-    #viewer-bar button {
+    header#viewer-bar button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -2245,38 +2266,41 @@
       cursor: pointer;
     }
 
-    /* Both halves of one trap: `#viewer-bar { display: flex }` and
-       `#viewer-bar button { display: inline-flex }` outrank the UA sheet's
+    /* Both halves of one trap: `header#viewer-bar { display: flex }` and
+       `header#viewer-bar button { display: inline-flex }` outrank the UA sheet's
        `[hidden] { display: none }`, so a hidden bar (or a hidden button inside one) still
-       paints. Say the intent once, for the bar and for everything in it. */
-    #viewer-bar[hidden],
-    #viewer-bar [hidden] {
+       paints. Say the intent once, for the bar and for everything in it.
+
+       The qualifier above is the other half of that lesson: anything this sheet says about
+       "the bar" must not be able to land on the bar's asset block. */
+    header#viewer-bar[hidden],
+    header#viewer-bar [hidden] {
       display: none !important;
     }
 
-    #viewer-bar button:hover {
+    header#viewer-bar button:hover {
       background: var(--vb-hover);
     }
 
-    #viewer-bar button:focus-visible {
+    header#viewer-bar button:focus-visible {
       outline: 2px solid var(--vb-accent);
       outline-offset: 1px;
     }
 
-    #viewer-bar button.save-text {
+    header#viewer-bar button.save-text {
       color: var(--vb-accent);
       font-weight: 600;
     }
 
-    #viewer-bar button[aria-expanded="true"] {
+    header#viewer-bar button[aria-expanded="true"] {
       background: var(--vb-hover);
     }
 
-    #viewer-bar .vb-wrap {
+    header#viewer-bar .vb-wrap {
       position: relative;
     }
 
-    #viewer-bar .vb-panel {
+    header#viewer-bar .vb-panel {
       position: absolute;
       top: 32px;
       right: 0;
@@ -2293,11 +2317,11 @@
       z-index: 50;
     }
 
-    #viewer-bar .vb-panel[hidden] {
+    header#viewer-bar .vb-panel[hidden] {
       display: none;
     }
 
-    #viewer-bar .vb-row {
+    header#viewer-bar .vb-row {
       display: flex;
       gap: 10px;
       align-items: baseline;
@@ -2306,45 +2330,45 @@
       color: var(--vb-muted);
     }
 
-    #viewer-bar .vb-row b {
+    header#viewer-bar .vb-row b {
       margin-left: auto;
       color: var(--vb-ink);
       font-weight: 600;
     }
 
-    #viewer-bar .vb-row code {
+    header#viewer-bar .vb-row code {
       margin-left: auto;
       font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
       color: var(--vb-ink);
     }
 
-    #viewer-bar .vb-sep {
+    header#viewer-bar .vb-sep {
       height: 1px;
       margin: 9px 0;
       background: var(--vb-line);
     }
 
-    #viewer-bar .vb-zoom {
+    header#viewer-bar .vb-zoom {
       display: flex;
       align-items: center;
       gap: 4px;
     }
 
-    #viewer-bar .vb-zoom [data-zoom-label] {
+    header#viewer-bar .vb-zoom [data-zoom-label] {
       min-width: 5.2em;
       text-align: center;
       font-size: 12px;
       color: var(--vb-ink);
     }
 
-    #viewer-bar .vb-note {
+    header#viewer-bar .vb-note {
       margin: 0;
       font-size: 11.5px;
       color: var(--vb-muted);
     }
 
     @media print {
-      #viewer-bar {
+      header#viewer-bar {
         display: none;
       }
     }
@@ -2553,7 +2577,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9060,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/page-styles.css","integrity":"sha384-51khLdAdDMaNJs+a33rdstpihIn4iBAd0LAP/Id8roTkAsl1kh49vY0oHF/vE70D"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":28024,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/toolbar-styles.css","integrity":"sha384-AODULm0CK5Cctz60fWF1flhdw4cNJUZTdAmMHemxDXBL66jNFE6P0LISBQCJxAYQ"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6015,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15664,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/toolbar-markup.html","integrity":"sha384-aTWXYs9oPMEYi5IlCEaPEr2derZp9mIC9vN0ei9zRCowlTM1vNxajf9euFOCKcGd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":4646,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/viewer-bar-styles.css","integrity":"sha384-8IfJXDr73fbT7xgHTWhRbCw3EcezE8u8iybtSGLmpzhbur0stqpS4HxYWPtc3xZd"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":38354,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":15586,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1708,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/apply-settings.js","integrity":"sha384-rhh0bJv4v7DaSarFFPF8W5cnOV9Hb5+J6psnWoW2LA+f1ckdjokllDl2/4TfGZAv"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":3421,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/session.js","integrity":"sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":8575,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/pagination.js","integrity":"sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":17828,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/policy.js","integrity":"sha384-BFyyzN8jvBqka+ubH3mnVMnDJS65I7Xzak5CxgrAvfKmFyajx/x2drb9SWCi+3oN"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":51121,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/toolbar.js","integrity":"sha384-av13apuezynAnnKKGCsyVA0aTvSo2MccVMpDdp5wGf4Ex8oik7YuUALZZdMhK9qM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":33872,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/plugins.js","integrity":"sha384-ZKVUrxpVFbU+EBmdsBMpJNQ8688Fg417mJ8OtF4+yQGV06v9UIGcbwEDkiv1LoJV"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4813,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/dialogs.html","integrity":"sha384-bo3qDdsB0rDBy51tG7hbB2NhlNZczo12KVH/hxOCOxOYWMjqCaVz06EQcZnn6dqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9716,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/page-styles.css","integrity":"sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":28024,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/toolbar-styles.css","integrity":"sha384-AODULm0CK5Cctz60fWF1flhdw4cNJUZTdAmMHemxDXBL66jNFE6P0LISBQCJxAYQ"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6015,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":15664,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/toolbar-markup.html","integrity":"sha384-aTWXYs9oPMEYi5IlCEaPEr2derZp9mIC9vN0ei9zRCowlTM1vNxajf9euFOCKcGd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5418,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/viewer-bar-styles.css","integrity":"sha384-EPyBEFMhvwDh84Hp1dGtjLudw5YB8Esr7VVEgBkkGERibxu4ElLVigabm09QpT4l"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":38354,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":15586,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":1708,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/apply-settings.js","integrity":"sha384-rhh0bJv4v7DaSarFFPF8W5cnOV9Hb5+J6psnWoW2LA+f1ckdjokllDl2/4TfGZAv"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":3421,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/session.js","integrity":"sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":8575,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/pagination.js","integrity":"sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":17828,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/policy.js","integrity":"sha384-BFyyzN8jvBqka+ubH3mnVMnDJS65I7Xzak5CxgrAvfKmFyajx/x2drb9SWCi+3oN"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":51121,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/toolbar.js","integrity":"sha384-av13apuezynAnnKKGCsyVA0aTvSo2MccVMpDdp5wGf4Ex8oik7YuUALZZdMhK9qM"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":33872,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/plugins.js","integrity":"sha384-ZKVUrxpVFbU+EBmdsBMpJNQ8688Fg417mJ8OtF4+yQGV06v9UIGcbwEDkiv1LoJV"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":33881,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/export.js","integrity":"sha384-q/9jtNMahT1N3AQAZY2iP/Nmzo6lPnDJ2xBb6qWBjtKAoBtYAjKnH+syMfYL8BqZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":4813,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.6.1/dist/cdn/dialogs.html","integrity":"sha384-bo3qDdsB0rDBy51tG7hbB2NhlNZczo12KVH/hxOCOxOYWMjqCaVz06EQcZnn6dqZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are

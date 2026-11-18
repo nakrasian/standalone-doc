@@ -23,6 +23,20 @@
   box-sizing: border-box;
 }
 
+/* An asset block is not page furniture.
+
+   A block is found by its id — `script[id="<assetId>"]` in the loader, the markers in
+   `build.mjs` — so an asset id can collide with the id a markup asset gives its own root
+   (`viewer-bar`: the bar's markup root and the bar's script shared one). The UA sheet's
+   `script { display: none }` loses to any author rule, including one about a *different*
+   element with that id, and the block then paints its source: header comment, whole module,
+   and the register() line. Assert the intent here, once, so no stylesheet can make source
+   text of a block. */
+script,
+style {
+  display: none !important;
+}
+
 body {
   margin: 0;
   height: 100dvh;
