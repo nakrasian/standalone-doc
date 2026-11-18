@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 482843
+    "bytes": 483395
   },
   "assets": [
     {
@@ -16,7 +16,7 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 55655
+      "bytes": 55957
     },
     {
       "id": "registry",
@@ -31,7 +31,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 36138
+      "bytes": 36006
     },
     {
       "id": "policy",
@@ -61,7 +61,7 @@
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 9849
+      "bytes": 10231
     },
     {
       "id": "pagination",
@@ -135,8 +135,8 @@
     }
   ],
   "flavors": {
-    "index.html": 482843,
-    "asset-bodies": 466811,
+    "index.html": 483395,
+    "asset-bodies": 467363,
     "markup-and-runtime": 16032,
     "dist/slim.html": 87875
   }
