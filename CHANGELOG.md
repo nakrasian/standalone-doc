@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.8.2 — 2026-11-18
+
+### Fixed
+
+- **The Word reference document is fetchable again.** `reference.docx` was published at a
+jsDelivr url that answers `403`: jsDelivr refuses a list of extensions, and `.docx` is on it.
+Nothing was broken loudly — the asset is a `bin`, so it is never built with the plugin, and the
+plugin wraps it in `optionalBytes()` — which is exactly why it went unnoticed from v0.7.0 to
+v0.8.1: every Word export quietly fell back to pandoc's default reference document instead of
+the one this repository ships. The same bytes are now published as `reference.bin`; the plugin
+still writes them into the wasm FS as `reference.docx`, so the output is unchanged and correct.
+`verify-cdn` found this on v0.8.1 (the bundle pass added in v0.8.1 checks plugin assets, which
+`manifest.json` never listed), and `bundleProblems()` now refuses a jsDelivr pin at a blocked
+extension — or at no extension at all — so the next one fails at build time, before a tag.
+
 ## v0.8.1 — 2026-11-18
 
 ### Added

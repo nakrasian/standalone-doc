@@ -208,7 +208,7 @@ the same bytes `published()` emits:
 ```json
 "bundles": {
   "pandoc-export": {
-    "label": "Pandoc export", "version": "0.1.0", "api": 1, "island": "sealed",
+    "label": "Pandoc export", "version": "0.1.1", "api": 1, "island": "sealed",
     "entry": "pandoc-export",
     "manifest": "plugins/pandoc-export.json",
     "bytes": 4435, "sha384": "sha384-…",
@@ -224,6 +224,13 @@ the same bytes `published()` emits:
 | `sha384`, `bytes` | Of that manifest file. The runtime fetches the manifest with `prefetch`, refuses it if the hash disagrees, and only then trusts the pins inside. A catalog can propose pins; it cannot rewrite them. |
 | `assets`, `assetBytes` | What the sheet shows in the row. It never reads the manifest to draw a list. |
 | `entry`, `api`, `island` | The plugin half, for the same preview and the same refusal an `assets` entry gets. |
+
+**An extension is part of the address.** jsDelivr refuses a published list of extensions with
+`403` and serves nothing extensionless (`404`), so a pin at, say, `reference.docx` is a url no
+document can read — v0.8.1 shipped exactly that and the Word export silently lost its reference
+styling. `bundleProblems()` refuses a jsDelivr pin at a blocked extension and at a url with no
+extension at all; the measured-good set is `.bin`, `.dat`, `.zip`, `.txt`, `.b64`, `.json`.
+Publish an awkward binary under a boring name and let the plugin rename it in memory.
 
 `bundles` is **generated, never authored**: `tools/publish-plugin.mjs` owns the manifest, `check`
 fails when the catalog and the manifest disagree, and fails again when a manifest exists in

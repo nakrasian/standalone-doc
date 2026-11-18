@@ -40,7 +40,11 @@ const rel = (file) => path.relative(ROOT, file).split(path.sep).join("/");
 const BUNDLE = [
   {id: "sd-export-lua", kind: "bin", file: "tools/sd-export.lua", as: "sd-export.lua"},
   {id: "sd-template-typ", kind: "bin", file: "tools/sd-template.typ", as: "sd-template.typ"},
-  {id: "sd-reference", kind: "bin", file: "tools/reference.docx", as: "reference.docx"},
+  /* `.bin`, not `.docx`: jsDelivr refuses to serve a list of extensions (403), and `.docx` is
+     on it — measured for v0.8.1, where the Word export quietly lost its reference styling
+     because the fetch failed. Nothing downstream cares about the published name: the plugin
+     fetches by asset id and writes the file into the wasm FS as `reference.docx`. */
+  {id: "sd-reference", kind: "bin", file: "tools/reference.docx", as: "reference.bin"},
   {id: "wasi-shim", kind: "js", file: "plugins/pandoc-export/wasi-shim.js", as: "wasi-shim.js"},
   /* `factory` is what makes the module a plugin rather than a library: without it the loader
      treats the namespace as the plugin, and a namespace has no `export` contributions. */
@@ -124,7 +128,7 @@ export function published({ base = null } = {}) {
     schema: 1,
     id: "pandoc-export",
     label: "Pandoc export",
-    version: "0.1.0",
+    version: "0.1.1",
     /* The host contract this plugin is written against (`docs/PLUGINS.md` §Versioning). The
        registry refuses a plugin that asks for a newer host, which is what makes it safe for a
        plugin to be versioned — and tagged — independently of the runtime. */
@@ -183,6 +187,21 @@ function authoredCdnBase() {
 const SHA384_RE = /^sha384-[A-Za-z0-9+/]{64}$/;
 const SLUG_RE = /^[a-z0-9][a-z0-9._-]*$/;
 
+/* jsDelivr refuses a published list of extensions (HTTP 403) and serves nothing without one
+ * (404). Measured 2026-11-18 by pinning the same bytes at every candidate under a throwaway
+ * tag: .bin, .dat, .zip, .txt, .b64, .json → 200; extensionless → 404; .docx → 403. A pin
+ * that cannot be fetched is a document that cannot load, and the failure has to land before
+ * the tag, not after it — which is how v0.8.1 shipped `reference.docx` and silently lost the
+ * Word reference styling. */
+const BLOCKED_EXTENSIONS = new Set(["docx"]);
+const servedByJsDelivr = (url) => {
+  try {
+    return new URL(String(url)).hostname === "cdn.jsdelivr.net";
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Everything about a bundle manifest that would make an install fail, a document lie, or the
  * catalog advertise a pin nobody can satisfy. Empty array means publishable.
@@ -220,6 +239,12 @@ export function bundleProblems(manifest, { cdnBase = authoredCdnBase() } = {}) {
     if (!/^https:\/\//.test(String(asset.url || ""))) problems.push(`${where}: url must be absolute https://`);
     if (!SHA384_RE.test(String(asset.integrity || ""))) problems.push(`${where}: integrity must be "sha384-" + 64 base64 characters`);
     if (!Number.isInteger(asset.bytes) || asset.bytes <= 0) problems.push(`${where}: bytes must be a positive integer`);
+
+    if (servedByJsDelivr(asset.url)) {
+      const ext = path.posix.extname(new URL(String(asset.url)).pathname).slice(1).toLowerCase();
+      if (!ext) problems.push(`${where}: jsDelivr serves no extensionless file (404) — give it one`);
+      else if (BLOCKED_EXTENSIONS.has(ext)) problems.push(`${where}: jsDelivr refuses .${ext} (403) — publish it as .bin`);
+    }
 
     /* Bytes this repository serves are in dist/ at a path derived from cdnBase, so the
        manifest's promise can be checked here, offline, before anyone pins it. */

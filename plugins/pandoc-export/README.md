@@ -26,7 +26,7 @@ native `typst`. They are different artefacts, so they are named differently — 
 
 ## What a document pins
 
-Four assets, all verified by the host before any of this runs (`host.bytes`/`host.text` are
+Eight assets, all verified by the host before any of this runs (`host.bytes`/`host.text` are
 the only source of bytes, and the host is the only thing that hashes):
 
 | id | kind | size | what |
@@ -35,7 +35,7 @@ the only source of bytes, and the host is the only thing that hashes):
 | `wasi-shim` | `js` | 41.8 KB | `@bjorn3/browser_wasi_shim`, bundled by `npm run shim` |
 | `sd-export-lua` | `bin` | ~8 KB | `tools/sd-export.lua` — **`bin`, not `js`**: a `js` asset is *evaluated*, and Lua is not JavaScript. There is no text kind yet (see `docs/PLUGINS.md`). |
 | `sd-template-typ` | `bin` | ~3 KB | optional: `tools/sd-template.typ`, so `.typ` looks like the CLI's |
-| `sd-reference` | `bin` | 12 KB | optional: `tools/reference.docx`, so `.docx` looks like the CLI's |
+| `sd-reference` | `bin` | 12 KB | optional: `tools/reference.docx` (published as `reference.bin` — see *Extensions* below), so `.docx` looks like the CLI's |
 | `typst-bundle` | `bin` | 211 KB | optional, for PDF: `typst.ts`'s all-in-one bundle (one file, no imports) |
 | `typst-compiler` | `bin` | 27 MB | optional, for PDF: `typst.wasm` |
 | `typst-font-*` | `bin` | ~0.5 MB each | optional, for PDF: each one pinned means one fewer request to jsDelivr |
@@ -52,7 +52,7 @@ A manifest entry looks like this (the `url`/`integrity` are what the document ca
 
 ```json
 "plugins": { "pandoc": {
-  "label": "Pandoc export", "version": "0.1.0", "island": "sealed", "enabled": true,
+  "label": "Pandoc export", "version": "0.1.1", "island": "sealed", "enabled": true,
   "entry": "pandoc-export",
   "assets": ["pandoc", "wasi-shim", "sd-export-lua", "sd-template-typ", "sd-reference", "pandoc-export"],
   "contributes": { "export": [
@@ -97,11 +97,22 @@ WASI with `env = []`.
 
 ```
 dist/cdn/plugins/pandoc-export/
-  pandoc-export.js  wasi-shim.js  sd-export.lua  sd-template.typ  reference.docx
+  pandoc-export.js  wasi-shim.js  sd-export.lua  sd-template.typ  reference.bin
 dist/plugins/pandoc-export.json      the manifest a document installs from
 ```
 
 `node tools/publish-plugin.mjs` writes both; `node build.mjs check` fails when either is stale.
+
+### Extensions
+
+A published binary's **extension is part of whether it can be fetched at all**: jsDelivr
+refuses a list of them with `403` and serves nothing extensionless (`404`). `.docx` was on
+that list, so v0.8.1's `reference.docx` was published at a url nobody could read — the Word
+export fell back to pandoc's default reference document and said nothing. The bytes are now
+published as `reference.bin`; the plugin still writes them into the wasm FS as
+`reference.docx`, so nothing downstream changed. `bundleProblems()` refuses a jsDelivr pin at a
+blocked extension (`.bin`, `.dat`, `.zip`, `.txt`, `.b64`, `.json` are the measured-good ones).
+
 The three large assets are **not** copied — 58 MB and 27 MB belong on npm, where jsDelivr serves
 them immutably — so the manifest pins them by URL and hash, the same arrangement `plugins.json`
 uses for nanoid.
@@ -115,7 +126,7 @@ The same install by hand, for a document that cannot reach a catalog:
 
 ```js
 const published = await (await fetch(
-  "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.0/dist/plugins/pandoc-export.json")).json();
+  "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.8.2/dist/plugins/pandoc-export.json")).json();
 const manifest = JSON.parse(document.getElementById("asset-manifest").textContent);
 manifest.assets.push(...published.assets);
 manifest.plugins[published.id] = {
