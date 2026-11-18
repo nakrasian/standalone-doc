@@ -7,7 +7,9 @@ step required of the person reading it.
 This repository hosts the editor source, the build tool that splits it into publishable
 assets, and the runtime that lets a saved document carry its own dependencies either
 **inline** (works offline, from `file://`) or **by reference** (small, CDN-hosted, pinned
-and hash-verified).
+and hash-verified). A document may also name a **library** it belongs to: then Save writes
+back to that library instead of downloading, and a read-only copy of it can be published as
+a link.
 
 ## Compatibility promise
 
@@ -82,6 +84,28 @@ session's — a saved copy carries the bar back.
 `settings.toolbar` decides whether that chrome shows (`"toolbar": true` in `#doc-settings`);
 `buildViewer()` authors it, and a viewer saved before v0.5.0 never did, so it stays bar-less.
 `#app-toolbar` — the editor's ribbon — is a different element and never exists in a viewer.
+
+### A document in a library
+
+`#doc-settings.cloud` is `{id, api}`. With it, Save PUTs the serialized document to that
+object instead of downloading, and the sink — not the file — chooses the `slim` policy, so
+one runtime serves every document in the library. Without the field the document is a file,
+exactly as before: that is the field's whole compatibility story, and why nothing migrates.
+
+The endpoint is stored **relative** (`/api/docs`) and is only addressable from an http(s)
+origin. A copy re-opened from disk still records where it came from, but behaves as the file
+it is — otherwise ⌘S would PUT to `file:///api/docs/<id>`, fail, and leave a downloaded copy
+that cannot be saved at all. A signed-out save is a *failed* save, and the sink knows it by
+the response's content type rather than its status, because Access answers an expired session
+with a login page and a 200.
+
+A viewer is an **export**, not a mode: **File → Save as… → HTML → Viewer (read-only)…**
+builds a copy in view mode with the two choices that belong to a copy — whether it shows
+chrome, and whether it carries its assets (`inline`, opens from disk) or fetches them (`slim`,
+one shared runtime) — and then downloads it or sends it to the library as a link. It is never
+a mode flip on the file you are editing: a view-mode save marks the editing assets `absent`,
+and nothing in the editor can put them back. Document settings consequently offers no mode at
+all. The copy carries no `cloud`, because a copy is not a source.
 
 ### Repairing a document whose pin no longer resolves
 
@@ -174,7 +198,9 @@ Assets have a `mode`:
 `"view"`, `"comment"`), which is how a read-only viewer avoids downloading the editor.
 
 Saving computes the size first. Under 2 MB everything stays inline; above that the editor
-offers to offload core assets to the CDN, showing the exact saving.
+offers to offload core assets to the CDN, showing the exact saving. A document that names a
+library is the exception: the *sink* chooses, and a hosted document keeps its assets by
+reference so one runtime serves every document there.
 
 ## Isolation and the one global
 
@@ -204,11 +230,12 @@ enforced, not advisory: `sealed` has no network, `sandboxed` is today's figure s
 
 ## Status
 
-`v0.1.0` is published: module conversion, the dependency contract and its audit, the
+`v0.8.0` is published: module conversion, the dependency contract and its audit, the
 registry and `boot()` with diagnostics, the CDN loader, save-time materialization with
-policies, and a viewer flavour. Next is the plugin manager (a figure requiring a plugin,
-pinned and hash-verified in the document that uses it) and an update flow. The file
-format is not frozen — see `CHANGELOG.md`.
+policies, the plugin manager, the update flow, a viewer flavour, export, and a library a
+document can name — with the viewer as an export rather than a mode. Next is the host itself
+(R2 behind Cloudflare Access): this repository knows how to talk to a library, not how to be
+one. The file format is not frozen — see `CHANGELOG.md`.
 
 ## License
 
