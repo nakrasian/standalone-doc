@@ -1,212 +1,109 @@
 # Changelog
 
-## Unreleased
+## v0.7.0 — 2026-11-17
+
+The release where a document can leave the editor: Word, a typeset PDF, Typst and Markdown,
+converted by pandoc in the tab or from a command line, with the result *audited* rather than
+hoped for — and with the exporter itself published as a plugin a document can install.
 
 ### Added
 
-- **A document can name the library it lives in, and Save obeys.** `#doc-settings.cloud` is
-`{id, api?}`; when it is present, the save sink PUTs the serialized document to that object
-instead of downloading a file, and the JSON door treats a followed redirect as what it is —
-an Access login page arriving with status 200 — rather than as a successful save. Absent or
-malformed, the field means "a file", which is what every document written before it existed
-is, so nothing migrates and the button keeps its old meaning on disk. The endpoint is stored
-relative on purpose: a document copied to another host must not drag the old origin with it.
+- **An exporter, as a plugin and as a command.** `Save as… ▸ Word (.docx)…` converts in the
+  tab: the document's own `materialize()` captures its figures, one Lua filter
+  (`tools/sd-export.lua`) teaches pandoc this editor's vocabulary, and a census compares the
+  materialized DOM with pandoc's AST so a missing figure or a flattened list is a *failed
+  export*, not a quiet one. `npm run export -- doc.html --to=docx,typ,md` is the same pipeline
+  from a shell, with `--dry-run`, `--keep`, `--audit=warn`, `--on-missing=fail` (default) and
+  `--engine=native|wasm`. `pandoc-wasm` is a devDependency, so the CLI needs no install; a
+  pandoc 3 on `PATH` is faster and is the only engine that can hand a PDF to a typesetter.
 
-- **The library chooses the save policy.** A hosted document keeps its assets `online`
-(`slim`), because one runtime serving many documents is the only reason to host the runtime at
-all: a save that inlined everything turned a 77 kB document into 400 kB, which is five times
-the storage, five times the transfer, and no shared cache. A file still gets whatever policy
-its author chose — the sink decides, not the document.
+- **A typeset PDF, and two PDFs named for what they do.** `pandoc → .typ → typst.wasm → PDF`,
+  figures included: 1.5 s for a document with a figure, against a 27 MB compiler pinned as a
+  `bin` asset and fetched on the first PDF. The browser's own dialog stays and is now
+  `Print (standard)…` / `Print (captured figures)…` — instant, the reader's fonts, its headers
+  — beside `PDF (typeset)…`, which brings the template's page, embedded fonts and captured
+  figures. Same menu, three entries, no ambiguity about which one you are getting.
 
-- **Publish a read-only link**, from File → *Publish a read-only link…* — `serialize()` pointed
-at `mode: "view"`, POSTed, and shown as a copyable dialog. Not a flag on the private file and
-not a mode flip on the stored bytes: a save in edit mode marks the viewer's assets `absent`
-(`policy.js`), so a flipped copy boots into the failure card. The copy leaves `cloud` behind,
-so a reader who saves it as an editor writes a file rather than overwriting the original. The
-menu item is hidden when the document names no library (`html[data-cloud="off"]`).
+- **The exporter is published, and a document installs it from a manifest.** `npm run build`
+  writes the plugin into `dist/cdn/plugins/pandoc-export/` and
+  `dist/plugins/pandoc-export.json` — id, kind, order, size and sha384 for eight assets. Three
+  are npm pins (58 MB of pandoc, 27 MB of typst, its 211 KB bundle): the hash is the promise
+  and the url is only the address, the arrangement `plugins.json` already uses for nanoid.
+  Installation is copy-and-paste, and it is tested that way: the spec installs from the
+  published file, exports a `.docx`, and asserts every declared size and hash against the
+  bytes at that url. `check` fails when the files or the manifest are stale.
 
-## v0.6.2 — 2026-11-17
+- **An export of the same document twice is the same bytes.** A docx carries the clock twice —
+  every zip entry's DOS timestamp and `docProps/core.xml` — and pandoc writes both from the
+  wall clock: two runs differed in 4 968 of 11 733 bytes. `tools/reproducible.mjs` rewrites
+  the archive instead of asking the writer; `SOURCE_DATE_EPOCH` is honoured too, which the
+  browser now passes because the WASI glue is ours (`pandoc-wasm` instantiates it with
+  `env = []`).
 
-### Added
+- **The look, as two artefacts.** `npm run reference` derives `tools/reference.docx` from the
+  engine that will use it — a document that exercises every style, then the style bodies that
+  carry the look are replaced and the page pinned in its section properties. Word styling has
+  no other mechanism, and we had none: the exported docx carried no `pgSz` at all. It carries
+  Letter, 0.9 in, Georgia 11 pt, Title 26 pt, captions centred 9.5 pt. `tools/sd-template.typ`
+  states the same page, written without pandoc's new `conf` module so an upgrade cannot
+  quietly change it.
 
-- **An export contribution may return bytes.** `export[id]()` could only return `text`, and
-the host built `new Blob([text])` — which no binary format can survive. A `.docx` is a zip,
-a `.pptx` a package, a `.pdf` a stream: as a string each would be a lie about what the plugin
-produced, and as base64 the host's problem rather than the format's. A contribution now
-returns `{name, mime, text}` *or* `{name, mime, bytes}`, and a contribution that returns
-neither is refused with a sentence rather than an empty download. `bytes` widens nothing: it
-is the same host-owned download, the same session's worth of no new global, and a file the
-plugin never names twice. Measured by `test/browser/contributions.spec.js` — seven exact
-bytes out, byte for byte.
+- **`host.use("materialize")` — a plugin's one way in.** The editor owns figure capture and
+  chrome removal, and a plugin could not reach the result. It can now ask for the captured
+  document, with the host's progress dialog and abort, and gets `{html, files, problems}`
+  rather than an exception — whether a placeholder is fatal is the caller's contract. A
+  plugin may be an exporter; it may not become the export menu.
 
-- **A figure carries the width its author set, and says when it could not be captured.**
-The static export replaced every figure with an `<img>` sized by the frame's CSS, so the
-authored `data-w` (0.2–1) was silently dropped — the precise thing that a Word file, a Typst
-file or a printed page needs in order to honour it. The image now carries `width="80%"`,
-which is the one spelling pandoc, a printer and a browser all read. And `buildStatic()` used
-to *clear* `data-missing` whether or not it had a capture, so a red "figure could not be
-captured" card became indistinguishable from a figure; the marker now travels, and
-`validateStatic()` reports it. The HTML export keeps working (a placeholder is still
-better than no file), but a caller whose contract is `fail` can now refuse — which is what
-the export pipeline being built needs.
+- **An export contribution may return `bytes`, and `extras`.** A `.docx` is a zip: as a string
+  it would be a lie. A `.typ` or `.md` names its figures, so those travel beside it and the
+  host downloads each one — which is what "one document" means for a text format.
 
-- **`buildStatic(captures, {media})` and `figureFiles(captures)`** — the seam between "one
-self-contained file" and "a document an engine converts". `media: "data-uri"` is the
-default and today's behaviour; `media: "files"` references `fig-01.png` and returns the
-bytes to put beside it, under one naming rule that both use. A data URL is right for a
-single file and wrong elsewhere: LaTeX drops the image, Typst inlines every byte as a
-decimal number, Markdown inlines the base64 into the prose. `capture({format})` and
-`captureAndBuild({format, media})` pass it through, because the target decides the format —
-WebP for the HTML export, never for Word 2013. No UI changes; nothing in the editor calls
-the new modes yet.
+- **`bin` is fetched only when `host.bytes()` asks.** `buildPlugin()` used to fetch and
+  construct every online asset of a bundle, so a plugin carrying a compiler paid for it on
+  load. That one rule is why a 58 MB engine could be a plugin at all.
 
-- **`npm run export` — a document in, a document out.** `tools/export.mjs` runs the file's
-own export module to capture its figures, stages the result as HTML plus `fig-01.png`, hands
-it to pandoc with one Lua filter (`tools/sd-export.lua`), and then *audits the result*: the
-materialized DOM is counted, pandoc's AST is counted, and any difference is a failed export
-rather than a warning. Three stages because each answers a different question, and because a
-second idea of "a figure" would disagree with the HTML export about figure 4. No dependency
-is added to this repository — the browser is the one the tests already install, and pandoc is
-a tool on `PATH` (`--pandoc=…` for another). What the lab measured, rather than assumed:
-`<article>` is skipped by the reader (children hoisted), `<p><ul>` parses correctly, `<u>` is
-a real `Underline` node, a caret paragraph is `Para [LineBreak]`, and a `data:` URI figure is
-an **empty** LaTeX figure — so the materializer writes `fig-01.png` and the engine is handed
-the bytes. `-M sd-target=<writer>` exists because a JSON conversion would otherwise take the
-html branch of every format-dependent decision the filter makes.
-
-- **An export of the same document twice is the same bytes.** A docx carries the clock
-twice — every zip entry's DOS timestamp, and `docProps/core.xml`'s `dcterms:created`/`modified`
-— and pandoc writes both from the wall clock, so two runs differed (measured: 11 733 vs
-11 734 bytes, 4 968 differing bytes, all of them time). `tools/reproducible.mjs` rewrites the
-archive instead of asking the writer: entries are copied *compressed* (a 12 MB figure is never
-inflated), timestamps pinned to the zip epoch, `core.xml` stamped, extra fields dropped
-because 0x5455 carries a Unix mtime. `SOURCE_DATE_EPOCH` is the standard answer and pandoc
-honours it — verified in the wasm build, `1970-01-01T00:00:00Z` — but `pandoc-wasm`
-instantiates WASI with `env = []`, so the browser could not set it until we wrote our own
-glue. Both paths now exist and the CLI's does not depend on the engine's cooperation.
-
-- **`tools/reference.docx` and `tools/sd-template.typ` — the look, as two artefacts.**
-`npm run reference` derives the Word reference from the engine that will use it: ask pandoc
-for a document that exercises every style (title, h1–h3, body, quote, code, table, captioned
-figure), then replace the style definitions that carry the look and pin the page geometry in
-the section properties. A reference docx is the *only* way to style Word, and ours had none:
-the exported docx now carries `<w:pgSz w:w="12240" w:h="15840"/>` and Georgia 11 pt, Title
-26 pt, captions centred at 9.5 pt. The Typst template is written the long way (no `conf`
-module) so a pandoc upgrade cannot quietly change it, and it states the same page. Both are
-used by default when present; the export prints which.
-
-- **PDF, measured: `pandoc (html → typst)` then `typst (typst → pdf)`, never "pandoc writes a
-  PDF".** The `.typ` target has no extra cost; the PDF is a second engine. With
-  `@myriaddreamin/typst-ts-node-compiler`, a two-page Letter document with our template
-  compiles in **8 ms** to 53.5 KB. That build has **no image decoder** — `read("fig-01.png")`
-  returns the bytes and `image(bytes)` fails — so a document with figures needs the wasm build
-  (or native typst). Recorded in `lab/011-pandoc-export/notes.md` §14 with the probe that
-  proves it, rather than shipped as a maybe.
-
-- **`host.use("materialize")` — the one way a plugin may capture a document.** `export.js` is
-where figures are captured and chrome is dropped, but it offered no capability, so a plugin
-could not reach the materialized HTML at all. It now provides `{build}`: one function, which
-runs the host's own progress dialog and the same abort, and returns `{html, files, problems}`
-instead of throwing — whether a placeholder is fatal is the caller's contract
-(`onMissing: fail`), not the materializer's. A plugin may *be* an exporter; it may not become
-the export menu.
-
-- **A plugin's `bin` is no longer fetched because a plugin was loaded.** `buildPlugin()`
-fetched every online asset of a bundle in parallel and constructed each one, so a bundle
-carrying a 12 MB typst compiler downloaded it to export Markdown. `bin` assets are skipped in
-both phases: `bytesOf()` is their only fetch, `host.bytes()` their only reader — which is what
-`bin` was for (invariant 13), and what an export target needs.
-
-- **An exporter that runs in the tab: `plugins/pandoc-export/`.** Word, Typst and Markdown,
-converted by the same pandoc.wasm the CLI now uses, with nothing leaving the machine. It pins
-five assets (`pandoc` 58.6 MB `bin`, the bundled WASI shim, `tools/sd-export.lua` as a `bin`
-because a `js` asset would be *evaluated*, and optionally `tools/reference.docx` +
-`tools/sd-template.typ` so a browser export looks like a CLI one), reads them through
-`host.bytes`/`host.text`, and builds the HTML with `host.use("materialize")` — the editor's own
-capture path, so a `.docx` cannot disagree with the `.html` export about figure 4. The 58.6 MB
-is fetched on the **first export**: `bin` assets are never prefetched, which is the rule that
-made a lazily-loaded compiler possible at all. Three browser tests: a .docx with the figure
-embedded (zip magic, `word/media/`, > 8 KB), a .typ when the document has no figures, and a
-refusal with a reason when it does — a `.typ` that references `fig-01.png` is two files, and a
-contribution returns one.
-
-- **PDF with figures, in the tab — and two PDFs that say which they are.** The exporter now
-typesets through `typst.ts`: `pandoc → .typ → typst.wasm → PDF`, figures included. Measured in
-Chromium: **1.5 s** for a one-page document with a figure, from a 27 MB compiler plus a 211 KB
-bundle, both pinned as `bin` assets and fetched on the first PDF. `typst.ts` is pinned as its
-all-in-one bundle because a plugin loaded from a `blob:` URL cannot resolve the package's
-internal imports, and the fonts are the document's own `typst-font-*` assets when it has them
-(jsDelivr's default text set otherwise — the compiler ships none). The napi build in the lab
-could not decode images; the wasm build can, which is the reason this is the one that shipped.
-
-The two options are now named for what they do: **Print (standard)** and **Print (captured
-figures)** in the browser's dialog, instant and using the reader's fonts, versus **PDF
-(typeset)** from the plugin, which brings its own page, its own type and its own figures. Same
-`PDF` menu, three entries, no ambiguity about which one you are getting.
-
-- **`pandoc-wasm` is a devDependency, so `npm run export` needs no install.** `tools/engine.mjs`
-is one recipe with two engines: `native` (pandoc on PATH — faster, and the only one that can
-hand a PDF to an external typesetter) and `wasm` (the same binary the plugin runs, which is
-what makes "the CLI and the browser agree" a testable claim rather than a hope). The default
-is native when a binary exists, wasm otherwise. `--to=pdf` writes the `.typ` **always** and
-compiles it with `typst` when one is installed; without one it says which command to run and
-exits 1, because pandoc is not a PDF writer and the browser's print path already exists.
-
-- **`npm run shim`** regenerates `plugins/pandoc-export/wasi-shim.js` from the devDependency
-(the shim is ESM-only because that is how it is published; a plugin loaded from a `blob:` URL
-cannot import, so it is bundled into one module by `tools/shim.mjs`, and the artifact is
-committed because a plugin must be a self-contained file at a pinned URL).
-
-- **The exporter is published, and a document can install it from a manifest.** `npm run build`
-now writes the plugin into `dist/` — five files beside the runtime (`dist/cdn/plugins/pandoc-export/`)
-and `dist/plugins/pandoc-export.json`, which records id, kind, order, size and sha384 for all
-eight assets. Three of those are npm pins (58 MB + 27 MB + 211 KB) rather than copies: they
-belong where jsDelivr serves them immutably, and the manifest's hash is the promise while the
-url is only the address — the same arrangement `plugins.json` uses for nanoid. `check` fails
-when either the files or the manifest are stale.
-
-Installing is copy-and-paste: `assets` into `#asset-manifest`, the entry into `plugins`.
-`test/browser/plugin-manifest.spec.js` does exactly that against the published file and exports
-a `.docx`, and separately asserts every declared `bytes`/`integrity` against the bytes at that
-url — so the manifest is verified, not trusted. Writing it caught one thing the earlier
-hand-built fixtures had carried by accident: the plugin's entry module needs `"factory"`, or
-the loader treats the module *namespace* as the plugin and there are no contributions at all.
-
-- **A text target carries its figures, and a refusal is something you can see.** `.md` and
-`.typ` used to be offered only for figure-free documents — a plugin returned one file and the
-host had no archive step — so the entries were there and did nothing visible. A contribution
-may now return `extras`, which the host downloads after the document (spaced, so a browser
-asks once); and `refuse()` opens a host-owned dialog instead of writing a console line, which
-is what "I clicked and nothing happened" was. The dialog is `data-plugin-ui`, so a save drops
-it like any other session state.
-
-- **`npm run demo` — a document with the exporter installed, to click through.** Writes
-`.test-tmp/plugin-demo.html`, pinning the seven assets the plugin needs (url + sha384 each,
-including the 27 MB typesetter), with a figure whose source is in `#figure-store`. `npm run dev`
-and open the URL; `Save as… ▸ Word (.docx)…` and `PDF (typeset)…` are the shipped code paths.
+- **`npm run demo`** writes a document with the exporter installed, so any of this can be
+  clicked through by hand.
 
 ### Fixed
 
-- **The browser's .docx contained the Typst template.** `plugins/pandoc-export` attached the
-look per *document* rather than per *writer*, so `--template sd-template.typ` reached pandoc
-for docx too — and the docx writer writes whatever template it is given into
-`word/document.xml`. The file was a valid zip with a media part and a `document.xml`, so the
-test passed; Word offered its text-recovery converter. The template now goes only to typst and
-the reference docx only to Word, and the test reads `word/document.xml` and asserts it is
-OOXML (`<w:document`, `<w:pgSz`, no `typst`) — a container is not a document.
+- **The browser's .docx contained the Typst template.** The plugin attached the look per
+  *document* rather than per *writer*, so `--template sd-template.typ` reached pandoc for docx
+  too — and the docx writer writes whatever template it is given into `word/document.xml`.
+  Word offered its text-recovery converter. The file was a valid zip with a media part and a
+  part called `document.xml`, so the old test passed; a container is not a document. The test
+  now inflates `word/document.xml` and asserts `<w:document`, `<w:pgSz` and no `typst`.
 
-- **A static export carried the viewer bar.** `buildStatic()` removed the editor's chrome by id
-and the viewer bar was never on the list, so exporting `index.html` (which holds *every*
-mode's chrome) printed a reader's bar into the document — 1 034 words of it according to the
-audit, which is how it was found. `#viewer-bar` is chrome like `#app-toolbar` and now goes.
+- **A refusal was a console line.** A declined export (`figure has no captured source`) wrote
+  to the console and nothing else — "I clicked and nothing happened". It is now a host-owned
+  dialog, marked `data-plugin-ui` so a save drops it.
 
-- **A CSS comment that named `<script>` swallowed the document.** `viewer-bar-styles.css`
-documented the v0.6.2 bug with the literal tag inside a `/* … */` comment; a browser is
-untroubled, and pandoc — which is not a browser — treats everything after an unclosed
-`<script` as script text, so the export became two paragraphs of CSS. Reworded, and
-`tools/export.mjs` now refuses a materialized document whose `<script`/`</script>` counts
-disagree, with a sentence that names this exact cause. The audit caught it first (headings
-1 → 0, words 7 → 1 034), which is the argument for the audit.
+- **A static export carried the viewer bar.** `buildStatic()` removed the editor's chrome by
+  id and `#viewer-bar` was never on the list, so exporting `index.html` — which holds every
+  mode's chrome — printed a reader's bar into the document (1 034 words of it, per the audit).
+
+- **A CSS comment that named `<script>` swallowed the document.** A note in
+  `viewer-bar-styles.css` quoted the tag inside `/* … */`; a browser is untroubled and pandoc
+  treats everything after an unclosed `<script` as script text, so the export became two
+  paragraphs of CSS. Reworded, and `tools/export.mjs` refuses a materialized document whose
+  `<script`/`</script>` counts disagree.
+
+- **The dev server served `.wasm` as `application/octet-stream`**, so
+  `WebAssembly.instantiateStreaming` refused a 200 response. It now sends
+  `application/wasm` (and `.mjs`), which is the least a server that exists to be fetched from
+  can do.
+
+### Size
+
+index 412.7 → 419.3 KB · editor 400.3 → 406.9 KB · viewer 182.8 → 183.4 KB ·
+slim 77.1 → 77.6 KB. Nothing here is in a viewer: the exporter is `requiredBy: ["edit"]`,
+and `slim.html` fetches it rather than inlining it. The loader's two `kind !== "bin"` guards
+are the only cost every flavour pays, because the thing that verifies hashes cannot be a thing
+that might fail to arrive.
+
+## v0.6.2 — 2026-11-17
+
+### Fixed
 
 - **A block painted its own source when its id was shared.** An asset block is found by its
   id (`script[id="<assetId>"]`), and `viewer-bar-markup` gives its root the same id as the
@@ -219,13 +116,9 @@ disagree, with a sentence that names this exact cause. The audit caught it first
 
 ### Size
 
-index 411.2 → 417.5 KB · editor 399.6 → 405.1 KB · viewer 181.4 → 183.4 KB · slim 77.1 →
-77.6 KB (the viewer's bar sheet is `mode: online`, so a viewer pays for the qualifiers; an
-editor pays only for the one general rule). The export seam is 3.0 KB of `export` + `plugins`,
-carried by an editor and by no flavour that cannot export: `slim.html` inlines the manifest but
-fetches `export`, and a viewer never had it. The 0.5 KB every flavour pays is the loader —
-two `kind !== "bin"` guards, which are inline by definition because the thing that verifies
-hashes cannot be a thing that might fail to arrive.
+index 411.2 → 412.7 KB · editor 399.6 → 400.3 KB · viewer 181.4 → 182.8 KB · slim unchanged
+(the viewer's bar sheet is `mode: online`, so a viewer pays for the qualifiers; an editor
+pays only for the one general rule).
 
 ## v0.6.1 — 2026-11-17
 
