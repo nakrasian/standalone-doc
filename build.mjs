@@ -36,6 +36,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { published as publishedPlugins, stale as stalePlugins } from "./tools/publish-plugin.mjs";
 import {
   compileBody,
   isConverted,
@@ -890,6 +891,15 @@ async function cmdCheck({ exit = true } = {}) {
     all.push(`manifest: ${err.message}`);
   }
 
+  /* The published plugin is generated like everything else in dist/, so it can be stale. */
+  try {
+    for (const problem of stalePlugins()) {
+      all.push(`plugins: ${problem} — run: node build.mjs build`);
+    }
+  } catch (err) {
+    all.push(`plugins: ${err.message}`);
+  }
+
   /* A base and its bytes are a release pair. Only a tag can be both immutable and
      public; a local or branch base is a dev build's address and must never reach a
      document that is committed, because every fetch from it then promises bytes no
@@ -1425,6 +1435,11 @@ function cmdBuild({ base = null, out = null } = {}) {
 
   write(`${DIST}/slim.html`, buildSlim(html, manifest));
   write(`${DIST}/viewer.html`, buildViewer(html, manifest));
+
+  /* The one plugin this repository publishes. Its bytes go where every other published byte
+     goes — `dist/`, served at a tag — and a manifest records id/kind/size/sha384 so a document
+     can install it without guessing. `check` fails when either is stale. */
+  for (const [file, bytes] of publishedPlugins()) writeBytes(file, bytes);
 
   const m = measure();
   const report = {

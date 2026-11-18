@@ -90,6 +90,46 @@ The glue passes `SOURCE_DATE_EPOCH=0` into the wasm environment, so a document e
 in the browser is byte-identical — something the npm loader cannot do, because it instantiates
 WASI with `env = []`.
 
+## Published
+
+`npm run build` publishes this plugin the way this repository publishes everything: bytes in
+`dist/`, served at a tag, with a manifest that records id, kind, size and sha384 for each one.
+
+```
+dist/cdn/plugins/pandoc-export/
+  pandoc-export.js  wasi-shim.js  sd-export.lua  sd-template.typ  reference.docx
+dist/plugins/pandoc-export.json      the manifest a document installs from
+```
+
+`node tools/publish-plugin.mjs` writes both; `node build.mjs check` fails when either is stale.
+The three large assets are **not** copied — 58 MB and 27 MB belong on npm, where jsDelivr serves
+them immutably — so the manifest pins them by URL and hash, the same arrangement `plugins.json`
+uses for nanoid.
+
+A document installs by copying `assets` into `#asset-manifest` and the entry into its
+`plugins` map:
+
+```js
+const published = await (await fetch(
+  "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.7.0/dist/plugins/pandoc-export.json")).json();
+const manifest = JSON.parse(document.getElementById("asset-manifest").textContent);
+manifest.assets.push(...published.assets);
+manifest.plugins[published.id] = {
+  label: published.label, version: published.version, island: published.island,
+  enabled: true, entry: published.entry,
+  assets: published.assets.map((asset) => asset.id),
+  contributes: published.contributes,
+};
+```
+
+`test/browser/plugin-manifest.spec.js` does exactly that against the published file (with the
+dev server standing in for the tag) and exports a `.docx`, so "it can be installed from the
+manifest" is a test, not a claim.
+
+The curated catalog in `plugins.json` cannot express this yet: it describes **one ES module per
+plugin** and this is a bundle of eight assets. A catalog entry for a bundle is a schema change
+to a published file read by a shipped sheet, so it is a deliberate next step, not a detail.
+
 ## Rebuilding the bundled shim
 
     npm run shim          # writes plugins/pandoc-export/wasi-shim.js from the devDependency

@@ -157,6 +157,21 @@ exits 1, because pandoc is not a PDF writer and the browser's print path already
 cannot import, so it is bundled into one module by `tools/shim.mjs`, and the artifact is
 committed because a plugin must be a self-contained file at a pinned URL).
 
+- **The exporter is published, and a document can install it from a manifest.** `npm run build`
+now writes the plugin into `dist/` — five files beside the runtime (`dist/cdn/plugins/pandoc-export/`)
+and `dist/plugins/pandoc-export.json`, which records id, kind, order, size and sha384 for all
+eight assets. Three of those are npm pins (58 MB + 27 MB + 211 KB) rather than copies: they
+belong where jsDelivr serves them immutably, and the manifest's hash is the promise while the
+url is only the address — the same arrangement `plugins.json` uses for nanoid. `check` fails
+when either the files or the manifest are stale.
+
+Installing is copy-and-paste: `assets` into `#asset-manifest`, the entry into `plugins`.
+`test/browser/plugin-manifest.spec.js` does exactly that against the published file and exports
+a `.docx`, and separately asserts every declared `bytes`/`integrity` against the bytes at that
+url — so the manifest is verified, not trusted. Writing it caught one thing the earlier
+hand-built fixtures had carried by accident: the plugin's entry module needs `"factory"`, or
+the loader treats the module *namespace* as the plugin and there are no contributions at all.
+
 - **A text target carries its figures, and a refusal is something you can see.** `.md` and
 `.typ` used to be offered only for figure-free documents — a plugin returned one file and the
 host had no archive step — so the entries were there and did nothing visible. A contribution
