@@ -121,6 +121,7 @@ npm run cdn:verify  # fetch every published asset and check its hash (needs netw
 npm test            # unit tests (node:test)
 npm run report      # size table, per asset
 npm run export -- doc.html --to=docx,typ,md    # needs pandoc 3 on PATH (tools/export.mjs)
+npm run reference                             # derive tools/reference.docx from the engine
 ```
 
 ## Repository layout

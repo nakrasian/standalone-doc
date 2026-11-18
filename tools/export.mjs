@@ -29,6 +29,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { compare, fromAst, report } from "./census.mjs";
+import { normalise } from "./reproducible.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -51,14 +52,19 @@ function usage(code) {
                      (default: the document's #export-settings, else docx)
   --out=<dir>        where the results go (default: .)
   --pandoc=<path>    the engine (default: pandoc on PATH)
+  --reference-doc=<file>  Word styles (default: tools/reference.docx when it exists)
+  --template=<file>       Typst template (default: tools/sd-template.typ when it exists)
   --on-missing=      fail | placeholder   (default: fail)
   --audit=           fail | warn          (default: fail)
   --keep=<dir>       keep the materialized HTML and its figures
   --dry-run          materialize and audit, do not convert
+  --no-reproducible  leave the zip's timestamps alone (they default to 1980-01-01)
   --quiet            only print failures
   --help`);
   process.exit(code);
 }
+
+const ZIP = new Set(["docx", "odt", "pptx"]);
 
 const TARGETS = {
   docx: {format: "docx", ext: "docx"},
@@ -183,7 +189,30 @@ try {
     "--resource-path", staged,
     "--shift-heading-level-by", String(imports),
   ];
+  /* The two artefacts that carry the *look*. A reference docx is the only way to style
+     Word (the writer copies named styles), and a typst template is the only way to style
+     the .typ. Both are optional: an absent file means pandoc's default, and the export says
+     which was used. */
+  const referenceDoc = path.resolve(String(flags["reference-doc"] || path.join(HERE, "reference.docx")));
+  const template = path.resolve(String(flags.template || path.join(HERE, "sd-template.typ")));
+  const usesReference = fs.existsSync(referenceDoc);
+  const usesTemplate = fs.existsSync(template);
   if (flags.quiet) common.push("--quiet");
+
+  /* A text target references its figures by name, so the bytes have to travel with it:
+     a .typ with `image("fig-01.png")` and no fig-01.png is not a document. (A docx embeds
+     them, which is why only these targets need it.) */
+  const TEXTUAL = new Set(["typ", "md", "latex", "rst", "html"]);
+  const writesFigures = wanted.some((target) => TEXTUAL.has(target) && !flags["dry-run"]);
+  if (writesFigures) {
+    for (const file of materialized.files) {
+      const base64 = file.dataUrl.slice(file.dataUrl.indexOf(",") + 1);
+      const destination = path.join(outDir, file.name);
+      const bytes = Buffer.from(base64, "base64");
+      if (fs.existsSync(destination) && fs.readFileSync(destination).equals(bytes)) continue;
+      fs.writeFileSync(destination, bytes);
+    }
+  }
 
   const results = [];
   for (const target of wanted) {
@@ -193,11 +222,25 @@ try {
       results.push({target, output: null, bytes: 0});
       continue;
     }
-    const run = spawnSync(pandocBin, [...common, "-t", format, "-o", output, path.join(staged, `${slug}.html`)],
+    const exotic = [];
+    if (usesReference && /^(docx|odt|pptx)$/.test(format)) exotic.push("--reference-doc", referenceDoc);
+    if (usesTemplate && /^typst/.test(format)) exotic.push("--template", template);
+    const run = spawnSync(pandocBin,
+      [...common, ...exotic, "-t", format, "-o", output, path.join(staged, `${slug}.html`)],
       {encoding: "utf8"});
     if (run.status !== 0) fail(`${target}: pandoc failed\n  ${(run.stderr || "").trim()}`);
     const notes = (run.stderr || "").split("\n").filter((line) => /sd-export/.test(line));
-    results.push({target, output, bytes: fs.statSync(output).size, notes});
+    /* A package is a zip, and a zip carries the clock twice (entry timestamps, and
+       docProps/core.xml). Two runs of the same document must be the same bytes, or
+       "verified export" is a phrase with nothing behind it. */
+    let reproducible = false;
+    if (ZIP.has(ext) && !flags["no-reproducible"]) {
+      const raw = fs.readFileSync(output);
+      const fixed = normalise(raw);
+      if (!fixed.equals(raw)) fs.writeFileSync(output, fixed);
+      reproducible = true;
+    }
+    results.push({target, output, bytes: fs.statSync(output).size, notes, reproducible});
   }
 
   /* ----------------------------------------------------------------- audit -- */
@@ -218,12 +261,19 @@ try {
   }
 
   if (!flags.quiet) {
-    console.log(`\n${path.relative(process.cwd(), source)} → ${path.relative(process.cwd(), outDir)}/`);
+    console.log(`\n${path.relative(process.cwd(), source)} → ${path.relative(process.cwd(), outDir) || "."}/`);
     console.log(`pandoc ${engine.text} · filter sd-export.lua · ${materialized.files.length} figure file(s)`);
+    console.log(`look: ${usesReference ? path.basename(referenceDoc) : "pandoc default docx"}`
+      + ` · ${usesTemplate ? path.basename(template) : "pandoc default typst"}`);
     for (const result of results) {
       if (!result.output) console.log(`  ${result.target.padEnd(6)} (dry run)`);
-      else console.log(`  ${result.target.padEnd(6)} ${(result.bytes / 1024).toFixed(1)} KB  ${path.basename(result.output)}`);
+      else console.log(`  ${result.target.padEnd(6)} ${(result.bytes / 1024).toFixed(1)} KB  ${path.basename(result.output)}`
+        + (result.reproducible ? "  (timestamps pinned to 1980-01-01)" : ""));
       for (const note of result.notes || []) console.log(`         ${note}`);
+    }
+    if (writesFigures && materialized.files.length) {
+      console.log(`  figures ${materialized.files.map((file) => file.name).join(", ")}`
+        + `  (beside the text targets)`);
     }
     for (const {target, verdict} of audited) {
       console.log(`\naudit ${target} (materialized DOM → AST)`);

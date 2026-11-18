@@ -22,7 +22,8 @@
     "test:browser": "playwright test",
     "test:all": "npm test && npm run test:browser",
     "catalog": "node build.mjs catalog",
-    "export": "node tools/export.mjs"
+    "export": "node tools/export.mjs",
+    "reference": "node tools/reference.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1"

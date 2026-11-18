@@ -49,6 +49,35 @@ an **empty** LaTeX figure — so the materializer writes `fig-01.png` and the en
 the bytes. `-M sd-target=<writer>` exists because a JSON conversion would otherwise take the
 html branch of every format-dependent decision the filter makes.
 
+- **An export of the same document twice is the same bytes.** A docx carries the clock
+twice — every zip entry's DOS timestamp, and `docProps/core.xml`'s `dcterms:created`/`modified`
+— and pandoc writes both from the wall clock, so two runs differed (measured: 11 733 vs
+11 734 bytes, 4 968 differing bytes, all of them time). `tools/reproducible.mjs` rewrites the
+archive instead of asking the writer: entries are copied *compressed* (a 12 MB figure is never
+inflated), timestamps pinned to the zip epoch, `core.xml` stamped, extra fields dropped
+because 0x5455 carries a Unix mtime. `SOURCE_DATE_EPOCH` is the standard answer and pandoc
+honours it — verified in the wasm build, `1970-01-01T00:00:00Z` — but `pandoc-wasm`
+instantiates WASI with `env = []`, so the browser could not set it until we wrote our own
+glue. Both paths now exist and the CLI's does not depend on the engine's cooperation.
+
+- **`tools/reference.docx` and `tools/sd-template.typ` — the look, as two artefacts.**
+`npm run reference` derives the Word reference from the engine that will use it: ask pandoc
+for a document that exercises every style (title, h1–h3, body, quote, code, table, captioned
+figure), then replace the style definitions that carry the look and pin the page geometry in
+the section properties. A reference docx is the *only* way to style Word, and ours had none:
+the exported docx now carries `<w:pgSz w:w="12240" w:h="15840"/>` and Georgia 11 pt, Title
+26 pt, captions centred at 9.5 pt. The Typst template is written the long way (no `conf`
+module) so a pandoc upgrade cannot quietly change it, and it states the same page. Both are
+used by default when present; the export prints which.
+
+- **PDF, measured: `pandoc (html → typst)` then `typst (typst → pdf)`, never "pandoc writes a
+  PDF".** The `.typ` target has no extra cost; the PDF is a second engine. With
+  `@myriaddreamin/typst-ts-node-compiler`, a two-page Letter document with our template
+  compiles in **8 ms** to 53.5 KB. That build has **no image decoder** — `read("fig-01.png")`
+  returns the bytes and `image(bytes)` fails — so a document with figures needs the wasm build
+  (or native typst). Recorded in `lab/011-pandoc-export/notes.md` §14 with the probe that
+  proves it, rather than shipped as a maybe.
+
 - **`host.use("materialize")` — the one way a plugin may capture a document.** `export.js` is
 where figures are captured and chrome is dropped, but it offered no capability, so a plugin
 could not reach the materialized HTML at all. It now provides `{build}`: one function, which
