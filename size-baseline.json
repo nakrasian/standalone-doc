@@ -1,17 +1,22 @@
 {
   "source": {
-    "bytes": 565162
+    "bytes": 687694
   },
   "assets": [
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 72058
+      "bytes": 90087
+    },
+    {
+      "id": "comments",
+      "kind": "js",
+      "bytes": 65115
     },
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 61281
+      "bytes": 61450
     },
     {
       "id": "pagination",
@@ -26,17 +31,17 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 47383
+      "bytes": 53990
     },
     {
       "id": "export",
       "kind": "js",
-      "bytes": 44750
+      "bytes": 44747
     },
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 37096
+      "bytes": 41464
     },
     {
       "id": "editor",
@@ -46,42 +51,52 @@
     {
       "id": "policy",
       "kind": "js",
-      "bytes": 20536
+      "bytes": 24563
     },
     {
       "id": "boot-ui",
       "kind": "js",
-      "bytes": 20169
+      "bytes": 20337
     },
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 17422
-    },
-    {
-      "id": "page-styles",
-      "kind": "css",
-      "bytes": 11622
+      "bytes": 17817
     },
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 10231
+      "bytes": 13255
+    },
+    {
+      "id": "page-styles",
+      "kind": "css",
+      "bytes": 11619
+    },
+    {
+      "id": "doc-bar",
+      "kind": "js",
+      "bytes": 11595
+    },
+    {
+      "id": "doc-bar-styles",
+      "kind": "css",
+      "bytes": 8606
     },
     {
       "id": "selection",
       "kind": "js",
-      "bytes": 6980
+      "bytes": 7904
+    },
+    {
+      "id": "comment-styles",
+      "kind": "css",
+      "bytes": 7187
     },
     {
       "id": "boot-ui-styles",
       "kind": "css",
       "bytes": 6726
-    },
-    {
-      "id": "viewer-bar-styles",
-      "kind": "css",
-      "bytes": 6215
     },
     {
       "id": "sprite",
@@ -91,7 +106,7 @@
     {
       "id": "session",
       "kind": "js",
-      "bytes": 5233
+      "bytes": 5611
     },
     {
       "id": "zoom",
@@ -104,11 +119,6 @@
       "bytes": 4606
     },
     {
-      "id": "viewer-bar",
-      "kind": "js",
-      "bytes": 4412
-    },
-    {
       "id": "layout",
       "kind": "js",
       "bytes": 4385
@@ -116,7 +126,12 @@
     {
       "id": "apply-settings",
       "kind": "js",
-      "bytes": 2841
+      "bytes": 3544
+    },
+    {
+      "id": "doc-bar-markup",
+      "kind": "html",
+      "bytes": 2410
     },
     {
       "id": "progress",
@@ -127,11 +142,6 @@
       "id": "signals",
       "kind": "js",
       "bytes": 1749
-    },
-    {
-      "id": "viewer-bar-markup",
-      "kind": "html",
-      "bytes": 1642
     },
     {
       "id": "figure-tools",
@@ -145,9 +155,9 @@
     }
   ],
   "flavors": {
-    "index.html": 565162,
-    "asset-bodies": 548023,
-    "markup-and-runtime": 17139,
-    "dist/slim.html": 88744
+    "index.html": 687694,
+    "asset-bodies": 669453,
+    "markup-and-runtime": 18241,
+    "dist/slim.html": 96402
   }
 }
