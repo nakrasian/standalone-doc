@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "tag": "v0.11.1",
+  "base": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn",
+  "assets": [
+    {
+      "id": "page-styles",
+      "kind": "css",
+      "bytes": 10152,
+      "sha384": "sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/page-styles.css",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "toolbar-styles",
+      "kind": "css",
+      "bytes": 36809,
+      "sha384": "sha384-BsVHzecmNxazduVLdS90yg9F+4Z60dL42IWwnUZq24fnLUbx3dDCkDUeY1UOB7OG",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/toolbar-styles.css",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "sprite",
+      "kind": "html",
+      "bytes": 5260,
+      "sha384": "sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/sprite.html",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "toolbar-markup",
+      "kind": "html",
+      "bytes": 16530,
+      "sha384": "sha384-O6lhn/GhaaEkbGGZz1vodoIAB0MzR00XAbilqVN2H9+k88PJkdSTCcVqVe7wJ1Bd",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/toolbar-markup.html",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "doc-bar-markup",
+      "kind": "html",
+      "bytes": 2225,
+      "sha384": "sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/doc-bar-markup.html",
+      "requiredBy": [
+        "view",
+        "comment"
+      ]
+    },
+    {
+      "id": "doc-bar-styles",
+      "kind": "css",
+      "bytes": 7495,
+      "sha384": "sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/doc-bar-styles.css",
+      "requiredBy": [
+        "view",
+        "comment"
+      ]
+    },
+    {
+      "id": "doc-bar",
+      "kind": "js",
+      "bytes": 10494,
+      "sha384": "sha384-fwRJXVOclUH4Psu4CU/D5d5rFh0LLyFogMzTSJGoxJaT3Q+j9LYm0cpy9+9qPiH6",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/doc-bar.js",
+      "requiredBy": [
+        "view",
+        "comment"
+      ]
+    },
+    {
+      "id": "comment-styles",
+      "kind": "css",
+      "bytes": 6176,
+      "sha384": "sha384-UFUmh4u1D9Gh08Vtq7TdtMZYzTG/Yb6zbKviVx3oDDHo9aI4Yn/CZLOpruMc/xMt",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/comment-styles.css",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "figure-tools",
+      "kind": "html",
+      "bytes": 780,
+      "sha384": "sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/figure-tools.html",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "apply-settings",
+      "kind": "js",
+      "bytes": 3182,
+      "sha384": "sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/apply-settings.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "session",
+      "kind": "js",
+      "bytes": 5137,
+      "sha384": "sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/session.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "signals",
+      "kind": "js",
+      "bytes": 1435,
+      "sha384": "sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/signals.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "zoom",
+      "kind": "js",
+      "bytes": 4584,
+      "sha384": "sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/zoom.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "selection",
+      "kind": "js",
+      "bytes": 7156,
+      "sha384": "sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/selection.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "layout",
+      "kind": "js",
+      "bytes": 3906,
+      "sha384": "sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/layout.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "pagination",
+      "kind": "js",
+      "bytes": 60436,
+      "sha384": "sha384-7zSGjhxAWoyQMfn4m90pQYYT7GSjjfIl3Bb0+/SU1QRwv3neKnAziWpWOvqbb610",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/pagination.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "progress",
+      "kind": "js",
+      "bytes": 1660,
+      "sha384": "sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/progress.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "status",
+      "kind": "js",
+      "bytes": 4075,
+      "sha384": "sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/status.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "editor",
+      "kind": "js",
+      "bytes": 30058,
+      "sha384": "sha384-ZhZ5XDwi3sIdxtqzjFVeaU9PeMG85V6DhDf7v4a92JFDxlErHDYU5jt1GoAX+drE",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/editor.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "comments",
+      "kind": "js",
+      "bytes": 59350,
+      "sha384": "sha384-aetSyOwsa8A2yodHWg9BQ+IQpwokMpvKZCRZ76qSNnbOV3irF3oc1GPV0uMDF9+o",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/comments.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "figures",
+      "kind": "js",
+      "bytes": 56400,
+      "sha384": "sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/figures.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "policy",
+      "kind": "js",
+      "bytes": 22500,
+      "sha384": "sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/policy.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "toolbar",
+      "kind": "js",
+      "bytes": 82881,
+      "sha384": "sha384-deOWKcv7aeYOfDiS9ZLMsUONJNoLWZyV6vHBWIWDbtM/DDp/jAW1HUZcPBGzLIQR",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/toolbar.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "plugins",
+      "kind": "js",
+      "bytes": 54485,
+      "sha384": "sha384-02FK5RpEJ+pNjpHlGVVjf9gwXAsu0cv7jt3DxGFLWHN78NswhWVDikZwtR3ifnDQ",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/plugins.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "export",
+      "kind": "js",
+      "bytes": 42992,
+      "sha384": "sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/export.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "dialogs",
+      "kind": "html",
+      "bytes": 12784,
+      "sha384": "sha384-OhatyeFVBDNrkH+7+ERApSrDctrfYFV8HFI2aQ5i06V6UR6D6WXKi0YPt5Lv5/xp",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.11.1/dist/cdn/dialogs.html",
+      "requiredBy": [
+        "edit"
+      ]
+    }
+  ]
+}
