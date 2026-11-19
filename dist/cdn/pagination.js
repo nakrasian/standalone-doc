@@ -470,15 +470,25 @@ export function createPagination(deps = {}) {
   function applyFragments(splits) {
     const applied = [];
     for (const split of splits) {
-      const frag = splitBlock(split.block, split.offset);
+      let frag = split.existing;
+      const reused = Boolean(frag);
+      if (!frag) frag = splitBlock(split.block, split.offset);
+      /* Text inserted before the cut shifts the boundary; the fragment is still the right
+         boundary, so update the number rather than re-splitting. */
+      if (Number(frag.dataset.frag) !== split.offset) frag.dataset.frag = String(split.offset);
+      /* A reused fragment is already pushed; the target is measured from its unpushed top,
+         or a no-op pass would read the push as part of the layout and erase it. */
       const fragTop = layout.rect(frag).top;
-      const push = Math.max(0, Math.round(split.targetTop - fragTop));
-      frag.style.marginBlockStart = `${push}px`;
+      const currentPush = inlineMargin(frag);
+      const push = Math.max(0, Math.round(split.targetTop - (fragTop - currentPush)));
+      /* The one DOM write a no-op pass may still need, and only when the page moved. */
+      if (Math.abs(currentPush - push) > 0.5) frag.style.marginBlockStart = `${push}px`;
       applied.push({
         block: split.block,
         offset: split.offset,
         push,
         targetTop: split.targetTop,
+        reused,
         fragTopBefore: Math.round(fragTop),
         fragTopAfter: Math.round(layout.rect(frag).top),
         plan: split.plan ?? null,
@@ -491,6 +501,47 @@ export function createPagination(deps = {}) {
   }
 
   const fragmentCount = () => content.querySelectorAll("[data-frag]").length;
+
+  const inlineMargin = (el) => parseFloat(el.style.marginBlockStart || "0") || 0;
+
+  /** The one fragment in a block, with the numbers a pass needs to reuse it. */
+  function fragmentState(el) {
+    const frag = el.querySelector(":scope > [data-frag]");
+    if (!frag) return null;
+    return {
+      frag,
+      offset: fragmentOffset(el, frag),
+      push: inlineMargin(frag),
+      headHeight: layout.rect(frag).top - inlineMargin(frag) - layout.rect(el).top,
+    };
+  }
+
+  /** The fragment's *current* character offset. Text inserted before it shifts the stored
+      `data-frag` value; the boundary, not the number, is the truth. */
+  function fragmentOffset(el, frag) {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.setEnd(frag, 0);
+    return range.toString().length;
+  }
+
+  function mergeBlock(el) {
+    const frags = [...el.querySelectorAll("[data-frag]")];
+    for (const frag of frags) {
+      const parent = frag.parentNode;
+      if (!parent) continue;
+      while (frag.firstChild) parent.insertBefore(frag.firstChild, frag);
+      frag.remove();
+      parent.normalize();
+    }
+    return frags.length;
+  }
+
+  /** The block's semantic height while fragmented: its box minus the tail's page push. */
+  function semanticH(el) {
+    const state = fragmentState(el);
+    return layout.measureH(el) - (state ? state.push : 0);
+  }
 
   /* --------------------------------------------------------------- the page plan */
 
@@ -506,7 +557,8 @@ export function createPagination(deps = {}) {
 
     for (let i = 0; i < blocks.length; i++) {
       const el = blocks[i];
-      const h = layout.measureH(el);
+      const state = fragmentState(el);
+      const h = layout.measureH(el) - (state ? state.push : 0);
       const tall = h > g.contentH; // Check if larger than page height
       let page = pages[pages.length - 1];
 
@@ -517,12 +569,33 @@ export function createPagination(deps = {}) {
         /* A block that is not atomic may be cut at its last line that fits. Its tail must
            itself fit one page: a single cut cannot make a two-page block one page, and a
            tail that overflows would paint outside the sheet. (N cuts is the next step; a
-           tall block still takes a page of its own, unchanged.) */
+           tall block still takes a page of its own, unchanged.)
+
+           A block that is *already* cut is reused when its head still fits the room and its
+           tail still fits a page: that is the no-churn path, and it is the common one while
+           typing after the cut. Anything else needs the block merged and re-measured. */
         const room = page.top + page.avail - cursor;
         const spec = strategy(el);
-        const cut = fragmenting && !tall && spec.kind === "lines"
-          ? planSplit(el, room, spec.minLines ?? 2)
-          : null;
+        let cut = null;
+        if (fragmenting && !tall && spec.kind === "lines") {
+          if (state) {
+            if (state.headHeight <= room - 1 && h - state.headHeight <= g.contentH) {
+              cut = {
+                offset: state.offset,
+                headHeight: state.headHeight,
+                existing: state.frag,
+                room,
+                blockTop: layout.rect(el).top,
+                blockHeight: layout.measureH(el),
+                plan: {reused: true, headHeight: Math.round(state.headHeight)},
+              };
+            } else {
+              return {needsMerge: true};
+            }
+          } else {
+            cut = planSplit(el, room, spec.minLines ?? 2);
+          }
+        }
 
         if (cut && h - cut.headHeight <= g.contentH) {
           page.items.push({block: i, from: 0, to: cut.offset});
@@ -532,6 +605,7 @@ export function createPagination(deps = {}) {
             offset: cut.offset,
             headHeight: cut.headHeight,
             targetTop: nextTop + g.pad,
+            existing: cut.existing ?? null,
             plan: {
               room: Math.round(cut.room),
               blockTop: Math.round(cut.blockTop),
@@ -557,6 +631,10 @@ export function createPagination(deps = {}) {
         pages.push(page);
         cursor = nextTop;
       }
+      /* A fragment left on a block that now fits the page is stale: the block is whole
+         again, and only a merge can make it so. */
+      if (fragmenting && state) return {needsMerge: true};
+
       // Resizes page size to size of oversized block
       if (tall) {
         page.avail = h;
@@ -601,7 +679,9 @@ export function createPagination(deps = {}) {
     }
 
     for (const [block, height] of wanted) {
-      block.setAttribute("data-page-start", "");
+      /* `setAttribute` queues a mutation record even when the value is identical; a no-op
+         pass must not touch the flow at all. */
+      if (!block.hasAttribute("data-page-start")) block.setAttribute("data-page-start", "");
       const current = parseFloat(block.style.marginBlockStart || "0");
       if (Math.abs(current - height) > 0.5) block.style.marginBlockStart = height + "px";
     }
@@ -763,10 +843,15 @@ export function createPagination(deps = {}) {
            the text it holds, so planning over fragments would plan its own output. The
            text is captured *before* the merge so a merge that loses characters fails the
            post-condition instead of hiding in it. */
-        const mustMerge = fragmenting || merge;
-        const textBefore = mustMerge ? content.textContent : null;
-        if (mustMerge) merged = mergeFragments();
-        const p = plan();
+        const textBefore = (fragmenting || merge) ? content.textContent : null;
+        if (merge) merged = mergeFragments();
+        let p = plan();
+        if (fragmenting && p.needsMerge) {
+          /* One cut changed (text grew/shrunk at or before it, or the block now fits):
+             merge the document and plan again. A no-op pass never takes this branch. */
+          merged += mergeFragments();
+          p = plan();
+        }
         applyGaps(p);
         if (fragmenting) applied = applyFragments(p.splits);
         const model = buildModel(p);
@@ -787,7 +872,14 @@ export function createPagination(deps = {}) {
             console.warn(message);
           }
         }
-        lastPlan = {p, merged, applied, check};
+        /* Convergence is a fact about two consecutive passes, not about one: the same
+           pages and the same cuts. A pass that changes the text is allowed to differ from
+           the pass before it; the next one must not. */
+        const signature = `${p.pages.length}|${p.splits.map((split) => `${split.offset}@${Math.round(split.targetTop)}`).join(",")}`;
+        lastPlan = {
+          p, merged, applied, check, signature,
+          converged: lastPlan?.signature === signature,
+        };
       }));
       selectionKept = outcome.kept;
       lastPlan.selectionKept = selectionKept;
@@ -837,6 +929,7 @@ export function createPagination(deps = {}) {
       gaps: p ? p.spacers.length : 0,
       mergedLastPass: lastPlan?.merged ?? 0,
       selectionKept: lastPlan?.selectionKept ?? null,
+      converged: lastPlan?.converged ?? null,
       check: lastPlan?.check ?? null,
       pageTops: p?.pageTops ?? [],
       pageBottoms: p?.pageBottoms ?? [],
@@ -849,6 +942,7 @@ export function createPagination(deps = {}) {
         fragTopAfter: applied.fragTopAfter,
         blockMargin: applied.blockMargin,
         blockIsPageStart: applied.blockIsPageStart,
+        reused: applied.reused,
         plan: applied.plan,
       })),
     };

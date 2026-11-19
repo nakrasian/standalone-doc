@@ -468,6 +468,49 @@ const readSelection = () => {
   return {...start, endBlock: end.block, endOffset: end.offset, text: content.textContent.length};
 };
 
+test("a second pass converges on the same pages and cuts", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const result = await page.evaluate(() => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const first = pag.diagnostics();
+    pag.refresh();
+    const second = pag.diagnostics();
+    return {
+      first: {pages: first.pages, cuts: first.splits.map((split) => split.offset)},
+      second: {pages: second.pages, cuts: second.splits.map((split) => split.offset)},
+      converged: second.converged,
+    };
+  });
+  expect(result.converged, JSON.stringify(result)).toBe(true);
+  expect(result.second.pages).toBe(result.first.pages);
+  expect(result.second.cuts).toEqual(result.first.cuts);
+});
+
+test("a no-op pass performs no DOM write in #content", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const result = await page.evaluate(async () => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh(); /* settle the state the observer will watch */
+    const records = [];
+    const observer = new MutationObserver((list) => records.push(...list));
+    observer.observe(content, {subtree: true, childList: true, characterData: true, attributes: true});
+    pag.refresh();
+    /* MutationObserver callbacks are microtasks; one turn is enough to collect them. */
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    observer.disconnect();
+    return {
+      count: records.length,
+      kinds: records.map((record) => `${record.type}:${record.target.nodeName}`),
+      reused: pag.diagnostics().splits.map((split) => split.reused),
+    };
+  });
+  expect(result.count, `a no-op pass touched the flow: ${JSON.stringify(result.kinds)}`).toBe(0);
+  expect(result.reused.every(Boolean), "an unchanged cut was re-split instead of reused").toBe(true);
+});
+
 test("typing at the cut keeps the caret across a pass", async ({page}) => {
   await boot(page);
   await loadDoc(page, FIXTURE, {fragment: true});
