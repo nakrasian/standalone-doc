@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 483395
+    "bytes": 496869
   },
   "assets": [
     {
@@ -26,12 +26,12 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 39716
+      "bytes": 42926
     },
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 36006
+      "bytes": 36725
     },
     {
       "id": "policy",
@@ -39,19 +39,24 @@
       "bytes": 20536
     },
     {
+      "id": "editor",
+      "kind": "js",
+      "bytes": 20407
+    },
+    {
       "id": "boot-ui",
       "kind": "js",
       "bytes": 20169
     },
     {
-      "id": "editor",
-      "kind": "js",
-      "bytes": 19727
-    },
-    {
       "id": "toolbar-markup",
       "kind": "html",
       "bytes": 17422
+    },
+    {
+      "id": "pagination",
+      "kind": "js",
+      "bytes": 12139
     },
     {
       "id": "page-styles",
@@ -62,11 +67,6 @@
       "id": "dialogs",
       "kind": "html",
       "bytes": 10231
-    },
-    {
-      "id": "pagination",
-      "kind": "js",
-      "bytes": 9654
     },
     {
       "id": "boot-ui-styles",
@@ -84,6 +84,11 @@
       "bytes": 5775
     },
     {
+      "id": "session",
+      "kind": "js",
+      "bytes": 5233
+    },
+    {
       "id": "zoom",
       "kind": "js",
       "bytes": 5181
@@ -99,9 +104,9 @@
       "bytes": 4412
     },
     {
-      "id": "session",
+      "id": "layout",
       "kind": "js",
-      "bytes": 3795
+      "bytes": 4385
     },
     {
       "id": "apply-settings",
@@ -135,9 +140,9 @@
     }
   ],
   "flavors": {
-    "index.html": 483395,
-    "asset-bodies": 467363,
-    "markup-and-runtime": 16032,
-    "dist/slim.html": 87875
+    "index.html": 496869,
+    "asset-bodies": 480280,
+    "markup-and-runtime": 16589,
+    "dist/slim.html": 88316
   }
 }
