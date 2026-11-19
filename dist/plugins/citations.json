@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "id": "citations",
+  "label": "Citations",
+  "version": "0.1.1",
+  "api": 2,
+  "island": "sealed",
+  "entry": "citations",
+  "about": "Inline citations and a bibliography: type @@ to pick a reference, import BibTeX or CSL-JSON, or read a Zotero library. Only cited entries are written into the document, and a document without the plugin still reads correctly.",
+  "assets": [
+    {
+      "id": "citations",
+      "kind": "js",
+      "role": "module",
+      "order": 600,
+      "mode": "online",
+      "category": "plugin",
+      "plugin": "citations",
+      "requiredBy": [
+        "*"
+      ],
+      "bytes": 70555,
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.10.0/dist/cdn/plugins/citations/citations.js",
+      "integrity": "sha384-vVIZm6B6cRSL6iI5G/sXggqQnT++0OF/gzUgpMbPU5wM/SKXAoU3PVWD2ZKK8Ch3",
+      "factory": "createCitations"
+    }
+  ],
+  "contributes": {
+    "inline": [
+      {
+        "id": "citation",
+        "label": "Citation…"
+      }
+    ],
+    "panel": [
+      {
+        "id": "library",
+        "label": "References"
+      }
+    ]
+  }
+}

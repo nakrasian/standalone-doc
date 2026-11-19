@@ -29,6 +29,19 @@
       "assets": 8,
       "assetBytes": 87201484,
       "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. The engine itself is fetched on the first export; nothing is uploaded."
+    },
+    "citations": {
+      "label": "Citations",
+      "version": "0.1.1",
+      "api": 2,
+      "island": "sealed",
+      "entry": "citations",
+      "manifest": "plugins/citations.json",
+      "bytes": 1107,
+      "sha384": "sha384-lHGnsO19ChANEizDOhdwpnaUrPjoOOf6c2usgHpN3z8C5llTog8bOYoLoJcs5EKc",
+      "assets": 1,
+      "assetBytes": 70555,
+      "about": "Inline citations and a bibliography: type @@ to pick a reference, import BibTeX or CSL-JSON, or read a Zotero library. Only cited entries are written into the document, and a document without the plugin still reads correctly."
     }
   }
 }

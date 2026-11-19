@@ -28,61 +28,113 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
-const PUBLISHED = "dist/cdn/plugins/pandoc-export";
-const MANIFEST = "dist/plugins/pandoc-export.json";
-
 const sha384 = (buffer) => "sha384-" + createHash("sha384").update(buffer).digest("base64");
 /* Paths in messages are repo-relative in every other tool here; keep it that way. */
 const rel = (file) => path.relative(ROOT, file).split(path.sep).join("/");
 
-/* Copied into dist/, in the order a document builds them. `as` is the published filename; the
- * id is what the document's manifest and the plugin's `host.bytes()` use. */
-const BUNDLE = [
-  {id: "sd-export-lua", kind: "bin", file: "tools/sd-export.lua", as: "sd-export.lua"},
-  {id: "sd-template-typ", kind: "bin", file: "tools/sd-template.typ", as: "sd-template.typ"},
-  /* `.bin`, not `.docx`: jsDelivr refuses to serve a list of extensions (403), and `.docx` is
-     on it — measured for v0.8.1, where the Word export quietly lost its reference styling
-     because the fetch failed. Nothing downstream cares about the published name: the plugin
-     fetches by asset id and writes the file into the wasm FS as `reference.docx`. */
-  {id: "sd-reference", kind: "bin", file: "tools/reference.docx", as: "reference.bin"},
-  {id: "wasi-shim", kind: "js", file: "plugins/pandoc-export/wasi-shim.js", as: "wasi-shim.js"},
-  /* `factory` is what makes the module a plugin rather than a library: without it the loader
-     treats the namespace as the plugin, and a namespace has no `export` contributions. */
-  {id: "pandoc-export", kind: "js", file: "plugins/pandoc-export/pandoc-export.js", as: "pandoc-export.js",
-    factory: "createPandocExport"},
+/**
+ * The bundle descriptions. One entry per plugin that ships as many assets: each copies files
+ * from the tree into `dist/cdn/plugins/<id>/`, records the npm pins it can only address
+ * (the two engines), and writes `dist/plugins/<id>.json`.
+ *
+ * `orderBase` is per bundle so two installed plugins cannot interleave their construction
+ * order: pandoc's copies start at 300 and its pins at 400 (unchanged since v0.8.0, because
+ * changing them would rewrite a published manifest for no reason), and a later bundle starts
+ * at 600.
+ */
+const BUNDLES = [
+  {
+    id: "pandoc-export",
+    label: "Pandoc export",
+    version: "0.1.1",
+    /* The host contract this plugin is written against (`docs/PLUGINS.md` §Versioning). The
+       registry refuses a plugin that asks for a newer host, which is what makes it safe for a
+       plugin to be versioned — and tagged — independently of the runtime. */
+    api: 1,
+    island: "sealed",
+    about: "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. "
+      + "The engine itself is fetched on the first export; nothing is uploaded.",
+    orderBase: 300,
+    pinBase: 400,
+    copies: [
+      {id: "sd-export-lua", kind: "bin", file: "tools/sd-export.lua", as: "sd-export.lua"},
+      {id: "sd-template-typ", kind: "bin", file: "tools/sd-template.typ", as: "sd-template.typ"},
+      /* `.bin`, not `.docx`: jsDelivr refuses to serve a list of extensions (403), and `.docx`
+         is on it — measured for v0.8.1, where the Word export quietly lost its reference
+         styling because the fetch failed. Nothing downstream cares about the published name:
+         the plugin fetches by asset id and writes the file into the wasm FS as
+         `reference.docx`. */
+      {id: "sd-reference", kind: "bin", file: "tools/reference.docx", as: "reference.bin"},
+      {id: "wasi-shim", kind: "js", file: "plugins/pandoc-export/wasi-shim.js", as: "wasi-shim.js"},
+      /* `factory` is what makes the module a plugin rather than a library: without it the
+         loader treats the namespace as the plugin, and a namespace has no `export`
+         contributions. */
+      {id: "pandoc-export", kind: "js", file: "plugins/pandoc-export/pandoc-export.js",
+        as: "pandoc-export.js", factory: "createPandocExport"},
+    ],
+    /* Kept on npm, pinned here. Re-derive with:
+     *   node -e 'const fs=require("fs"),c=require("crypto");const b=fs.readFileSync(process.argv[1]);console.log(b.length,"sha384-"+c.createHash("sha384").update(b).digest("base64"))' <file> */
+    pins: [
+      {
+        id: "pandoc", kind: "bin", bytes: 58580800, mode: "online",
+        url: "https://cdn.jsdelivr.net/npm/pandoc-wasm@1.1.0/src/pandoc.wasm",
+        integrity: "sha384-ujgShzUfczF0wuIDXDu1wxK9eSWiUiaq32X9Wz3Yt2HQhABCkxsNYBBVjT3u7Iow",
+        local: "node_modules/pandoc-wasm/src/pandoc.wasm",
+      },
+      {
+        id: "typst-bundle", kind: "bin", bytes: 211268, mode: "online",
+        url: "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.7.0/dist/esm/contrib/all-in-one-lite.bundle.js",
+        integrity: "sha384-EJFFdZPsds9hPomUuylsX218dPBLIlif5DzJW4aFW5ofF0hjMPPlFljqBDthNql+",
+        local: "node_modules/@myriaddreamin/typst.ts/dist/esm/contrib/all-in-one-lite.bundle.js",
+      },
+      {
+        id: "typst-compiler", kind: "bin", bytes: 28325178, mode: "online",
+        url: "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler@0.7.0/pkg/typst_ts_web_compiler_bg.wasm",
+        integrity: "sha384-YB32Rpk4pOvEGytOZweRBgdbuwNueLVpzJUQojjit/A8AveMWxDW8eT9ROz98jDo",
+        local: "node_modules/@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm",
+      },
+    ],
+    contributes: {
+      export: [
+        {id: "docx", label: "Word (.docx)…"},
+        {id: "typ", label: "Typst (.typ)…"},
+        {id: "md", label: "Markdown (.md)…"},
+        {id: "pdf", label: "PDF (typeset)…"},
+      ],
+    },
+  },
+  {
+    id: "citations",
+    label: "Citations",
+    version: "0.1.1",
+    /* 2: this plugin calls `editor.insertInline()` and `pagination.defineBlock()`, and relies
+       on `data-atomic` being honoured by the planner. A host that does not have them must
+       refuse it *before* activate() rather than after a citation half-lands. */
+    api: 2,
+    island: "sealed",
+    about: "Inline citations and a bibliography: type @@ to pick a reference, import BibTeX or "
+      + "CSL-JSON, or read a Zotero library. Only cited entries are written into the document, "
+      + "and a document without the plugin still reads correctly.",
+    orderBase: 600,
+    pinBase: 700,
+    copies: [
+      /* One self-contained ES module, and that is a requirement rather than a preference: the
+         loader evaluates verified bytes from a `blob:`, where nothing bare or relative
+         resolves. So the parsers, the picker and the bibliography are one file — the same
+         reason `pandoc-export` carries its Lua as `bin` and reads it through `host.bytes()`. */
+      {id: "citations", kind: "js", file: "plugins/citations/citations.js",
+        as: "citations.js", factory: "createCitations"},
+    ],
+    pins: [],
+    contributes: {
+      /* In the Insert menu, beside the figures: a citation belongs where the author is
+         typing. `inline` is the kind that lands in the paragraph — `insert` is the kind that
+         adds a block. */
+      inline: [{id: "citation", label: "Citation…"}],
+      panel: [{id: "library", label: "References"}],
+    },
+  },
 ];
-
-/* Kept on npm, pinned here. Re-derive with:
- *   node -e 'const fs=require("fs"),c=require("crypto");const b=fs.readFileSync(process.argv[1]);console.log(b.length,"sha384-"+c.createHash("sha384").update(b).digest("base64"))' <file> */
-const LARGE = [
-  {
-    id: "pandoc", kind: "bin", bytes: 58580800, mode: "online",
-    url: "https://cdn.jsdelivr.net/npm/pandoc-wasm@1.1.0/src/pandoc.wasm",
-    integrity: "sha384-ujgShzUfczF0wuIDXDu1wxK9eSWiUiaq32X9Wz3Yt2HQhABCkxsNYBBVjT3u7Iow",
-    local: "node_modules/pandoc-wasm/src/pandoc.wasm",
-  },
-  {
-    id: "typst-bundle", kind: "bin", bytes: 211268, mode: "online",
-    url: "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.7.0/dist/esm/contrib/all-in-one-lite.bundle.js",
-    integrity: "sha384-EJFFdZPsds9hPomUuylsX218dPBLIlif5DzJW4aFW5ofF0hjMPPlFljqBDthNql+",
-    local: "node_modules/@myriaddreamin/typst.ts/dist/esm/contrib/all-in-one-lite.bundle.js",
-  },
-  {
-    id: "typst-compiler", kind: "bin", bytes: 28325178, mode: "online",
-    url: "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler@0.7.0/pkg/typst_ts_web_compiler_bg.wasm",
-    integrity: "sha384-YB32Rpk4pOvEGytOZweRBgdbuwNueLVpzJUQojjit/A8AveMWxDW8eT9ROz98jDo",
-    local: "node_modules/@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm",
-  },
-];
-
-const CONTRIBUTES = {
-  export: [
-    {id: "docx", label: "Word (.docx)…"},
-    {id: "typ", label: "Typst (.typ)…"},
-    {id: "md", label: "Markdown (.md)…"},
-    {id: "pdf", label: "PDF (typeset)…"},
-  ],
-};
 
 /** Everything publishing writes, as a map of path → bytes. Pure: no writes, no clock. */
 /**
@@ -96,51 +148,51 @@ export function published({ base = null } = {}) {
   const cdnBase = String(base || JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8")).cdnBase)
     .replace(/\/$/, "");
   const out = new Map();
-  const assets = [];
 
-  for (const [index, entry] of BUNDLE.entries()) {
-    const bytes = fs.readFileSync(path.join(ROOT, entry.file));
-    out.set(`${PUBLISHED}/${entry.as}`, bytes);
-    assets.push({
-      id: entry.id,
-      kind: entry.kind,
-      role: "module",
-      order: 300 + index,
-      mode: "online",
-      category: "plugin",
-      plugin: "pandoc-export",
-      requiredBy: ["*"],
-      bytes: bytes.length,
-      url: `${cdnBase.replace(/\/$/, "")}/plugins/pandoc-export/${entry.as}`,
-      integrity: sha384(bytes),
-      ...(entry.factory ? {factory: entry.factory} : {}),
-    });
-  }
-  for (const [index, entry] of LARGE.entries()) {
-    assets.push({
-      id: entry.id, kind: entry.kind, role: "module", order: 400 + index, mode: "online",
-      category: "plugin", plugin: "pandoc-export", requiredBy: ["*"],
-      bytes: entry.bytes, url: entry.url, integrity: entry.integrity,
-    });
-  }
+  for (const bundle of BUNDLES) {
+    const dir = `plugins/${bundle.id}`;
+    const assets = [];
 
-  const manifest = {
-    schema: 1,
-    id: "pandoc-export",
-    label: "Pandoc export",
-    version: "0.1.1",
-    /* The host contract this plugin is written against (`docs/PLUGINS.md` §Versioning). The
-       registry refuses a plugin that asks for a newer host, which is what makes it safe for a
-       plugin to be versioned — and tagged — independently of the runtime. */
-    api: 1,
-    island: "sealed",
-    entry: "pandoc-export",
-    about: "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. "
-      + "The engine itself is fetched on the first export; nothing is uploaded.",
-    assets,
-    contributes: CONTRIBUTES,
-  };
-  out.set(MANIFEST, Buffer.from(JSON.stringify(manifest, null, 2) + "\n"));
+    bundle.copies.forEach((entry, index) => {
+      const bytes = fs.readFileSync(path.join(ROOT, entry.file));
+      out.set(`dist/cdn/${dir}/${entry.as}`, bytes);
+      assets.push({
+        id: entry.id,
+        kind: entry.kind,
+        role: "module",
+        order: bundle.orderBase + index,
+        mode: "online",
+        category: "plugin",
+        plugin: bundle.id,
+        requiredBy: ["*"],
+        bytes: bytes.length,
+        url: `${cdnBase}/${dir}/${entry.as}`,
+        integrity: sha384(bytes),
+        ...(entry.factory ? {factory: entry.factory} : {}),
+      });
+    });
+    bundle.pins.forEach((entry, index) => {
+      assets.push({
+        id: entry.id, kind: entry.kind, role: "module", order: bundle.pinBase + index, mode: "online",
+        category: "plugin", plugin: bundle.id, requiredBy: ["*"],
+        bytes: entry.bytes, url: entry.url, integrity: entry.integrity,
+      });
+    });
+
+    const manifest = {
+      schema: 1,
+      id: bundle.id,
+      label: bundle.label,
+      version: bundle.version,
+      api: bundle.api,
+      island: bundle.island,
+      entry: bundle.entry || bundle.copies.at(-1).id,
+      about: bundle.about,
+      assets,
+      contributes: bundle.contributes,
+    };
+    out.set(`dist/plugins/${bundle.id}.json`, Buffer.from(JSON.stringify(manifest, null, 2) + "\n"));
+  }
   return out;
 }
 
@@ -289,10 +341,13 @@ if (process.argv[1] && process.argv[1].endsWith("publish-plugin.mjs")) {
       fs.mkdirSync(path.dirname(path.join(ROOT, file)), {recursive: true});
       fs.writeFileSync(path.join(ROOT, file), bytes);
     }
-    const manifest = JSON.parse(files.get(MANIFEST).toString("utf8"));
-    const copied = BUNDLE.length;
-    console.log(`publish-plugin: ${copied} file(s) + ${LARGE.length} npm pins → ${PUBLISHED}/`);
-    console.log(`publish-plugin: ${MANIFEST} (${manifest.assets.length} assets, `
-      + `${(manifest.assets.reduce((n, asset) => n + asset.bytes, 0) / 1e6).toFixed(1)} MB declared)`);
+    for (const bundle of BUNDLES) {
+      const file = `dist/plugins/${bundle.id}.json`;
+      const manifest = JSON.parse(files.get(file).toString("utf8"));
+      const declared = manifest.assets.reduce((n, asset) => n + asset.bytes, 0) / 1e6;
+      console.log(`publish-plugin: ${bundle.copies.length} file(s) + ${bundle.pins.length} npm pin(s) `
+        + `→ dist/cdn/plugins/${bundle.id}/`);
+      console.log(`publish-plugin: ${file} (${manifest.assets.length} asset(s), ${declared.toFixed(1)} MB declared)`);
+    }
   }
 }

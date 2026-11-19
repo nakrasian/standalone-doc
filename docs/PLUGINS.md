@@ -76,13 +76,27 @@ export async function createWhiteboard(deps = {}) {
 | `host.manifest()` | the document's own manifest |
 
 Capabilities today: `figures` (`insertHTML`, `scan`, `usage`), `editor` (`insertBlock`,
-`exec`, `setBlock`, `blockAt`), `status` (`refresh`, `markDirty`). A capability exists only
-when the module providing it was built — a view-mode document has no `editor`.
+`insertInline`, `exec`, `setBlock`, `blockAt`), `pagination` (`defineBlock`, `strategy`),
+`status` (`refresh`, `markDirty`). A capability exists only when the module providing it was
+built — a view-mode document has no `editor`.
 
 `insertBlock()` leaves a text block below the atomic block it inserted (a contenteditable
 region cannot hold a caret inside `contenteditable="false"` content), reusing the block
 that is already there when the insertion lands mid-document. A plugin inserting its own
 non-editable markup gets the same guarantee for free.
+
+`insertInline(node, {removeBefore})` is its inline twin, and the only way a plugin may put an
+atomic thing *inside* a paragraph: it inserts at the caret, spends `removeBefore` characters
+of the typed trigger (`@@` → `2`), leaves the caret in a text node after the node, and does the
+three things a content change owes this document — **one history entry**, the dirty flag, and a
+repagination. A plugin that does its own DOM surgery has to remember all three; one that
+forgets the history entry has shipped a bug nobody can reproduce.
+
+An inline element may also declare itself **unbreakable** with `data-atomic`: the planner
+will not cut a page inside it. It is not a citation feature — it is the inline counterpart of
+a block's strategy, and the rule is one attribute with no class or tag attached. Keep it
+separate from `contenteditable="false"`, which stops the *caret* entering, not the page
+breaking.
 
 **Rule: a plugin extends the surface, it never occupies it.** Do not write markup into the
 toolbar, the menus or `#content`. Ask the host: `figures.insertHTML()` owns the store, the
@@ -90,6 +104,13 @@ editor and the dirty flag; a panel gets a body to fill; a menu entry is a declar
 
 **Rule: `track()` everything.** `deactivate()` is a promise nobody can verify. The host
 withdraws what it handed you either way; what you created yourself is yours to clean up.
+
+**Rule: document-level CSS is the exception that must survive a save.** A plugin may write one
+`<style data-plugin-style="<its id>">` into `<head>`, idempotent by id, and it will be saved
+with the file. That is the only way a plugin can style content that must render when the
+plugin is *absent* — a citation's `[3]` and its reference list are ordinary markup, and a
+reader who never loads the bundle still needs the rule that makes them legible. It must not be
+`data-runtime="ephemeral"`, which is for chrome the session invented.
 
 ## 3. Declaring contributions
 
@@ -100,6 +121,7 @@ plugin cannot add a menu item that is not in its declaration.
 ```json
 "contributes": {
   "insert":  [{ "id": "board", "label": "Whiteboard", "island": "sealed" }],
+  "inline":  [{ "id": "citation", "label": "Citation…" }],
   "export":  [{ "id": "png", "label": "Whiteboard as PNG…" }],
   "panel":   [{ "id": "inspector", "label": "Board inspector" }],
   "command": [{ "id": "clear", "label": "Clear all boards" }]
@@ -109,13 +131,21 @@ plugin cannot add a menu item that is not in its declaration.
 | kind | implementation | the host does |
 |---|---|---|
 | `insert` | `insert[id](ctx) → {html, caption?, island?}` | inserts a figure, writes the pin into the store |
+| `inline` | `inline[id](ctx) → void` | closes the menu and calls you; **you** insert with `editor.insertInline()` |
 | `export` | `export[id]() → {name, mime, text \| bytes}` | builds the Blob and the download |
 | `panel` | `panel[id](body)` | creates a modal dialog and hands you an empty body |
 | `command` | `command[id]()` | runs it; you act through capabilities |
 
-Contributions that only exist as UI (`insert`, `export`, `panel`, `command`) make the plugin
-**build at boot** in an editor — a menu entry cannot be lazy. A plugin that only contributes a
-runtime waits for a figure to ask.
+`insert` and `inline` both render into the **Insert** menu, and the difference is where the
+result goes: `insert` adds a *block* and the host owns it (the store, the editor, the dirty
+flag); `inline` lands *at the caret inside a paragraph*, where only the plugin knows what it
+means — so the host closes the menu and hands over, and the plugin inserts through
+`editor.insertInline()`. A citation belongs in the second group; so would a date chip or an
+inline formula.
+
+Contributions that only exist as UI (`insert`, `inline`, `export`, `panel`, `command`) make the
+plugin **build at boot** in an editor — a menu entry cannot be lazy. A plugin that only
+contributes a runtime waits for a figure to ask.
 
 An export returns `text` for a text format and `bytes` (`ArrayBuffer`, typed array or `Blob`)
 for everything a writer actually emits — a `.docx` is a zip, and as a string it would be a
@@ -149,6 +179,17 @@ the figure**, decided at insert time, so a later plugin version cannot widen it.
 `trusted` asks the author once, when the plugin is added or turned back on. There is no
 separate "allowed" flag: the plugin entry in the file is the record. A reader is never asked
 and never can be — the figure carries a *runs unsandboxed* badge instead.
+
+### `restore`
+
+`host.on("restore", fn)` fires after **undo, redo** (and any future surface that replaces
+`#content` wholesale), with `{cause: "undo" | "redo"}`. It exists because undo is this
+editor's own snapshot stack, not the browser's: `restore()` writes `content.innerHTML` inside
+`signals.mute(...)`, so no `input` event is emitted and a plugin that renders *from* the
+document hears nothing. The snapshot an insert recorded was taken before the plugin's own
+relabel ran, so a redo restores the pre-relabel DOM — a citation mark reading `smith2020a`
+instead of `[3]`, and no bibliography. If your plugin derives anything from the content,
+relabel in this handler.
 
 `permissions` is separate from the profile; it becomes the iframe's `allow=`:
 
@@ -271,6 +312,14 @@ would launder the substitution.
 `plugins[id].api` is the host API the plugin needs; absent means `1`. The registry refuses a
 plugin asking for a newer host (`kind: "api"`) before calling `activate()`. The contract will
 change; a plugin that wants to survive that should declare the version it was written against.
+
+| host api | what it added |
+|---|---|
+| 1 | the table above minus the last two rows: `figures`, `editor.insertBlock`, `status` |
+| 2 | `editor.insertInline`, `pagination.defineBlock`, the `inline` contribution kind, `host.on("restore")`, `data-atomic`, and the `data-plugin-style` rule |
+
+A plugin that inserts inline content must declare `2`: on an older host it would activate and
+then fail halfway through an insertion, which is precisely what the field prevents.
 
 ## 8. Failure
 
