@@ -223,7 +223,16 @@ export function createExport(deps = {}) {
             .page-break { break-before: page; }
             [data-page-start] { margin-block-start: 0 !important; break-before: page; }
             [data-frag] { margin-block-start: 0 !important; }
-            .page-break-inline { break-before: page; }
+            /* An inline break-before is ignored by Chromium's paginator (measured: it
+               stays one page). The empty marker is a block box inside the paragraph, so the
+               break lands there; zero height keeps it from adding a line. */
+            .page-break-inline {
+              display: block;
+              height: 0;
+              margin: 0;
+              line-height: 0;
+              break-before: page;
+            }
             #content { max-width: none; min-height: 0; }
             #content > * { break-inside: avoid; }
             /* A paragraph with a page break inside it is the one block a page break may

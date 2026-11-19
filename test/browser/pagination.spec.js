@@ -801,3 +801,170 @@ test("undo restores the unfragmented snapshot and the next pass re-fragments", a
   expect(result.fragmentsAfterPass, "the next pass did not re-fragment").toBeGreaterThan(0);
   expect(result.kept, "the caret was not restored across undo + re-fragment").toBe(true);
 });
+
+test("a click in a fragment's first line lands in the tail", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const target = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const frag = content.querySelector("[data-frag]");
+    const block = frag.parentElement;
+    const cut = globalThis.StandaloneDoc.modules.pagination.diagnostics().splits[0].offset;
+    frag.scrollIntoView({block: "center"});
+    const box = frag.getBoundingClientRect();
+    return {x: box.left + 10, y: box.top + 6, block: [...content.children].indexOf(block), cut};
+  });
+  await page.mouse.click(target.x, target.y);
+  const selection = await page.evaluate(readSelection);
+  expect(selection.block, "the click left the paragraph").toBe(target.block);
+  expect(selection.offset, `caret ${selection.offset}, cut ${target.cut}`).toBeGreaterThanOrEqual(target.cut);
+});
+
+test("ArrowDown from the head moves into the tail, not the gap", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const cut = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const target = cut - 1;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let remaining = target;
+    let node = walker.nextNode();
+    while (node && remaining > node.nodeValue.length) {
+      remaining -= node.nodeValue.length;
+      node = walker.nextNode();
+    }
+    const range = document.createRange();
+    range.setStart(node, remaining);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {block: [...content.children].indexOf(block), offset: target};
+  });
+  await page.keyboard.press("ArrowDown");
+  const after = await page.evaluate(readSelection);
+  const moved = after.block > before.block
+    || (after.block === before.block && after.offset > before.offset);
+  expect(moved, `ArrowDown stayed at ${after.block}@${after.offset} (head ${before.block}@${before.offset})`).toBe(true);
+});
+
+test("a viewport resize keeps a live selection across the cut", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const cut = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const point = (at) => {
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let remaining = at;
+      let node = walker.nextNode();
+      while (node && remaining > node.nodeValue.length) {
+        remaining -= node.nodeValue.length;
+        node = walker.nextNode();
+      }
+      return {node, offset: remaining};
+    };
+    const start = point(cut - 20);
+    const end = point(cut + 20);
+    const range = document.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {block: [...content.children].indexOf(block), start: cut - 20, end: cut + 20};
+  });
+  await page.setViewportSize({width: 1000, height: 700});
+  await page.evaluate(() => globalThis.StandaloneDoc.modules.pagination.refresh());
+  const after = await page.evaluate(readSelection);
+  expect(after.block).toBe(before.block);
+  expect(after.offset, `start ${after.offset}, expected ${before.start}`).toBe(before.start);
+  expect(after.endOffset, `end ${after.endOffset}, expected ${before.end}`).toBe(before.end);
+});
+
+test("a no-op pass fires no selectionchange", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const count = await page.evaluate(async () => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const range = document.createRange();
+    range.setStart(block.firstChild, 2);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    /* `selectionchange` from our own addRange is delivered later; let it fire before the
+       listener starts counting, or the test measures itself. */
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    let fired = 0;
+    const listener = () => { fired += 1; };
+    document.addEventListener("selectionchange", listener);
+    pag.refresh();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    document.removeEventListener("selectionchange", listener);
+    return fired;
+  });
+  expect(count, "a no-op pass restored a selection that had not moved").toBe(0);
+});
+
+test("deleting the block before a page gap does not move the reader a page", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: false});
+  const placed = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const starts = [...content.querySelectorAll("[data-page-start]")];
+    if (starts.length < 2) return {error: `only ${starts.length} page start(s)`};
+    const block = starts[1];
+    block.scrollIntoView({block: "center"});
+    const range = document.createRange();
+    range.setStart(block.firstChild, Math.min(2, block.textContent.length));
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    window.__watch = block;
+    window.__previous = block.previousElementSibling;
+    return {
+      top: block.getBoundingClientRect().top,
+      scrollTop: document.getElementById("viewport").scrollTop,
+      previous: Boolean(window.__previous),
+    };
+  });
+  expect(placed.error, placed.error).toBeUndefined();
+  expect(placed.previous, "there is no block before the page start").toBe(true);
+  const after = await page.evaluate(() => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    window.__previous.remove();
+    /* The removal itself reflows before the pass; the pass's own job is not to move the
+       reader any further, and not to jump a page. */
+    const beforePass = window.__watch.getBoundingClientRect().top;
+    pag.refresh();
+    return {
+      beforePass,
+      top: window.__watch.getBoundingClientRect().top,
+      scrollTop: document.getElementById("viewport").scrollTop,
+      pages: pag.pageCount(),
+    };
+  });
+  const passDelta = after.top - after.beforePass;
+  expect(
+    Math.abs(passDelta),
+    `the pass moved the reader's block ${Math.round(passDelta)}px`,
+  ).toBeLessThanOrEqual(24);
+  const totalDelta = after.top - placed.top;
+  expect(
+    Math.abs(totalDelta),
+    `the reader's block jumped ${Math.round(totalDelta)}px (scrollTop ${placed.scrollTop} → ${after.scrollTop}, ${after.pages} pages)`,
+  ).toBeLessThanOrEqual(250);
+});

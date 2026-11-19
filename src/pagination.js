@@ -211,6 +211,33 @@ export function checkPass({
     if (!el.style.marginBlockStart) failures.push("a page-start block has no margin");
   }
 
+  /* 6. Every whole block sits on the page the plan named, and ends inside it. A fragmented
+     block spans pages by design, and an oversize atomic block gets a page as tall as itself;
+     both are exempt. This is the downstream half of the cut: the tail can land correctly
+     while the block after it is placed a line too high. */
+  if (plan && pageTops.length) {
+    const pageOf = new Map();
+    plan.pages.forEach((page, pageIndex) => {
+      for (const item of page.items) {
+        if (item.from === 0) pageOf.set(item.block, pageIndex);
+      }
+    });
+    for (const [blockIndex, pageIndex] of pageOf) {
+      const block = plan.blocks[blockIndex];
+      if (!block || block.querySelector?.("[data-frag]")) continue;
+      if (plan.oversize?.includes(blockIndex)) continue;
+      const box = rectOf(block);
+      const top = pageTops[pageIndex];
+      const bottom = pageBottoms[pageIndex];
+      if (!Number.isFinite(top) || !Number.isFinite(bottom)) continue;
+      if (box.top < top - tolerance) {
+        failures.push(`block ${blockIndex}: starts at ${Math.round(box.top)}, above page ${pageIndex + 1}'s top ${Math.round(top)}`);
+      } else if (box.bottom > bottom + tolerance) {
+        failures.push(`block ${blockIndex}: bottom ${Math.round(box.bottom)} below page ${pageIndex + 1} (${Math.round(bottom)})`);
+      }
+    }
+  }
+
   return {ok: failures.length === 0, failures, notes};
 }
 
