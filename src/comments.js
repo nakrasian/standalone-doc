@@ -705,19 +705,26 @@ export function createComments(deps = {}) {
 
   function layoutRail() {
     if (!rail) return;
-    const wide = globalThis.matchMedia?.(RAIL_QUERY).matches ?? false;
-    railMode = wide;
     const viewport = document.getElementById("viewport");
+    const sheet = stage?.getBoundingClientRect?.();
     const box = viewport?.getBoundingClientRect?.();
     const has = store.comments.length > 0;
+    /* The page stays centred: the rail lives in the margin beside it, and is only as wide
+       as that margin. Below ~220px it becomes a popover rather than covering the text. */
+    const margin = sheet && box ? Math.round(box.right - sheet.right - 6) : 0;
+    const wide = (globalThis.matchMedia?.(RAIL_QUERY).matches ?? false) && margin >= 214;
+    railMode = wide;
     const shown = wide && railOpen && has;
-    document.documentElement.dataset.commentsRail = shown ? "on" : "off";
     rail.hidden = !shown;
     if (railTab) railTab.hidden = !(wide && !railOpen && has);
     if (!shown) {
       rail.replaceChildren();
       return;
     }
+    const width = Math.min(324, Math.max(200, margin - 6));
+    rail.style.left = `${Math.round((sheet?.right ?? 0) + 6)}px`;
+    rail.style.right = "auto";
+    rail.style.width = `${width}px`;
     rail.style.top = `${Math.round((box?.top ?? 0) + 6)}px`;
     rail.style.maxHeight = `${Math.max(180, Math.round((box?.height ?? 600) - 12))}px`;
   }
@@ -830,6 +837,7 @@ export function createComments(deps = {}) {
 
   function renderRail() {
     if (!rail || !railMode) return;
+    const keep = rail.scrollTop;
     rail.replaceChildren();
     const {open, done} = rows();
     const addGroup = (label) => {
@@ -845,6 +853,8 @@ export function createComments(deps = {}) {
       if (open.length) addGroup("Resolved");
       for (const row of done) rail.append(card(row.comment, row.state));
     }
+    /* Re-rendering must not undo the reader's place in the list. */
+    rail.scrollTop = keep;
   }
 
   function railCard(id) {
@@ -903,9 +913,16 @@ export function createComments(deps = {}) {
     pinned = id;
     hovered = null;
     applyState();
-    if (!id || !scroll) return;
+    if (!id || !scroll || !rail || !railMode) return;
     const el = railCard(id);
-    el?.scrollIntoView({block: "nearest"});
+    if (!el) return;
+    /* Its own scroll container, by hand: `scrollIntoView` on a fixed element is a
+       document scroll waiting to happen. */
+    const top = el.offsetTop;
+    if (top < rail.scrollTop) rail.scrollTop = top;
+    else if (top + el.offsetHeight > rail.scrollTop + rail.clientHeight) {
+      rail.scrollTop = top + el.offsetHeight - rail.clientHeight;
+    }
   }
 
   function unpin() {
@@ -915,18 +932,31 @@ export function createComments(deps = {}) {
   }
 
   /** Show the reader where a comment is: pin it, bring its marker into view, flash it. */
+  /** Bring an element into view only when it is not already there: opening a comment
+   *  should not move a page the reader can already see. */
+  function ensureVisible(el) {
+    if (!el) return;
+    const viewport = document.getElementById("viewport");
+    const box = viewport?.getBoundingClientRect?.();
+    const rect = el.getBoundingClientRect?.();
+    if (!box || !rect) return;
+    if (rect.top < box.top + 56 || rect.bottom > box.bottom - 24) {
+      el.scrollIntoView({block: "nearest", behavior: "smooth"});
+    }
+  }
+
   function navigate(comment) {
     if (!comment) return null;
     pin(comment.id, {scroll: true});
     const hits = layer ? [...layer.querySelectorAll(`[data-comment-id="${comment.id}"]`)] : [];
     if (hits.length) {
-      hits[0].scrollIntoView({block: "center", behavior: "smooth"});
+      ensureVisible(hits[0]);
     } else {
       /* A resolved comment has no highlight; its paragraph is still the place to look. */
       const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
       const blockId = result.anchor?.blocks?.[0];
       const block = blockId ? index().list.find((candidate) => candidate.id === blockId) : null;
-      block?.el?.scrollIntoView({block: "center", behavior: "smooth"});
+      ensureVisible(block?.el);
     }
     flash(comment.id);
     return comment;
@@ -940,8 +970,8 @@ export function createComments(deps = {}) {
     if (!comment) return;
 
     if (event.target.closest("[data-resolve-comment]")) {
-      const next = setResolved(id, !comment.resolved);
-      if (next) navigate(next);
+      /* Resolving is bookkeeping, not navigation: the reader is already looking at it. */
+      setResolved(id, !comment.resolved);
       return;
     }
     if (event.target.closest("[data-delete-comment]")) {
@@ -952,11 +982,7 @@ export function createComments(deps = {}) {
       if (event.type === "submit") {
         event.preventDefault();
         const input = event.target.querySelector("input");
-        const next = reply(id, {body: input?.value, author: writer()});
-        if (next) {
-          input.value = "";
-          navigate(next);
-        }
+        reply(id, {body: input?.value, author: writer()});
       }
       return;
     }
@@ -1049,7 +1075,8 @@ export function createComments(deps = {}) {
     store.comments.push(comment);
     save();
     draw();
-    focus(comment);
+    /* No navigation: adding a comment should not move the page under the writer. The
+       card appears in the rail; opening it is a separate act. */
     return comment;
   }
 
@@ -1227,9 +1254,8 @@ export function createComments(deps = {}) {
       const who = editing
         ? writer(setDocumentAuthor(typed))
         : writer(setAuthorName(typed));
-      const created = add({body: box.value, author: who, range: pending?.range});
+      add({body: box.value, author: who, range: pending?.range});
       closeComposer();
-      if (created) focus(created);
     });
     /* Shown on the next frame: the click that opened it is still propagating, and the
        outside-click handler would otherwise see a visible composer and close it. */

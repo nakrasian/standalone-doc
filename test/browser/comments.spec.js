@@ -406,3 +406,42 @@ test.describe("comments: the rail", () => {
     await expect(page.locator("#comment-popover")).toContainText("Narrow.");
   });
 });
+
+
+test.describe("comments: navigation is deliberate", () => {
+  test("adding and resolving do not move the page; opening does", async ({ page }) => {
+    await load(page);
+    /* A document tall enough to scroll, then park the reader below the fold. */
+    const before = await page.evaluate(() => {
+      const content = document.getElementById("content");
+      for (let i = 0; i < 30; i += 1) {
+        const p = document.createElement("p");
+        p.textContent = `Filler paragraph ${i + 1}, long enough to make the document scroll and to put the first block well above the fold when the reader is at the bottom.`;
+        content.append(p);
+      }
+      globalThis.StandaloneDoc.modules.pagination.refresh();
+      const viewport = document.getElementById("viewport");
+      viewport.scrollTop = viewport.scrollHeight;
+      return viewport.scrollTop;
+    });
+    expect(before).toBeGreaterThan(200);
+
+    await selectText(page, [0, 2], [1, 6]);
+    const afterAdd = await page.evaluate(() => {
+      const comments = globalThis.StandaloneDoc.modules.comments;
+      const comment = comments.add({body: "No jump, please.", author: {name: "Nadia", kind: "author"}});
+      comments.resolve(comment.id, true);
+      return {scrollTop: document.getElementById("viewport").scrollTop, id: comment.id};
+    });
+    await page.waitForTimeout(300);
+    expect(afterAdd.scrollTop).toBe(before);
+    expect(await page.evaluate(() => document.getElementById("viewport").scrollTop)).toBe(before);
+
+    /* Opening it is the act that moves the page, and only because it is out of sight. */
+    await page.evaluate((id) => {
+      const comment = globalThis.StandaloneDoc.modules.comments.list().find((candidate) => candidate.id === id);
+      globalThis.StandaloneDoc.modules.comments.focus(comment);
+    }, afterAdd.id);
+    await expect.poll(() => page.evaluate(() => document.getElementById("viewport").scrollTop)).toBeLessThan(before);
+  });
+});

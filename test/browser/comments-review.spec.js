@@ -323,11 +323,28 @@ test.describe("the review copy's rail", () => {
     await page.locator("[data-comments-toggle]").click();
     await expect(page.locator("#comment-rail")).toBeHidden();
     await expect(page.locator("#comment-rail-tab")).toBeVisible();
-    await expect(page.locator("#viewport")).toHaveCSS("padding-right", "0px");
 
     await page.locator("#comment-rail-tab").click();
     await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
-    await expect(page.locator("#viewport")).toHaveCSS("padding-right", "340px");
+    /* The page did not move aside for the rail: it is still centred, and the rail sits in
+       the margin to its right. */
+    const geometry = await page.evaluate(() => {
+      const viewport = document.getElementById("viewport").getBoundingClientRect();
+      const sheet = document.getElementById("stage").getBoundingClientRect();
+      const rail = document.getElementById("comment-rail").getBoundingClientRect();
+      return {
+        padding: getComputedStyle(document.getElementById("viewport")).paddingRight,
+        centred: Math.abs((sheet.left + sheet.right) / 2 - (viewport.left + viewport.right) / 2),
+        railRightOfPage: rail.left - sheet.right,
+        railInsideViewport: viewport.right - rail.right,
+        railWidth: Math.round(rail.width),
+      };
+    });
+    expect(geometry.padding).toBe("0px");
+    expect(geometry.centred).toBeLessThan(2);
+    expect(geometry.railRightOfPage).toBeGreaterThanOrEqual(4);
+    expect(geometry.railInsideViewport).toBeGreaterThanOrEqual(0);
+    expect(geometry.railWidth).toBeGreaterThan(200);
   });
 
   test("the keyboard starts a comment in a copy that has no toolbar", async ({ page }) => {

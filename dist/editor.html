@@ -2431,19 +2431,9 @@
      * sheet's rail rules simply never match a visible element.
      */
 
-    /* The page gets narrower instead of the rail covering text: `#viewport` is the scroll
-       container, and the stage centres itself in what is left. `clip` rather than `hidden` so
-       the sticky chrome above is unaffected. */
-    html[data-comments-rail="on"] #viewport {
-      padding-right: 340px;
-    }
-
-    @media print {
-      html[data-comments-rail="on"] #viewport {
-        padding-right: 0;
-      }
-    }
-
+    /* The page stays centred. The rail lives in the margin beside it — its `left`, `width`
+       and `top` are set by the module from the measured page box, so it is as wide as the
+       room that actually exists and never narrows the document to make room for itself. */
     #comment-rail {
       position: fixed;
       right: 8px;
@@ -2464,35 +2454,65 @@
       display: none;
     }
 
+    /* Glass: the card is a translucent pane over the page's margin, not a white box on grey.
+       `backdrop-filter` blurs whatever is behind it (the sheet's edge, the backdrop), and a
+       light inner top edge does the rest; `@supports` keeps a plain card where the filter is
+       not available. */
     .comment-card {
       flex: 0 0 auto;
-      padding: 10px 12px;
-      border: 1px solid #dfe1e6;
-      border-left: 3px solid #f59e0b;
-      border-radius: 8px;
-      background: #fff;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
-      transition: border-color .15s, box-shadow .15s, background .15s;
+      padding: 11px 13px;
+      border: 1px solid rgba(255, 255, 255, .6);
+      border-left: 3px solid rgba(245, 158, 11, .9);
+      border-radius: 12px;
+      background: linear-gradient(165deg, rgba(255, 255, 255, .82), rgba(255, 255, 255, .58));
+      -webkit-backdrop-filter: blur(16px) saturate(1.7);
+      backdrop-filter: blur(16px) saturate(1.7);
+      box-shadow:
+        0 8px 24px rgba(15, 23, 42, .10),
+        inset 0 1px 0 rgba(255, 255, 255, .8),
+        inset 0 -1px 0 rgba(15, 23, 42, .04);
+      transition: border-color .15s, box-shadow .15s, background .15s, transform .15s;
       user-select: text;
+    }
+
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .comment-card {
+        background: #fff;
+      }
     }
 
     /* Hover is a preview; pinned is a decision. Both are visible on the page and in the rail,
        so the reader can tell which comment a highlight belongs to without clicking. */
     .comment-card[data-hover] {
-      border-color: #f59e0b;
-      box-shadow: 0 2px 8px rgba(245, 158, 11, .18);
+      border-color: rgba(245, 158, 11, .7);
+      border-left-color: #f59e0b;
+      background: linear-gradient(165deg, rgba(255, 255, 255, .9), rgba(255, 251, 235, .72));
+      box-shadow:
+        0 10px 26px rgba(245, 158, 11, .16),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
     }
 
     .comment-card[data-pinned] {
-      border-color: #d97706;
+      border-color: rgba(217, 119, 6, .55);
       border-left-width: 5px;
-      box-shadow: 0 6px 18px rgba(15, 23, 42, .12);
-      background: #fffdf7;
+      border-left-color: #d97706;
+      background: linear-gradient(165deg, rgba(255, 255, 255, .94), rgba(255, 251, 235, .82));
+      box-shadow:
+        0 12px 30px rgba(15, 23, 42, .14),
+        0 0 0 1px rgba(217, 119, 6, .12),
+        inset 0 1px 0 rgba(255, 255, 255, .95);
     }
 
     .comment-card[data-resolved] {
-      border-left-color: #9ca3af;
-      background: #fbfbfc;
+      border-left-color: rgba(156, 163, 175, .8);
+      background: linear-gradient(165deg, rgba(250, 250, 251, .72), rgba(245, 246, 248, .6));
+      box-shadow:
+        0 4px 14px rgba(15, 23, 42, .06),
+        inset 0 1px 0 rgba(255, 255, 255, .7);
+    }
+
+    .comment-card[data-resolved] .comment-body {
+      color: #4b5563;
     }
 
     .comment-card-head {
@@ -2756,7 +2776,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"write"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":36809,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-BsVHzecmNxazduVLdS90yg9F+4Z60dL42IWwnUZq24fnLUbx3dDCkDUeY1UOB7OG"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16530,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-O6lhn/GhaaEkbGGZz1vodoIAB0MzR00XAbilqVN2H9+k88PJkdSTCcVqVe7wJ1Bd"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":10407,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-3OjHul+7P73kX+fmQfc5EvHbkJPLd5Q5mYevUXxyOk5BDzxHECyKtxO7FYMNS53+"},{"id":"comment-styles","kind":"css","role":"module","order":26,"mode":"inline","requiredBy":["*"],"bytes":5327,"capability":"comments","label":"Comment styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comment-styles.css","integrity":"sha384-EszaQ+Jp9yxKATNPbZv05o0dRYW3tp3aYZbum20VQ5pmkEtZDCMIESbGrtB1Aj6Z"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":49631,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18618,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3182,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":55208,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-SlJyw4+Uj5OeiG8jHIwQfNJSbDLVZWkx/7TcFsA8+HTQg5VxxJUH1ga1zZ6vglzN"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":22500,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":82881,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-deOWKcv7aeYOfDiS9ZLMsUONJNoLWZyV6vHBWIWDbtM/DDp/jAW1HUZcPBGzLIQR"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":12784,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-OhatyeFVBDNrkH+7+ERApSrDctrfYFV8HFI2aQ5i06V6UR6D6WXKi0YPt5Lv5/xp"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":36809,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-BsVHzecmNxazduVLdS90yg9F+4Z60dL42IWwnUZq24fnLUbx3dDCkDUeY1UOB7OG"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16530,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-O6lhn/GhaaEkbGGZz1vodoIAB0MzR00XAbilqVN2H9+k88PJkdSTCcVqVe7wJ1Bd"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":10407,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-3OjHul+7P73kX+fmQfc5EvHbkJPLd5Q5mYevUXxyOk5BDzxHECyKtxO7FYMNS53+"},{"id":"comment-styles","kind":"css","role":"module","order":26,"mode":"inline","requiredBy":["*"],"bytes":6571,"capability":"comments","label":"Comment styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comment-styles.css","integrity":"sha384-QJpa1I7cMIbVI8IYziYprg1hnik8bqBDm1sVHqq8zF5f0NH0DeC7THhxf+fBkuzu"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":49631,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18618,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3182,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":56627,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-n0XL6NCHe0r+3+D7ROwIZivn188YIj+XdDr/bsQ4WTE5rvVsPfLUzQoWKt9k7kK/"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":22500,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":82881,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-deOWKcv7aeYOfDiS9ZLMsUONJNoLWZyV6vHBWIWDbtM/DDp/jAW1HUZcPBGzLIQR"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":12784,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-OhatyeFVBDNrkH+7+ERApSrDctrfYFV8HFI2aQ5i06V6UR6D6WXKi0YPt5Lv5/xp"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -7977,19 +7997,26 @@
 
       function layoutRail() {
         if (!rail) return;
-        const wide = globalThis.matchMedia?.(RAIL_QUERY).matches ?? false;
-        railMode = wide;
         const viewport = document.getElementById("viewport");
+        const sheet = stage?.getBoundingClientRect?.();
         const box = viewport?.getBoundingClientRect?.();
         const has = store.comments.length > 0;
+        /* The page stays centred: the rail lives in the margin beside it, and is only as wide
+           as that margin. Below ~220px it becomes a popover rather than covering the text. */
+        const margin = sheet && box ? Math.round(box.right - sheet.right - 6) : 0;
+        const wide = (globalThis.matchMedia?.(RAIL_QUERY).matches ?? false) && margin >= 214;
+        railMode = wide;
         const shown = wide && railOpen && has;
-        document.documentElement.dataset.commentsRail = shown ? "on" : "off";
         rail.hidden = !shown;
         if (railTab) railTab.hidden = !(wide && !railOpen && has);
         if (!shown) {
           rail.replaceChildren();
           return;
         }
+        const width = Math.min(324, Math.max(200, margin - 6));
+        rail.style.left = `${Math.round((sheet?.right ?? 0) + 6)}px`;
+        rail.style.right = "auto";
+        rail.style.width = `${width}px`;
         rail.style.top = `${Math.round((box?.top ?? 0) + 6)}px`;
         rail.style.maxHeight = `${Math.max(180, Math.round((box?.height ?? 600) - 12))}px`;
       }
@@ -8102,6 +8129,7 @@
 
       function renderRail() {
         if (!rail || !railMode) return;
+        const keep = rail.scrollTop;
         rail.replaceChildren();
         const {open, done} = rows();
         const addGroup = (label) => {
@@ -8117,6 +8145,8 @@
           if (open.length) addGroup("Resolved");
           for (const row of done) rail.append(card(row.comment, row.state));
         }
+        /* Re-rendering must not undo the reader's place in the list. */
+        rail.scrollTop = keep;
       }
 
       function railCard(id) {
@@ -8175,9 +8205,16 @@
         pinned = id;
         hovered = null;
         applyState();
-        if (!id || !scroll) return;
+        if (!id || !scroll || !rail || !railMode) return;
         const el = railCard(id);
-        el?.scrollIntoView({block: "nearest"});
+        if (!el) return;
+        /* Its own scroll container, by hand: `scrollIntoView` on a fixed element is a
+           document scroll waiting to happen. */
+        const top = el.offsetTop;
+        if (top < rail.scrollTop) rail.scrollTop = top;
+        else if (top + el.offsetHeight > rail.scrollTop + rail.clientHeight) {
+          rail.scrollTop = top + el.offsetHeight - rail.clientHeight;
+        }
       }
 
       function unpin() {
@@ -8187,18 +8224,31 @@
       }
 
       /** Show the reader where a comment is: pin it, bring its marker into view, flash it. */
+      /** Bring an element into view only when it is not already there: opening a comment
+       *  should not move a page the reader can already see. */
+      function ensureVisible(el) {
+        if (!el) return;
+        const viewport = document.getElementById("viewport");
+        const box = viewport?.getBoundingClientRect?.();
+        const rect = el.getBoundingClientRect?.();
+        if (!box || !rect) return;
+        if (rect.top < box.top + 56 || rect.bottom > box.bottom - 24) {
+          el.scrollIntoView({block: "nearest", behavior: "smooth"});
+        }
+      }
+
       function navigate(comment) {
         if (!comment) return null;
         pin(comment.id, {scroll: true});
         const hits = layer ? [...layer.querySelectorAll(`[data-comment-id="${comment.id}"]`)] : [];
         if (hits.length) {
-          hits[0].scrollIntoView({block: "center", behavior: "smooth"});
+          ensureVisible(hits[0]);
         } else {
           /* A resolved comment has no highlight; its paragraph is still the place to look. */
           const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
           const blockId = result.anchor?.blocks?.[0];
           const block = blockId ? index().list.find((candidate) => candidate.id === blockId) : null;
-          block?.el?.scrollIntoView({block: "center", behavior: "smooth"});
+          ensureVisible(block?.el);
         }
         flash(comment.id);
         return comment;
@@ -8212,8 +8262,8 @@
         if (!comment) return;
 
         if (event.target.closest("[data-resolve-comment]")) {
-          const next = setResolved(id, !comment.resolved);
-          if (next) navigate(next);
+          /* Resolving is bookkeeping, not navigation: the reader is already looking at it. */
+          setResolved(id, !comment.resolved);
           return;
         }
         if (event.target.closest("[data-delete-comment]")) {
@@ -8224,11 +8274,7 @@
           if (event.type === "submit") {
             event.preventDefault();
             const input = event.target.querySelector("input");
-            const next = reply(id, {body: input?.value, author: writer()});
-            if (next) {
-              input.value = "";
-              navigate(next);
-            }
+            reply(id, {body: input?.value, author: writer()});
           }
           return;
         }
@@ -8321,7 +8367,8 @@
         store.comments.push(comment);
         save();
         draw();
-        focus(comment);
+        /* No navigation: adding a comment should not move the page under the writer. The
+           card appears in the rail; opening it is a separate act. */
         return comment;
       }
 
@@ -8499,9 +8546,8 @@
           const who = editing
             ? writer(setDocumentAuthor(typed))
             : writer(setAuthorName(typed));
-          const created = add({body: box.value, author: who, range: pending?.range});
+          add({body: box.value, author: who, range: pending?.range});
           closeComposer();
-          if (created) focus(created);
         });
         /* Shown on the next frame: the click that opened it is still propagating, and the
            outside-click handler would otherwise see a visible composer and close it. */
