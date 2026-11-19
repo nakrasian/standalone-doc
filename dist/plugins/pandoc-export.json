@@ -19,9 +19,9 @@
       "requiredBy": [
         "*"
       ],
-      "bytes": 9422,
+      "bytes": 11590,
       "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/plugins/pandoc-export/sd-export.lua",
-      "integrity": "sha384-Bbc3p1rz0e/V3i4jQt70aulYZt8kFylVdI6xJI+9UGSUZpBx2hhh60tBko8ekjz4"
+      "integrity": "sha384-jQj6j8E519s8XV3cdcf1Ei6nWd5LiVkFtI9D6kxk/CgjM2J4BKkhDK/UVZEDa9gT"
     },
     {
       "id": "sd-template-typ",

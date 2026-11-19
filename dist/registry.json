@@ -24,10 +24,10 @@
       "island": "sealed",
       "entry": "pandoc-export",
       "manifest": "plugins/pandoc-export.json",
-      "bytes": 4434,
-      "sha384": "sha384-9OIGTYJ6AxBg3EDJqDOC9K+D7EzuZAxz4kcFJq6B1uIgXU0NQH1h09MfvqP+zPgN",
+      "bytes": 4435,
+      "sha384": "sha384-RZeOtOYCzhSdtU29mG6/gPVmyTW/M/zzLikP1A/ffpH92h092D+7TREIDvvLrDPt",
       "assets": 8,
-      "assetBytes": 87198155,
+      "assetBytes": 87200323,
       "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. The engine itself is fetched on the first export; nothing is uploaded."
     }
   }

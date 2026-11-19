@@ -162,9 +162,15 @@ export function createExport(deps = {}) {
       while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
       frag.remove();
     });
-    /* The gap was layout, not content. The attribute stays so the print rule below can
-       still break the page; the length does not, because print has its own page size. */
+    /* The gap was layout, not content. A page start becomes an empty marker Div for
+       pandoc — the one block element whose class survives the HTML reader — and the
+       attribute goes away, so print and pandoc cannot both break the same page. The
+       marker is invisible: no text, and the print rule carries the break. */
     clone.querySelectorAll("[data-page-start]").forEach((node) => {
+      const marker = clone.ownerDocument.createElement("div");
+      marker.className = "page-break";
+      node.parentNode.insertBefore(marker, node);
+      node.removeAttribute("data-page-start");
       node.style.marginBlockStart = "";
       if (!node.getAttribute("style")) node.removeAttribute("style");
     });
@@ -199,6 +205,7 @@ export function createExport(deps = {}) {
             #sheets { display: none !important; }
             .page-spacer { display: none !important; }
             .page-spacer + * { break-before: page; }
+            .page-break { break-before: page; }
             [data-page-start] { margin-block-start: 0 !important; break-before: page; }
             [data-frag] { margin-block-start: 0 !important; }
             #content { max-width: none; min-height: 0; }

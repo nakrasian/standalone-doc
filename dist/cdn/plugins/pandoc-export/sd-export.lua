@@ -4,7 +4,8 @@
      blockquotes, code, tables, figures and captions all arrive as real AST nodes.
      This filter only adds the things the reader cannot know:
 
-       1. what a page-spacer means in a target that has pages
+       1. what a page-spacer (the old spelling) or a page-start block means in a
+          target that has pages
        2. which Divs are editor scaffolding, and which are wrappers to unwrap
        3. how a captured figure travels, so every writer can see the image
        4. that a caret-only paragraph is not a paragraph
@@ -86,7 +87,8 @@ local function Div(el)
   end
 
   -- page-spacer is handled in Pandoc(), not here: see the note there.
-  if classes:includes("page-spacer") then return nil end
+  -- page-break and page-spacer are handled in Pandoc(), where pageBreak() is in scope.
+  if classes:includes("page-spacer") or classes:includes("page-break") then return nil end
 
   -- Wrappers that exist for layout. Unwrapping them is what makes the image inside
 -- a figure visible to the LaTeX writer, which refuses to render an Image that is
@@ -197,6 +199,37 @@ local function pageBreak(el)
   return pandoc.Div({}, pandoc.Attr("", { "page-break" }))
 end
 
+-- A page start is the margin model's break: the first block of every page after the
+-- first carries `data-page-start`, and buildStatic clears the gap but keeps the marker.
+-- A page-spacer Div is the older spelling, handled in Pandoc() below.
+local function pageStartBreak()
+  if NO_PAGE[TARGET] then
+    bump(skipped, "page-start")
+    return {}
+  end
+  local raw = PAGE_BREAK[TARGET]
+  if raw then return {pandoc.RawBlock(RAW_FORMAT[TARGET] or TARGET, raw)} end
+  return {pandoc.Div({}, pandoc.Attr("", { "page-break" }))}
+end
+
+-- Only blocks with an Attr can carry the marker. Lists and a few other blocks have no
+-- attr field in the AST, so an export whose page starts with one of those has no break;
+-- the editor's own page starts are paragraphs and headings.
+local function hasPageStart(el)
+  local attr = el.attr
+  if attr == nil then return false end
+  -- The HTML reader drops attributes on a `<p>` and strips the `data-` prefix from the
+  -- ones it keeps (a `<h2 data-page-start>` arrives as `page-start`), so both spellings
+  -- are accepted. buildStatic's marker Div is the reliable route; this is for a hand-run
+  -- conversion of a live document.
+  local key = attr.attributes["data-page-start"] ~= nil and "data-page-start"
+    or attr.attributes["page-start"] ~= nil and "page-start"
+    or nil
+  if key == nil then return false end
+  attr.attributes[key] = nil
+  return true
+end
+
 -- Classes this filter understands. Anything else on a surviving Div or Span is a
 -- construct the editor can write and the export was never taught: reported, never hidden.
 local KNOWN = {
@@ -206,8 +239,23 @@ local KNOWN = {
 
 local function Pandoc(doc)
   doc = doc:walk({ Div = function(el)
-    if el.classes:includes("page-spacer") then return pageBreak(el) end
+    if el.classes:includes("page-spacer") or el.classes:includes("page-break") then
+      return pageBreak(el)
+    end
     return nil
+  end })
+  -- The margin model: a block that starts a page becomes a break, for every writer that
+  -- has pages. The walk is over block lists, so it sees Para, Header, BlockQuote, Table,
+  -- Figure and Div alike; blocks without an Attr simply cannot carry the marker.
+  doc = doc:walk({ Blocks = function(blocks)
+    local out = pandoc.Blocks({})
+    for _, block in ipairs(blocks) do
+      if hasPageStart(block) then
+        for _, br in ipairs(pageStartBreak()) do out:insert(br) end
+      end
+      out:insert(block)
+    end
+    return out
   end })
   doc = doc:walk({
     Div = function(el)

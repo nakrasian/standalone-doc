@@ -82,7 +82,7 @@ const PNG = "data:image/png;base64," + png(48, 32, (x, y) =>
   (Math.abs(y - (x * 32) / 48) < 2 ? [47, 111, 237] : [246, 248, 250])).toString("base64");
 
 /** An editor document with the plugin pinned, and one figure for it to capture. */
-function makeDoc({ figure = true } = {}) {
+function makeDoc({ figure = true, long = false } = {}) {
   const served = (file) => `http://127.0.0.1:8080/${file}`;
   const asset = (id, kind, file, order) => ({
     id, kind, role: "module", order, mode: "online", category: "plugin", plugin: "pandoc",
@@ -128,6 +128,7 @@ function makeDoc({ figure = true } = {}) {
   html = html.replace(/<article id="content"[^>]*>[\s\S]*?<\/article>/, `<article id="content" contenteditable="true" spellcheck="true">
         <h1>Recombinase systems</h1>
         <p>A paragraph, so the document is not only a figure.</p>
+        ${long ? Array.from({length: 12}, (_, i) => `<p>Paragraph ${i + 1}. ${"A sentence long enough to take a line, repeated so the document ends up on several pages. ".repeat(6)}</p>`).join("\n") : ""}
         ${figureHtml}
       </article>`);
   const store = figure
@@ -137,7 +138,7 @@ function makeDoc({ figure = true } = {}) {
     `<script id="figure-store" type="application/json">${JSON.stringify(store)}</script>`);
 
   fs.mkdirSync(TMP, {recursive: true});
-  const name = `.test-tmp/plugin-pandoc-${process.pid}-${figure ? "figure" : "plain"}.html`;
+  const name = `.test-tmp/plugin-pandoc-${process.pid}-${figure ? "figure" : "plain"}${long ? "-long" : ""}.html`;
   fs.writeFileSync(path.join(ROOT, name), html);
   return "/" + name;
 }
@@ -150,6 +151,41 @@ async function load(page, url) {
     null, {timeout: 30_000});
   return problems;
 }
+
+/** The .docx body as text, from the real plugin button. */
+async function exportDocument(page) {
+  const [download] = await Promise.all([
+    page.waitForEvent("download", {timeout: 180_000}),
+    page.evaluate(() => document.querySelector('[data-plugin-export="pandoc:docx"]').click()),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const docx = Buffer.concat(chunks);
+  return entries(docx).find((entry) => entry.name === "word/document.xml").data.toString("utf8");
+}
+
+test("a page-start block becomes a page break in the .docx", async ({ page }) => {
+  test.slow(); /* 58.6 MB over the loopback and a wasm compile */
+  const problems = await load(page, makeDoc({figure: false, long: true}));
+  await page.waitForSelector('[data-plugin-export="pandoc:docx"]', {state: "attached", timeout: 30_000});
+  /* The number the .docx must match: the page-start blocks the screen planner made. */
+  const live = await page.evaluate(() => ({
+    pages: globalThis.StandaloneDoc.modules.pagination.pageCount(),
+    starts: document.querySelectorAll("#content > [data-page-start]").length,
+  }));
+  const document = await exportDocument(page);
+  const breaks = (document.match(/w:type="page"/g) || []).length;
+  expect(breaks, `the .docx has ${breaks} break(s) for ${live.starts} page start(s) on ${live.pages} pages`).toBe(live.starts);
+  expect(live.starts).toBeGreaterThan(0);
+  /* The margin model writes the break as `data-page-start`; the filter turns it into the
+     target's native page break. Without this the .docx silently loses every break the
+     page-spacer spelling used to produce. */
+  expect(document).toContain('w:type="page"');
+  expect(document).not.toContain("data-page-start");
+  expect(document).toContain("Recombinase systems");
+  expect(problems).toEqual([]);
+});
 
 test("the plugin exports a .docx with the figure embedded", async ({ page }) => {
   test.slow(); /* 58.6 MB over the loopback and a wasm compile */
