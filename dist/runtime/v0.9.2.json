@@ -1,0 +1,247 @@
+{
+  "schema": 1,
+  "tag": "v0.9.2",
+  "base": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn",
+  "assets": [
+    {
+      "id": "page-styles",
+      "kind": "css",
+      "bytes": 10155,
+      "sha384": "sha384-UdX4Yd99vNl8ij+pd7ayEo6tRw7iWhg7UmFKoTOBPOXAQvuwS/e3IxdXVvUVRQj/",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/page-styles.css",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "toolbar-styles",
+      "kind": "css",
+      "bytes": 33001,
+      "sha384": "sha384-I/Dul95xt88xyTc5JK+Xn2snJZPMGn5Ypr3TetCS0C0bUtOyEMnFJg0/7VPQvPa7",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/toolbar-styles.css",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "sprite",
+      "kind": "html",
+      "bytes": 5260,
+      "sha384": "sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/sprite.html",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "toolbar-markup",
+      "kind": "html",
+      "bytes": 16151,
+      "sha384": "sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/toolbar-markup.html",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "viewer-bar-markup",
+      "kind": "html",
+      "bytes": 1493,
+      "sha384": "sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/viewer-bar-markup.html",
+      "requiredBy": [
+        "view"
+      ]
+    },
+    {
+      "id": "viewer-bar-styles",
+      "kind": "css",
+      "bytes": 5428,
+      "sha384": "sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/viewer-bar-styles.css",
+      "requiredBy": [
+        "view"
+      ]
+    },
+    {
+      "id": "viewer-bar",
+      "kind": "js",
+      "bytes": 3854,
+      "sha384": "sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/viewer-bar.js",
+      "requiredBy": [
+        "view"
+      ]
+    },
+    {
+      "id": "figure-tools",
+      "kind": "html",
+      "bytes": 780,
+      "sha384": "sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/figure-tools.html",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "apply-settings",
+      "kind": "js",
+      "bytes": 2511,
+      "sha384": "sha384-W27FmRTUi+abfTouH0lZr7ClON9VEPoOOXp6mrAwAgSkm+zrzC2aG2jFsIhx/gZH",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/apply-settings.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "session",
+      "kind": "js",
+      "bytes": 4775,
+      "sha384": "sha384-CTRa4iCsWj3OVsvH4MsUMI8K9UxyjilM0GILfHPiX8P18ymYs6wDhgbx9outs5zb",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/session.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "signals",
+      "kind": "js",
+      "bytes": 1435,
+      "sha384": "sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/signals.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "zoom",
+      "kind": "js",
+      "bytes": 4584,
+      "sha384": "sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/zoom.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "selection",
+      "kind": "js",
+      "bytes": 6284,
+      "sha384": "sha384-gDv+N53i3HXa0STvkMcPujX+dkGkgtjM8thBVoKRQZA00xdte46FWR+jxKJy1Wwt",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/selection.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "layout",
+      "kind": "js",
+      "bytes": 3906,
+      "sha384": "sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/layout.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "pagination",
+      "kind": "js",
+      "bytes": 54492,
+      "sha384": "sha384-MKlwyher36Z6nw70D6MCca8Dbth6pCLlfvKlGT8TKunYYPghr33GaQpYsF66vhus",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/pagination.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "progress",
+      "kind": "js",
+      "bytes": 1660,
+      "sha384": "sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/progress.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "status",
+      "kind": "js",
+      "bytes": 4075,
+      "sha384": "sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/status.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "editor",
+      "kind": "js",
+      "bytes": 27142,
+      "sha384": "sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/editor.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "figures",
+      "kind": "js",
+      "bytes": 56239,
+      "sha384": "sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/figures.js",
+      "requiredBy": [
+        "*"
+      ]
+    },
+    {
+      "id": "policy",
+      "kind": "js",
+      "bytes": 18729,
+      "sha384": "sha384-l2rHTNsDyh8ADksBL+JNZ3Gua3UueqUKRHTBEPJoLxbfCXRraIRLkDPI5elC+gIa",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/policy.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "toolbar",
+      "kind": "js",
+      "bytes": 66232,
+      "sha384": "sha384-86CxUW97eOrGCkm+6w5Rei/JFpz/3ZvX1gP1mXMozO8onb1+P28vhFswG5yXkBuc",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/toolbar.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "plugins",
+      "kind": "js",
+      "bytes": 51663,
+      "sha384": "sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/plugins.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "export",
+      "kind": "js",
+      "bytes": 42995,
+      "sha384": "sha384-CfDL71CZcsSZpADLdbnUEwdeiKaO0emPXH8Sq5kXgo61ONTvsHFKaEjyRMnD8OF8",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/export.js",
+      "requiredBy": [
+        "edit"
+      ]
+    },
+    {
+      "id": "dialogs",
+      "kind": "html",
+      "bytes": 9864,
+      "sha384": "sha384-7KGHvqWypSp+JryRQqqmCk35KuKXSJoMNMESHCnW57lTd1TM9RKV46BNX63bvf+8",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.2/dist/cdn/dialogs.html",
+      "requiredBy": [
+        "edit"
+      ]
+    }
+  ]
+}

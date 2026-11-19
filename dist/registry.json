@@ -25,7 +25,7 @@
       "entry": "pandoc-export",
       "manifest": "plugins/pandoc-export.json",
       "bytes": 4435,
-      "sha384": "sha384-om+Zd66hYJh6TfRlkff/dOswNbw/v899zmPPi+sz2Cg7IKPe2dl4XpcRbm5mXNHk",
+      "sha384": "sha384-8oSsfojkm6cP6XThocVPAmYLeE97EOLDrz2fMMGX2gZ293hesdn6/4yUCkYoEBlR",
       "assets": 8,
       "assetBytes": 87201484,
       "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. The engine itself is fetched on the first export; nothing is uploaded."
