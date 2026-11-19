@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — fragmentation
+## v0.9.2 — 2026-11-18
 
 The pagination cycle: a paragraph can cross a page boundary without becoming two
 paragraphs. Fragments are **on by default** in the shipped document; the switch
