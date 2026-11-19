@@ -368,3 +368,45 @@ test("Thai prose with no spaces fragments without joining or losing characters",
   expect(state.fragments).toBeGreaterThan(0);
   expectTailOnPage(state);
 });
+
+test("a resize does not loop inside the ResizeObserver delivery", async ({page}) => {
+  /* The pass changes margins and heights, which is itself a resize. Running it inside the
+     ResizeObserver callback earned WebKit's "loop completed with undelivered
+     notifications" (and that was a console error in an unrelated export test). The pass is
+     scheduled one frame later; this is the behaviour that keeps the observer quiet. */
+  const problems = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") problems.push(message.text());
+  });
+  await page.goto(fileUrl());
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, {timeout: 15_000});
+  await page.evaluate((LONG) => {
+    const content = document.getElementById("content");
+    const make = (tag, text) => {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      return el;
+    };
+    content.replaceChildren(make("p", "A lead paragraph."), make("p", LONG.repeat(2)), make("p", "A closing paragraph."));
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.setFragmenting(true);
+    pag.refresh();
+  }, LONG);
+  for (const width of [1100, 980, 1040]) {
+    await page.setViewportSize({width, height: 820});
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(300);
+  expect(problems.filter((text) => /ResizeObserver loop/.test(text))).toEqual([]);
+  const state = await page.evaluate(() => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    return {
+      fragments: pag.diagnostics().fragments,
+      check: pag.diagnostics().check,
+      converged: pag.diagnostics().converged,
+    };
+  });
+  expect(state.fragments).toBeGreaterThan(0);
+  expect(state.check.ok, JSON.stringify(state.check?.failures)).toBe(true);
+  expect(state.converged, "the resize never settled").toBe(true);
+});

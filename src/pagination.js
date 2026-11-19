@@ -609,7 +609,7 @@ export function createPagination(deps = {}) {
            or a no-op pass would read the push as part of the layout and erase it. */
         const fragTop = layout.rect(frag).top;
         const currentPush = inlineMargin(frag);
-        const push = Math.max(0, Math.round(split.targetTop - (fragTop - currentPush)));
+        const push = Math.max(0, layoutPx(split.targetTop - (fragTop - currentPush)));
         if (Math.abs(currentPush - push) > 0.5) frag.style.marginBlockStart = `${push}px`;
         applied.push({
           block: split.block,
@@ -632,6 +632,12 @@ export function createPagination(deps = {}) {
   const fragmentCount = () => content.querySelectorAll("[data-frag]").length;
 
   const inlineMargin = (el) => parseFloat(el.style.marginBlockStart || "0") || 0;
+
+  /* Layout units are 1/64 px in the engines that snap. Writing a value on that grid keeps
+     the DOM free of 17-digit floats without reintroducing the whole-pixel drift that a
+     `Math.round` causes: a rounded push is off by up to half a pixel, and N cuts put the
+     block after them N/2 px out of the plan (3 px at 5 cuts on the Linux runner). */
+  const layoutPx = (value) => Math.round(value * 64) / 64;
 
   /** Every fragment in a block, with the numbers a pass needs to reuse them. One cut or N,
       the shape is the same: a head followed by segments. */
@@ -894,10 +900,10 @@ export function createPagination(deps = {}) {
        path writes carries one; this is the one-way migration for a live DOM. */
     for (const sp of [...content.querySelectorAll(".page-spacer")]) sp.remove();
 
-    /* Not rounded: a rounded gap is off by up to half a pixel, and every page after it
-       inherits the error through the flow (measured: 3 px by page 36). The fractional
-       value is what the plan named, and it is stable across passes for the same layout. */
-    const wanted = new Map(p.spacers.map((s) => [s.before, s.height]));
+    /* On the 1/64 px layout grid, not rounded to whole pixels: a rounded gap is off by up
+       to half a pixel and the page after it inherits the error through the flow (3 px by
+       page 36 in a 1,000-block document). */
+    const wanted = new Map(p.spacers.map((s) => [s.before, layoutPx(s.height)]));
 
     // Anything that no longer starts a page loses its margin, in this pass, not later.
     for (const el of [...content.querySelectorAll("[data-page-start]")]) {
@@ -1018,7 +1024,11 @@ export function createPagination(deps = {}) {
   }
 
   signals.on("mutation", () => schedule());
-  signals.on("resize", schedule);
+  /* A pass changes margins and heights, which is itself a resize. Running it inside the
+     ResizeObserver delivery earns WebKit's "loop completed with undelivered
+     notifications" and can drop the notification; a frame later is outside that delivery.
+     Typing keeps the synchronous mutation path — its pre-paint timing is the point. */
+  signals.on("resize", () => requestAnimationFrame(() => schedule()));
   signals.on("compositionend", schedule);
 
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(schedule);

@@ -344,8 +344,8 @@
       "order": 50,
       "tag": "script",
       "file": "src/pagination.js",
-      "bytes": 54492,
-      "sha384": "sha384-MKlwyher36Z6nw70D6MCca8Dbth6pCLlfvKlGT8TKunYYPghr33GaQpYsF66vhus",
+      "bytes": 55259,
+      "sha384": "sha384-2fKFUdc3/T0MR+GQNJ58UL5SZ1vlNio1h7bl397whAh2vlAeYKmSd0hKM1yjfsJ/",
       "mode": "inline",
       "requiredBy": [
         "*"

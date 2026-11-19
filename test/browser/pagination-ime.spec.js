@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const LONG = ("The phrase this comment is about sits here, in the middle of a paragraph that keeps "
   + "going, because a page break has to fall somewhere and the interesting case is the one that "
-  + "splits a reader's attention rather than a block. ").repeat(18);
+  + "splits a reader's attention rather than a block. ").repeat(50);
 
 test("a real IME composition at the seam commits and re-paginates", async ({page, context}) => {
   await page.goto("file://" + path.join(ROOT, "index.html"));
