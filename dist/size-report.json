@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 699473
+    "bytes": 718366
   },
   "assets": [
     {
@@ -57,12 +57,12 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 54642
+      "bytes": 60420
     },
     {
       "id": "boot-ui",
       "kind": "js",
-      "bytes": 20337
+      "bytes": 26080
     },
     {
       "id": "apply-settings",
@@ -122,7 +122,7 @@
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 61450
+      "bytes": 61883
     },
     {
       "id": "policy",
@@ -132,12 +132,12 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 90087
+      "bytes": 90509
     },
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 58963
+      "bytes": 65228
     },
     {
       "id": "export",
@@ -156,9 +156,9 @@
     }
   ],
   "flavors": {
-    "index.html": 699473,
-    "asset-bodies": 681232,
-    "markup-and-runtime": 18241,
-    "dist/slim.html": 97054
+    "index.html": 718366,
+    "asset-bodies": 699873,
+    "markup-and-runtime": 18493,
+    "dist/slim.html": 108827
   }
 }

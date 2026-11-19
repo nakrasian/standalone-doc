@@ -715,7 +715,7 @@ export function createFigures(deps = {}) {
       case "unresolved": return "not in this copy of the file";
       case "disabled": return "switched off in this document";
       case "integrity": return "its bytes do not match the pinned hash";
-      case "api": return "it needs a newer version of this document";
+      case "api": return `it needs a newer runtime (host API ${error.need || "?"})`;
       case "stale": return "it was unloaded while loading";
       default: return (error && error.message) || "it could not be loaded";
     }
@@ -730,7 +730,11 @@ export function createFigures(deps = {}) {
     const notice = document.createElement("div");
     notice.className = "figure-plugin";
     notice.dataset.state = state;
-    notice.textContent = failed ? `Needs ${label} — ${pluginReason(error)}. Click to retry.` : `Loading ${label}…`;
+    /* A retry cannot satisfy an `api` refusal; saying "click to retry" there would be a
+       loop. The remedy is a different runtime, and the Plugins panel names the release. */
+    const retryable = !error || !["api", "disabled", "unavailable", "forbidden"].includes(error.kind);
+    const next = retryable ? "Click to retry." : "Update this file's runtime in Document settings → Runtime, then reopen.";
+    notice.textContent = failed ? `Needs ${label} — ${pluginReason(error)}. ${next}` : `Loading ${label}…`;
     if (failed) {
       notice.onclick = () => {
         /* The only automatic retry is none: a failing plugin must not refetch on

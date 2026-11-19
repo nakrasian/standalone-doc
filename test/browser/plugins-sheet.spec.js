@@ -56,7 +56,7 @@ const MANIFEST_RE = /(<script id="asset-manifest" type="application\/json">)([\s
 function makeDoc({
   pinned = false, catalog = true, withFigure = false, inlineCatalog = false, bundle = false,
   tamper = false, catalogVersion = "2.0.0", catalogJs = PLUGIN_JS, catalogTag = null,
-  catalogIsland = "trusted", pinDir = null,
+  catalogIsland = "trusted", pinDir = null, bundleApi = 1, bundleMinRuntime = null,
 } = {}) {
   fs.mkdirSync(FILES, { recursive: true });
   fs.writeFileSync(path.join(FILES, "widget-plugin.js"), PLUGIN_JS);
@@ -73,6 +73,11 @@ function makeDoc({
   const base = pinDir ? `${LOCAL}/${pinDir}/cdn` : `${LOCAL}/cdn`;
   let html = EDITOR.replace(/"cdnBase":"[^"]*"/, `"cdnBase":"${base}"`);
   const manifest = JSON.parse(MANIFEST_RE.exec(html)[2]);
+  /* These fixtures serve the legacy catalog beside `cdnBase`, so they remove the authored
+     index: the loader then falls back to `<cdnBase>/../registry.json`, which is the path a
+     document written before `pluginIndex` exists still takes. The index itself is covered
+     by the plugin-index unit test and the dev-build test. */
+  delete manifest.pluginIndex;
 
   if (pinned) {
     manifest.assets.push({
@@ -115,7 +120,7 @@ function makeDoc({
     id: "widget",
     label: "Widgets (bundle)",
     version: "3.0.0",
-    api: 1,
+    api: bundleApi,
     island: "sealed",
     entry: "widget",
     about: "Two assets, one switch.",
@@ -134,6 +139,7 @@ function makeDoc({
     label: bundleManifest.label,
     version: bundleManifest.version,
     api: bundleManifest.api,
+    ...(bundleMinRuntime ? {minRuntime: bundleMinRuntime} : {}),
     island: bundleManifest.island,
     entry: bundleManifest.entry,
     manifest: "widget-bundle.json",
@@ -183,6 +189,8 @@ function makeDoc({
     catalogVersion !== "2.0.0" && `cat-${catalogVersion}`,
     catalogJs !== PLUGIN_JS && "cat-other-bytes",
     catalogIsland !== "trusted" && `island-${catalogIsland}`,
+    bundleApi !== 1 && `api-${bundleApi}`,
+    bundleMinRuntime && `min-${bundleMinRuntime}`,
     pinDir,
   ].filter(Boolean).join("-") || "base";
   /* A document may carry its catalog: that is what makes "Available" work from disk,
@@ -630,6 +638,52 @@ test("the same version with different bytes is a substitution, not an update", a
   await page.evaluate(() => document.querySelector('[data-update="widget"]').click());
   await page.waitForFunction(() => /not an update/.test(document.querySelector("[data-ps-foot]").textContent));
   expect(await page.evaluate(() => document.getElementById("asset-manifest").textContent)).toBe(before);
+});
+
+/* A plugin and a runtime are versioned independently, so the two numbers meet in the sheet:
+   a plugin that asks for an API this file does not provide has exactly one remedy, and the
+   index names the first release that supplies it. */
+test("a plugin that outruns the runtime names the release that would fix it", async ({ page }) => {
+  await openSheet(page, makeDoc({bundle: true, bundleApi: 3, bundleMinRuntime: "v0.13.0", catalogIsland: "sealed"}));
+  const row = await page.evaluate(() => {
+    const line = document.querySelector('[data-ps-list="available"] .ps-row');
+    const button = line.querySelector("[data-install]");
+    return { label: button.textContent, disabled: button.disabled, text: line.textContent };
+  });
+  expect(row.label).toBe("Update runtime to v0.13.0");
+  expect(row.disabled).toBe(true);
+  expect(row.text).toContain("host API 3");
+  expect(row.text).toContain("Update this file's runtime to v0.13.0 or later");
+});
+
+test("no published runtime provides it: the row says so instead of offering a dead update", async ({ page }) => {
+  await openSheet(page, makeDoc({bundle: true, bundleApi: 4, catalogIsland: "sealed"}));
+  const row = await page.evaluate(() => {
+    const line = document.querySelector('[data-ps-list="available"] .ps-row');
+    const button = line.querySelector("[data-install]");
+    return { label: button.textContent, disabled: button.disabled, text: line.textContent };
+  });
+  expect(row.label).toBe("Needs newer runtime");
+  expect(row.disabled).toBe(true);
+  expect(row.text).toContain("no published runtime provides 4 yet");
+});
+
+test("an installed plugin that outruns the runtime sends the author to Runtime, not to a plugin update", async ({ page }) => {
+  await openSheet(page, makeDoc({pinned: true, bundle: true, bundleApi: 3, bundleMinRuntime: "v0.13.0", catalogIsland: "sealed"}));
+  await page.waitForFunction(() => /runtime/.test(document.querySelector('[data-ps-list="installed"] .ps-row')?.textContent || ""));
+  const offered = await page.evaluate(() => {
+    const row = document.querySelector('[data-ps-list="installed"] .ps-row');
+    const button = [...row.querySelectorAll("button")].find((candidate) => /runtime/.test(candidate.textContent));
+    return { label: button?.textContent, disabled: button?.disabled };
+  });
+  expect(offered.label).toBe("Update runtime to v0.13.0");
+  expect(offered.disabled).toBe(false);
+  await page.evaluate(() => {
+    const row = document.querySelector('[data-ps-list="installed"] .ps-row');
+    [...row.querySelectorAll("button")].find((candidate) => /runtime/.test(candidate.textContent)).click();
+  });
+  await page.waitForFunction(() => !document.querySelector('[data-dd-panel="runtime"]')?.hidden);
+  expect(await page.evaluate(() => document.querySelector("[data-ps-foot]").textContent)).toContain("host API 3");
 });
 
 /* A snapshot is true only at the tag it was taken at, because a bundle's manifest resolves

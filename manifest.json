@@ -140,6 +140,10 @@
       ],
       "role": "module",
       "label": "Document bar binding",
+      "fragments": [
+        "doc-bar-markup",
+        "doc-bar-styles"
+      ],
       "deps": [
         "pagination",
         "zoom",
@@ -199,8 +203,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 50247,
-      "sha384": "sha384-o4WPcTWM3lzsjLlRTkYks02Vq3/+GnZVmHbywLhoVvtaJ68dYBqgonQlyH4ZN+Hn",
+      "bytes": 55617,
+      "sha384": "sha384-M6HX63ih9LYO+zp5wkaRL4i0GHj7mp/FqDoZZRkqrRmom3DdRsInyprMl86pj2bg",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -214,8 +218,8 @@
       "order": 6,
       "tag": "script",
       "file": "src/boot-ui.js",
-      "bytes": 18618,
-      "sha384": "sha384-nUE1jqn/cYGDpfT46u+8GEp0HC9Hy1Tebs59hQugJJLQlYDgpzKHcBnw8XMx6sWF",
+      "bytes": 23949,
+      "sha384": "sha384-GNd+AvuoZUh90qqTsARFlPWdiY1lNL6Z2dGECxLuQTNKMkJ0vWAZGyMZJ9Vdn3G7",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -551,8 +555,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 56400,
-      "sha384": "sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ",
+      "bytes": 56817,
+      "sha384": "sha384-BNFqwijnQH206T3chWY9tNQzivTpDYGfYMzG33zQLXQ59BqTikjlQ8QcTV3SpgN4",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -637,14 +641,20 @@
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 82881,
-      "sha384": "sha384-deOWKcv7aeYOfDiS9ZLMsUONJNoLWZyV6vHBWIWDbtM/DDp/jAW1HUZcPBGzLIQR",
+      "bytes": 83283,
+      "sha384": "sha384-ecXwTPhjmeFkppA39epoa05trYlP4n10I7pQ+GkIPqi2U2zFcV1Aorjuq9CEC8WO",
       "mode": "inline",
       "requiredBy": [
         "edit"
       ],
       "role": "module",
       "label": "Toolbar binding",
+      "fragments": [
+        "toolbar-markup",
+        "sprite",
+        "figure-tools",
+        "dialogs"
+      ],
       "deps": [
         "zoom",
         "editor",
@@ -676,14 +686,18 @@
       "order": 95,
       "tag": "script",
       "file": "src/plugins.js",
-      "bytes": 54485,
-      "sha384": "sha384-02FK5RpEJ+pNjpHlGVVjf9gwXAsu0cv7jt3DxGFLWHN78NswhWVDikZwtR3ifnDQ",
+      "bytes": 60334,
+      "sha384": "sha384-LIGDMr8l99gkU/aCnEnYrUkC4tCibIsV5Y8Vb02qYZ2NEF1ay6qAfsHOl8pR3Ni/",
       "mode": "inline",
       "requiredBy": [
         "edit"
       ],
       "role": "module",
       "label": "Plugins",
+      "critical": false,
+      "fragments": [
+        "dialogs"
+      ],
       "deps": [
         "signals",
         "figures",
@@ -765,5 +779,6 @@
       "label": "Bootstrap"
     }
   ],
-  "catalog": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"
+  "catalog": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json",
+  "pluginIndex": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/plugins/index.json"
 }

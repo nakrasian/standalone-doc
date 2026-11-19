@@ -348,8 +348,15 @@ export function createPlugins(deps = {}) {
     return true;
   }
 
-  const catalogUrl = () =>
-    String(registry.manifest().cdnBase || "").replace(/\/$/, "").replace(/\/cdn$/, "") + "/registry.json";
+  /* The plugin index, which is not the runtime catalog: a plugin version must be
+     discoverable after its own release, without waiting for a runtime tag. `manifest.json`
+     authors the address and the build carries it into the document; a document written
+     before the field existed keeps the old tag-sibling path. */
+  const catalogUrl = () => {
+    const doc = registry.manifest();
+    if (doc.pluginIndex) return doc.pluginIndex;
+    return String(doc.cdnBase || "").replace(/\/$/, "").replace(/\/cdn$/, "") + "/registry.json";
+  };
 
   /* A document may carry its own catalog in a `#plugin-catalog` block. That is what makes
      the sheet useful from disk: a `file://` page cannot fetch a relative url (lab/007), and
@@ -374,17 +381,25 @@ export function createPlugins(deps = {}) {
   /** The tag this document pins, or null for a base that is not a tag (a dev build). */
   const pinnedTag = () => /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1] ?? null;
 
-  /** A snapshot taken at another tag is a claim about bytes this file does not pin. */
-  const catalogStale = () => Boolean(catalog?.tag && pinnedTag() && catalog.tag !== pinnedTag());
+  /**
+   * A snapshot is stale when it points at an index other than the one this file reads.
+   *
+   * It used to be `tag !== pinnedTag`, because a bundle's manifest was relative to the
+   * runtime tag. Now the index names absolute manifest urls, so the runtime tag is no longer
+   * what makes the snapshot true — the *index* is. A document written before `pluginIndex`
+   * keeps the older rule, so the notice still appears where it used to.
+   */
+  const catalogStale = () => {
+    if (catalog?.index) return catalog.index !== catalogUrl();
+    return Boolean(catalog?.tag && pinnedTag() && catalog.tag !== pinnedTag());
+  };
 
   /**
    * Re-read the catalog from the tag this document pins and rewrite the snapshot.
    *
-   * A snapshot is true only at the tag it was taken at: a bundle's `manifest` resolves
-   * against the document's own `cdnBase` (`catalogBase()`), so after a re-pin the old
-   * snapshot names a manifest hash the new tag does not serve, and an install would fail as
-   * "not the manifest the catalog pins" — a true statement that reads like a tampering
-   * report. Refreshing is the honest fix, and it is one request the author asked for.
+   * A snapshot is true for one index revision. The index it names is the authority, so a
+   * refresh re-reads that address and records the new revision; a document that pinned a
+   * runtime tag no longer has to reopen before it can see a plugin published afterwards.
    */
   async function refreshCatalog() {
     const url = catalogUrl();
@@ -402,13 +417,24 @@ export function createPlugins(deps = {}) {
     }
     const el = document.getElementById("plugin-catalog");
     if (!el) return say("This file has no #plugin-catalog block to refresh — add one by building with `pluginCatalog`.");
-    el.textContent = JSON.stringify({schema: 1, generated: next.generated, tag, assets: next.assets || {}, bundles: next.bundles || {}});
+    el.textContent = JSON.stringify({
+      schema: 1,
+      generated: next.generated,
+      revision: next.revision || null,
+      index: url,
+      /* `tag` stays for documents and surfaces written before the index existed: it is
+         still true (the runtime this snapshot was built into), it is just no longer the
+         thing that decides whether the snapshot is current. */
+      tag,
+      assets: next.assets || {},
+      bundles: next.bundles || {},
+    });
     catalog = JSON.parse(el.textContent);
     catalogFrom = "this file";
     catalogError = null;
     status.markDirty();
     renderSheet();
-    say(`Catalog refreshed from ${url} (${tag || "untagged"}). Save to keep it.`);
+    say(`Catalog refreshed from ${url} (${next.revision ? `${next.revision.slice(0, 16)}…` : tag || "untagged"}). Save to keep it.`);
   }
 
   const say = (text) => {
@@ -496,8 +522,18 @@ export function createPlugins(deps = {}) {
        per-entry, the trust decision is per-plugin, and a runtime bump must not change a
        plugin behind the author's back. */
     const found = updateState(id);
-    const update = found && found.state !== "same" ? element("button", "ps-btn ps-primary") : null;
-    if (update) {
+    let update = null;
+    if (found && found.state === "blocked") {
+      /* The plugin is newer than this file's runtime. The action belongs to the runtime, and
+         naming the release is the difference between a dead button and a route. */
+      update = element("button", "ps-btn", found.minRuntime ? `Update runtime to ${found.minRuntime}` : "Needs a newer runtime");
+      update.disabled = !found.minRuntime;
+      update.title = found.minRuntime
+        ? `Needs host API ${found.need}; ${found.minRuntime} is the first release that provides it.`
+        : `No published runtime provides host API ${found.need} yet.`;
+      if (found.minRuntime) update.addEventListener("click", () => requestRuntimeUpdate(id, found));
+    } else if (found && found.state !== "same") {
+      update = element("button", "ps-btn ps-primary");
       update.dataset.update = id;
       update.textContent = found.state === "tampered" ? "Bytes differ" : `Update to ${found.candidate.version}`;
       update.addEventListener("click", () => upgrade(id));
@@ -536,12 +572,20 @@ export function createPlugins(deps = {}) {
       element("span", "ps-used", sizeLabel(latest.bytes)),
       element("span", "ps-grow"),
     );
+    const blocked = runtimeNeeded({ entry: latest, asset });
     const install = element("button", "ps-btn ps-primary", "Install");
     install.dataset.install = id;
-    install.addEventListener("click", () => installFrom(id, asset, latest));
+    if (blocked) {
+      install.disabled = true;
+      install.textContent = blocked.minRuntime ? `Update runtime to ${blocked.minRuntime}` : "Needs newer runtime";
+      install.title = `Needs host API ${blocked.need}; this file provides ${registry.hostApi}.`;
+    } else {
+      install.addEventListener("click", () => installFrom(id, asset, latest));
+    }
     main.append(install);
     row.append(main);
     if (asset.description) row.append(element("p", "ps-hint", asset.description));
+    if (blocked) row.append(element("p", "ps-hint", runtimeSentence(blocked)));
     return row;
   }
 
@@ -566,13 +610,21 @@ export function createPlugins(deps = {}) {
       element("span", "ps-used", `${count} asset${count === 1 ? "" : "s"}${size}`),
       element("span", "ps-grow"),
     );
+    const blocked = runtimeNeeded({ entry: asset, asset });
     const install = element("button", "ps-btn ps-primary", "Install");
     install.dataset.install = id;
     install.dataset.installBundle = id;
-    install.addEventListener("click", () => installBundle(id, asset));
+    if (blocked) {
+      install.disabled = true;
+      install.textContent = blocked.minRuntime ? `Update runtime to ${blocked.minRuntime}` : "Needs newer runtime";
+      install.title = `Needs host API ${blocked.need}; this file provides ${registry.hostApi}.`;
+    } else {
+      install.addEventListener("click", () => installBundle(id, asset));
+    }
     main.append(install);
     row.append(main);
     if (asset.about) row.append(element("p", "ps-hint", asset.about));
+    if (blocked) row.append(element("p", "ps-hint", runtimeSentence(blocked)));
     return row;
   }
 
@@ -678,7 +730,10 @@ export function createPlugins(deps = {}) {
     }
 
     const from = sheet.querySelector("[data-ps-from]");
-    if (from) from.textContent = catalog ? `· ${catalogFrom}${catalog.tag ? ` @${catalog.tag}` : ""}` : catalogFrom ? `· ${catalogFrom}` : "";
+    const mark = catalog?.index
+      ? catalog.revision ? ` @${String(catalog.revision).slice(0, 12)}…` : ""
+      : catalog?.tag ? ` @${catalog.tag}` : "";
+    if (from) from.textContent = catalog ? `· ${catalogFrom}${mark}` : catalogFrom ? `· ${catalogFrom}` : "";
 
     /* A stale snapshot is not an error, it is a fact with an action: the bundles it names are
        pinned to another tag, so they would fail their manifest hash check. Refreshing is one
@@ -688,9 +743,11 @@ export function createPlugins(deps = {}) {
       const isStale = catalogStale();
       stale.hidden = !isStale;
       if (isStale) {
-        stale.textContent = `This catalog snapshot was taken at ${catalog.tag}; this file pins ${pinnedTag()}. `;
+        stale.textContent = catalog.index
+          ? `This snapshot reads ${catalog.index}${catalog.revision ? ` (${String(catalog.revision).slice(0, 16)}…)` : ""}; this file now reads ${catalogUrl()}. `
+          : `This catalog snapshot was taken at ${catalog.tag}; this file pins ${pinnedTag()}. `;
         if (document.getElementById("plugin-catalog")) {
-          const refresh = element("button", "ps-btn", "Refresh from this file's tag");
+          const refresh = element("button", "ps-btn", "Refresh catalog");
           refresh.addEventListener("click", () => refreshCatalog());
           stale.append(refresh);
         } else {
@@ -898,10 +955,48 @@ export function createPlugins(deps = {}) {
     renderSheet();
   }
 
+  /**
+   * What a catalog row needs from the host, when this file cannot provide it.
+   *
+   * `minRuntime` is computed by the index from the releases' own `hostApi`, so the answer is
+   * a specific tag rather than "some newer version". A plugin and a runtime are versioned
+   * independently; this is the one place the two numbers meet.
+   */
+  function runtimeNeeded(candidate) {
+    const wanted = Number(candidate?.entry?.api ?? candidate?.asset?.api ?? 1) || 1;
+    if (wanted <= registry.hostApi) return null;
+    return { need: wanted, minRuntime: candidate.entry?.minRuntime || candidate.asset?.minRuntime || null };
+  }
+
+  function runtimeSentence(found) {
+    if (!found.minRuntime) {
+      return `Needs host API ${found.need}; this file provides ${registry.hostApi}, and no published runtime provides ${found.need} yet.`;
+    }
+    return `Needs host API ${found.need}; this file provides ${registry.hostApi}. Update this file's runtime to ${found.minRuntime} or later, save, and reopen.`;
+  }
+
+  /** Open the place where the runtime moves; a viewer has no such place, so it says so. */
+  function requestRuntimeUpdate(id, found) {
+    const label = (manifestJSON()?.plugins?.[id] || {}).label || id;
+    const settings = registry.can?.("settings") ? registry.use("settings") : null;
+    if (settings && typeof settings.open === "function") {
+      settings.open({ tab: "runtime" });
+      say(`${label} ${runtimeSentence(found)}`);
+      return;
+    }
+    say(`${label} ${runtimeSentence(found)} Document settings → Runtime is the place, in a copy that can edit.`);
+  }
+
   /** The catalog's proposal for one id, in the shape either installer takes. */
   function catalogCandidate(id) {
     const bundle = catalog?.bundles?.[id];
-    if (bundle) return {kind: "bundle", version: bundle.version || null, sha384: bundle.sha384 || null, entry: bundle};
+    if (bundle) {
+      /* Newer indexes carry every published version; an older one is a single row. The
+         newest is first, and it is the only one an install or an update considers. */
+      const versions = Array.isArray(bundle.versions) && bundle.versions.length ? bundle.versions : [bundle];
+      const latest = versions[0];
+      return {kind: "bundle", version: latest.version || null, sha384: latest.sha384 || null, entry: latest, asset: bundle, versions};
+    }
     const asset = catalog?.assets?.[id];
     const latest = (asset?.versions || [])[0];
     if (latest) return {kind: "asset", version: latest.version || null, sha384: latest.sha384 || null, entry: latest, asset};
@@ -922,6 +1017,10 @@ export function createPlugins(deps = {}) {
     if (!record) return null;
     const candidate = catalogCandidate(id);
     if (!candidate || !candidate.version) return null;
+    /* A plugin this runtime cannot host has one remedy, and no version comparison changes
+       it: the file's runtime moves, or the plugin stays unbuilt. */
+    const blocked = runtimeNeeded(candidate);
+    if (blocked) return {candidate, state: "blocked", ...blocked};
     const pinned = record.version || null;
     if (!pinned) return {candidate, state: "newer"};
     if (candidate.version === pinned) {
@@ -949,6 +1048,7 @@ export function createPlugins(deps = {}) {
   async function upgrade(id) {
     const found = updateState(id);
     if (!found) return say(`The catalog has no version of ${id}.`);
+    if (found.state === "blocked") return requestRuntimeUpdate(id, found);
     if (found.state === "tampered") {
       return say(`${id} ${found.candidate.version} is pinned to different bytes than the catalog serves — `
         + "that is not an update, and nothing was changed.");
@@ -1023,6 +1123,8 @@ export function createPlugins(deps = {}) {
 
   function installFrom(id, asset, latest, options = {}) {
     if (!latest.url || !latest.sha384) return say(`${asset.label || id} has no pinned version in the catalog.`);
+    const blocked = runtimeNeeded({ entry: latest, asset });
+    if (blocked) return say(`${asset.label || id} ${runtimeSentence(blocked)} Nothing was added.`);
     install(id, {
       label: asset.label || id,
       url: latest.url,
@@ -1038,9 +1140,11 @@ export function createPlugins(deps = {}) {
     }, options);
   }
 
-  /* The catalog's directory: `cdnBase` minus `/cdn` plus `registry.json`, so the sibling of
-     this file is the base a bundle's relative manifest path resolves against. */
-  const catalogBase = () => catalogUrl().replace(/registry\.json$/, "");
+  /* The catalog's directory. A relative manifest is only published by the legacy
+     `registry.json` index (the new index names absolute urls), so this is `<cdnBase>/../`
+     for it; taking the directory rather than stripping a known filename keeps both shapes
+     correct and cannot silently resolve a manifest one directory too deep. */
+  const catalogBase = () => catalogUrl().replace(/[^/]*$/, "");
 
   /**
    * Everything about a manifest that would make this install fail, checked in the order a
@@ -1079,7 +1183,10 @@ export function createPlugins(deps = {}) {
 
     let url;
     try {
-      url = new URL(asset.manifest, catalogBase()).toString();
+      /* Absolute when the plugin rides its own tag (the index names the manifest there);
+         relative only for a plugin still published at the runtime tag. `new URL` ignores
+         the base for an absolute manifest, so both shapes work without a branch. */
+      url = new URL(asset.manifest, asset.base || catalogBase()).toString();
     } catch {
       return say(`${asset.manifest} is not a url this document can resolve.`);
     }
@@ -1111,10 +1218,10 @@ export function createPlugins(deps = {}) {
     const api = Number(bundle.api ?? asset.api ?? 1) || 1;
     if (api > registry.hostApi) {
       /* A refusal that does not say what to do reads like a broken plugin. The remedy is one
-         panel away, and it is the *document's* runtime that moves, not this session's. */
-      return say(`${bundle.label || id} needs a newer editor (host API ${api}; this one provides `
-        + `${registry.hostApi}) — open Document settings → Runtime, update, then reopen before installing. `
-        + `Nothing was added.`);
+         panel away, and it is the *document's* runtime that moves, not this session's. The
+         index names the first release that provides the API, which is the part a reader
+         cannot work out alone. */
+      return say(`${bundle.label || id} ${runtimeSentence({ need: api, minRuntime: asset.minRuntime || null })} Nothing was added.`);
     }
     const island = bundle.island || asset.island || "sealed";
     if (wantsTrust(island, bundle.contributes)) {

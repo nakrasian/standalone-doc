@@ -36,7 +36,15 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { published as publishedPlugins, stale as stalePlugins, publishedBundles, bundleProblems } from "./tools/publish-plugin.mjs";
+import {
+  published as publishedPlugins,
+  stale as stalePlugins,
+  publishedBundles,
+  bundleProblems,
+  pluginConfigs,
+  pluginConfigProblems,
+  pluginBaseFor,
+} from "./tools/publish-plugin.mjs";
 import {
   compileBody,
   isConverted,
@@ -113,10 +121,13 @@ const REGIONS = [
   { id: "figures", kind: "js", order: 80, label: "Figures", requiredBy: ["*"]  },
   { id: "comments", kind: "js", order: 76, label: "Comments", requiredBy: ["*"], capability: "comments"  },
   { id: "policy", kind: "js", order: 85, label: "Save policy", requiredBy: ["edit"]  },
-  { id: "plugins", kind: "js", order: 95, label: "Plugins", requiredBy: ["edit"]  },
-  { id: "toolbar", kind: "js", order: 90, label: "Toolbar binding", requiredBy: ["edit"]  },
+  /* The one soft asset: a document without its Plugins sheet is still a complete editor.
+     `fragments` are the non-JS assets a module needs in the DOM; declaring them is what
+     lets boot skip a consumer instead of constructing it against a hole. */
+  { id: "plugins", kind: "js", order: 95, label: "Plugins", requiredBy: ["edit"], critical: false, fragments: ["dialogs"] },
+  { id: "toolbar", kind: "js", order: 90, label: "Toolbar binding", requiredBy: ["edit"], fragments: ["toolbar-markup", "sprite", "figure-tools", "dialogs"] },
   { id: "export", kind: "js", order: 100, label: "Export", requiredBy: ["edit"]  },
-  { id: "doc-bar", kind: "js", order: 92, label: "Document bar binding", requiredBy: ["view", "comment"]  },
+  { id: "doc-bar", kind: "js", order: 92, label: "Document bar binding", requiredBy: ["view", "comment"], fragments: ["doc-bar-markup", "doc-bar-styles"] },
   { id: "bootstrap", kind: "js", order: 120, label: "Bootstrap", requiredBy: ["*"]  },
 ];
 
@@ -321,6 +332,11 @@ function buildManifest(assets, previous) {
        (invariant 28). */
     const capability = before?.capability ?? meta.capability;
     const label = before?.label ?? meta.label;
+    /* Whether a failure of this asset may degrade the document instead of stopping it, and
+       the fragments it needs in the DOM. Authored, like `requiredBy`: a build cannot know
+       whether a module is a feature or a prerequisite. */
+    const critical = before?.critical ?? meta.critical;
+    const fragments = before?.fragments ?? meta.fragments;
     if (before && (before.mode !== (meta.mode ?? "inline") || String(before.requiredBy) !== String(meta.requiredBy ?? ["*"]))) preserved++;
     const entry = {
       id: a.id,
@@ -340,6 +356,8 @@ function buildManifest(assets, previous) {
        being silently dropped. */
     if (label) entry.label = label;
     if (capability) entry.capability = capability;
+    if (critical === false) entry.critical = false;
+    if (fragments?.length) entry.fragments = fragments;
     for (const key of ["category", "plugin"]) {
       if (before?.[key] != null) entry[key] = before[key];
     }
@@ -380,6 +398,10 @@ function buildManifest(assets, previous) {
   /* Where to look for a newer release. Authored, because only the document's owner knows
      which host may name one; the loader falls back to the base's moving sibling. */
   if (previous?.catalog) manifest.catalog = previous.catalog;
+  /* Where the plugin index lives. Authored, and separate from `catalog`, because a plugin
+     version must not be tied to the runtime tag that happened to build this document: the
+     index is a moving file at `@main` while every version it names is tagged. */
+  if (previous?.pluginIndex) manifest.pluginIndex = previous.pluginIndex;
   /* Whether a flavour carries its plugin catalog inline. Authored for the same reason:
      it is a size decision, and only the distributor knows whether they ship plugins. */
   if (previous?.pluginCatalog === true) manifest.pluginCatalog = true;
@@ -413,6 +435,10 @@ function docManifest(manifest, overrides = {}) {
       /* A capability the document declares travels to the reader for the same reason
          `requiredBy` does: the loader decides what to build without a second lookup. */
       if (a.capability) entry.capability = a.capability;
+      /* Softness and fragment requirements travel to the loader: boot decides what may fail
+         from the document's own manifest, never from a guess about the asset. */
+      if (a.critical === false) entry.critical = false;
+      if (a.fragments?.length) entry.fragments = a.fragments;
       if (a.category) entry.category = a.category;
       if (a.plugin) entry.plugin = a.plugin;
       if (a.label) entry.label = a.label;
@@ -446,6 +472,9 @@ function docManifest(manifest, overrides = {}) {
   if (manifest.plugins && Object.keys(manifest.plugins).length) doc.plugins = manifest.plugins;
   /* A recovery address, not a dependency: a document that cannot reach it still opens. */
   if (manifest.catalog) doc.catalog = manifest.catalog;
+  /* The plugin index a document reads. Absent, the loader falls back to the tag-sibling
+     `registry.json`, which is what every document written before this field did. */
+  if (manifest.pluginIndex) doc.pluginIndex = manifest.pluginIndex;
   return doc;
 }
 
@@ -537,6 +566,10 @@ function retarget(html, base) {
     if (!entry.url || !from || !entry.url.startsWith(`${from}/`)) continue;
     entry.url = `${base}/${entry.url.slice(from.length + 1)}`;
   }
+  /* A dev build must read its own index, or its sheet lists the published plugins while
+     the document points at bytes this server is serving. The sibling of a dev base is
+     exactly where `build --base` writes `plugins/index.json`. */
+  if (doc.pluginIndex) doc.pluginIndex = `${String(base).replace(/\/$/, "").replace(/\/cdn$/, "")}/plugins/index.json`;
   return withDocManifest(html, doc);
 }
 
@@ -651,6 +684,12 @@ function pluginCatalogProblems(body, manifest) {
     return [...problems, `#plugin-catalog is not JSON — ${error.message}`];
   }
   if (block.schema !== 1) problems.push(`#plugin-catalog schema is ${block.schema}, expected 1`);
+  if (block.revision != null && !/^sha384-[A-Za-z0-9+/]{64}$/.test(String(block.revision))) {
+    problems.push(`#plugin-catalog revision must be sha384- + 64 base64 characters`);
+  }
+  if (block.index != null && !/^https:\/\//.test(String(block.index))) {
+    problems.push(`#plugin-catalog index must be an absolute https url`);
+  }
   const tag = tagOf(manifest.cdnBase);
   if (block.tag !== tag) problems.push(`#plugin-catalog says it was taken at ${block.tag}, the document pins ${tag}`);
   for (const [id, entry] of Object.entries(block.assets || {})) {
@@ -660,9 +699,20 @@ function pluginCatalogProblems(body, manifest) {
     }
   }
   for (const [id, entry] of Object.entries(block.bundles || {})) {
+    /* A bundle's manifest is absolute when its bytes ride the plugin's own tag, and relative
+       when they still ride the runtime (a plugin published before plugin tags existed). Both
+       are honest; a relative one resolves against the index's directory, never against
+       something the catalog can rewrite. */
     if (!entry.manifest) problems.push(`#plugin-catalog bundle "${id}" names no manifest`);
-    else if (/^[a-z]+:\/\//i.test(String(entry.manifest))) problems.push(`#plugin-catalog bundle "${id}" has an absolute manifest — it must ride this document's tag`);
+    else if (/^[a-z]+:\/\//i.test(String(entry.manifest)) && !/^https:\/\//.test(String(entry.manifest))) {
+      problems.push(`#plugin-catalog bundle "${id}" has a non-https absolute manifest`);
+    }
     if (!/^sha384-[A-Za-z0-9+/]{64}$/.test(String(entry.sha384 || ""))) problems.push(`#plugin-catalog bundle "${id}" has no sha384`);
+    for (const row of entry.versions || []) {
+      if (!row || !row.version) problems.push(`#plugin-catalog bundle "${id}" has a version without a number`);
+      if (row && !/^sha384-[A-Za-z0-9+/]{64}$/.test(String(row.sha384 || ""))) problems.push(`#plugin-catalog bundle "${id}@${row?.version}" has no sha384`);
+      if (row && !row.manifest) problems.push(`#plugin-catalog bundle "${id}@${row?.version}" names no manifest`);
+    }
   }
   return problems;
 }
@@ -737,15 +787,29 @@ function catalogDocument(catalog, { base = null } = {}) {
  *
  *   manifest.json  "pluginCatalog": true
  *
- * The block carries `tag`, which the published catalog does not: the snapshot knows when it
- * was taken, and that is the only thing that makes staleness a fact instead of a guess. A
- * bundle's `manifest` stays *relative* on purpose — `installBundle()` resolves it against
- * `catalogBase()`, i.e. the tag this document pins, so snapshot and manifest agree by
- * construction and neither can be re-pointed by the catalog (docs/PLUGINS.md §6).
+ * The block carries `revision` (a content hash of the index it was taken from) and `index`
+ * (the address it reads): those two make staleness a fact instead of a guess, and neither is
+ * the runtime tag, because a plugin version is tagged independently. A bundle's `manifest`
+ * is absolute when its bytes ride a plugin tag, so an install from the snapshot does not
+ * resolve anything against the document's runtime — the index names the address and the
+ * manifest hash is still the thing that is checked (docs/PLUGINS.md §6).
+ *
+ * `tag` stays as provenance: it is still true that this snapshot was built into that runtime
+ * release, and a document/panel written before the index can still display it.
  */
 function pluginCatalogBlock(manifest) {
-  const catalog = catalogDocument(readCatalog(), { base: null });
-  const doc = {schema: 1, generated: catalog.generated, tag: tagOf(manifest.cdnBase), ...catalog};
+  const index = pluginIndexDocument().index;
+  const doc = {
+    schema: 1,
+    generated: index.generated,
+    /* Which index this snapshot is: a *content* hash, not a tag. The snapshot can be
+       refreshed and a reader can tell whether it holds the current one. */
+    revision: index.revision,
+    index: manifest.pluginIndex || null,
+    tag: tagOf(manifest.cdnBase),
+    assets: index.assets,
+    bundles: index.bundles,
+  };
   return `<script id="plugin-catalog" type="application/json">${JSON.stringify(doc).replace(/</g, "\\u003c")}</script>`;
 }
 
@@ -1218,6 +1282,63 @@ function blockIdProblems(html, name) {
     all.push(`catalog: ${err.message}`);
   }
 
+  /* The plugin index is a view of the plugin tags, for the same reason the runtime index is
+     a view of the release tags: an entry may only claim bytes a tag shipped. A tag whose
+     name disagrees with the manifest it points at is not a version of anything, and it is
+     forever, so the gate has to catch it before the push. */
+  try {
+    const releases = runtimeCatalog().releases;
+    const tags = runtimeCatalog().tags;
+    if (!tags.length) {
+      depWarnings.push("no release tags in this clone — dist/plugins/index.json was not verified");
+    } else {
+      const decided = pluginIndexDocument();
+      const indexPath = `${DIST}/plugins/index.json`;
+      let current = null;
+      try {
+        current = exists(indexPath) ? JSON.parse(read(indexPath)) : null;
+      } catch {
+        current = null;
+      }
+      if (!current || JSON.stringify(current) !== JSON.stringify(decided.index)) {
+        all.push(`${indexPath} is stale — run: node build.mjs catalog`);
+      }
+      for (const { tag, id, version } of pluginTags()) {
+        const file = `${DIST}/plugins/${id}.json`;
+        const raw = fileAt(tag, file);
+        if (!raw) {
+          all.push(`plugin tag ${tag} has no ${file} — a plugin tag is published with its manifest`);
+          continue;
+        }
+        let manifest;
+        try {
+          manifest = JSON.parse(raw.toString("utf8"));
+        } catch (error) {
+          all.push(`plugin tag ${tag}: ${file} is not JSON — ${error.message}`);
+          continue;
+        }
+        if (manifest.id !== id) all.push(`plugin tag ${tag} carries plugin "${manifest.id}"`);
+        if (manifest.version !== version) all.push(`plugin tag ${tag} carries version ${manifest.version}`);
+        /* Shape only: the bytes a tag names are verified against that tag, and a working
+           tree that is ahead of it is the normal state of work in progress. The disk check
+           below covers the manifests this tree is about to publish. */
+        for (const problem of bundleProblems(manifest, { cdnBase: "" })) all.push(`plugin tag ${tag}: ${problem}`);
+      }
+      const seenIds = new Set();
+      for (const config of pluginConfigs()) {
+        if (seenIds.has(config.id)) all.push(`plugins/: two folders claim the id "${config.id}"`);
+        seenIds.add(config.id);
+        if (!exists(`${DIST}/plugins/${config.id}.json`)) all.push(`${DIST}/plugins/${config.id}.json is missing — run: node build.mjs build`);
+        if (!decided.index.bundles?.[config.id]) all.push(`plugins/${config.id} is not in ${indexPath} — run: node build.mjs catalog`);
+      }
+      for (const id of Object.keys(decided.index.bundles || {})) {
+        if (!pluginConfigs().some((config) => config.id === id)) all.push(`${indexPath} offers "${id}", which no plugin folder publishes`);
+      }
+    }
+  } catch (err) {
+    all.push(`plugin catalog: ${err.message}`);
+  }
+
   /* dependency-graph audit: order constraints, late-vs-plain, drift against the
      MODULES table, and freshness of the generated reference artifacts */
   try {
@@ -1355,6 +1476,17 @@ function blockIdProblems(html, name) {
       if (a.category != null && a.category !== "plugin") all.push(`${a.id}: unknown category "${a.category}"`);
       if (!["inline", "online", "disabled"].includes(a.mode)) all.push(`${a.id}: unknown mode "${a.mode}"`);
       if (!Array.isArray(a.requiredBy) || !a.requiredBy.length) all.push(`${a.id}: requiredBy must be a non-empty array`);
+      if (a.critical != null && typeof a.critical !== "boolean") all.push(`${a.id}: critical must be a boolean when present`);
+      if (a.role === "infra" && a.critical === false) all.push(`${a.id}: infrastructure cannot be soft (the loader and its failure UI)`);
+      if (a.fragments != null) {
+        if (!Array.isArray(a.fragments)) all.push(`${a.id}: fragments must be an array`);
+        else for (const fragment of a.fragments) {
+          const target = m.assets.find((candidate) => candidate.id === fragment);
+          if (!target) all.push(`${a.id}: needs fragment "${fragment}", which is not an asset`);
+          else if (target.order >= a.order) all.push(`${a.id}: fragment "${fragment}" must be built before it (order ${target.order} >= ${a.order})`);
+          else if (target.kind === "js") all.push(`${a.id}: "${fragment}" is a module — declare it in deps, not fragments`);
+        }
+      }
     }
   } catch (err) {
     all.push(err.message);
@@ -1502,12 +1634,14 @@ function releaseTags() {
  * asset — so a document can re-pin without downloading and parsing an `editor.html`
  * to find the same table.
  */
-function runtimeEntry(tag, manifest) {
+function runtimeEntry(tag, manifest, { pending = false } = {}) {
   const base = String(manifest.cdnBase || "").replace(/\/$/, "");
   return {
     schema: 1,
     tag,
     base,
+    /* What a plugin can ask of this release without being refused before activate(). */
+    hostApi: pending ? hostApiNow() : hostApiAt(tag),
     assets: (manifest.assets || [])
       .filter((asset) => asset.role !== "infra")
       .map((asset) => {
@@ -1527,6 +1661,33 @@ function runtimeEntry(tag, manifest) {
 }
 
 const tagOf = (base) => /@([^/]+)\//.exec(String(base || ""))?.[1] ?? null;
+
+/**
+ * The host API this tree's loader provides.
+ *
+ * `HOST_API` is a constant in the loader because the loader is what enforces it, and
+ * duplicating the number here would be a second truth that drifts. Reading the source is
+ * the smallest honest bridge; `check` fails loudly if the declaration moves.
+ */
+function hostApiNow() {
+  const source = read("src/registry.js");
+  const match = /^\s*const HOST_API = (\d+);/m.exec(source);
+  if (!match) throw new Error("src/registry.js has no `const HOST_API = <n>;` — the release index cannot be generated");
+  return Number(match[1]);
+}
+
+/**
+ * The host API a *tag* provided, read from that tag's own loader.
+ *
+ * A release index entry is a claim about the past, so it must come from the past: the
+ * current constant would say v0.8.0 provided API 2, which is a lie a plugin author would
+ * act on. Tags older than the contract predate `HOST_API` and provided API 1.
+ */
+function hostApiAt(tag) {
+  const source = fileAt(tag, "src/registry.js");
+  const match = source && /^\s*const HOST_API = (\d+);/m.exec(source.toString("utf8"));
+  return match ? Number(match[1]) : 1;
+}
 
 /** A file as a tag shipped it, or null when this clone does not have that tag. */
 function fileAt(tag, file) {
@@ -1592,7 +1753,7 @@ function runtimeCatalog() {
          runtime shape (or the clone is partial). Skip it rather than invent one. */
     }
   }
-  if (!releases.some(([tag]) => tag === pending)) releases.push([pending, runtimeEntry(pending, readManifest())]);
+  if (!releases.some(([tag]) => tag === pending)) releases.push([pending, runtimeEntry(pending, readManifest(), { pending: true })]);
   releases.sort((a, b) => (newer(a[0], b[0]) ? 1 : newer(b[0], a[0]) ? -1 : 0));
 
   const index = {
@@ -1603,6 +1764,7 @@ function runtimeCatalog() {
       tag,
       date: tagDate(tag),
       base: entry.base,
+      hostApi: entry.hostApi,
       assets: entry.assets.length,
       manifest: `runtime/${tag}.json`,
     })),
@@ -1632,7 +1794,8 @@ function writeCatalog() {
   fs.rmSync(abs(RUNTIME), { recursive: true, force: true });
   for (const [tag, entry] of releases) write(`${RUNTIME}/${tag}.json`, JSON.stringify(entry, null, 2) + "\n");
   write(`${DIST}/runtime.json`, JSON.stringify(index, null, 2) + "\n");
-  return { latest: index.latest, count: releases.length };
+  const plugins = writePluginIndex();
+  return { latest: index.latest, count: releases.length, plugins: Object.keys(plugins.bundles || {}).length };
 }
 
 /**
@@ -1649,10 +1812,186 @@ function sameIndex(a, b) {
   return strip(a) === strip(b);
 }
 
+/* -------------------------------------------------------- plugin catalog */
+
+/**
+ * A plugin release tag: `plugin-<id>-v<version>`.
+ *
+ * Flat on purpose. jsDelivr parses `gh/user/repo@ref/path`, so a ref containing `/` (or a
+ * second `@`) is ambiguous with the path; a flat prefix has neither problem and cannot be
+ * mistaken for a runtime tag (`releaseTags()` only accepts `vX.Y.Z`).
+ */
+const PLUGIN_TAG_RE = /^plugin-(.+)-v(\d+\.\d+\.\d+)$/;
+
+function pluginTags() {
+  try {
+    return execFileSync("git", ["tag", "--list", "plugin-*"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((tag) => {
+        const match = PLUGIN_TAG_RE.exec(tag);
+        return match ? { tag, id: match[1], version: match[2] } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.id.localeCompare(b.id) || (newer(a.version, b.version) ? 1 : newer(b.version, a.version) ? -1 : 0));
+  } catch {
+    return [];
+  }
+}
+
+/** The `gh/owner/repo` a jsDelivr base names, or null for another host. */
+function repoSlug() {
+  return /cdn\.jsdelivr\.net\/gh\/([^/@]+\/[^/@]+)@/.exec(String(readManifest().cdnBase || ""))?.[1] ?? null;
+}
+
+/** The directory a ref publishes documents and `plugins/` into. */
+function docBaseOf(cdnBase) {
+  return String(cdnBase || "").replace(/\/$/, "").replace(/\/cdn$/, "");
+}
+
+/** `<gh>/@ref/dist`, or null when this repository is served somewhere else. */
+function ghDocBase(ref) {
+  const slug = repoSlug();
+  return slug ? `https://cdn.jsdelivr.net/gh/${slug}@${ref}/dist` : null;
+}
+
+/**
+ * The oldest release that would not refuse a plugin asking for `api`.
+ *
+ * This is the answer a reader needs when a plugin says "needs a newer editor": not "this
+ * one is too old" but "v0.13.0 is the first that works". It is computed from the release
+ * index, which records what each tag's loader actually provided.
+ */
+function minRuntimeFor(api, releases) {
+  const wanted = Number(api) || 1;
+  const hit = releases.find(([, entry]) => (entry.hostApi || 1) >= wanted);
+  return hit ? hit[0] : null;
+}
+
+/** One catalog row, derived from a manifest and the bytes it was read from. */
+function bundleRow(manifest, bytes, manifestUrl, releases) {
+  return {
+    label: manifest.label,
+    version: manifest.version,
+    api: manifest.api ?? 1,
+    island: manifest.island,
+    entry: manifest.entry,
+    manifest: manifestUrl,
+    bytes: bytes.length,
+    sha384: sha384Buffer(bytes),
+    assets: (manifest.assets || []).length,
+    assetBytes: (manifest.assets || []).reduce((sum, asset) => sum + (Number(asset.bytes) || 0), 0),
+    about: manifest.about,
+    minRuntime: minRuntimeFor(manifest.api ?? 1, releases),
+  };
+}
+
+/**
+ * The plugin index: one row per plugin, every version it published.
+ *
+ * Generated from the plugin tags, like the runtime index — an entry may only claim bytes a
+ * tag actually shipped. The one exception is the version being prepared (no tag yet), which
+ * is read from the working tree; its addresses already name the tag it is about to get, so
+ * once the tag exists both routes produce the same bytes.
+ *
+ * `assets` is the authored single-module catalog (`plugins.json`), so one file can replace
+ * `<cdnBase>/../registry.json` for the sheet. `bundles` keeps its name for the same reason:
+ * every consumer already understands it.
+ */
+function pluginIndexDocument({ docBase = null, fromTags = true } = {}) {
+  const runtime = runtimeCatalog();
+  const releases = runtime.releases;
+  const versions = new Map(); /* id -> rows, newest first */
+  const add = (id, row) => {
+    if (!versions.has(id)) versions.set(id, []);
+    versions.get(id).push(row);
+  };
+
+  if (fromTags) {
+    for (const { tag, id, version } of pluginTags()) {
+      const file = `${DIST}/plugins/${id}.json`;
+      const raw = fileAt(tag, file);
+      if (!raw) continue; /* `check` reports the tag; a partial clone may simply lack it */
+      let manifest;
+      try {
+        manifest = JSON.parse(raw.toString("utf8"));
+      } catch {
+        continue;
+      }
+      /* A tag whose name disagrees with its manifest is not a version of anything. */
+      if (manifest.id !== id || manifest.version !== version) continue;
+      const base = docBase || ghDocBase(tag);
+      if (!base) continue;
+      add(id, bundleRow(manifest, raw, `${base}/plugins/${id}.json`, releases));
+    }
+  }
+
+  for (const config of pluginConfigs()) {
+    if ((versions.get(config.id) || []).some((row) => row.version === config.version)) continue;
+    const file = `${DIST}/plugins/${config.id}.json`;
+    if (!exists(file)) continue;
+    const bytes = readBytes(file);
+    let manifest;
+    try {
+      manifest = JSON.parse(bytes.toString("utf8"));
+    } catch {
+      continue;
+    }
+    if (manifest.id !== config.id || manifest.version !== config.version) continue;
+    /* The address the version is about to have: its own tag, or the runtime tag that
+       carries it while `publishBase` is still `runtime`. */
+    const base = docBase
+      || (config.publishBase === "runtime" ? docBaseOf(readManifest().cdnBase) : ghDocBase(`plugin-${config.id}-v${config.version}`))
+      || docBaseOf(readManifest().cdnBase);
+    add(config.id, bundleRow(manifest, bytes, `${base}/plugins/${config.id}.json`, releases));
+  }
+
+  const bundles = {};
+  for (const id of [...versions.keys()].sort()) {
+    const rows = versions.get(id).sort((a, b) => (newer(a.version, b.version) ? -1 : newer(b.version, a.version) ? 1 : 0));
+    const latest = rows[0];
+    bundles[id] = { ...latest, versions: rows };
+  }
+
+  /* The authored single-module rows, each version given the same answer a bundle row has:
+     the oldest runtime that would not refuse it. The sheet needs it to say "update to vX"
+     rather than only "this runtime is too old". */
+  const assets = Object.fromEntries(Object.entries(readCatalog().assets || {}).map(([id, asset]) => [
+    id,
+    {
+      ...asset,
+      versions: (asset.versions || []).map((version) => ({
+        ...version,
+        minRuntime: minRuntimeFor(version.api ?? 1, releases),
+      })),
+    },
+  ]));
+
+  const body = {
+    schema: 1,
+    generated: "generated by node build.mjs catalog from the plugin tags themselves — advisory only; a document embeds its own pins",
+    assets,
+    bundles,
+  };
+  /* Content-addressed, not clock-stamped: a snapshot can then say *which* index it holds,
+     and a refresh is a fact rather than a guess. */
+  body.revision = sha384Buffer(Buffer.from(JSON.stringify(body)));
+  return { index: body, bundles };
+}
+
+/** Write `dist/plugins/index.json`. Returns what it wrote. */
+function writePluginIndex({ docBase = null, fromTags = true } = {}) {
+  const { index } = pluginIndexDocument({ docBase, fromTags });
+  write(`${DIST}/plugins/index.json`, JSON.stringify(index, null, 2) + "\n");
+  return index;
+}
+
 function cmdCatalog() {
   const done = writeCatalog();
   if (!done) process.exit(1);
   console.log(`catalog: ${done.count} releases, latest ${done.latest} → ${DIST}/runtime.json`);
+  console.log(`catalog: ${done.plugins} plugin(s) → ${DIST}/plugins/index.json`);
 }
 
 /**
@@ -1704,8 +2043,13 @@ function cmdBuild({ base = null, out = null } = {}) {
       writeBytes(`${dir}/${file.replace(/^dist\//, "")}`, bytes);
     }
     write(`${dir}/registry.json`, JSON.stringify(catalogDocument(readCatalog(), { base }), null, 2) + "\n");
+    /* The new index, re-pointed at this server. `fromTags: false` because a dev build
+       rebuilds every plugin manifest beside the documents; a tag's row would name the
+       published bytes instead of these. */
+    const devDocBase = String(base).replace(/\/$/, "").replace(/\/cdn$/, "");
+    write(`${dir}/plugins/index.json`, JSON.stringify(pluginIndexDocument({ docBase: devDocBase, fromTags: false }).index, null, 2) + "\n");
 
-    const readFrom = `${String(base).replace(/\/$/, "").replace(/\/cdn$/, "")}/registry.json`;
+    const readFrom = `${devDocBase}/registry.json`;
     console.log(`build: dev base ${base} → ${dir}/ (nothing published, nothing checked in)`);
     console.log(`build: the sheet reads plugins from ${readFrom}`);
     console.log(`build: serve ${dir}/ at that address, and open ${dir}/slim.html from disk`);
@@ -1941,6 +2285,85 @@ async function cmdVerifyCdn({ tag = null } = {}) {
     }
   }
 
+  /* The plugin index, at the tag and at `@main`. It is what the sheet reads, and its rows
+     name manifests on plugin tags — so it is the one place where a release, a plugin version
+     and somebody else's bytes meet. Every version it offers is checked against the manifest
+     hash the index records, then every asset this repository serves inside that manifest.
+     npm pins stay out: they are third-party, hash-checked when used, and one of them is 58 MB. */
+  const slug = jsdelivrSlug(manifest.cdnBase);
+  const ghPrefix = slug ? `https://cdn.jsdelivr.net/gh/${slug}@` : null;
+  const indexUrls = [];
+  if (published.released) indexUrls.push(`${docBase}/plugins/index.json`);
+  const mainIndex = manifest.pluginIndex
+    || (slug ? `https://cdn.jsdelivr.net/gh/${slug}@main/dist/plugins/index.json` : null);
+  if (mainIndex && !indexUrls.includes(mainIndex)) indexUrls.push(mainIndex);
+
+  const seenManifests = new Set();
+  for (const indexUrl of indexUrls) {
+    const got = await fetchOnce(indexUrl);
+    if (got.error) {
+      console.log(`  unreachable  plugin index ${indexUrl}  ${got.error}`);
+      failures.push({ id: `plugin index ${indexUrl}`, url: indexUrl, why: got.error });
+      continue;
+    }
+    let index;
+    try {
+      index = JSON.parse(got.bytes.toString("utf8"));
+    } catch {
+      failures.push({ id: `plugin index ${indexUrl}`, url: indexUrl, why: "not JSON" });
+      continue;
+    }
+    bundleTargets += 1;
+    for (const [id, bundle] of Object.entries(index.bundles || {})) {
+      for (const row of bundle.versions || [bundle]) {
+        if (!row?.manifest || !row.sha384) {
+          failures.push({ id: `plugin index ${id}@${row?.version}`, url: indexUrl, why: "names no manifest + sha384" });
+          continue;
+        }
+        const manifestUrl = new URL(row.manifest, indexUrl).toString();
+        if (seenManifests.has(manifestUrl)) continue;
+        seenManifests.add(manifestUrl);
+        bundleTargets += 1;
+        const fetched = await fetchOnce(manifestUrl);
+        if (fetched.error) {
+          console.log(`  unreachable  ${id}@${row.version}  ${fetched.error}`);
+          failures.push({ id: `${id}@${row.version}`, url: manifestUrl, why: fetched.error });
+          continue;
+        }
+        const actual = "sha384-" + createHash("sha384").update(fetched.bytes).digest("base64");
+        if (actual !== row.sha384) {
+          console.log(`  MISMATCH     ${id}@${row.version}  the index pins a different manifest`);
+          failures.push({ id: `${id}@${row.version}`, url: manifestUrl, why: "the manifest is not the one the index pins", actual });
+          continue;
+        }
+        let plugin;
+        try {
+          plugin = JSON.parse(fetched.bytes.toString("utf8"));
+        } catch {
+          failures.push({ id: `${id}@${row.version}`, url: manifestUrl, why: "the manifest is not JSON" });
+          continue;
+        }
+        for (const asset of plugin.assets || []) {
+          if (!ghPrefix || !String(asset.url || "").startsWith(ghPrefix)) continue;
+          bundleTargets += 1;
+          const result = await fetchOnce(asset.url);
+          if (result.error) {
+            console.log(`  unreachable  ${id}@${row.version}/${asset.id}  ${result.error}`);
+            failures.push({ id: `${id}@${row.version}/${asset.id}`, url: asset.url, why: result.error });
+            continue;
+          }
+          const hash = "sha384-" + createHash("sha384").update(result.bytes).digest("base64");
+          if (hash === asset.integrity) {
+            console.log(`  ok           ${id}@${row.version}/${asset.id}  ${result.bytes.length} bytes`);
+          } else {
+            console.log(`  MISMATCH     ${id}@${row.version}/${asset.id}  expected ${String(asset.integrity).slice(0, 16)}… got ${hash.slice(0, 16)}…`);
+            failures.push({ id: `${id}@${row.version}/${asset.id}`, url: asset.url, why: "hash does not match the plugin manifest", actual: hash });
+          }
+        }
+      }
+    }
+  }
+
   if (failures.length) {
     console.error(`verify-cdn: FAILED (${failures.length} of ${targets.length + bundleTargets})`);
     for (const failure of failures) console.error(`  - ${failure.id}: ${failure.why}`);
@@ -2007,6 +2430,8 @@ function publishedPaths(manifest) {
     /* A plugin is published under `dist/` too, so its paths are new at this tag — including
        the manifest a document installs from. */
     ...publishedPlugins().keys(),
+    /* The index is the discovery file; at `@main` it is the one mutable plugin path. */
+    "dist/plugins/index.json",
   ];
 }
 
@@ -2044,7 +2469,7 @@ async function cmdPurge({ tag = null, mainOnly = false, dryRun = false } = {}) {
   const slug = jsdelivrSlug(base);
   const target = tag || /@([^/]+)\//.exec(base)?.[1] || null;
   const paths = publishedPaths(manifest);
-  const main = ["dist/runtime.json", "dist/registry.json"];
+  const main = ["dist/runtime.json", "dist/registry.json", "dist/plugins/index.json"];
 
   if (!slug) {
     /* A different host purges differently, and guessing is worse than a list. */

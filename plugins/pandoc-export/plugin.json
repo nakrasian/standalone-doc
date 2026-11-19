@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "id": "pandoc-export",
+  "label": "Pandoc export",
+  "version": "0.1.1",
+  "api": 1,
+  "island": "sealed",
+  "entry": "pandoc-export",
+  "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. The engine itself is fetched on the first export; nothing is uploaded.",
+  "publishBase": "runtime",
+  "orderBase": 300,
+  "pinBase": 400,
+  "copies": [
+    { "id": "sd-export-lua", "kind": "bin", "file": "tools/sd-export.lua", "as": "sd-export.lua" },
+    { "id": "sd-template-typ", "kind": "bin", "file": "tools/sd-template.typ", "as": "sd-template.typ" },
+    { "id": "sd-reference", "kind": "bin", "file": "tools/reference.docx", "as": "reference.bin" },
+    { "id": "wasi-shim", "kind": "js", "file": "plugins/pandoc-export/wasi-shim.js", "as": "wasi-shim.js" },
+    {
+      "id": "pandoc-export",
+      "kind": "js",
+      "file": "plugins/pandoc-export/pandoc-export.js",
+      "as": "pandoc-export.js",
+      "factory": "createPandocExport"
+    }
+  ],
+  "pins": [
+    {
+      "id": "pandoc",
+      "kind": "bin",
+      "bytes": 58580800,
+      "mode": "online",
+      "url": "https://cdn.jsdelivr.net/npm/pandoc-wasm@1.1.0/src/pandoc.wasm",
+      "integrity": "sha384-ujgShzUfczF0wuIDXDu1wxK9eSWiUiaq32X9Wz3Yt2HQhABCkxsNYBBVjT3u7Iow",
+      "local": "node_modules/pandoc-wasm/src/pandoc.wasm"
+    },
+    {
+      "id": "typst-bundle",
+      "kind": "bin",
+      "bytes": 211268,
+      "mode": "online",
+      "url": "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.7.0/dist/esm/contrib/all-in-one-lite.bundle.js",
+      "integrity": "sha384-EJFFdZPsds9hPomUuylsX218dPBLIlif5DzJW4aFW5ofF0hjMPPlFljqBDthNql+",
+      "local": "node_modules/@myriaddreamin/typst.ts/dist/esm/contrib/all-in-one-lite.bundle.js"
+    },
+    {
+      "id": "typst-compiler",
+      "kind": "bin",
+      "bytes": 28325178,
+      "mode": "online",
+      "url": "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler@0.7.0/pkg/typst_ts_web_compiler_bg.wasm",
+      "integrity": "sha384-YB32Rpk4pOvEGytOZweRBgdbuwNueLVpzJUQojjit/A8AveMWxDW8eT9ROz98jDo",
+      "local": "node_modules/@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm"
+    }
+  ],
+  "contributes": {
+    "export": [
+      { "id": "docx", "label": "Word (.docx)…" },
+      { "id": "typ", "label": "Typst (.typ)…" },
+      { "id": "md", "label": "Markdown (.md)…" },
+      { "id": "pdf", "label": "PDF (typeset)…" }
+    ]
+  }
+}

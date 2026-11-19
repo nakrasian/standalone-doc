@@ -1925,5 +1925,12 @@ export function createToolbar(deps = {}) {
   wirePublish();
   wireImport();
   syncChromeButtons(document.body.dataset.ui || "ribbon");
+
+  /* The document settings sheet is a capability, not an assumption: the Plugins panel needs
+     to send an author to Runtime when a plugin asks for an API this file does not provide,
+     and a viewer has no settings sheet to open. `provide()` is the same contract plugins
+     use, so absence is a `can()` check rather than a crash. */
+  registry().provide("settings", { open: openDocSettings });
+
   return {save, serialize, validate, copy, viewer, exportCommentsOnly, settings: openDocSettings};
 }

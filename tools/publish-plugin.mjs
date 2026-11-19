@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* tools/publish-plugin.mjs — the exporter, as a thing a document can install.
+/* tools/publish-plugin.mjs — one folder per plugin, exported as a thing a document can install.
  *
  *   node tools/publish-plugin.mjs            write dist/cdn/plugins/… and the manifest
  *   node tools/publish-plugin.mjs --check    fail if either is stale (run by `check`)
@@ -9,17 +9,24 @@
  * sha384 for each one. A document installs by copying those entries into `#asset-manifest` and
  * adding a `plugins` block — nothing fetches, nothing is guessed, every byte is verified.
  *
+ * The authored description is `plugins/<id>/plugin.json`; this tool turns it into the bytes and
+ * the manifest, and decides which tag they ride. A plugin released at its own
+ * `plugin-<id>-v<version>` tag is independent of the runtime's release cadence; the two
+ * versions that shipped inside a runtime release keep `publishBase: "runtime"` until they next
+ * bump. `docs/PLUGINS.md` §6 has the publish ritual.
+ *
  * The three big assets are *not* copied: a 58 MB binary and a 27 MB compiler belong on npm,
- * where jsDelivr already serves them immutably, not in a git tag. Their pins are recorded here
- * as constants (`LARGE`), which is the same arrangement `plugins.json` uses for nanoid — the
- * hash is the promise, the URL is only the address.
+ * where jsDelivr already serves them immutably, not in a git tag. Their pins are recorded in
+ * the folder's `plugin.json`, which is the same arrangement `plugins.json` uses for nanoid —
+ * the hash is the promise, the URL is only the address.
  *
  * Why a separate manifest file and not `plugins.json`: the curated catalog describes one ES
- * module per plugin, and this plugin is a bundle of eight assets. The catalog does not grow a
- * second shape for it — it grows a *pointer*: `dist/registry.json` carries a `bundles` section
- * whose entries name this manifest, its size, and its own sha384. The projection below is the
- * only place the catalog learns about a bundle, and it is derived from the same bytes
- * `published()` emits, so the advertised hash and the manifest cannot drift apart.
+ * module per plugin, and a bundle is many assets. The catalog does not grow a second shape for
+ * it — it grows a *pointer*: `dist/plugins/index.json` (and the legacy `dist/registry.json`)
+ * carries a `bundles` section whose entries name this manifest, its size, and its own sha384.
+ * The projection below is the only place the catalog learns about a bundle, and it is derived
+ * from the same bytes `published()` emits, so the advertised hash and the manifest cannot
+ * drift apart.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -33,110 +40,82 @@ const sha384 = (buffer) => "sha384-" + createHash("sha384").update(buffer).diges
 const rel = (file) => path.relative(ROOT, file).split(path.sep).join("/");
 
 /**
- * The bundle descriptions. One entry per plugin that ships as many assets: each copies files
- * from the tree into `dist/cdn/plugins/<id>/`, records the npm pins it can only address
- * (the two engines), and writes `dist/plugins/<id>.json`.
+ * The plugin descriptions, one `plugin.json` per folder under `plugins/`.
  *
- * `orderBase` is per bundle so two installed plugins cannot interleave their construction
- * order: pandoc's copies start at 300 and its pins at 400 (unchanged since v0.8.0, because
- * changing them would rewrite a published manifest for no reason), and a later bundle starts
- * at 600.
+ * A plugin is a *folder*: its label, version, host API, published copies and npm pins live
+ * beside its source, so publishing one is a change to that directory and nothing else.
+ *
+ * `publishBase` is the address its bytes ride:
+ *
+ *   "tag"     its own `plugin-<id>-v<version>` tag (the default) — independent versions
+ *   "runtime" the runtime tag this tree publishes — the migration state for a plugin that
+ *             shipped inside a runtime release before plugin tags existed
  */
-const BUNDLES = [
-  {
-    id: "pandoc-export",
-    label: "Pandoc export",
-    version: "0.1.1",
-    /* The host contract this plugin is written against (`docs/PLUGINS.md` §Versioning). The
-       registry refuses a plugin that asks for a newer host, which is what makes it safe for a
-       plugin to be versioned — and tagged — independently of the runtime. */
-    api: 1,
-    island: "sealed",
-    about: "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. "
-      + "The engine itself is fetched on the first export; nothing is uploaded.",
-    orderBase: 300,
-    pinBase: 400,
-    copies: [
-      {id: "sd-export-lua", kind: "bin", file: "tools/sd-export.lua", as: "sd-export.lua"},
-      {id: "sd-template-typ", kind: "bin", file: "tools/sd-template.typ", as: "sd-template.typ"},
-      /* `.bin`, not `.docx`: jsDelivr refuses to serve a list of extensions (403), and `.docx`
-         is on it — measured for v0.8.1, where the Word export quietly lost its reference
-         styling because the fetch failed. Nothing downstream cares about the published name:
-         the plugin fetches by asset id and writes the file into the wasm FS as
-         `reference.docx`. */
-      {id: "sd-reference", kind: "bin", file: "tools/reference.docx", as: "reference.bin"},
-      {id: "wasi-shim", kind: "js", file: "plugins/pandoc-export/wasi-shim.js", as: "wasi-shim.js"},
-      /* `factory` is what makes the module a plugin rather than a library: without it the
-         loader treats the namespace as the plugin, and a namespace has no `export`
-         contributions. */
-      {id: "pandoc-export", kind: "js", file: "plugins/pandoc-export/pandoc-export.js",
-        as: "pandoc-export.js", factory: "createPandocExport"},
-    ],
-    /* Kept on npm, pinned here. Re-derive with:
-     *   node -e 'const fs=require("fs"),c=require("crypto");const b=fs.readFileSync(process.argv[1]);console.log(b.length,"sha384-"+c.createHash("sha384").update(b).digest("base64"))' <file> */
-    pins: [
-      {
-        id: "pandoc", kind: "bin", bytes: 58580800, mode: "online",
-        url: "https://cdn.jsdelivr.net/npm/pandoc-wasm@1.1.0/src/pandoc.wasm",
-        integrity: "sha384-ujgShzUfczF0wuIDXDu1wxK9eSWiUiaq32X9Wz3Yt2HQhABCkxsNYBBVjT3u7Iow",
-        local: "node_modules/pandoc-wasm/src/pandoc.wasm",
-      },
-      {
-        id: "typst-bundle", kind: "bin", bytes: 211268, mode: "online",
-        url: "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.7.0/dist/esm/contrib/all-in-one-lite.bundle.js",
-        integrity: "sha384-EJFFdZPsds9hPomUuylsX218dPBLIlif5DzJW4aFW5ofF0hjMPPlFljqBDthNql+",
-        local: "node_modules/@myriaddreamin/typst.ts/dist/esm/contrib/all-in-one-lite.bundle.js",
-      },
-      {
-        id: "typst-compiler", kind: "bin", bytes: 28325178, mode: "online",
-        url: "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler@0.7.0/pkg/typst_ts_web_compiler_bg.wasm",
-        integrity: "sha384-YB32Rpk4pOvEGytOZweRBgdbuwNueLVpzJUQojjit/A8AveMWxDW8eT9ROz98jDo",
-        local: "node_modules/@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm",
-      },
-    ],
-    contributes: {
-      export: [
-        {id: "docx", label: "Word (.docx)…"},
-        {id: "typ", label: "Typst (.typ)…"},
-        {id: "md", label: "Markdown (.md)…"},
-        {id: "pdf", label: "PDF (typeset)…"},
-      ],
-    },
-  },
-  {
-    id: "citations",
-    label: "Citations",
-    version: "0.1.2",
-    /* 2: this plugin calls `editor.insertInline()` and `pagination.defineBlock()`, and relies
-       on `data-atomic` being honoured by the planner. A host that does not have them must
-       refuse it *before* activate() rather than after a citation half-lands. */
-    api: 2,
-    island: "sealed",
-    about: "Inline citations and a bibliography: type @@ to pick a reference, import BibTeX or "
-      + "CSL-JSON, or read a Zotero library. Only cited entries are written into the document, "
-      + "and a document without the plugin still reads correctly.",
-    orderBase: 600,
-    pinBase: 700,
-    copies: [
-      /* One self-contained ES module, and that is a requirement rather than a preference: the
-         loader evaluates verified bytes from a `blob:`, where nothing bare or relative
-         resolves. So the parsers, the picker and the bibliography are one file — the same
-         reason `pandoc-export` carries its Lua as `bin` and reads it through `host.bytes()`. */
-      {id: "citations", kind: "js", file: "plugins/citations/citations.js",
-        as: "citations.js", factory: "createCitations"},
-    ],
-    pins: [],
-    contributes: {
-      /* In the Insert menu, beside the figures: a citation belongs where the author is
-         typing. `inline` is the kind that lands in the paragraph — `insert` is the kind that
-         adds a block. */
-      inline: [{id: "citation", label: "Citation…"}],
-      panel: [{id: "library", label: "References"}],
-    },
-  },
-];
+export function pluginConfigs() {
+  const dir = path.join(ROOT, "plugins");
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(dir, entry.name, "plugin.json"))
+    .filter((file) => fs.existsSync(file))
+    .map((file) => JSON.parse(fs.readFileSync(file, "utf8")))
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+}
 
-/** Everything publishing writes, as a map of path → bytes. Pure: no writes, no clock. */
+/** Every way a plugin folder is not publishable. Empty array means it is. */
+export function pluginConfigProblems(config) {
+  const problems = [];
+  const say = (problem) => problems.push(`plugin folder "${config?.id ?? "?"}": ${problem}`);
+  if (!config || typeof config !== "object") return ["plugin.json is not an object"];
+  if (config.schema !== 1) say(`schema is ${config.schema}, expected 1`);
+  if (!SLUG_RE.test(String(config.id || ""))) say("id must be a slug");
+  if (!config.label) say("label is required");
+  if (!/^\d+\.\d+\.\d+$/.test(String(config.version || ""))) say(`version must be x.y.z, not ${JSON.stringify(config.version)}`);
+  if (!Number.isInteger(config.api) || config.api < 1) say("api must be a positive integer");
+  if (!["sealed", "sandboxed", "trusted"].includes(config.island)) say("island must be sealed, sandboxed or trusted");
+  if (!config.entry) say("entry is required (the asset whose factory is the plugin)");
+  if (!["runtime", "tag"].includes(config.publishBase ?? "tag")) say(`publishBase must be "runtime" or "tag"`);
+  if (!Number.isInteger(config.orderBase)) say("orderBase must be an integer");
+  if (!Number.isInteger(config.pinBase)) say("pinBase must be an integer");
+
+  const copies = Array.isArray(config.copies) ? config.copies : [];
+  if (!copies.length) say("copies must be a non-empty array");
+  for (const copy of copies) {
+    if (!SLUG_RE.test(String(copy?.id || ""))) { say(`copy "${copy?.id}": id must be a slug`); continue; }
+    if (!["js", "css", "html", "bin"].includes(copy.kind)) say(`copy "${copy.id}": kind must be js, css, html or bin`);
+    if (!copy.file) say(`copy "${copy.id}": file is required`);
+    else if (!fs.existsSync(path.join(ROOT, copy.file))) say(`copy "${copy.id}": ${copy.file} is missing`);
+    if (!copy.as || /[\\/]/.test(String(copy.as))) say(`copy "${copy.id}": as must be a bare filename`);
+  }
+  const pins = Array.isArray(config.pins) ? config.pins : [];
+  for (const pin of pins) {
+    if (!SLUG_RE.test(String(pin?.id || ""))) { say(`pin "${pin?.id}": id must be a slug`); continue; }
+    if (!["js", "css", "html", "bin"].includes(pin.kind)) say(`pin "${pin.id}": kind must be js, css, html or bin`);
+    if (!Number.isInteger(pin.bytes) || pin.bytes <= 0) say(`pin "${pin.id}": bytes must be a positive integer`);
+    if (!/^https:\/\//.test(String(pin.url || ""))) say(`pin "${pin.id}": url must be absolute https://`);
+    if (!SHA384_RE.test(String(pin.integrity || ""))) say(`pin "${pin.id}": integrity must be "sha384-" + 64 base64 characters`);
+  }
+  return problems;
+}
+
+/**
+ * The base one plugin's bytes ride.
+ *
+ * A plugin tag is the default because a plugin's version must not wait for the runtime's:
+ * `plugin-<id>-v<version>` names exactly the bytes that version published. `"runtime"` is
+ * the migration state, and it is explicit so that forgetting to flip it cannot silently
+ * move a published plugin's address.
+ */
+export function pluginBaseFor(config, cdnBase) {
+  if ((config.publishBase || "tag") === "runtime") return cdnBase;
+  const slug = /cdn\.jsdelivr\.net\/gh\/([^/@]+\/[^/@]+)@/.exec(String(cdnBase || ""))?.[1];
+  /* Another host may not have a tag namespace we can name; publishing there stays on the
+     runtime base rather than inventing an address. */
+  if (!slug) return cdnBase;
+  return `https://cdn.jsdelivr.net/gh/${slug}@plugin-${config.id}-v${config.version}/dist/cdn`;
+}
+
+
 /**
  * Every published byte, keyed by the path it is committed at.
  *
@@ -145,11 +124,13 @@ const BUNDLES = [
  * was built from instead of the bytes beside it.
  */
 export function published({ base = null } = {}) {
-  const cdnBase = String(base || JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8")).cdnBase)
-    .replace(/\/$/, "");
+  const cdnBase = String(base || authoredCdnBase()).replace(/\/$/, "");
   const out = new Map();
 
-  for (const bundle of BUNDLES) {
+  for (const bundle of pluginConfigs()) {
+    /* A `base` is a dev address for every byte this tree publishes, so it wins. Otherwise
+       each plugin rides its own tag unless its folder says it still rides the runtime's. */
+    const origin = base || pluginBaseFor(bundle, cdnBase);
     const dir = `plugins/${bundle.id}`;
     const assets = [];
 
@@ -166,7 +147,7 @@ export function published({ base = null } = {}) {
         plugin: bundle.id,
         requiredBy: ["*"],
         bytes: bytes.length,
-        url: `${cdnBase}/${dir}/${entry.as}`,
+        url: `${origin}/${dir}/${entry.as}`,
         integrity: sha384(bytes),
         ...(entry.factory ? {factory: entry.factory} : {}),
       });
@@ -205,10 +186,21 @@ export function published({ base = null } = {}) {
  * *document* pins rather than whichever sibling the catalog happened to be read from.
  */
 export function publishedBundles({ base = null } = {}) {
+  const cdnBase = String(base || authoredCdnBase()).replace(/\/$/, "");
+  const files = published({ base });
   const bundles = [];
-  for (const [file, bytes] of published({ base })) {
-    if (!/^dist\/plugins\/[^/]+\.json$/.test(file)) continue;
+  for (const config of pluginConfigs()) {
+    const file = `dist/plugins/${config.id}.json`;
+    const bytes = files.get(file);
+    if (!bytes) continue;
     const manifest = JSON.parse(bytes.toString("utf8"));
+    const origin = base || pluginBaseFor(config, cdnBase);
+    /* Relative when the manifest lives at the runtime tag the document pins (the legacy
+       arrangement, and a dev build); absolute when the plugin rides its own tag, because a
+       relative path would resolve to a runtime tag that never carried those bytes. */
+    const manifestPath = origin === cdnBase
+      ? file.replace(/^dist\//, "")
+      : `${origin.replace(/\/cdn$/, "")}/plugins/${config.id}.json`;
     bundles.push({
       file,
       manifest,
@@ -218,7 +210,7 @@ export function publishedBundles({ base = null } = {}) {
         api: manifest.api ?? 1,
         island: manifest.island,
         entry: manifest.entry,
-        manifest: file.replace(/^dist\//, ""),
+        manifest: manifestPath,
         bytes: bytes.length,
         sha384: sha384(bytes),
         assets: manifest.assets.length,
@@ -318,6 +310,7 @@ export function bundleProblems(manifest, { cdnBase = authoredCdnBase() } = {}) {
 /** Compare what would be written with what is on disk. */
 export function stale() {
   const problems = [];
+  for (const config of pluginConfigs()) problems.push(...pluginConfigProblems(config));
   for (const [file, bytes] of published()) {
     const full = path.join(ROOT, file);
     if (!fs.existsSync(full)) { problems.push(`${file} is missing`); continue; }
@@ -341,7 +334,7 @@ if (process.argv[1] && process.argv[1].endsWith("publish-plugin.mjs")) {
       fs.mkdirSync(path.dirname(path.join(ROOT, file)), {recursive: true});
       fs.writeFileSync(path.join(ROOT, file), bytes);
     }
-    for (const bundle of BUNDLES) {
+    for (const bundle of pluginConfigs()) {
       const file = `dist/plugins/${bundle.id}.json`;
       const manifest = JSON.parse(files.get(file).toString("utf8"));
       const declared = manifest.assets.reduce((n, asset) => n + asset.bytes, 0) / 1e6;

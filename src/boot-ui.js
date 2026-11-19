@@ -27,6 +27,9 @@
   /* The recovery flow. `offered` is the release this card proposed; `updating` is the tag
      being applied, set before retry() so the "ready" handler knows the boot was a repair
      rather than an ordinary start. */
+  /* Soft failures recorded during boot. They do not stop the document, but they are the
+     reason the card says "ready — with limitations" instead of closing silently. */
+  const degraded = [];
   let offered = null;
   let updating = null;
   /* An offer can still be in flight when a retry lands; without this the answer to a
@@ -179,6 +182,7 @@
   function reset() {
     const el = ensure();
     failures.length = 0;
+    degraded.length = 0;
     offered = null;
     offersAllowed = true;
     cancelAnimationFrame(timelineFrame);
@@ -227,11 +231,59 @@
     }
   }
 
+  /* The registry names the action; this is the sentence a reader sees. A failure card that
+     only says what broke leaves the reader with a document they cannot repair, which is the
+     difference between a degraded file and a dead one. */
+  function remedyNote(remedy) {
+    if (!remedy) return "";
+    switch (remedy.action) {
+      case "update-runtime":
+        return `Next: update this file's runtime${remedy.need ? ` to one that provides ${remedy.need}` : ""}, save, and reopen.`;
+      case "refresh-catalog":
+        return `Next: open the Plugins panel and refresh the catalog${remedy.why ? ` — ${remedy.why}` : ""}.`;
+      case "open-editor-copy":
+        return "Next: open an editor copy of this document.";
+      case "reopen":
+        return "Next: save and reopen this file.";
+      case "none":
+        return remedy.why ? `Nothing this file can do — ${remedy.why}.` : "";
+      default:
+        /* `retry` is the button already on the card, so it needs no sentence. */
+        return "";
+    }
+  }
+
+  /*
+   * Ready, but not whole: list every soft failure with the same remedy vocabulary the
+   * failure card uses, and let the reader continue. This is the non-blocking lane — the
+   * content is already on screen and saving still works, so the card is a note, not a wall.
+   */
+  function renderDegraded(el) {
+    if (!el || !degraded.length) return;
+    el.dialog.dataset.phase = "ready";
+    el.title.textContent = "Ready — with limitations";
+    el.sub.textContent = `${degraded.length} feature${degraded.length === 1 ? "" : "s"} could not load · everything else is available`;
+    el.error.hidden = false;
+    el.errorTitle.textContent = "What did not load";
+    el.errorBody.textContent = degraded
+      .map((issue) => `${label(issue.id)}: ${issue.message}${issue.remedy ? ` — ${remedyNote(issue.remedy) || "retry"}` : ""}`)
+      .join("  •  ");
+    el.diag.textContent = diagnosticsText();
+    el.retry.hidden = false;
+    el.toggle.hidden = false;
+    el.copy.hidden = false;
+    el.continue.hidden = false;
+    clearTimeout(showTimer);
+    open();
+    el.continue.focus();
+  }
+
   function renderFailure(failure) {
     const el = ensure();
     if (!el) return;
     failures.push(failure);
     const copy = copyFor(failure);
+    const remedy = remedyNote(failure.remedy);
     el.dialog.dataset.phase = "failed";
     el.title.textContent = copy.title;
     el.sub.textContent = "Aborted — nothing has been changed on disk";
@@ -244,7 +296,7 @@
     }
     el.error.hidden = false;
     el.errorTitle.textContent = label(failure.id);
-    el.errorBody.textContent = copy.body;
+    el.errorBody.textContent = [copy.body, remedy].filter(Boolean).join(" ");
     el.diag.textContent = diagnosticsText();
     el.retry.hidden = false;
     el.toggle.hidden = false;
@@ -273,7 +325,32 @@
    */
   async function offerUpdate(failure) {
     const el = ensure();
-    if (!el || !["integrity", "http"].includes(failure.kind)) return;
+    if (!el || !["integrity", "http", "api"].includes(failure.kind)) return;
+
+    /* An `api` refusal asks a different question: not "what is the newest release?" but
+       "which release is the first that provides this API?". Answering with `latest` would
+       be wrong for a plugin written against an API that a newer release no longer
+       advertises, and useless for one that a release older than latest already satisfies. */
+    if (failure.kind === "api") {
+      const index = await registry.catalog();
+      if (!offersAllowed || registry.state !== "failed" || !el.error || el.error.hidden) return;
+      const current = registry.tagOf();
+      const target = (index?.releases || []).find((release) => (release.hostApi || 1) >= (failure.need || 1));
+      if (!target) {
+        el.update.hidden = false;
+        el.updateText.textContent = `Needs host API ${failure.need}; no published runtime provides it yet.`;
+        el.updateGo.hidden = true;
+        return;
+      }
+      offered = { from: current, to: target.tag, need: failure.need, reopen: true };
+      el.updateText.textContent = `${target.tag} provides host API ${failure.need}; this document pins ${current}. `
+        + "Updating rewrites its pin, and the new runtime is loaded on reopen — nothing on disk changes until you save.";
+      el.updateGo.textContent = `Update to ${target.tag}`;
+      el.update.hidden = false;
+      el.updateGo.hidden = false;
+      return;
+    }
+
     const {current, latest, newer, date: when} = await registry.compareUpdate();
     /* The card may have moved on while the catalog was in flight. */
     if (!offersAllowed || registry.state !== "failed" || !el.error || el.error.hidden) return;
@@ -308,7 +385,14 @@
       updateFailed(ensure(), `${offer.to} could not be read (${error && error.message ? error.message : String(error)}). Nothing was changed.`);
       return;
     }
-    updating = {tag: offer.to, moved: applied.moved.length, from: offer.from};
+    updating = {tag: offer.to, moved: applied.moved.length, from: offer.from, reopen: offer.reopen || null};
+    /* A runtime that provides a newer host API cannot be adopted by this session: the loader
+       is inline and already running. Re-pinning is the whole repair; a retry against the old
+       loader would fail again and the restore-on-failure below would undo a correct update. */
+    if (offer.reopen) {
+      renderRepaired(ensure());
+      return;
+    }
     reset();
     open();
     try {
@@ -333,7 +417,9 @@
     const canSave = !!document.querySelector("[data-save]");
     el.dialog.dataset.phase = "ready";
     el.title.textContent = `Updated to ${done.tag}`;
-    el.sub.textContent = `${done.moved} fetched asset${done.moved === 1 ? "" : "s"} re-pinned from ${done.from}`;
+    el.sub.textContent = done.reopen
+      ? `${done.moved} fetched asset${done.moved === 1 ? "" : "s"} re-pinned; host API ${done.reopen} is loaded on reopen`
+      : `${done.moved} fetched asset${done.moved === 1 ? "" : "s"} re-pinned from ${done.from}`;
     el.error.hidden = true;
     el.errorBody.textContent = "";
     el.retry.hidden = true;
@@ -345,9 +431,13 @@
     /* The repair is in memory. A viewer has no save button, and saying "save the file" to
        a document that cannot write itself would be a lie (lab/009, finding 3). */
     el.update.hidden = false;
-    el.updateText.textContent = canSave
-      ? "Save the file to keep this update. Until you do, the repaired pin lives in this tab only."
-      : "This document is read-only, so the update lasts for this session only.";
+    el.updateText.textContent = done.reopen
+      ? canSave
+        ? "Save the file, then reopen it to load the new runtime. The plugin stays unavailable until then."
+        : "This document is read-only, so the runtime update lasts for this session only; reopen a saved copy to load it."
+      : canSave
+        ? "Save the file to keep this update. Until you do, the repaired pin lives in this tab only."
+        : "This document is read-only, so the update lasts for this session only.";
     el.updateGo.hidden = true;
     clearTimeout(showTimer);
     open();
@@ -441,11 +531,25 @@
     if (detail.lazy) return;
     const row = rows.get(detail.id);
     if (row) {
-      row.dataset.state = detail.state === "ok" ? "ok" : "active";
-      row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "building…";
+      if (detail.state === "skipped") {
+        row.dataset.state = "skipped";
+        row.querySelector(".boot-detail").textContent = "unavailable — skipped";
+      } else {
+        row.dataset.state = detail.state === "ok" ? "ok" : "active";
+        row.querySelector(".boot-detail").textContent = detail.state === "ok" ? "ready" : "building…";
+      }
     }
     if (detail.state === "ok") plan.built++;
     paintBar();
+  });
+
+  /* A plugin's own failure is the plugin's business: it is shown on its row and in a figure,
+     not in the boot summary. Only a soft *document* asset belongs in the degraded list. */
+  registry.on("error", (detail) => {
+    const issue = detail && detail.error;
+    if (!issue || issue.plugin) return;
+    if (registry.state !== "booting" && registry.state !== "ready") return;
+    if (!degraded.includes(issue)) degraded.push(issue);
   });
 
   registry.on("ready", (detail) => {
@@ -458,6 +562,10 @@
     }
     el.dialog.dataset.phase = "ready";
     el.sub.textContent = `Ready · ${detail.count} modules`;
+    if (degraded.length) {
+      renderDegraded(el);
+      return;
+    }
     close();
   });
 

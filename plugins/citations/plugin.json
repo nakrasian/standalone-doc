@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "id": "citations",
+  "label": "Citations",
+  "version": "0.1.2",
+  "api": 2,
+  "island": "sealed",
+  "entry": "citations",
+  "about": "Inline citations and a bibliography: type @@ to pick a reference, import BibTeX or CSL-JSON, or read a Zotero library. Only cited entries are written into the document, and a document without the plugin still reads correctly.",
+  "publishBase": "runtime",
+  "orderBase": 600,
+  "pinBase": 700,
+  "copies": [
+    {
+      "id": "citations",
+      "kind": "js",
+      "file": "plugins/citations/citations.js",
+      "as": "citations.js",
+      "factory": "createCitations"
+    }
+  ],
+  "pins": [],
+  "contributes": {
+    "inline": [{ "id": "citation", "label": "Citation…" }],
+    "panel": [{ "id": "library", "label": "References" }]
+  }
+}

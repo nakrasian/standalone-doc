@@ -333,8 +333,70 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     };
   }
 
+  /**
+   * What a reader can do about an issue.
+   *
+   * One record, one answer, rendered by every surface — the boot card, the Plugins sheet,
+   * a figure's notice, the diagnostics text. `target` is filled in by whoever knows it (a
+   * release index can name the runtime that would satisfy an `api` refusal; the loader
+   * cannot), and `need` is what that target must provide. A `none` remedy is not a dead
+   * end: it carries the reason, because "this file cannot fix it" is information.
+   */
+  function remedyFor(issue) {
+    switch (issue.kind) {
+      case "api":
+        return { action: "update-runtime", need: issue.need ? `host API ${issue.need}` : "a newer runtime" };
+      case "integrity":
+        return issue.plugin
+          ? { action: "refresh-catalog", why: "the catalog proposes the version; this file pins the bytes" }
+          : { action: "update-runtime" };
+      case "http":
+        return issue.plugin
+          ? { action: "refresh-catalog", why: "this copy's runtime may be older than the plugin" }
+          : { action: "update-runtime" };
+      case "offline":
+      case "unreachable":
+      case "timeout":
+        return { action: "retry" };
+      case "import":
+      case "construct":
+        return { action: "retry" };
+      case "missing":
+        return issue.plugin
+          ? { action: "refresh-catalog", why: "this file carries no pinned copy" }
+          : { action: "retry" };
+      case "disabled":
+        return { action: "none", why: "it is switched off in this file — turn it on in the Plugins panel" };
+      case "unresolved":
+        return { action: "refresh-catalog", why: "this file carries no pinned copy" };
+      case "unavailable":
+        return { action: "none", why: issue.message || "this document does not provide it" };
+      case "forbidden":
+        return { action: "none", why: "a plugin cannot read another plugin's bytes" };
+      default:
+        return { action: "none" };
+    }
+  }
+
+  /* A one-line answer for the diagnostics text and any surface that shows issues as a list. */
+  function remedyLine(remedy) {
+    if (!remedy) return null;
+    switch (remedy.action) {
+      case "retry": return "retry — nothing in the file has changed";
+      case "update-runtime": return `update this file's runtime${remedy.need ? ` to one that provides ${remedy.need}` : ""}, save, and reopen`;
+      case "update-plugin": return `update ${remedy.target || "the plugin"} in the Plugins panel`;
+      case "refresh-catalog": return `refresh the plugin catalog${remedy.why ? ` (${remedy.why})` : ""}`;
+      case "reopen": return "save and reopen this file";
+      case "open-editor-copy": return "open an editor copy of this document";
+      case "none": return remedy.why ? `nothing this file can do — ${remedy.why}` : "nothing this file can do";
+      default: return remedy.action;
+    }
+  }
+
   function failure(kind, id, message, extra) {
-    return Object.assign({ kind, id, message }, extra || {});
+    const issue = Object.assign({ kind, id, message }, extra || {});
+    if (!issue.remedy) issue.remedy = remedyFor(issue);
+    return issue;
   }
 
   function fail(record) {
@@ -522,6 +584,11 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return Boolean(value) && value !== "off";
   }
 
+  /* Infra is the root of trust; everything else may be authored soft. */
+  function isCritical(asset) {
+    return asset.role === "infra" || asset.critical !== false;
+  }
+
   /* Only constructed modules: infrastructure is already running, and a plugin is
      built by require(), not by boot. */
   function planned() {
@@ -557,6 +624,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       if (error.url) lines.push(`url: ${error.url}`);
       if (error.expected) lines.push(`expected ${error.expected}`, `actual   ${error.actual}`);
       if (error.stack) lines.push(error.stack);
+      if (error.remedy) lines.push(`next:     ${remedyLine(error.remedy)}`);
       lines.push("");
     }
     lines.push(`user agent: ${navigator.userAgent}`);
@@ -593,13 +661,13 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       /* navigator.onLine only *labels* the failure; it never decides anything. */
       const kind = timedOut ? "timeout" : navigator.onLine === false ? "offline" : "unreachable";
       const message = timedOut ? `no response within ${timeoutMs} ms` : (error && error.message) || "fetch failed";
-      throw failure(kind, asset.id, message, { url: asset.url });
+      throw failure(kind, asset.id, message, { url: asset.url, plugin: isPlugin(asset) });
     } finally {
       clearTimeout(timer);
     }
 
     if (!response.ok) {
-      throw failure("http", asset.id, `HTTP ${response.status}`, { url: asset.url, status: response.status });
+      throw failure("http", asset.id, `HTTP ${response.status}`, { url: asset.url, status: response.status, plugin: isPlugin(asset) });
     }
 
     const bytes = await response.arrayBuffer();
@@ -609,6 +677,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
         url: asset.url,
         expected: asset.integrity,
         actual,
+        plugin: isPlugin(asset),
       });
     }
 
@@ -631,7 +700,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     try {
       namespace = await import(blob);
     } catch (error) {
-      throw failure("import", asset.id, error && error.message ? error.message : "module failed to evaluate", { url: asset.url });
+      throw failure("import", asset.id, error && error.message ? error.message : "module failed to evaluate", { url: asset.url, plugin: isPlugin(asset) });
     }
     /* An asset with no `factory` is a plain ES module — the namespace *is* the
        module. That is how a third-party library (an npm package pinned as a plugin)
@@ -647,7 +716,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   async function fetchAsset(asset) {
     if (factories[asset.id]) return { factory: factories[asset.id] };
     if (asset.mode !== "online") {
-      throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`);
+      throw failure("missing", asset.id, `not loaded, and its mode is "${asset.mode}"`, { plugin: isPlugin(asset) });
     }
     const fetched = await fetchVerified(asset);
     return evaluate(asset, fetched);
@@ -800,7 +869,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     const deps = { env: globalThis, settings: settings(), late, optional };
     for (const name of asset.deps || []) {
       if (!(name in modules)) {
-        throw failure("construct", asset.id, `requires "${name}", which is not built`);
+        throw failure("construct", asset.id, `requires "${name}", which is not built`, { plugin: isPlugin(asset) });
       }
       deps[name] = modules[name];
     }
@@ -814,6 +883,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
         asset.mode === "inline"
           ? "not loaded (its block is missing from this document)"
           : "not loaded from the CDN",
+        { plugin: isPlugin(asset) },
       );
     }
 
@@ -825,6 +895,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     } catch (error) {
       throw failure("construct", asset.id, error && error.message ? error.message : String(error), {
         stack: error && error.stack ? String(error.stack) : null,
+        plugin: isPlugin(asset),
       });
     }
 
@@ -855,29 +926,59 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
 
     /* 1. Load in parallel: I/O is order-free. */
     const loaded = new Map();
+    const skipped = new Set(); /* assets whose failure the document can survive */
     const outcomes = await Promise.allSettled(
       online.map(async (asset) => {
         loaded.set(asset.id, await fetchAsset(asset));
       }),
     );
     for (const [i, outcome] of outcomes.entries()) {
-      if (outcome.status === "rejected") return fail(outcome.reason);
+      if (outcome.status !== "rejected") continue;
+      const asset = online[i];
+      /* `critical: false` is authored in the manifest, never inferred: a builder can say a
+         module is a feature, but only the document can say its absence is survivable. */
+      if (isCritical(asset)) return fail(outcome.reason);
+      record(outcome.reason);
+      skipped.add(asset.id);
+      emit("construct", { id: asset.id, state: "skipped", index: 0, total: jsAssets.length, error: outcome.reason });
     }
 
     /* 2. Construct in order: side effects are order-bound. */
     let index = 0;
     for (const asset of assets) {
       const isModule = asset.kind === "js" && asset.role !== "infra";
+      if (skipped.has(asset.id)) {
+        if (isModule) index++;
+        continue;
+      }
+      /* A fragment is DOM this module reads. Constructing against a missing one is how a
+         soft failure becomes a thrown exception somewhere else; skip the consumer and name
+         the fragment instead. */
+      const missing = (asset.fragments || []).find((id) => skipped.has(id));
+      if (missing) {
+        const issue = failure("unavailable", asset.id, `needs "${missing}", which did not load`, {
+          plugin: isPlugin(asset),
+        });
+        if (isCritical(asset)) return fail(issue);
+        record(issue);
+        skipped.add(asset.id);
+        emit("construct", { id: asset.id, state: "skipped", index: isModule ? index : 0, total: jsAssets.length, error: issue });
+        if (isModule) index++;
+        continue;
+      }
       try {
         await constructOne(asset, { loaded, index: isModule ? index : 0, total: jsAssets.length });
       } catch (error) {
-        return fail(error);
+        if (isCritical(asset)) return fail(error);
+        record(error);
+        skipped.add(asset.id);
+        emit("construct", { id: asset.id, state: "skipped", index: isModule ? index : 0, total: jsAssets.length, error });
       }
       if (isModule) index++;
     }
 
     setState("ready");
-    emit("ready", { count: Object.keys(modules).length });
+    emit("ready", { count: Object.keys(modules).length, skipped: [...skipped], errors: errors.slice() });
     return modules;
   }
 
@@ -914,11 +1015,11 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
 
   async function buildPlugin(id, generation) {
     const entry = plugins()[id];
-    if (!entry) throw record(failure("unresolved", id, "this document needs it but has no pinned copy of it"));
-    if (entry.enabled === false) throw record(failure("disabled", id, "is turned off in this document"));
+    if (!entry) throw record(failure("unresolved", id, "this document needs it but has no pinned copy of it", { plugin: true }));
+    if (entry.enabled === false) throw record(failure("disabled", id, "is turned off in this document", { plugin: true }));
 
     const assets = pluginAssets(entry, id);
-    if (!assets.length) throw record(failure("missing", id, "has no assets in this document's manifest"));
+    if (!assets.length) throw record(failure("missing", id, "has no assets in this document's manifest", { plugin: true }));
 
     /* Same two phases as boot, for one bundle. Inline assets are already in the
        document and need no fetch. A `bin` is the exception, and it is the whole point of
@@ -940,7 +1041,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     /* Unloaded while the bytes were in flight: do not construct and do not activate.
        The same check runs again after activate(), for an unload that lands during it. */
     if ((generations[id] || 0) !== generation) {
-      throw record(failure("stale", id, "was unloaded while it was loading"));
+      throw record(failure("stale", id, "was unloaded while it was loading", { plugin: true }));
     }
 
     for (const [position, asset] of assets.entries()) {
@@ -963,7 +1064,8 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       unbuild(assets);
       throw record(failure("api", id,
         `needs a newer editor: host API ${api}, this one provides ${HOST_API}`
-        + ` — update this document's runtime (Document settings → Runtime), then reopen`));
+        + ` — update this document's runtime (Document settings → Runtime), then reopen`,
+        { plugin: true, need: api }));
     }
 
     /* Two-phase, like boot: bytes, then side effects. activate() is where a plugin
@@ -990,7 +1092,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     if ((generations[id] || 0) !== generation) {
       scope.dispose();
       unbuild(assets);
-      throw record(failure("stale", id, "was unloaded while it was loading"));
+      throw record(failure("stale", id, "was unloaded while it was loading", { plugin: true }));
     }
 
     /* `activation` is kept because the implementations live on it: `insert`, `export`
@@ -1159,6 +1261,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     /** What a plugin's activate() returned, or null when it is not built. */
     instance: (id) => live[id]?.activation || null,
     provide,
+    /** A capability this document built, or a `kind: "unavailable"` refusal. Host modules
+     *  use the same accessor a plugin's `host.use()` does, so absence is one rule. */
+    use: capability,
     /** Whether this document built a named capability. */
     can: (name) => Boolean(providers[name]),
     hostApi: HOST_API,
