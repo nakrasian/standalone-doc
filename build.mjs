@@ -1719,9 +1719,9 @@ function cmdBuild({ base = null, out = null } = {}) {
   write(`${DIST}/slim.html`, buildSlim(html, manifest));
   write(`${DIST}/viewer.html`, buildViewer(html, manifest));
 
-  /* The one plugin this repository publishes. Its bytes go where every other published byte
+  /* The plugins this repository publishes. Their bytes go where every other published byte
      goes — `dist/`, served at a tag — and a manifest records id/kind/size/sha384 so a document
-     can install it without guessing. `check` fails when either is stale. */
+     can install one without guessing. `check` fails when any of it is stale. */
   for (const [file, bytes] of publishedPlugins()) writeBytes(file, bytes);
 
   const m = measure();

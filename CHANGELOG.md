@@ -1,5 +1,98 @@
 # Changelog
 
+## v0.11.0 — 2026-11-19
+
+Citations, as a plugin — and the two generic primitives that made a plugin possible at all.
+
+A citation is **content**, and its whole design is the answer to one question: what does a
+reader see when the plugin is not there? The label is *derived but saved* (`[3]`,
+`(Smith, 2020)` is ordinary text in a link), the reference list is a **block**, not a render,
+the stylesheet is written into `<head>` as `<style data-plugin-style="citations">` and
+travels with the file, and `#citation-store` sits beside `#figure-store` so the next
+activation re-derives everything. What does not degrade is renumbering: without the plugin
+the numbers are a snapshot of the last save. That is the honest boundary of "a plugin, not an
+asset", and it is why the store travels.
+
+### Added
+
+- **`data-atomic`**: an inline element the planner may not cut inside. A page break is a
+  character offset, so element boundaries were invisible to it and `Range.extractContents()`
+  cloned whatever the cut landed in — two marks with the same keys, or one real half and an
+  empty clone in WebKit. Measured in lab/017 across three engines: 0/240 splits for `[7]` in
+  Latin prose (`wordBoundary()` protects a whitespace-free mark by accident), 3/240 for a mark
+  wider than a word, 7/240 for `(Author7 2007)` in CJK.
+- **`editor.insertInline(node, {removeBefore})`**, the inline twin of `insertBlock`: one
+  history entry, the dirty flag, a repagination, and the typed trigger spent.
+- **An `inline` contribution kind**, rendered into the Insert menu beside the figures. Same
+  menu as `insert`, different destination: the host closes the menu and hands over, because
+  where an inline mark goes is caret arithmetic.
+- **`pagination.defineBlock()` as a capability**, `host.on("restore")` (undo and redo replace
+  `#content` under a muted observer, and a plugin that derives from the document hears
+  nothing otherwise), and the rule that a plugin may contribute **document-level CSS that
+  survives a save**.
+- **The citations plugin**: `@@` at the caret, three styles (numeric, author-date, Vancouver),
+  BibTeX and CSL-JSON import through the file picker, a Zotero Web API reader, a reference
+  list that can be off / cited only / whole library, and a re-import that offers changed
+  references instead of overwriting them. Published as a bundle, `api: 2`.
+- **`tools/publish-plugin.mjs` holds a descriptor per bundle.** `publishedBundles()` derives
+  the catalog row from the manifest bytes it just wrote, and pandoc's own manifest is
+  byte-identical after the refactor — checked, because a refactor that silently moves a hash
+  breaks every document that pinned it.
+
+### Changed
+
+- **`HOST_API` 2.** A plugin that inserts inline content cannot work on a host without the
+  above, and must be refused before `activate()` rather than halfway through an insertion.
+- **A CSL field is not plain text.** Zotero puts HTML-like markup in CSL text fields — `<i>`,
+  `<sup>*</sup>`, JATS `<Emphasis Type="Bold">` from publisher metadata — and carries entities
+  (`Taylor &amp; Francis`). `plainText()` is for a label, a filter and an export;
+  `richText()` is for the reference list: everything escaped, then a small allow-list of
+  inline tags restored, with no attributes. Unmatched markup is closed at the end of the
+  field, so one bad record cannot unstyle the reference after it.
+- **A book keeps its publisher and place** (the first version printed neither, so every book
+  ended at its title), a page range gets an en dash, and a name keeps its particle and suffix
+  (`van der Berg, J., Jr.`).
+
+### Fixed
+
+- **A Zotero library is not a bibliography.** Importing one added its PDFs, its notes and every
+  Zotero 7 highlight, because Zotero serialises an attachment as CSL `document` — the same type
+  a real document item uses. The item JSON decides now; the CSL-JSON only supplies fields.
+  `itemType=-attachment` is the one negated type the API accepts (`||` is a 400), paging
+  follows `total-results`. Measured on a public library: **571 references of 848 items**, 277
+  notes and 348 attachments skipped.
+- **A re-import does not overwrite a cited reference.** `reconcile()` classifies every key and
+  a changed one is a row with both copies and Update / Keep mine — the shape
+  `File › Import comments…` already had.
+- **Undo and redo relabel.** The snapshot an insert recorded was taken before the relabel ran,
+  so a redo restored the pre-relabel DOM: a mark reading `smith2020a` instead of `[1]`, and no
+  reference list.
+- **`Insert ▸ Citation…` did nothing**, and the picker could not be dismissed when it did
+  open. Opening a menu moves focus out of the document, so `content.focus()` left the caret on
+  the element rather than in the text; the plugin now remembers the last caret. Escape and a
+  click outside both close it.
+- **The References panel was unstyled**: it borrowed `.ds-*` from the document settings
+  dialog, where those names are scoped to `#doc-settings-dialog`.
+
+### Compatibility
+
+- A document with no `data-atomic` paginates exactly as it did: `chooseCut` is byte-identical
+  to v0.9.3 over 4,000 seeded documents, which is the test.
+- A plugin declaring `api: 1` still loads; nothing about the plugin contract it uses changed.
+- The file format is unchanged. A document that pins the citations plugin carries
+  `#citation-store`, `<style data-plugin-style>` and its marks; without them it is the same
+  document it was.
+
+### Tests and size
+
+188 unit tests and 780 browser tests pass on all three engines (the citations spec runs in all
+three; its unit half imports the **shipped** plugin file, which is how a duplicated parser was
+caught `\'E` → `E`). Pagination's new relationships are asserted as properties: no cut lands
+strictly inside a mark over 4,000 fuzzed documents, and the widow guard is *measured* to yield
+to a snap (otherwise a three-page paragraph moves whole). Measured against `v0.10.0`:
+`index.html` **+2.9 KB**, `dist/editor.html` **+3.7 KB**. The citations plugin is 55 KB and is
+not in any document until it is installed.
+
 ## v0.10.0 — 2026-11-19
 
 Comments, and the three copies a document can make of itself.
