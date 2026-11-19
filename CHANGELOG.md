@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.9.1 — 2026-11-18
+
+The page gap stops being a node in the document, and the exports learn the same
+vocabulary. This is the Gate 0 sweep plus the margin model; no comment or
+fragment work is in it (that stays on `feat/pagination-split`, flag off).
+
+### Added
+
+- **The page gap is a margin on the first block of a page** (`data-page-start`),
+  not a `.page-spacer` node. Every engine reported the spacer inside a
+  cross-block selection as a **948 px** rect — a highlight painted across a page
+  of white space — and removing it under a live caret moved the block a page and
+  scrolled the viewport (**+882 / +490 / +1097 px** in Chromium / WebKit /
+  Firefox). A margin is invisible to the plan (`measureH()` excludes margins)
+  and to a selection. The plan's arithmetic is unchanged; only the realisation
+  moved. `applyGaps()` writes a value only when it differs by more than 0.5 px,
+  so a no-op pass rewrites nothing.
+- **`src/layout.js` — one coordinate space.** A client rect becomes stage-local
+  layout px in one place (minus the stage origin, divided by zoom); pagination,
+  the page edges and the folio use it. Three origin bugs of the same shape were
+  found in the lab; a property test now asserts that scrolling and zooming do
+  not change a layout coordinate.
+- **`pageTops` / `pageBottoms`** on every plan: the content edges a comment
+  overlay — or a later fragment pass — must agree with.
+- **Page breaks in pandoc exports after the margin change.** `buildStatic()`
+  inserts an empty `.page-break` Div before each page start and removes the
+  attribute; `sd-export.lua` converts it to the target's native break
+  (`<w:br w:type="page"/>`, `#pagebreak()`, `\newpage`). The HTML reader drops
+  attributes on a `<p>` and strips the `data-` prefix elsewhere, so an attribute
+  could not be the only route.
+
+### Fixed
+
+- **The static document carries no page furniture.** `buildStatic()` removed
+  chrome by id only, so a `.docx` exported from the editor carried `#sheets`'
+  folios (pandoc turns them into paragraphs) and any
+  `[data-runtime="ephemeral"]` node inside `#content`. The second sweep is
+  `session.strip()`'s selector set — one list, three callers (save, print,
+  export). The committed test `a .docx carries the document, not the session`
+  asserts all four sentinels end to end; a second test asserts the number of
+  Word page breaks equals the page-start blocks on screen.
+- **The save path strips page geometry too.** `session.strip()` and the undo
+  snapshot clear `data-page-start` and its margin; a saved document carries the
+  authored blocks, and pagination recomputes the gaps on load.
+- **The viewer save test parses the file instead of text-searching it.** The
+  saved copy carries every inline asset's source, so a selector or a comment
+  mentioning `.page-spacer` is not a page spacer — the assertions now use
+  `DOMParser`.
+
+### Tests and size
+
+113 unit tests and 468 browser tests pass (156 per engine). Against `v0.9.0`,
+`index.html` grew 13.2 KB (2.8 %), all of it the margin model and
+`src/layout.js`. `dist/slim.html` gains one fetched asset (`layout.js`).
+
 ## v0.9.0 — 2026-11-18
 
 One dialog, one honest manifest per flavour, one update path — and a boot dialog that shows the
