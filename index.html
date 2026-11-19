@@ -1093,9 +1093,10 @@
     }
 
     /* ---- print ----
-       Page starts are preserved from the screen planner: every .page-spacer
-       is followed by the first block of the next page. Hide the spacer's
-       height, keep the node, and force the break before its sibling. */
+       Page starts are preserved from the screen planner: the first block of every page
+       after the first is `[data-page-start]`. In print the gap's length is meaningless
+       (the paper has its own page size), so the margin is reset and the attribute becomes
+       the break. `.page-spacer` stays for a document saved before the margin change. */
     @media print {
       body {
         display: block;
@@ -1127,6 +1128,19 @@
         break-before: page;
       }
 
+      /* A page gap is layout, not content: the paper supplies the distance. */
+      [data-page-start] {
+        margin-block-start: 0 !important;
+        break-before: page;
+      }
+
+      /* A fragment is where the screen planner cut a paragraph; the printer cuts there too,
+         at the same offset (the attribute carries it). */
+      [data-frag] {
+        margin-block-start: 0 !important;
+        break-before: page;
+      }
+
       #viewport {
         overflow: visible;
       }
@@ -1149,6 +1163,11 @@
 
       #content > * {
         break-inside: avoid;
+      }
+
+      /* A fragmented paragraph is the one block a page break may enter. */
+      #content > *:has([data-frag]) {
+        break-inside: auto;
       }
 
       figure.figure {
@@ -2681,7 +2700,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9716,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/page-styles.css","integrity":"sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":31995,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/toolbar-styles.css","integrity":"sha384-O5AWfeuCwqXSApqGNXG/6tAD5/BPSGk9Eyy2Cja4ThJVnZJrS8JtoBnwcqlxU1XV"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5428,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/viewer-bar-styles.css","integrity":"sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":43504,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2511,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/apply-settings.js","integrity":"sha384-W27FmRTUi+abfTouH0lZr7ClON9VEPoOOXp6mrAwAgSkm+zrzC2aG2jFsIhx/gZH"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":3421,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/session.js","integrity":"sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":8575,"label":"Pagination","deps":["signals","zoom"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/pagination.js","integrity":"sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":17668,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/editor.js","integrity":"sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":18729,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/policy.js","integrity":"sha384-l2rHTNsDyh8ADksBL+JNZ3Gua3UueqUKRHTBEPJoLxbfCXRraIRLkDPI5elC+gIa"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":66232,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/toolbar.js","integrity":"sha384-86CxUW97eOrGCkm+6w5Rei/JFpz/3ZvX1gP1mXMozO8onb1+P28vhFswG5yXkBuc"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":38993,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/export.js","integrity":"sha384-10WO0+pSQTiJtjnspcFciRsVX2BjkGFYD5fguntFEz1e8e8/+DIT8RuuhrNy8NOJ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":9864,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/dialogs.html","integrity":"sha384-7KGHvqWypSp+JryRQqqmCk35KuKXSJoMNMESHCnW57lTd1TM9RKV46BNX63bvf+8"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":9716,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/page-styles.css","integrity":"sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":32650,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/toolbar-styles.css","integrity":"sha384-napsUuhoSpCfVctIyd0qvSSENHRPjvO1QNo6l3GmTe5vGeTmJrn6f4X0NN2KveiL"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5428,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/viewer-bar-styles.css","integrity":"sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":43504,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2511,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/apply-settings.js","integrity":"sha384-W27FmRTUi+abfTouH0lZr7ClON9VEPoOOXp6mrAwAgSkm+zrzC2aG2jFsIhx/gZH"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":4775,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/session.js","integrity":"sha384-CTRa4iCsWj3OVsvH4MsUMI8K9UxyjilM0GILfHPiX8P18ymYs6wDhgbx9outs5zb"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":10932,"label":"Pagination","deps":["signals","zoom","layout"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/pagination.js","integrity":"sha384-5iIrlYY+aRCC5+De8VXSxznNX5f+JjkvLKRj/Me19SlQTCwoWSctUzKHVb2OxL8D"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":18300,"label":"Editor","deps":["signals","status","pagination"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/editor.js","integrity":"sha384-VJX0le7tctU87pWHNsJsIQpeFhsvdjpPCibWBB8IH3omon6HeyY318wrBhhcjDGF"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":18729,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/policy.js","integrity":"sha384-l2rHTNsDyh8ADksBL+JNZ3Gua3UueqUKRHTBEPJoLxbfCXRraIRLkDPI5elC+gIa"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":66232,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/toolbar.js","integrity":"sha384-86CxUW97eOrGCkm+6w5Rei/JFpz/3ZvX1gP1mXMozO8onb1+P28vhFswG5yXkBuc"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":40572,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/export.js","integrity":"sha384-8d1pIZ53VHZReBfbQInNBB4ikEsLnpFHkahLVSeZTYwM/a/ynkBHj+YiLZWWSLDB"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":9864,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.0/dist/cdn/dialogs.html","integrity":"sha384-7KGHvqWypSp+JryRQqqmCk35KuKXSJoMNMESHCnW57lTd1TM9RKV46BNX63bvf+8"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -4273,6 +4292,11 @@
      * spacer. **Reset** is what the file owns but whose state is the session's: a menu panel is
      * structural markup and belongs there hidden, a dialog's `open` is transient, the toolbar's
      * resize flag is mid-animation truth. Figures are `figures.prepareClone()`'s business.
+     *
+     * **Unwrapped** is pagination's split of one paragraph into two visual fragments: the span
+     * is the session's, the paragraph is the author's, so the children move up and the wrapper
+     * goes away. The gap on a page-start block is a margin (no node), and it is cleared here
+     * for the same reason a spacer was removed: a saved file carries no page geometry.
      */
     export function createSession(deps = {}) {
       const {env} = deps;
@@ -4284,6 +4308,18 @@
 
         clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui]")
           .forEach((node) => node.remove());
+
+        /* Pagination never reaches the file. A fragment is a wrapper, not content: move its
+           children out, then drop it, so pandoc and a reader see one paragraph. */
+        clone.querySelectorAll("[data-frag]").forEach((frag) => {
+          while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+          frag.remove();
+        });
+        clone.querySelectorAll("[data-page-start]").forEach((node) => {
+          node.removeAttribute("data-page-start");
+          node.style.marginBlockStart = "";
+          if (!node.getAttribute("style")) node.removeAttribute("style");
+        });
 
         clone.querySelectorAll("[data-menu-panel], [data-vb-panel]").forEach((node) => node.setAttribute("hidden", ""));
         clone.querySelectorAll("[data-vb-settings]").forEach((node) => node.setAttribute("aria-expanded", "false"));
@@ -4318,6 +4354,11 @@
         if (doc.documentElement.hasAttribute("data-boot-state")) found.push("the boot phase leaked into the file");
         if (doc.querySelector("#sheets > *")) found.push("the sheet layer is not empty");
         if (doc.querySelector(".page-spacer")) found.push("a page spacer leaked into the file");
+        if (doc.querySelector("[data-page-start]")) found.push("a page-start block leaked into the file");
+        if (doc.querySelector("[data-frag]")) found.push("a pagination fragment leaked into the file");
+        /* The margin travels with `data-page-start` (strip clears both), so the attribute is
+           the marker. A generic `[style*=margin-block-start]` scan would call an author's own
+           inline margin a leak. */
         if (doc.querySelector("[data-emoji-menu]")) found.push("an emoji menu leaked into the file");
         if (doc.querySelector("dialog[open]")) found.push("a dialog was saved open");
         if (doc.querySelector("[data-menu-panel]:not([hidden])")) found.push("a menu panel was saved open");
@@ -4530,12 +4571,145 @@
   </script>
 <!-- /@asset -->
 
+  <!-- Geometry: one coordinate space for pagination, the caret layer and comments -->
+<!-- @asset id="layout" kind="js" order="46" -->
+  <script type="module" id="layout">
+    /*@compiled-from src/layout.js — envelope is build-owned; edit the body or src/*/
+    /* One coordinate space for pagination, the caret layer and comments.
+     *
+     * The rule, measured four times in lab/016: every geometry number that outlives a pass
+     * must be **stage-local layout px** — a client rect minus the stage's client origin,
+     * divided by the zoom factor. The bugs the lab found were all the same bug:
+     *
+     *   - `applyFragments()` measured a fragment with `getBoundingClientRect().top / zoom`,
+     *     a viewport coordinate that still contained the stage's 117.6 px offset, and pushed
+     *     the tail 82 px instead of 200 px — "the cut is not at the page boundary" (§12.1);
+     *   - the comment overlay drew `range.getClientRects()` raw and painted the page gap,
+     *     because the plan and the overlay disagreed about where zero is (§2);
+     *   - `measureH()` divided by zoom, `pageAt()` divided by zoom, and one new call site
+     *     forgot — a units question that looked like a gap (§6).
+     *
+     * So the arithmetic is here and nowhere else. `pagination` asks for `rect()`, the
+     * fragment pass asks for `rect()`, and a caller that has only a client point uses
+     * `point()`. A test asserts the property that matters: moving the scroll position,
+     * changing the zoom, or repaginating must not change a layout coordinate.
+     *
+     * The probe elements (`#probe-*`) live *outside* `#stage` on purpose: page size is a
+     * CSS custom property and must not scale with zoom, so it is measured with
+     * `getBoundingClientRect()` directly and never converted here.
+     */
+
+    /** A length in layout px. Pure, so the invariance test needs no DOM. */
+    export function toLayout(px, scale = 1) {
+      return px / (scale || 1);
+    }
+
+    /**
+     * A client point → the same point in `#stage` layout px.
+     * `origin` is `{left, top, scale}` as `ctx.origin()` returns it.
+     */
+    export function layoutPoint(clientX, clientY, origin) {
+      const scale = origin.scale || 1;
+      return {
+        x: (clientX - origin.left) / scale,
+        y: (clientY - origin.top) / scale,
+      };
+    }
+
+    /** A client rect (`DOMRect`) → the same rect in `#stage` layout px. */
+    export function layoutRect(box, origin) {
+      const scale = origin.scale || 1;
+      return {
+        left: (box.left - origin.left) / scale,
+        top: (box.top - origin.top) / scale,
+        right: (box.right - origin.left) / scale,
+        bottom: (box.bottom - origin.top) / scale,
+        width: box.width / scale,
+        height: box.height / scale,
+      };
+    }
+
+    /** The content edge of a planned page. `page` is `{top, avail}` in the plan's space. */
+    export function pageContentTop(page, pad) {
+      return page.top + pad;
+    }
+
+    export function pageContentBottom(page, pad) {
+      return page.top + page.avail + pad;
+    }
+
+    export function createLayout(deps = {}) {
+      const {zoom, env = globalThis} = deps;
+      const {document} = env;
+
+      const stage = document.getElementById("stage");
+      const viewport = document.getElementById("viewport");
+
+      const scale = () => zoom.value || 1;
+
+      /* The stage's client box is the origin, and it moves with the scroll position; that is
+         why it is read once per measurement set, not stored. */
+      function origin() {
+        const box = stage.getBoundingClientRect();
+        return {left: box.left, top: box.top, scale: scale()};
+      }
+
+      /** Layout px for an element. The only conversion a block measurement needs. */
+      function rect(el) {
+        return layoutRect(el.getBoundingClientRect(), origin());
+      }
+
+      /** The height `plan()` accumulates: excludes margins by construction (a page gap is a
+          margin, and measuring it would double-count the gap). */
+      function measureH(el) {
+        return el.getBoundingClientRect().height / scale();
+      }
+
+      /** An offset from the viewport's own top (not an absolute client y) → layout px.
+          `pageAt()`'s input is such an offset: the reader's eye, not a pointer event. */
+      function viewportY(offset) {
+        return (viewport.scrollTop + offset) / scale();
+      }
+
+      return {origin, rect, measureH, viewportY, scale, pageContentTop, pageContentBottom};
+    }
+    StandaloneDoc.register("layout", createLayout);
+  </script>
+<!-- /@asset -->
+
   <!-- Javascript for Pagination -->
 <!-- @asset id="pagination" kind="js" order="50" -->
   <script type="module" id="pagination">
     /*@compiled-from src/pagination.js — envelope is build-owned; edit the body or src/*/
+    /* Page planning: the gap between pages is a margin on a block, not a spacer node.
+     *
+     * v0.9.0 inserted a page-spacer div before the first block of every page.
+     * The lab measured two consequences, in all three engines:
+     *
+     *   - the spacer is inside a cross-block selection, so `range.getClientRects()` reports
+     *     it as a 948 px rect covering the page gap — any highlight drawn from the selection
+     *     lies about what is selected;
+     *   - `applySpacers()` removed and inserted that node while the caret was in the flow, so
+     *     the block moved a page under the caret and the browser scrolled to keep the caret
+     *     on screen (+882 / +490 / +1097 px in Chromium / WebKit / Firefox).
+     *
+     * A `margin-block-start` on the first block of a page has neither problem: there is no
+     * node in the range, and nothing is inserted or removed. The plan is identical by
+     * construction, because `measureH()` measures a block's border box and margins are not
+     * part of it — a margin is layout, not content.
+     *
+     * The page model stays block-atomic: `page.items` names which blocks belong to a page.
+     * Splitting a paragraph across pages is a separate mechanism (a `display:block` span
+     * inside the same `<p>`) and lives on the fragments branch until the caret and history
+     * deltas are in. This file deliberately does not carry it: a document always paginates
+     * the same way, and a rollback is a commit revert, not a migration.
+     *
+     * Everything measured here is in **stage-local layout px** via `src/layout.js`. The
+     * probes (`#probe-*`) live outside `#stage` on purpose and are already layout px.
+     */
+
     export function createPagination(deps = {}) {
-      const {signals, zoom, env = globalThis} = deps;
+      const {signals, zoom, layout, env = globalThis} = deps;
       const {document} = env;
 
       const content = document.getElementById("content");
@@ -4543,7 +4717,7 @@
       const stage = document.getElementById("stage");
       const viewport = document.getElementById("viewport");
 
-      /* Calculate the height, pitch, and padding of the probe element */
+      /* Calculate the height, pitch, and padding of the probe element. */
       const prContent = document.getElementById("probe-content-h");
       const prPitch = document.getElementById("probe-pitch");
       const prPad = document.getElementById("probe-pad");
@@ -4569,15 +4743,6 @@
         );
       }
 
-      /* Page geometry is measured in layout pixels. The probe elements live
-         OUTSIDE #stage, so geometry() is never zoomed; blocks live inside it, so
-         getBoundingClientRect() returns zoomed pixels and must be divided by the
-         zoom factor. Skipping this makes the plan shrink with the zoom (a 200%
-         view would re-paginate to twice the pages). */
-      function measureH(el) {
-        return el.getBoundingClientRect().height / (zoom.value || 1);
-      }
-
       function plan() {
         const g = geometry();
         const blocks = collectBlocks();
@@ -4589,11 +4754,11 @@
 
         for (let i = 0; i < blocks.length; i++) {
           const el = blocks[i];
-          const h = measureH(el);
+          const h = layout.measureH(el);
           const tall = h > g.contentH; // Check if larger than page height
           let page = pages[pages.length - 1];
 
-          // Check if block overflows and adds page + spacer
+          // Check if block overflows and adds page + gap
           if (page.items.length && cursor + h > page.top + page.avail) {
             const nextTop = page.top + page.avail + g.chromeGap;
 
@@ -4623,41 +4788,37 @@
           }
         }
 
-        return {blocks, pages, spacers, oversize, ...g};
+        return {
+          blocks, pages, spacers, oversize, ...g,
+          /* Page content edges in layout px: the coordinate a comment overlay, a print rule
+             and a future fragment pass must all agree with. */
+          pageTops: pages.map((page) => layout.pageContentTop(page, g.pad)),
+          pageBottoms: pages.map((page) => layout.pageContentBottom(page, g.pad)),
+        };
       }
 
-      // Adds empty space from last text block to the end of the page to the DOM
-      function applySpacers(p) {
-        const wanted = new Map(
-          p.spacers.map((s) => [s.before, Math.round(s.height)])
-        );
+      // The page gap lives on the block that starts the page, not in a node before it.
+      // `plan()` already names exactly those blocks (`p.spacers[].before`), so the arithmetic
+      // does not change — only how the gap is realised.
+      function applyGaps(p) {
+        /* A spacer from an older session is removed, never added. No file the current save
+           path writes carries one; this is the one-way migration for a live DOM. */
+        for (const sp of [...content.querySelectorAll(".page-spacer")]) sp.remove();
 
-        //
-        for (const sp of [...content.querySelectorAll(".page-spacer")]) {
-          const next = sp.nextElementSibling;
+        const wanted = new Map(p.spacers.map((s) => [s.before, Math.round(s.height)]));
 
-          // Remove spacer element if not wanted.
-          if (!next || !wanted.has(next)) {
-            sp.remove();
-            continue;
-          }
-
-          const want = wanted.get(next);
-          wanted.delete(next);
-          // If two spacers are next to each other and difference > 0.5, merge and use next element's height
-          if (Math.abs(parseFloat(sp.style.height || "0") - want) > 0.5) {
-            sp.style.height = want + "px";
-          }
+        // Anything that no longer starts a page loses its margin, in this pass, not later.
+        for (const el of [...content.querySelectorAll("[data-page-start]")]) {
+          if (wanted.has(el)) continue;
+          el.style.marginBlockStart = "";
+          el.removeAttribute("data-page-start");
+          if (!el.getAttribute("style")) el.removeAttribute("style");
         }
 
-        // Insert ones that are missing
         for (const [block, height] of wanted) {
-          const sp = document.createElement("div");
-          sp.className = "page-spacer";
-          sp.dataset.generated = "";
-          sp.setAttribute("contenteditable", "false");
-          sp.style.height = height + "px";
-          block.before(sp);
+          block.setAttribute("data-page-start", "");
+          const current = parseFloat(block.style.marginBlockStart || "0");
+          if (Math.abs(current - height) > 0.5) block.style.marginBlockStart = height + "px";
         }
       }
 
@@ -4670,6 +4831,8 @@
             head: "", // intentionally empty for now; not derived from headings
             folio: `${k + 1} / ${p.pages.length}`,
             recto: k % 2 === 0,
+            /* Always false while blocks are atomic. Kept because the plan already carries
+               `from`, and a continued page is a fact about the plan, not the renderer. */
             continued: !!first && first.from > 0,
           };
         });
@@ -4762,7 +4925,7 @@
       function pageAt(clientY = viewport.clientHeight / 2) {
         const pages = lastPlan?.p?.pages;
         if (!pages || !pages.length) return 1;
-        const y = (viewport.scrollTop + clientY) / (zoom.value || 1);
+        const y = layout.viewportY(clientY);
         for (let i = 0; i < pages.length; i++) {
           if (y < pages[i].top + pages[i].avail) return i + 1;
         }
@@ -4792,7 +4955,7 @@
         try {
           signals.mute(() => {
             const p = plan();
-            applySpacers(p);
+            applyGaps(p);
             const model = buildModel(p);
             renderSheets(p, model);
             lastPlan = {p};
@@ -4801,6 +4964,19 @@
           applying = false;
         }
         signals.emit("layout", {pages: pageCount()});
+      }
+
+      /* What a pass did, for a test or a report. No checks: this version has no post-conditions
+         beyond "the plan and the sheets agree", and a report that invents them would lie. */
+      function diagnostics() {
+        const p = lastPlan?.p ?? null;
+        return {
+          pages: pageCount(),
+          gaps: p ? p.spacers.length : 0,
+          pageTops: p?.pageTops ?? [],
+          pageBottoms: p?.pageBottoms ?? [],
+          items: p ? p.pages.map((page) => page.items.map((item) => ({block: item.block, from: item.from, to: item.to}))) : [],
+        };
       }
 
       /* The reader moves; the pages do not. One rAF-throttled tick per scroll burst. */
@@ -4812,7 +4988,10 @@
       // Render once immediately, then again after fonts settle.
       refresh();
       syncFolio();
-      return {schedule, pageCount, pageAt, syncFolio, refresh};
+      return {
+        schedule, pageCount, pageAt, syncFolio, refresh, diagnostics,
+        plan: () => lastPlan?.p ?? null,
+      };
     }
     StandaloneDoc.register("pagination", createPagination);
   </script>
@@ -5294,6 +5473,18 @@
         function snapshot() {
           const clone = content.cloneNode(true);
           clone.querySelectorAll(".page-spacer").forEach((n) => n.remove());
+          /* A pagination fragment is the session's wrapper, not the author's paragraph. Undo
+             restores the semantic document; the next pass re-fragments it where the text now
+             needs a break (lab/016 §11). */
+          clone.querySelectorAll("[data-frag]").forEach((frag) => {
+            while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+            frag.remove();
+          });
+          clone.querySelectorAll("[data-page-start]").forEach((n) => {
+            n.removeAttribute("data-page-start");
+            n.style.marginBlockStart = "";
+            if (!n.getAttribute("style")) n.removeAttribute("style");
+          });
           // Runtime bytes are derived. Keeping an iframe (or its blob: URL) in
           // an undo snapshot would restore a dead frame and pin the blob.
           clone.querySelectorAll("[data-runtime='ephemeral']").forEach((n) => n.replaceChildren());
@@ -10410,6 +10601,19 @@
         clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
         clone.querySelectorAll("#sheets > *, [data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
 
+        /* A fragment is a page break, not a paragraph. Unwrap it so pandoc, a printer and a
+           reader see the one paragraph the author wrote (lab/016 §9: two `<p>`s change the
+           `.docx`; one `<p>` with a block span does not, once the span is gone). */
+        clone.querySelectorAll("[data-frag]").forEach((frag) => {
+          while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+          frag.remove();
+        });
+        /* The gap was layout, not content. The attribute stays so the print rule below can
+           still break the page; the length does not, because print has its own page size. */
+        clone.querySelectorAll("[data-page-start]").forEach((node) => {
+          node.style.marginBlockStart = "";
+          if (!node.getAttribute("style")) node.removeAttribute("style");
+        });
         clone.querySelector('body > svg[width="0"]')?.remove();
         clone.querySelector("#content")?.removeAttribute("contenteditable");
         clone.querySelector("#content")?.removeAttribute("spellcheck");
@@ -10441,8 +10645,12 @@
             #sheets { display: none !important; }
             .page-spacer { display: none !important; }
             .page-spacer + * { break-before: page; }
+            [data-page-start] { margin-block-start: 0 !important; break-before: page; }
+            [data-frag] { margin-block-start: 0 !important; }
             #content { max-width: none; min-height: 0; }
             #content > * { break-inside: avoid; }
+            /* A fragmented paragraph is the one block a page break may enter. */
+            #content > *:has([data-frag]) { break-inside: auto; }
             figure.figure { break-inside: avoid; }
             @page { size: ${sheetW} ${sheetH}; margin: ${pad}; }
             @page:right {
@@ -10473,6 +10681,13 @@
         if (doc.querySelectorAll("script").length) problems.push("a script leaked");
         if (doc.querySelector("#content iframe")) problems.push("an iframe leaked");
         if (doc.querySelector('[src^="blob:"], [href^="blob:"]')) problems.push("a blob: URL leaked");
+        if (doc.querySelector("[data-frag]")) problems.push("a pagination fragment leaked");
+        /* `[data-page-start]` deliberately survives: the static print rules break there. Its
+           margin does not (and must not), but only the margin on *that* node is pagination's. */
+        if ([...doc.querySelectorAll("[data-page-start]")]
+          .some((node) => /margin-block-start/i.test(node.getAttribute("style") || ""))) {
+          problems.push("a page gap reached the static document");
+        }
         const figures = [...doc.querySelectorAll("#content figure.figure")];
         figures.forEach((figure, i) => {
           const img = figure.querySelector(".figure-frame img");

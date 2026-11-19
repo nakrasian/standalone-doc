@@ -290,6 +290,18 @@ export function createEditor(deps = {}) {
     function snapshot() {
       const clone = content.cloneNode(true);
       clone.querySelectorAll(".page-spacer").forEach((n) => n.remove());
+      /* A pagination fragment is the session's wrapper, not the author's paragraph. Undo
+         restores the semantic document; the next pass re-fragments it where the text now
+         needs a break (lab/016 §11). */
+      clone.querySelectorAll("[data-frag]").forEach((frag) => {
+        while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+        frag.remove();
+      });
+      clone.querySelectorAll("[data-page-start]").forEach((n) => {
+        n.removeAttribute("data-page-start");
+        n.style.marginBlockStart = "";
+        if (!n.getAttribute("style")) n.removeAttribute("style");
+      });
       // Runtime bytes are derived. Keeping an iframe (or its blob: URL) in
       // an undo snapshot would restore a dead frame and pin the blob.
       clone.querySelectorAll("[data-runtime='ephemeral']").forEach((n) => n.replaceChildren());

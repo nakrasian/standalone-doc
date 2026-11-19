@@ -33,8 +33,8 @@
       "order": 20,
       "tag": "style",
       "file": "src/toolbar-styles.css",
-      "bytes": 31995,
-      "sha384": "sha384-O5AWfeuCwqXSApqGNXG/6tAD5/BPSGk9Eyy2Cja4ThJVnZJrS8JtoBnwcqlxU1XV",
+      "bytes": 32650,
+      "sha384": "sha384-napsUuhoSpCfVctIyd0qvSSENHRPjvO1QNo6l3GmTe5vGeTmJrn6f4X0NN2KveiL",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -223,8 +223,8 @@
       "order": 8,
       "tag": "script",
       "file": "src/session.js",
-      "bytes": 3421,
-      "sha384": "sha384-j3s55wDKlnAt1B01fu5/+bu1vyqu8NgC6Mdh6bFQmWubIJO3jp+a+Qv7pNGrvGEL",
+      "bytes": 4775,
+      "sha384": "sha384-CTRa4iCsWj3OVsvH4MsUMI8K9UxyjilM0GILfHPiX8P18ymYs6wDhgbx9outs5zb",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -288,13 +288,36 @@
       ]
     },
     {
+      "id": "layout",
+      "kind": "js",
+      "order": 46,
+      "tag": "script",
+      "file": "src/layout.js",
+      "bytes": 3906,
+      "sha384": "sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "role": "module",
+      "label": "Layout geometry",
+      "deps": [
+        "zoom"
+      ],
+      "provides": [
+        "x",
+        "y"
+      ],
+      "env": true
+    },
+    {
       "id": "pagination",
       "kind": "js",
       "order": 50,
       "tag": "script",
       "file": "src/pagination.js",
-      "bytes": 8575,
-      "sha384": "sha384-n3M2EF5nFdxscgIp9Hw81qt6bH+YZblaZs79MTJ31CkRwE7yyfDjIwjUY12v/cep",
+      "bytes": 10932,
+      "sha384": "sha384-5iIrlYY+aRCC5+De8VXSxznNX5f+JjkvLKRj/Me19SlQTCwoWSctUzKHVb2OxL8D",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -303,14 +326,17 @@
       "label": "Pagination",
       "deps": [
         "signals",
-        "zoom"
+        "zoom",
+        "layout"
       ],
       "provides": [
         "schedule",
         "pageCount",
         "pageAt",
         "syncFolio",
-        "refresh"
+        "refresh",
+        "diagnostics",
+        "plan"
       ],
       "env": true
     },
@@ -370,8 +396,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 17668,
-      "sha384": "sha384-X2Wt86FGbmvQGuCabza2T9kq0lSo0utOJyaaMIaXgFo89vVcF7ivhQsf5OUctRX8",
+      "bytes": 18300,
+      "sha384": "sha384-VJX0le7tctU87pWHNsJsIQpeFhsvdjpPCibWBB8IH3omon6HeyY318wrBhhcjDGF",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -560,8 +586,8 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 38993,
-      "sha384": "sha384-10WO0+pSQTiJtjnspcFciRsVX2BjkGFYD5fguntFEz1e8e8/+DIT8RuuhrNy8NOJ",
+      "bytes": 40572,
+      "sha384": "sha384-8d1pIZ53VHZReBfbQInNBB4ikEsLnpFHkahLVSeZTYwM/a/ynkBHj+YiLZWWSLDB",
       "mode": "inline",
       "requiredBy": [
         "edit"

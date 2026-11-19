@@ -13,7 +13,8 @@ edit by hand; `npm run check` fails if this file is stale.
 | signals | 30 | — | — | `on`, `emit`, `mute`, `composing` | * |
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | edit |
-| pagination | 50 | signals, zoom | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh` | * |
+| layout | 46 | zoom | — | `x`, `y` | * |
+| pagination | 50 | signals, zoom, layout | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh`, `diagnostics`, `plan` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
@@ -27,8 +28,10 @@ edit by hand; `npm run check` fails if this file is stale.
 
 ```mermaid
 graph LR
+  zoom --> layout
   signals --> pagination
   zoom --> pagination
+  layout --> pagination
   signals --> status
   pagination --> status
   signals --> editor

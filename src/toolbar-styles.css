@@ -668,9 +668,10 @@ dialog#shortcuts-dialog::backdrop {
 }
 
 /* ---- print ----
-   Page starts are preserved from the screen planner: every .page-spacer
-   is followed by the first block of the next page. Hide the spacer's
-   height, keep the node, and force the break before its sibling. */
+   Page starts are preserved from the screen planner: the first block of every page
+   after the first is `[data-page-start]`. In print the gap's length is meaningless
+   (the paper has its own page size), so the margin is reset and the attribute becomes
+   the break. `.page-spacer` stays for a document saved before the margin change. */
 @media print {
   body {
     display: block;
@@ -702,6 +703,19 @@ dialog#shortcuts-dialog::backdrop {
     break-before: page;
   }
 
+  /* A page gap is layout, not content: the paper supplies the distance. */
+  [data-page-start] {
+    margin-block-start: 0 !important;
+    break-before: page;
+  }
+
+  /* A fragment is where the screen planner cut a paragraph; the printer cuts there too,
+     at the same offset (the attribute carries it). */
+  [data-frag] {
+    margin-block-start: 0 !important;
+    break-before: page;
+  }
+
   #viewport {
     overflow: visible;
   }
@@ -724,6 +738,11 @@ dialog#shortcuts-dialog::backdrop {
 
   #content > * {
     break-inside: avoid;
+  }
+
+  /* A fragmented paragraph is the one block a page break may enter. */
+  #content > *:has([data-frag]) {
+    break-inside: auto;
   }
 
   figure.figure {

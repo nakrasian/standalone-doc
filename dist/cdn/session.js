@@ -10,6 +10,11 @@
  * spacer. **Reset** is what the file owns but whose state is the session's: a menu panel is
  * structural markup and belongs there hidden, a dialog's `open` is transient, the toolbar's
  * resize flag is mid-animation truth. Figures are `figures.prepareClone()`'s business.
+ *
+ * **Unwrapped** is pagination's split of one paragraph into two visual fragments: the span
+ * is the session's, the paragraph is the author's, so the children move up and the wrapper
+ * goes away. The gap on a page-start block is a margin (no node), and it is cleared here
+ * for the same reason a spacer was removed: a saved file carries no page geometry.
  */
 export function createSession(deps = {}) {
   const {env} = deps;
@@ -21,6 +26,18 @@ export function createSession(deps = {}) {
 
     clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui]")
       .forEach((node) => node.remove());
+
+    /* Pagination never reaches the file. A fragment is a wrapper, not content: move its
+       children out, then drop it, so pandoc and a reader see one paragraph. */
+    clone.querySelectorAll("[data-frag]").forEach((frag) => {
+      while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+      frag.remove();
+    });
+    clone.querySelectorAll("[data-page-start]").forEach((node) => {
+      node.removeAttribute("data-page-start");
+      node.style.marginBlockStart = "";
+      if (!node.getAttribute("style")) node.removeAttribute("style");
+    });
 
     clone.querySelectorAll("[data-menu-panel], [data-vb-panel]").forEach((node) => node.setAttribute("hidden", ""));
     clone.querySelectorAll("[data-vb-settings]").forEach((node) => node.setAttribute("aria-expanded", "false"));
@@ -55,6 +72,11 @@ export function createSession(deps = {}) {
     if (doc.documentElement.hasAttribute("data-boot-state")) found.push("the boot phase leaked into the file");
     if (doc.querySelector("#sheets > *")) found.push("the sheet layer is not empty");
     if (doc.querySelector(".page-spacer")) found.push("a page spacer leaked into the file");
+    if (doc.querySelector("[data-page-start]")) found.push("a page-start block leaked into the file");
+    if (doc.querySelector("[data-frag]")) found.push("a pagination fragment leaked into the file");
+    /* The margin travels with `data-page-start` (strip clears both), so the attribute is
+       the marker. A generic `[style*=margin-block-start]` scan would call an author's own
+       inline margin a leak. */
     if (doc.querySelector("[data-emoji-menu]")) found.push("an emoji menu leaked into the file");
     if (doc.querySelector("dialog[open]")) found.push("a dialog was saved open");
     if (doc.querySelector("[data-menu-panel]:not([hidden])")) found.push("a menu panel was saved open");

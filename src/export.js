@@ -155,6 +155,19 @@ export function createExport(deps = {}) {
     clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
     clone.querySelectorAll("#sheets > *, [data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
 
+    /* A fragment is a page break, not a paragraph. Unwrap it so pandoc, a printer and a
+       reader see the one paragraph the author wrote (lab/016 §9: two `<p>`s change the
+       `.docx`; one `<p>` with a block span does not, once the span is gone). */
+    clone.querySelectorAll("[data-frag]").forEach((frag) => {
+      while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+      frag.remove();
+    });
+    /* The gap was layout, not content. The attribute stays so the print rule below can
+       still break the page; the length does not, because print has its own page size. */
+    clone.querySelectorAll("[data-page-start]").forEach((node) => {
+      node.style.marginBlockStart = "";
+      if (!node.getAttribute("style")) node.removeAttribute("style");
+    });
     clone.querySelector('body > svg[width="0"]')?.remove();
     clone.querySelector("#content")?.removeAttribute("contenteditable");
     clone.querySelector("#content")?.removeAttribute("spellcheck");
@@ -186,8 +199,12 @@ export function createExport(deps = {}) {
             #sheets { display: none !important; }
             .page-spacer { display: none !important; }
             .page-spacer + * { break-before: page; }
+            [data-page-start] { margin-block-start: 0 !important; break-before: page; }
+            [data-frag] { margin-block-start: 0 !important; }
             #content { max-width: none; min-height: 0; }
             #content > * { break-inside: avoid; }
+            /* A fragmented paragraph is the one block a page break may enter. */
+            #content > *:has([data-frag]) { break-inside: auto; }
             figure.figure { break-inside: avoid; }
             @page { size: ${sheetW} ${sheetH}; margin: ${pad}; }
             @page:right {
@@ -218,6 +235,13 @@ export function createExport(deps = {}) {
     if (doc.querySelectorAll("script").length) problems.push("a script leaked");
     if (doc.querySelector("#content iframe")) problems.push("an iframe leaked");
     if (doc.querySelector('[src^="blob:"], [href^="blob:"]')) problems.push("a blob: URL leaked");
+    if (doc.querySelector("[data-frag]")) problems.push("a pagination fragment leaked");
+    /* `[data-page-start]` deliberately survives: the static print rules break there. Its
+       margin does not (and must not), but only the margin on *that* node is pagination's. */
+    if ([...doc.querySelectorAll("[data-page-start]")]
+      .some((node) => /margin-block-start/i.test(node.getAttribute("style") || ""))) {
+      problems.push("a page gap reached the static document");
+    }
     const figures = [...doc.querySelectorAll("#content figure.figure")];
     figures.forEach((figure, i) => {
       const img = figure.querySelector(".figure-frame img");

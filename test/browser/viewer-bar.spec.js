@@ -212,12 +212,23 @@ test("save downloads a copy that reopens as the same viewer", async ({ page }) =
   ]);
   await download.saveAs(target);
 
-  /* What travels: the document, not this session. */
+  /* What travels: the document, not this session. Parse, never text-search: the saved
+     file carries every inline asset's source, and a selector or a comment mentioning
+     `.page-spacer` is not a page spacer. */
   const text = fs.readFileSync(target, "utf8");
-  expect(text).not.toContain('class="page-spacer"');
-  expect(text).not.toContain('class="sheet"');
-  expect(text.slice(0, text.indexOf(">") + 1)).not.toContain("data-boot-state");
-  expect(text).toContain('id="viewer-bar"');
+  const saved = await page.evaluate((html) => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return {
+      spacers: doc.querySelectorAll(".page-spacer").length,
+      sheets: doc.querySelectorAll(".sheet").length,
+      boot: doc.documentElement.hasAttribute("data-boot-state"),
+      bar: Boolean(doc.getElementById("viewer-bar")),
+    };
+  }, text);
+  expect(saved.spacers).toBe(0);
+  expect(saved.sheets).toBe(0);
+  expect(saved.boot).toBe(false);
+  expect(saved.bar).toBe(true);
 
   const reopened = await page.context().newPage();
   const problems = await load(reopened, "file://" + target);
