@@ -214,6 +214,9 @@ export function createExport(deps = {}) {
             #stage {
               zoom: 1;
               padding-block: 0;
+              /* The @page margin is the padding; a fixed 8.5in stage inside a 6.7in
+                 printable box is scaled down by the printer. Fill the page content box. */
+              width: auto;
               height: auto !important;
               min-height: 0 !important;
             }

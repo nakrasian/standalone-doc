@@ -726,6 +726,11 @@ dialog#shortcuts-dialog::backdrop {
   #stage {
     zoom: 1;
     padding-block: 0;
+    /* The @page margin is the page's padding; the stage must not keep its 8.5in screen
+       width or the printable box becomes 8.5in inside a 6.7in page and the browser scales
+       the whole sheet down. Width auto fills the page content box; the content then keeps
+       the same measure, font and line breaks as the screen. */
+    width: auto;
     /* The live app leaves an inline min-height on #stage. */
     height: auto !important;
     min-height: 0 !important;

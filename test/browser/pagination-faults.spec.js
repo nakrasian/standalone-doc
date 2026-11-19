@@ -180,3 +180,39 @@ test("composition defers the pass until it ends", async ({page}) => {
   const after = await page.evaluate(() => globalThis.StandaloneDoc.modules.pagination.pageCount());
   expect(after, "compositionend did not schedule a pass").toBeGreaterThan(initial);
 });
+
+
+test("CJK prose with no spaces fragments without losing a character", async ({page}) => {
+  const cjk = "これは日本語の文章です。ページの境界で分割されても、文字が失われてはいけません。".repeat(160);
+  const state = await load(page, [
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "p", text: cjk},
+    {tag: "p", text: "A closing paragraph."},
+  ]);
+  expect(state.fragments, "the CJK paragraph must cross a page").toBeGreaterThan(0);
+  expectTailOnPage(state);
+});
+
+test("hyphenation does not break the fragment contract", async ({page}) => {
+  await page.goto(fileUrl());
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, {timeout: 15_000});
+  await page.addStyleTag({content: "#content > p { hyphens: auto; }"});
+  const state = await page.evaluate((LONG) => {
+    const content = document.getElementById("content");
+    const make = (tag, text) => {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      return el;
+    };
+    content.replaceChildren(make("p", "A lead paragraph."), make("p", LONG), make("p", "A closing paragraph."));
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.setFragmenting(false);
+    pag.refresh();
+    pag.setFragmenting(true);
+    pag.refresh();
+    const d = pag.diagnostics();
+    return {authored: content.textContent, text: content.textContent, fragments: d.fragments, splits: d.splits, check: d.check};
+  }, "Hyphenation encourages the browser to break long words at their syllable boundaries, which is exactly the kind of line break a page cut must not imitate in the text stream. ".repeat(120));
+  expect(state.fragments).toBeGreaterThan(0);
+  expectTailOnPage(state);
+});

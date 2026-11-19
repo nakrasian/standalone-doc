@@ -96,7 +96,14 @@ export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt,
   }
   const geometric = low;
   /* A word that straddles the segment start cannot be backed up past it. */
-  const offset = Math.max(start + 1, wordBoundary(text, geometric));
+  let offset = Math.max(start + 1, wordBoundary(text, geometric));
+  /* The search looks at the last line a *prefix* reaches, so it lands one character into
+     the next line. When there is a space to back up to, `wordBoundary` moves to it; with no
+     whitespace (CJK, a URL) the cut would keep that character and the head would include a
+     line that does not fit. Step back to the line start instead. */
+  if (offset === geometric && geometric > start + 1 && !/\s/.test(text[geometric - 1])) {
+    offset -= 1;
+  }
 
   if (offset <= start || offset >= text.length) return null;
 
@@ -640,6 +647,9 @@ export function createPagination(deps = {}) {
     const splits = [];
     const oversize = [];
     let cursor = 0;
+    /* A reused cut can still fit while no longer being tight (text was deleted from the
+       head). `stale` asks for one idle merge/re-plan; it is never set by a fresh cut. */
+    let stale = false;
 
     for (let i = 0; i < blocks.length; i++) {
       const el = blocks[i];
@@ -648,13 +658,19 @@ export function createPagination(deps = {}) {
       const tall = h > g.contentH; // Check if larger than page height
       let page = pages[pages.length - 1];
 
-      // Check if block overflows and adds page + gap
-      if (page.items.length && cursor + h > page.top + page.avail) {
-        const spec = strategy(el);
+      /* A block overflows when it does not fit the space left on the current page. A
+         tall *lines* block that starts a fresh page overflows that page too, and must be
+         offered to the splitter; an atomic block still gets a page as tall as itself. */
+      const spec = strategy(el);
+      const firstTallLines = page.items.length === 0
+        && fragmenting && spec.kind === "lines" && h > page.top + page.avail;
+      if ((page.items.length && cursor + h > page.top + page.avail) || firstTallLines) {
         const blockTop = layout.rect(el).top;
 
         if (fragmenting && spec.kind === "lines") {
           if (state) {
+            /* An empty segment is never a valid cut; merging is the only repair. */
+            if (state.frags.some((frag) => frag.textContent.length === 0)) return {needsMerge: true};
             /* Reuse every cut when the existing segments still fit their pages: one cut or
                N, this is the no-churn path while typing after the last one. */
             const room = page.top + page.avail - cursor;
@@ -664,6 +680,18 @@ export function createPagination(deps = {}) {
               && state.headHeight <= room - 1
               && state.heights.every((height) => height <= g.contentH + 1);
             if (fits) {
+              /* Slack is measured in lines: a cut that leaves more than a line and a half
+                 at the bottom of its page could move the next lines back into it. The last
+                 segment is exempt — the block ends there. */
+              const lines = lineBoxes(el);
+              const lineHeight = lines.length
+                ? Math.max(1, lines[0].bottom - lines[0].top)
+                : 18;
+              const slack = lineHeight * 1.5;
+              if (room - state.headHeight > slack) stale = true;
+              for (let k = 0; k < state.heights.length - 1; k++) {
+                if (g.contentH - state.heights[k] > slack) stale = true;
+              }
               let from = 0;
               let pageTop = page.top;
               let avail = page.avail;
@@ -758,15 +786,18 @@ export function createPagination(deps = {}) {
           }
         }
 
-        const nextTop = page.top + page.avail + g.chromeGap;
-        spacers.push({
-          before: el,
-          height: nextTop - cursor,
-        });
-
-        page = {top: nextTop, avail: g.contentH, items: []};
-        pages.push(page);
-        cursor = nextTop;
+        /* Nothing above this block on the page: it is the page, so there is no gap to
+           insert. Fall through to the tall/whole-block handling below. */
+        if (page.items.length) {
+          const nextTop = page.top + page.avail + g.chromeGap;
+          spacers.push({
+            before: el,
+            height: nextTop - cursor,
+          });
+          page = {top: nextTop, avail: g.contentH, items: []};
+          pages.push(page);
+          cursor = nextTop;
+        }
       }
       /* A fragment left on a block that now fits the page is stale: the block is whole
          again, and only a merge can make it so. */
@@ -800,7 +831,7 @@ export function createPagination(deps = {}) {
     }
 
     return {
-      blocks, pages, spacers, splits, oversize, ...g,
+      blocks, pages, spacers, splits, oversize, stale, ...g,
       /* Page content edges in layout px, the coordinate everything else must agree with. */
       pageTops: pages.map((page) => layout.pageContentTop(page, g.pad)),
       pageBottoms: pages.map((page) => layout.pageContentBottom(page, g.pad)),
@@ -996,8 +1027,24 @@ export function createPagination(deps = {}) {
     }
   }
 
+  let reconcileTimer = null;
+
+  /* One full merge/re-plan after a pause, only when the last plan reused a cut with room
+     left to fill. Typing never waits for it; the sync pass keeps the cut stable. */
+  function scheduleReconcile() {
+    if (!fragmenting || signals.composing) return;
+    clearTimeout(reconcileTimer);
+    reconcileTimer = setTimeout(() => {
+      reconcileTimer = null;
+      if (!fragmenting || signals.composing || applying) return;
+      refresh({merge: true});
+    }, 260);
+  }
+
   function pass({merge = false} = {}) {
     if (applying) return;
+    clearTimeout(reconcileTimer);
+    reconcileTimer = null;
     /* A manual refresh (a mode switch, a demo button) supersedes a queued one. */
     if (queued) {
       clearTimeout(timer);
@@ -1056,6 +1103,7 @@ export function createPagination(deps = {}) {
           p, merged, applied, check, signature,
           converged: lastPlan?.signature === signature,
         };
+        if (fragmenting && p.stale) scheduleReconcile();
       }));
       selectionKept = outcome.kept;
       lastPlan.selectionKept = selectionKept;
@@ -1114,6 +1162,7 @@ export function createPagination(deps = {}) {
       mergedLastPass: lastPlan?.merged ?? 0,
       selectionKept: lastPlan?.selectionKept ?? null,
       converged: lastPlan?.converged ?? null,
+      stale: lastPlan?.p?.stale ?? false,
       check: lastPlan?.check ?? null,
       pageTops: p?.pageTops ?? [],
       pageBottoms: p?.pageBottoms ?? [],
@@ -1143,7 +1192,7 @@ export function createPagination(deps = {}) {
   syncFolio();
   return {
     schedule, pageCount, pageAt, syncFolio, refresh, setFragmenting, diagnostics,
-    strategy, defineBlock,
+    strategy, defineBlock, planSplit,
     plan: () => lastPlan?.p ?? null,
   };
 }

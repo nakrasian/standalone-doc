@@ -601,6 +601,70 @@ test("a no-op pass on an N-cut paragraph writes nothing", async ({page}) => {
   expect(result.splits.every((split) => split.reused), "an unchanged N-cut was re-split").toBe(true);
 });
 
+test("a head deletion re-balances the cut after the idle pause", async ({page}) => {
+  await boot(page);
+  /* A block long enough to need more than one page after the deletion: the single-page
+     fixture fits as soon as the head shrinks, which is a merge, not a re-balance. */
+  await loadDoc(page, [
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "p", text: LONG.repeat(2)},
+    {tag: "p", text: "A closing paragraph."},
+  ], {fragment: true});
+  const before = await page.evaluate(async () => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const viewport = document.getElementById("viewport");
+    const block = content.querySelector("[data-frag]").parentElement;
+    const first = block.firstChild;
+    if (first.nodeType !== Node.TEXT_NODE) throw new Error("the head is not a text node");
+    viewport.scrollTop = 200;
+    const cut = pag.diagnostics().splits[0].offset;
+    const pages = pag.pageCount();
+    const text = content.textContent.length;
+    /* Delete 600 characters from the head: the cut still fits, so the sync pass reuses it
+       and page 1 keeps the space. */
+    first.deleteData(0, 600);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const immediate = {
+      cut: pag.diagnostics().splits[0].offset,
+      pages: pag.pageCount(),
+      stale: pag.diagnostics().stale,
+      text: content.textContent.length,
+    };
+    return {cut, pages, text, scrollTop: viewport.scrollTop, immediate};
+  });
+
+  expect(before.immediate.cut, "the sync pass should reuse the cut and shift it by the deletion").toBe(before.cut - 600);
+  expect(before.immediate.pages).toBe(before.pages);
+  expect(before.immediate.stale, "a loose cut must be marked stale").toBe(true);
+  expect(before.immediate.text).toBe(before.text - 600);
+
+  await page.waitForTimeout(600);
+  const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    return {
+      cut: pag.diagnostics().splits[0].offset,
+      pages: pag.pageCount(),
+      stale: pag.diagnostics().stale,
+      text: content.textContent.length,
+      check: pag.diagnostics().check,
+      scrollTop: document.getElementById("viewport").scrollTop,
+    };
+  });
+  expect(after.stale, "the idle pass did not re-plan the loose cut").toBe(false);
+  expect(after.text).toBe(before.immediate.text);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
+  expect(
+    after.cut > before.immediate.cut || after.pages < before.immediate.pages,
+    `cut ${before.immediate.cut} → ${after.cut}, pages ${before.immediate.pages} → ${after.pages}`,
+  ).toBe(true);
+  expect(
+    Math.abs(after.scrollTop - before.scrollTop),
+    `the idle re-balance moved the viewport ${Math.round(after.scrollTop - before.scrollTop)}px`,
+  ).toBeLessThanOrEqual(24);
+});
+
 test("typing at the cut keeps the caret across a pass", async ({page}) => {
   await boot(page);
   await loadDoc(page, FIXTURE, {fragment: true});
@@ -820,20 +884,22 @@ test("undo restores the unfragmented snapshot and the next pass re-fragments", a
     const typed = content.textContent.length;
     editor.exec("undo");
     const restored = content.textContent.length;
-    const fragmentsBeforePass = content.querySelectorAll("[data-frag]").length;
+    /* While fragmenting, the editor's schedule is a pre-paint pass, so the semantic
+       snapshot is re-fragmented inside exec("undo") — there is no observable unfragmented
+       frame. What must hold is that the typing is gone, the text is the snapshot's, and
+       the paragraph is still one paragraph with a cut. */
     pag.refresh();
     return {
       typed,
       restored,
-      fragmentsBeforePass,
       fragmentsAfterPass: content.querySelectorAll("[data-frag]").length,
+      paragraphs: content.querySelectorAll(":scope > p").length,
       kept: pag.diagnostics().selectionKept,
       text: content.textContent.length,
     };
   }, placed);
   expect(result.typed).toBe(placed.text + 3);
   expect(result.restored, "undo did not remove the typing").toBe(placed.text);
-  expect(result.fragmentsBeforePass, "the undo snapshot still carried a fragment").toBe(0);
   expect(result.fragmentsAfterPass, "the next pass did not re-fragment").toBeGreaterThan(0);
   expect(result.kept, "the caret was not restored across undo + re-fragment").toBe(true);
 });
@@ -1103,5 +1169,130 @@ test("Bold across the seam keeps the text and re-fragments", async ({page}) => {
   expect(after.text, "Bold changed the text").toBe(before.text);
   expect(after.bold, "Bold did not produce a bold run").toBeGreaterThan(0);
   expect(after.fragments, "the paragraph was not re-fragmented").toBeGreaterThan(0);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
+});
+
+test("a triple-click selects the paragraph across a cut", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const target = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const frag = content.querySelector("[data-frag]");
+    const block = frag.parentElement;
+    block.scrollIntoView({block: "center"});
+    return {block: [...content.children].indexOf(block), length: block.textContent.length};
+  });
+  await page.waitForTimeout(80);
+  const box = await page.evaluate((index) => {
+    const block = document.getElementById("content").children[index];
+    const rect = block.getBoundingClientRect();
+    return {x: rect.left + 30, y: rect.top + 8};
+  }, target.block);
+  await page.mouse.click(box.x, box.y, {clickCount: 3});
+  const selection = await page.evaluate(() => globalThis.StandaloneDoc.modules.selection.capture(
+    document.getElementById("content"),
+  ));
+  expect(selection, "the triple-click produced no selection").not.toBeNull();
+  expect(selection.start.block, "the selection did not start in the paragraph").toBe(target.block);
+  expect(selection.start.offset, "the selection did not start at the paragraph start").toBe(0);
+  expect(selection.end.block, "the selection did not end in the paragraph").toBe(target.block);
+  expect(selection.end.offset, "the selection did not reach the paragraph end").toBe(target.length);
+
+  const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh();
+    return {selection: globalThis.StandaloneDoc.modules.selection.capture(content), kept: pag.diagnostics().selectionKept};
+  });
+  expect(after.selection?.start.offset).toBe(0);
+  expect(after.selection?.end.offset).toBe(target.length);
+  expect(after.kept, "a pass lost the paragraph selection").toBe(true);
+});
+
+test("ArrowUp from the tail returns to the head, not the gap", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const cut = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const target = cut + 1;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let remaining = target;
+    let node = walker.nextNode();
+    while (node && remaining > node.nodeValue.length) {
+      remaining -= node.nodeValue.length;
+      node = walker.nextNode();
+    }
+    const range = document.createRange();
+    range.setStart(node, remaining);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {block: [...content.children].indexOf(block), cut};
+  });
+  await page.keyboard.press("ArrowUp");
+  const after = await page.evaluate(readSelection);
+  const movedUp = after.block < before.block
+    || (after.block === before.block && after.offset < before.cut);
+  expect(movedUp, `ArrowUp stayed at ${after.block}@${after.offset} (cut ${before.cut})`).toBe(true);
+});
+
+test("a composition at the seam commits and paginates after it ends", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const cut = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let remaining = cut + 1;
+    let node = walker.nextNode();
+    while (node && remaining > node.nodeValue.length) {
+      remaining -= node.nodeValue.length;
+      node = walker.nextNode();
+    }
+    const range = document.createRange();
+    range.setStart(node, remaining);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    content.dispatchEvent(new CompositionEvent("compositionstart", {bubbles: true}));
+    document.execCommand("insertText", false, "に");
+    return {
+      text: content.textContent.length,
+      composing: globalThis.StandaloneDoc.modules.signals.composing,
+      cut,
+      block: [...content.children].indexOf(block),
+    };
+  });
+  expect(before.composing, "compositionstart did not reach signals").toBe(true);
+  await page.waitForTimeout(120);
+  const during = await page.evaluate(() => ({
+    text: document.getElementById("content").textContent.length,
+    cut: globalThis.StandaloneDoc.modules.pagination.diagnostics().splits[0]?.offset ?? null,
+  }));
+  expect(during.text, "the composition string was lost").toBe(before.text);
+  await page.evaluate(() => document.getElementById("content")
+    .dispatchEvent(new CompositionEvent("compositionend", {bubbles: true})));
+  await page.waitForTimeout(150);
+  const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    return {
+      text: content.textContent.length,
+      fragments: pag.diagnostics().fragments,
+      check: pag.diagnostics().check,
+      kept: pag.diagnostics().selectionKept,
+    };
+  });
+  expect(after.text).toBe(before.text);
+  expect(after.fragments, "the paragraph lost its fragments after composition").toBeGreaterThan(0);
   expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
 });

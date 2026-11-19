@@ -189,6 +189,26 @@ test("chooseCut can cut a segment that starts mid-block", () => {
   assert.equal(cut.headBottom, lines[lineOf[cut.offset - 1]].bottom);
 });
 
+test("chooseCut cuts at a line boundary when the text has no whitespace", () => {
+  /* CJK and URLs have no space to back up to; the cut must still be the first character of
+     the next line, not one character into it (which would make the head a line too tall). */
+  const text = "あ".repeat(100);
+  const lineOf = new Array(text.length).fill(0).map((_, i) => Math.floor(i / 10));
+  const lines = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => ({top: i * 18, bottom: (i + 1) * 18}));
+  const cut = chooseCut({
+    text,
+    lines,
+    blockTop: 0,
+    room: 54, /* three lines */
+    lineTopAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].top),
+    lineBottomAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].bottom),
+  });
+  assert.ok(cut, "a no-whitespace text must still cut");
+  assert.equal(cut.offset, 20, "the cut is the first character of the third line");
+  assert.equal(text[cut.offset], "あ");
+  assert.ok(cut.headHeight <= 54, `head ${cut.headHeight} exceeds the room`);
+});
+
 test("chooseCut pushes a block whose head the back-off shrank below the widow guard", () => {
   /* "aaaa " then a word that starts on line 2 and runs to line 3: backing up leaves one
      line of head, so the block moves whole instead of leaving a line alone on a page. */
@@ -264,7 +284,7 @@ test("chooseCut's invariants survive a seeded document generator", () => {
        whitespace that proves a word boundary. */
     /* A word that straddles the segment start is clamped to start + 1, which is
        necessarily mid-word; every other back-off must be a word start. */
-    if (cut.offset !== cut.geometric && cut.offset !== start + 1) {
+    if (cut.offset !== cut.geometric && cut.offset !== cut.geometric - 1 && cut.offset !== start + 1) {
       assert.match(text[cut.offset - 1], /\s/, `case ${i}: cut ${cut.offset} is not a word start`);
     }
   }
@@ -362,4 +382,31 @@ test("headings are whole, and keepWithNext is a property, not a policy", () => {
     assert.equal(strategyForTag(tag).kind, "whole");
     assert.equal(strategyForTag(tag).keepWithNext, false, `${tag} must not move itself`);
   }
+});
+
+
+test("checkPass rejects an empty fragment", () => {
+  const block = {id: "block", querySelectorAll: () => []};
+  const frag = {
+    dataset: {frag: "0"},
+    style: {marginBlockStart: "0px"},
+    textContent: "",
+    parentElement: block,
+    querySelector: () => null,
+  };
+  const content = {
+    textContent: "ab",
+    querySelectorAll: (selector) => (selector === "[data-frag]" ? [frag] : []),
+  };
+  const check = checkPass({
+    content,
+    applied: [{block, offset: 0, targetTop: 100}],
+    plan: {blocks: [block], pages: [{items: [{block: 0, from: 0, to: 0}, {block: 0, from: 0, to: null}]}]},
+    pageTops: [100],
+    pageBottoms: [200],
+    textBefore: "ab",
+    rectOf: () => ({top: 100}),
+  });
+  assert.equal(check.ok, false);
+  assert.match(check.failures.join("; "), /fragment 0: is empty/);
 });

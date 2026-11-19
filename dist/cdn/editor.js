@@ -533,10 +533,36 @@ export function createEditor(deps = {}) {
     syncToolbar();
   }
 
+  /* Triple-click selects the paragraph in the engines' native selection, but a
+     block-level fragment span ends the selection at the cut: the tail is left out. The
+     paragraph is one block to the author, so select the whole block after the gesture. */
+  function tripleClick(event) {
+    if (event.detail !== 3) return;
+    const el = event.target.nodeType === Node.ELEMENT_NODE ? event.target : event.target.parentElement;
+    const block = el?.closest?.("#content > *");
+    if (!block || !block.querySelector("[data-frag]")) return;
+    const index = [...content.children].indexOf(block);
+    if (index < 0) return;
+    selection.restore(content, {
+      start: {block: index, offset: 0},
+      end: {block: index, offset: block.textContent.length},
+      collapsed: false,
+    });
+    remember();
+    syncToolbar();
+  }
+
   function init() {
     try {document.execCommand("defaultParagraphSeparator", false, "p");} catch { }
     content.addEventListener("keydown", backspaceAtSeam);
     content.addEventListener("keydown", enterAtSeam);
+    content.addEventListener("click", tripleClick);
+    /* Print preview can lay the document out at the preview's size; when the dialog
+       closes, re-plan at the real viewport rather than leaving the screen with the
+       preview's page boxes. */
+    window.addEventListener("afterprint", () => {
+      requestAnimationFrame(() => pagination.refresh());
+    });
     document.addEventListener("selectionchange", () => {
       remember();
       syncToolbar();

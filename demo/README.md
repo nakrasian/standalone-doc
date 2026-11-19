@@ -20,6 +20,7 @@ Open <http://127.0.0.1:8080/demo/fragmentation.html>. It must be served over
 |---|---|
 | **Load demo document** | replaces `#content` with a lead, a long paragraph (about four pages), and three short blocks; resets history; turns fragmenting on |
 | **Grow / Shrink paragraph** | appends or removes text in the long paragraph, then forces a pass |
+| **Shrink head 600 chars** | deletes 600 characters from the start of the long paragraph; the cut stays valid (the sync pass only shifts it), `cut stale` turns true, and ~260 ms later the idle re-balance re-cuts to fill the freed space |
 | **Toggle fragmentation** | `pagination.setFragmenting()` — the session-only switch; the file never carries it |
 | **Force a pass** | `pagination.refresh()` |
 | **Type at the cut** | puts the caret eight characters before the first cut, types `x`, and forces a pass |
@@ -28,6 +29,7 @@ Open <http://127.0.0.1:8080/demo/fragmentation.html>. It must be served over
 | **Backspace ×5** / **Enter at the seam** | dispatches the key at the seam; the editor's seam guard deletes exactly one character / splits there |
 | **67% / 100% / 200%** | `zoom.set()`, then a pass |
 | **Toggle geometry outlines** | outlines `[data-frag]` (blue, dashed) and `[data-page-start]` (amber) in the frame |
+| **Print document** | prints the editor frame, not the workbench page (which would include the panel and the frame's viewport) |
 | **Reset mutation count** | zeroes the `MutationObserver` counter on `#content` |
 
 ## What to look for
@@ -53,6 +55,11 @@ Open <http://127.0.0.1:8080/demo/fragmentation.html>. It must be served over
   `checkPass`: text conserved, one fragment per cut at the planned offset, each
   tail on its page top, `from/to` meeting, no orphan margin, and every whole
   block on the page the plan named. A failure prints the numbers.
+- **A loose cut is repaired after a pause.** Delete from a paragraph's head: the
+  immediate pass reuses the cut (it still fits), so `cut stale` becomes `true`;
+  the idle re-balance merges, re-plans and moves `first cut` back into the freed
+  space. Pages collapse only when the block no longer needs them — a re-cut can
+  reclaim a page's white space without changing the page count.
 - **No intermediate paint.** While fragmenting, the pass runs inside the
   `MutationObserver` callback — after the edit, before paint — instead of after a
   120 ms debounce. Typing *Type 10 chars* never shows an un-cut paragraph in the
@@ -68,11 +75,15 @@ Open <http://127.0.0.1:8080/demo/fragmentation.html>. It must be served over
   editor intercepts both at the seam and performs the one-character deletion /
   paragraph split itself. Watch `#content mutations` and the fragment count
   after *Backspace ×5* and *Enter at the seam*.
-- **Print and PDF.** The live print stylesheet is asserted in all three engines
-  (`[data-frag]` and `[data-page-start]` are block breaks, gaps reset, sheets
-  hidden). The PDF half runs in Chromium only because Playwright's `page.pdf()`
-  is headless-Chromium-only; the real `buildStatic()` output is printed and its
-  page count checked against the plan.
+- **Print and PDF.** The live print stylesheet is asserted in all three engines:
+  `[data-frag]` and `[data-page-start]` are block breaks, gaps reset, sheets
+  hidden, and the stage drops its 8.5in screen width so the printable box is
+  the same 6.7in measure as the screen — the font and line breaks match rather
+  than the printer scaling an 8.5in stage down to 6.7in. `afterprint` re-plans
+  at the restored viewport, so the editor does not keep the print preview's
+  page boxes. The PDF half runs in Chromium only because Playwright's
+  `page.pdf()` is headless-Chromium-only; the real `buildStatic()` output is
+  printed and its page count checked against the plan.
 
 ## Limits worth seeing
 

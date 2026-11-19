@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 547450
+    "bytes": 552310
   },
   "assets": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 36725
+      "bytes": 37096
     },
     {
       "id": "boot-ui-styles",
@@ -92,7 +92,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 51102
+      "bytes": 54087
     },
     {
       "id": "progress",
@@ -107,7 +107,7 @@
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 22404
+      "bytes": 23704
     },
     {
       "id": "figures",
@@ -132,7 +132,7 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 44546
+      "bytes": 44750
     },
     {
       "id": "dialogs",
@@ -146,8 +146,8 @@
     }
   ],
   "flavors": {
-    "index.html": 547450,
-    "asset-bodies": 530311,
+    "index.html": 552310,
+    "asset-bodies": 535171,
     "markup-and-runtime": 17139,
     "dist/slim.html": 88744
   }

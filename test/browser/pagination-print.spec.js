@@ -79,3 +79,73 @@ test("a page-start block prints as a break, with its gap reset", async ({page}) 
   expect(start.breakBefore).toBe("page");
   expect(start.marginStart).toBe("0px");
 });
+
+
+test("print keeps the page content measure, not the screen sheet width", async ({page}) => {
+  await load(page);
+  /* A viewport as wide as the printable page content (8.5in - 2 * 0.9in at 96dpi). */
+  await page.setViewportSize({width: 643, height: 900});
+  const screen = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const stage = document.getElementById("stage");
+    return {
+      content: content.getBoundingClientRect().width,
+      stage: stage.getBoundingClientRect().width,
+      font: getComputedStyle(document.body).fontSize,
+    };
+  });
+  await page.emulateMedia({media: "print"});
+  const print = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const stage = document.getElementById("stage");
+    return {
+      content: content.getBoundingClientRect().width,
+      stage: stage.getBoundingClientRect().width,
+      font: getComputedStyle(document.body).fontSize,
+      sheets: getComputedStyle(document.getElementById("sheets")).display,
+    };
+  });
+  expect(print.sheets).toBe("none");
+  expect(
+    Math.abs(print.content - screen.content),
+    `print content ${print.content}px vs screen ${screen.content}px`,
+  ).toBeLessThanOrEqual(2);
+  expect(
+    Math.abs(print.stage - screen.content),
+    `print stage ${print.stage}px vs screen content ${screen.content}px (the screen stage is ${screen.stage}px)`,
+  ).toBeLessThanOrEqual(2);
+  expect(print.font, "print changed the font size").toBe(screen.font);
+});
+
+
+test("afterprint restores the screen viewport and re-plans", async ({page}) => {
+  await load(page);
+  const before = await page.evaluate(() => ({
+    pages: globalThis.StandaloneDoc.modules.pagination.pageCount(),
+    fragments: document.querySelectorAll("#content [data-frag]").length,
+  }));
+  await page.emulateMedia({media: "print"});
+  await page.setViewportSize({width: 643, height: 900});
+  await page.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
+  /* The dialog closes: the print viewport goes away and the screen one returns. */
+  await page.setViewportSize({width: 1280, height: 720});
+  await page.emulateMedia({media: "screen"});
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  await page.waitForTimeout(200);
+  const after = await page.evaluate(() => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    return {
+      pages: pag.pageCount(),
+      fragments: document.querySelectorAll("#content [data-frag]").length,
+      sheets: getComputedStyle(document.getElementById("sheets")).display,
+      contentWidth: document.getElementById("content").getBoundingClientRect().width,
+      check: pag.diagnostics().check,
+    };
+  });
+  expect(after.sheets, "the sheet layer stayed hidden after print").not.toBe("none");
+  expect(after.pages).toBeGreaterThan(0);
+  expect(after.fragments, "the document did not re-fragment after print").toBeGreaterThan(0);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
+  expect(after.contentWidth, `content width ${after.contentWidth}px after print`).toBeGreaterThan(300);
+  expect(before.pages).toBeGreaterThan(0);
+});
