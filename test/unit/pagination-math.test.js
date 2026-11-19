@@ -164,6 +164,31 @@ test("chooseCut recomputes the head height after the word-boundary back-off", ()
   assert.equal(cut.geometric, 39, `geometric ${cut.geometric}, expected 39`);
 });
 
+test("chooseCut can cut a segment that starts mid-block", () => {
+  /* Six lines of ordinary text; the second segment starts at line 4's first character and
+     may use two lines. The cut must be after `start`, and the head height is measured from
+     the segment's top, not the block's. */
+  const text = "aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss";
+  const lineOf = new Array(text.length).fill(0);
+  const breaks = [9, 18, 27, 36, 45, 54];
+  for (let i = 0; i < text.length; i++) lineOf[i] = breaks.filter((at) => i >= at).length;
+  const lines = [0, 1, 2, 3, 4, 5, 6].map((i) => ({top: i * 18, bottom: (i + 1) * 18}));
+  const start = 36; // first character of line 4 (0-based)
+  const cut = chooseCut({
+    text,
+    lines: lines.slice(4),
+    blockTop: lines[4].top,
+    room: 37, /* two lines of the segment */
+    lineTopAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].top),
+    lineBottomAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].bottom),
+    start,
+  });
+  assert.ok(cut, "a two-line segment is a legal cut");
+  assert.ok(cut.offset > start, `cut ${cut.offset} must be after the segment start ${start}`);
+  assert.ok(cut.headHeight <= 36, `head ${cut.headHeight} exceeds the segment room`);
+  assert.equal(cut.headBottom, lines[lineOf[cut.offset - 1]].bottom);
+});
+
 test("chooseCut pushes a block whose head the back-off shrank below the widow guard", () => {
   /* "aaaa " then a word that starts on line 2 and runs to line 3: backing up leaves one
      line of head, so the block moves whole instead of leaving a line alone on a page. */
@@ -206,17 +231,40 @@ test("chooseCut's invariants survive a seeded document generator", () => {
     const blockTop = rnd() * 10;
     const topAt = (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].top);
     const bottomAt = (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].bottom);
+    /* Half the cases start mid-block, at a line boundary: the N-cut path. The caller
+       passes the segment's lines and the segment's top, not the block's. */
+    let start = 0;
+    let segmentLines = lines;
+    let segmentTop = blockTop;
+    if (rnd() < 0.5) {
+      const line = Math.floor(rnd() * Math.max(1, lineCount - 1));
+      start = lineOf.findIndex((value) => value >= line);
+      if (start < 0 || start >= text.length - 1) start = 0;
+      const first = lineOf[start] ?? 0;
+      segmentLines = lines.slice(first);
+      segmentTop = lines[first].top;
+    }
 
-    const cut = chooseCut({text, lines, blockTop, room, lineTopAt: topAt, lineBottomAt: bottomAt});
+    const cut = chooseCut({
+      text,
+      lines: segmentLines,
+      blockTop: segmentTop,
+      room,
+      lineTopAt: topAt,
+      lineBottomAt: bottomAt,
+      start,
+    });
     if (!cut) continue;
-    assert.ok(cut.offset >= 1 && cut.offset <= text.length - 1, `case ${i}: offset ${cut.offset} of ${text.length}`);
+    assert.ok(cut.offset >= Math.max(1, start + 1) && cut.offset <= text.length - 1, `case ${i}: offset ${cut.offset} of ${text.length}, start ${start}`);
     assert.ok(cut.offset <= cut.geometric, `case ${i}: back-off grew the offset`);
     assert.ok(cut.headHeight >= 0, `case ${i}: negative head`);
     assert.ok(cut.headHeight <= room + 1, `case ${i}: head ${cut.headHeight} > room ${room}`);
     assert.equal(cut.headBottom, bottomAt(cut.offset), `case ${i}: head bottom is not the measured one`);
     /* Either the cut is at the geometric line start, or the character before it is the
        whitespace that proves a word boundary. */
-    if (cut.offset !== cut.geometric) {
+    /* A word that straddles the segment start is clamped to start + 1, which is
+       necessarily mid-word; every other back-off must be a word start. */
+    if (cut.offset !== cut.geometric && cut.offset !== start + 1) {
       assert.match(text[cut.offset - 1], /\s/, `case ${i}: cut ${cut.offset} is not a word start`);
     }
   }
@@ -225,20 +273,21 @@ test("chooseCut's invariants survive a seeded document generator", () => {
 /* --------------------------------------------------------------- post-conditions */
 
 function fakePass({fragTop = 100, margin = "0px", text = "ab", textBefore = "ab", items, extraFrags = []} = {}) {
+  /* One block object, shared: `checkPass` locates a cut block by identity in the plan,
+     and requires the fragment to be a child of it. */
+  const block = {id: "block", querySelectorAll: () => []};
   const frag = {
     dataset: {frag: "3"},
     style: {marginBlockStart: margin},
     textContent: "b",
-    parentElement: null,
+    parentElement: block,
+    querySelector: () => null,
   };
-  frag.parentElement = {querySelectorAll: () => [frag]};
   const frags = [frag, ...extraFrags];
   const content = {
     textContent: text,
     querySelectorAll: (selector) => (selector === "[data-frag]" ? frags : []),
   };
-  /* One block object, shared: `checkPass` locates a cut block by identity in the plan. */
-  const block = {id: "block"};
   return checkPass({
     content,
     applied: [{block, offset: 3, targetTop: 100}],
@@ -271,7 +320,7 @@ test("checkPass catches a merge that lost text", () => {
 test("checkPass catches a from/to seam that does not meet", () => {
   const check = fakePass({items: [{block: 0, from: 0, to: 3}, {block: 0, from: 4, to: null}]});
   assert.equal(check.ok, false);
-  assert.match(check.failures.join("; "), /from\/to do not meet \(3 vs 4\)/);
+  assert.match(check.failures.join("; "), /from\/to do not meet at item 0 \(3 vs 4\)/);
 });
 
 test("checkPass counts fragments against cuts", () => {
@@ -280,6 +329,7 @@ test("checkPass counts fragments against cuts", () => {
     style: {marginBlockStart: "0px"},
     textContent: "z",
     parentElement: {querySelectorAll: () => []},
+    querySelector: () => null,
   };
   const check = fakePass({extraFrags: [extra]});
   assert.equal(check.ok, false);

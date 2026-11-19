@@ -237,11 +237,24 @@ local function hasPageStart(el)
   return true
 end
 
+-- A cut inside a paragraph is an inline break: buildStatic leaves an empty
+-- `.page-break-inline` Span at the fragment boundary, because a paragraph has no block to
+-- hang a page-start marker on. The paragraph stays one paragraph in the target.
+local function pageBreakInline()
+  if NO_PAGE[TARGET] then
+    bump(skipped, "page-break-inline")
+    return {}
+  end
+  local raw = PAGE_BREAK[TARGET]
+  if raw then return pandoc.RawInline(RAW_FORMAT[TARGET] or TARGET, raw) end
+  return {}
+end
+
 -- Classes this filter understands. Anything else on a surviving Div or Span is a
 -- construct the editor can write and the export was never taught: reported, never hidden.
 local KNOWN = {
-  ["page-spacer"] = true, ["page-break"] = true, ["figure"] = true,
-  ["figure-frame"] = true, ["underline"] = true,
+  ["page-spacer"] = true, ["page-break"] = true, ["page-break-inline"] = true,
+  ["figure"] = true, ["figure-frame"] = true, ["underline"] = true,
 }
 
 local function Pandoc(doc)
@@ -254,6 +267,10 @@ local function Pandoc(doc)
   -- The margin model: a block that starts a page becomes a break, for every writer that
   -- has pages. The walk is over block lists, so it sees Para, Header, BlockQuote, Table,
   -- Figure and Div alike; blocks without an Attr simply cannot carry the marker.
+  doc = doc:walk({ Span = function(el)
+    if el.classes:includes("page-break-inline") then return pageBreakInline() end
+    return nil
+  end })
   doc = doc:walk({ Blocks = function(blocks)
     local out = pandoc.Blocks({})
     for _, block in ipairs(blocks) do

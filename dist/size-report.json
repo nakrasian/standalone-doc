@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 533317
+    "bytes": 539610
   },
   "assets": [
     {
@@ -92,7 +92,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 42074
+      "bytes": 47511
     },
     {
       "id": "progress",
@@ -132,7 +132,7 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 43296
+      "bytes": 44152
     },
     {
       "id": "dialogs",
@@ -146,8 +146,8 @@
     }
   ],
   "flavors": {
-    "index.html": 533317,
-    "asset-bodies": 516178,
+    "index.html": 539610,
+    "asset-bodies": 522471,
     "markup-and-runtime": 17139,
     "dist/slim.html": 88744
   }

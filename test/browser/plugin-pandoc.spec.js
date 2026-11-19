@@ -82,7 +82,7 @@ const PNG = "data:image/png;base64," + png(48, 32, (x, y) =>
   (Math.abs(y - (x * 32) / 48) < 2 ? [47, 111, 237] : [246, 248, 250])).toString("base64");
 
 /** An editor document with the plugin pinned, and one figure for it to capture. */
-function makeDoc({ figure = true, long = false } = {}) {
+function makeDoc({ figure = true, long = false, fragmented = false } = {}) {
   const served = (file) => `http://127.0.0.1:8080/${file}`;
   const asset = (id, kind, file, order) => ({
     id, kind, role: "module", order, mode: "online", category: "plugin", plugin: "pandoc",
@@ -129,6 +129,7 @@ function makeDoc({ figure = true, long = false } = {}) {
         <h1>Recombinase systems</h1>
         <p>A paragraph, so the document is not only a figure.</p>
         ${long ? Array.from({length: 12}, (_, i) => `<p>Paragraph ${i + 1}. ${"A sentence long enough to take a line, repeated so the document ends up on several pages. ".repeat(6)}</p>`).join("\n") : ""}
+        ${fragmented ? `<p>${"A long sentence that keeps going, because a page break has to fall somewhere inside it. ".repeat(300)}</p><p>After the long paragraph.</p>` : ""}
         ${figureHtml}
       </article>`);
   const store = figure
@@ -138,7 +139,7 @@ function makeDoc({ figure = true, long = false } = {}) {
     `<script id="figure-store" type="application/json">${JSON.stringify(store)}</script>`);
 
   fs.mkdirSync(TMP, {recursive: true});
-  const name = `.test-tmp/plugin-pandoc-${process.pid}-${figure ? "figure" : "plain"}${long ? "-long" : ""}.html`;
+  const name = `.test-tmp/plugin-pandoc-${process.pid}-${figure ? "figure" : "plain"}${long ? "-long" : ""}${fragmented ? "-fragmented" : ""}.html`;
   fs.writeFileSync(path.join(ROOT, name), html);
   return "/" + name;
 }
@@ -307,6 +308,47 @@ test("a figure-free document exports as .typ", async ({ page }) => {
   const typ = Buffer.concat(chunks).toString("utf8");
   expect(typ).toContain("#set page(");
   expect(typ).toContain("Recombinase systems");
+});
+
+test("a cut inside a paragraph becomes an inline page break in the .docx", async ({ page }) => {
+  test.slow(); /* 58.6 MB over the loopback and a wasm compile */
+  const problems = await load(page, makeDoc({figure: false, fragmented: true}));
+  await page.waitForSelector('[data-plugin-export="pandoc:docx"]', {state: "attached", timeout: 30_000});
+
+  /* Fragment the long paragraph the way the screen planner does, then export. */
+  const live = await page.evaluate(async () => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.setFragmenting(true);
+    pag.refresh();
+    const staticHtml = globalThis.StandaloneDoc.modules.export.buildStatic([], {media: "data-uri"});
+    const doc = new DOMParser().parseFromString(staticHtml, "text/html");
+    return {
+      pages: pag.pageCount(),
+      fragments: content.querySelectorAll("[data-frag]").length,
+      starts: content.querySelectorAll("[data-page-start]").length,
+      staticFragments: doc.querySelectorAll("[data-frag]").length,
+      markers: doc.querySelectorAll(".page-break-inline").length,
+      textLength: content.textContent.length,
+      staticTextLength: doc.querySelector("#content").textContent.length,
+    };
+  });
+  expect(live.fragments, "the fixture must produce cuts inside the paragraph").toBeGreaterThan(0);
+  expect(live.staticFragments, "buildStatic left a fragment in the static document").toBe(0);
+  expect(live.markers, "one inline marker per cut").toBe(live.fragments);
+  expect(live.staticTextLength, "the static document lost text").toBe(live.textLength);
+
+  const document = await exportDocument(page);
+  const breaks = (document.match(/w:type="page"/g) || []).length;
+  expect(
+    breaks,
+    `the .docx has ${breaks} break(s) for ${live.fragments} cut(s) and ${live.starts} page start(s)`,
+  ).toBe(live.fragments + live.starts);
+  /* At least one break is inside a <w:p>, not between two: the paragraph stayed whole. */
+  expect(document).toMatch(/<w:p>(?:(?!<\/w:p>)[\s\S])*?<w:br w:type="page"\/>/);
+  expect(document).not.toContain("page-break-inline");
+  expect(document).not.toContain("data-frag");
+  expect(problems).toEqual([]);
 });
 
 test("a .docx carries the document, not the session", async ({ page }) => {

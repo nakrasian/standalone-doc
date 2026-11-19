@@ -280,21 +280,50 @@ test("a save carries the document, not the pagination", async ({page}) => {
   expect(saved.paragraphs).toBe(FIXTURE.filter((block) => block.tag === "p").length);
 });
 
-test("a block taller than a page keeps its own page and is not cut", async ({page}) => {
+test("a paragraph taller than a page is cut into page-sized fragments", async ({page}) => {
   await boot(page);
-  const tall = "x".repeat(4000);
   const state = await loadDoc(page, [
-    {tag: "p", text: tall},
-    {tag: "p", text: "A short paragraph after the tall one, so the plan has something to measure."},
-    {tag: "p", text: "Another short paragraph, near the end."},
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "p", text: LONG.repeat(12)},
+    {tag: "p", text: "A closing paragraph."},
   ], {fragment: true});
-  expect(state.text, "a tall block's text is untouched").toBe(state.authored);
+  expect(state.fragments, "a long paragraph must need more than one cut").toBeGreaterThan(1);
+  expect(state.text, "fragmentation must not change a character").toBe(state.authored);
   expect(state.check.ok, JSON.stringify(state.check?.failures)).toBe(true);
-  const insideTall = await page.evaluate(() => {
-    const first = document.getElementById("content").firstElementChild;
-    return first.querySelectorAll("[data-frag]").length;
-  });
-  expect(insideTall, "a block taller than a page must not be fragmented").toBe(0);
+  for (const split of state.splits) {
+    expect(
+      Math.abs(split.fragTopAfter - split.targetTop),
+      `cut at ${split.offset}: tail ${split.fragTopAfter}, target ${split.targetTop}`,
+    ).toBeLessThanOrEqual(2);
+  }
+  /* The cut block's page items are contiguous and in order. */
+  const byBlock = new Map();
+  for (const item of state.items.flat()) {
+    if (!byBlock.has(item.block)) byBlock.set(item.block, []);
+    byBlock.get(item.block).push(item);
+  }
+  const multi = [...byBlock.values()].find((items) => items.length > 2);
+  expect(multi, "no block was placed on three or more pages").toBeTruthy();
+  expect(multi[0].from).toBe(0);
+  expect(multi[multi.length - 1].to).toBeNull();
+  for (let i = 0; i < multi.length - 1; i++) {
+    expect(multi[i].to, `item ${i} has no to-offset`).not.toBeNull();
+    expect(multi[i + 1].from, `from/to do not meet at item ${i}`).toBe(multi[i].to);
+  }
+});
+
+test("an atomic block taller than a page keeps its own page and is not cut", async ({page}) => {
+  await boot(page);
+  const code = Array.from({length: 300}, (_, i) => `line ${i + 1} of a code block`).join("\n");
+  const state = await loadDoc(page, [
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "pre", text: code},
+    {tag: "p", text: "A closing paragraph."},
+  ], {fragment: true});
+  expect(state.text, "the code block's text is untouched").toBe(state.authored);
+  expect(state.check.ok, JSON.stringify(state.check?.failures)).toBe(true);
+  const inside = await page.evaluate(() => document.querySelector("#content > pre").querySelectorAll("[data-frag]").length);
+  expect(inside, "a pre is atomic; it must not be cut").toBe(0);
 });
 
 test("a long unbreakable token is cut at a word boundary when one exists", async ({page}) => {
@@ -509,6 +538,34 @@ test("a no-op pass performs no DOM write in #content", async ({page}) => {
   });
   expect(result.count, `a no-op pass touched the flow: ${JSON.stringify(result.kinds)}`).toBe(0);
   expect(result.reused.every(Boolean), "an unchanged cut was re-split instead of reused").toBe(true);
+});
+
+test("a no-op pass on an N-cut paragraph writes nothing", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, [
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "p", text: LONG.repeat(12)},
+    {tag: "p", text: "A closing paragraph."},
+  ], {fragment: true});
+  const result = await page.evaluate(async () => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh();
+    const records = [];
+    const observer = new MutationObserver((list) => records.push(...list));
+    observer.observe(content, {subtree: true, childList: true, characterData: true, attributes: true});
+    pag.refresh();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    observer.disconnect();
+    return {
+      count: records.length,
+      kinds: records.map((record) => `${record.type}:${record.target.nodeName}`),
+      splits: pag.diagnostics().splits,
+    };
+  });
+  expect(result.splits.length, "the paragraph must need more than one cut").toBeGreaterThan(1);
+  expect(result.count, `a no-op N-cut pass touched the flow: ${JSON.stringify(result.kinds)}`).toBe(0);
+  expect(result.splits.every((split) => split.reused), "an unchanged N-cut was re-split").toBe(true);
 });
 
 test("typing at the cut keeps the caret across a pass", async ({page}) => {

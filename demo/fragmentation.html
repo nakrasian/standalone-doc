@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pagination fragmentation — workbench</title>
+<style>
+  :root { color-scheme: light; --ink:#1b1f24; --muted:#5b6270; --line:#d9dde4; --blue:#2f6fed; --amber:#b26a00; }
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100vh; display: grid; grid-template-columns: 380px 1fr; font: 13px/1.45 system-ui, -apple-system, sans-serif; color: var(--ink); }
+  aside { overflow: auto; padding: 16px; border-right: 1px solid var(--line); background: #fbfcfd; }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  p.lede { margin: 0 0 14px; color: var(--muted); }
+  h2 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+  button { font: inherit; padding: 5px 9px; margin: 0 4px 6px 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+  button:hover { background: #eef1f6; }
+  button.primary { border-color: var(--blue); color: var(--blue); }
+  .row { display: flex; flex-wrap: wrap; }
+  .stat { display: grid; grid-template-columns: 130px 1fr; gap: 2px 10px; font-variant-numeric: tabular-nums; }
+  .stat dt { color: var(--muted); }
+  .stat dd { margin: 0; }
+  pre { margin: 8px 0 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; max-height: 340px; overflow: auto; }
+  iframe { border: 0; width: 100%; height: 100vh; background: #e0e0e0; }
+  .bad { color: #b3261e; }
+  .good { color: #1f7a3d; }
+  .hint { color: var(--muted); font-size: 11.5px; }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Fragmentation workbench</h1>
+  <p class="lede">Drives the real editor in the frame through <code>StandaloneDoc.modules</code>. Serve the repo root (<code>npm run dev</code>) — <code>file://</code> blocks access to the frame.</p>
+
+  <h2>Document</h2>
+  <div class="row">
+    <button class="primary" data-act="load">Load demo document</button>
+    <button data-act="grow">Grow paragraph</button>
+    <button data-act="shrink">Shrink paragraph</button>
+  </div>
+
+  <h2>Fragments</h2>
+  <div class="row">
+    <button data-act="toggle">Toggle fragmentation</button>
+    <button data-act="pass">Force a pass</button>
+    <button data-act="type">Type at the cut</button>
+  </div>
+
+  <h2>View</h2>
+  <div class="row">
+    <button data-act="zoom-0.67">67%</button>
+    <button data-act="zoom-1">100%</button>
+    <button data-act="zoom-2">200%</button>
+    <button data-act="outline">Toggle geometry outlines</button>
+  </div>
+
+  <h2>Readout</h2>
+  <dl class="stat">
+    <dt>state</dt><dd data-stat="state">—</dd>
+    <dt>pages</dt><dd data-stat="pages">—</dd>
+    <dt>fragments</dt><dd data-stat="fragments">—</dd>
+    <dt>gaps (margins)</dt><dd data-stat="gaps">—</dd>
+    <dt>converged</dt><dd data-stat="converged">—</dd>
+    <dt>selection kept</dt><dd data-stat="kept">—</dd>
+    <dt>post-conditions</dt><dd data-stat="check">—</dd>
+    <dt>#content mutations</dt><dd data-stat="mutations">—</dd>
+  </dl>
+  <div class="row" style="margin-top:8px"><button data-act="reset-count">Reset mutation count</button></div>
+  <p class="hint">After a load, “Force a pass” must leave the mutation count at 0 and <code>converged</code> becomes true: an unchanged cut is reused, not re-split.</p>
+
+  <h2>Plan</h2>
+  <pre data-plan>waiting for the frame…</pre>
+  <p class="hint" data-error></p>
+</aside>
+<iframe id="doc" src="../dist/editor.html" title="The document"></iframe>
+
+<script>
+const frame = document.getElementById("doc");
+const stat = (name) => document.querySelector(`[data-stat="${name}"]`);
+const plan = document.querySelector("[data-plan]");
+const error = document.querySelector("[data-error]");
+let win = null;
+let doc = null;
+let observer = null;
+let mutations = 0;
+let longBlock = null;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function waitFor(predicate, timeout = 15000) {
+  const start = performance.now();
+  while (!predicate()) {
+    if (performance.now() - start > timeout) throw new Error("timed out waiting for the editor");
+    await sleep(50);
+  }
+}
+
+function modules() {
+  if (!win?.StandaloneDoc || win.StandaloneDoc.state !== "ready") throw new Error("the editor is not ready");
+  return win.StandaloneDoc.modules;
+}
+
+function paragraph(text) {
+  const el = doc.createElement("p");
+  el.textContent = text;
+  return el;
+}
+
+function demoText() {
+  return ("The phrase this comment is about sits here, in the middle of a paragraph that keeps going, "
+    + "because a page break has to fall somewhere and the interesting case is the one that splits a "
+    + "reader's attention rather than a block. ").repeat(60);
+}
+
+function loadDemo() {
+  const content = doc.getElementById("content");
+  const blocks = [
+    paragraph("A lead paragraph, so the long one does not start at the top of the page."),
+    paragraph(demoText()),
+    paragraph("A short paragraph between the long one and the next page."),
+    paragraph("Another paragraph, so the plan has something to place after the cut."),
+    paragraph("A closing note."),
+  ];
+  content.replaceChildren(...blocks);
+  longBlock = blocks[1];
+  const { editor, pagination } = modules();
+  editor.history.reset();
+  pagination.setFragmenting(true);
+  pagination.refresh();
+  watchMutations();
+  resetCount();
+}
+
+function watchMutations() {
+  if (!win || observer) return;
+  observer = new win.MutationObserver((list) => {
+    mutations += list.length;
+    stat("mutations").textContent = String(mutations);
+  });
+  observer.observe(doc.getElementById("content"), {
+    subtree: true, childList: true, characterData: true, attributes: true,
+  });
+}
+
+function resetCount() {
+  mutations = 0;
+  stat("mutations").textContent = "0";
+}
+
+function grow(sign) {
+  const { pagination } = modules();
+  if (!longBlock?.isConnected) loadDemo();
+  const text = " A sentence added to move the cut and the page plan. ";
+  if (sign > 0) for (let i = 0; i < 6; i++) longBlock.append(doc.createTextNode(text));
+  else {
+    for (let i = 0; i < 6; i++) {
+      const last = longBlock.lastChild;
+      if (!last) break;
+      if (last.nodeType === 3 && last.nodeValue.length > text.length) last.nodeValue = last.nodeValue.slice(0, -text.length);
+      else last.remove();
+    }
+  }
+  pagination.refresh();
+}
+
+function typeAtCut() {
+  const { pagination } = modules();
+  const content = doc.getElementById("content");
+  const d = pagination.diagnostics();
+  if (!d.splits.length) throw new Error("no cut yet — load the demo document first");
+  const offset = d.splits[0].offset;
+  const block = content.querySelector("[data-frag]")?.parentElement;
+  if (!block) throw new Error("no fragment to type beside");
+  const target = Math.max(0, offset - 8);
+  const walker = doc.createTreeWalker(block, win.NodeFilter.SHOW_TEXT);
+  let remaining = target;
+  let node = walker.nextNode();
+  while (node && remaining > node.nodeValue.length) {
+    remaining -= node.nodeValue.length;
+    node = walker.nextNode();
+  }
+  if (!node) throw new Error("the cut has no text before it");
+  const range = doc.createRange();
+  range.setStart(node, remaining);
+  range.collapse(true);
+  const selection = win.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  content.focus();
+  doc.execCommand("insertText", false, "x");
+  pagination.refresh();
+}
+
+function outline() {
+  const id = "demo-geometry";
+  const existing = doc.getElementById(id);
+  if (existing) { existing.remove(); return; }
+  const style = doc.createElement("style");
+  style.id = id;
+  style.textContent = `
+    [data-frag] { outline: 2px dashed #2f6fed; outline-offset: -2px; background: rgba(47,111,237,.05); }
+    [data-page-start] { outline: 2px solid #f59e0b; outline-offset: 3px; }
+  `;
+  doc.head.append(style);
+}
+
+function render() {
+  if (!win?.StandaloneDoc || win.StandaloneDoc.state !== "ready") return;
+  const { pagination } = modules();
+  const d = pagination.diagnostics();
+  stat("state").textContent = win.StandaloneDoc.state;
+  stat("pages").textContent = String(d.pages);
+  stat("fragments").textContent = String(d.fragments);
+  stat("gaps").textContent = String(d.gaps);
+  stat("converged").textContent = String(d.converged);
+  stat("kept").textContent = String(d.selectionKept);
+  const ok = d.check ? d.check.ok : null;
+  stat("check").textContent = ok === null ? "—" : ok ? "ok" : "FAILED";
+  stat("check").className = ok === false ? "bad" : ok === true ? "good" : "";
+  plan.textContent = JSON.stringify({
+    pages: d.pageTops.length,
+    pageTops: d.pageTops.map((n) => Math.round(n)),
+    pageBottoms: d.pageBottoms.map((n) => Math.round(n)),
+    items: d.items,
+    splits: d.splits.map((split) => ({
+      offset: split.offset,
+      push: split.push,
+      targetTop: Math.round(split.targetTop),
+      tailTop: split.fragTopAfter,
+      reused: split.reused,
+    })),
+    failures: d.check?.failures ?? [],
+    notes: d.check?.notes ?? [],
+  }, null, 2);
+}
+
+async function run(action) {
+  error.textContent = "";
+  error.className = "hint";
+  try {
+    await waitFor(() => win?.StandaloneDoc?.state === "ready");
+    const { pagination, zoom } = modules();
+    if (action === "load") loadDemo();
+    else if (action === "grow") grow(1);
+    else if (action === "shrink") grow(-1);
+    else if (action === "toggle") { pagination.setFragmenting(!pagination.diagnostics().fragmenting); }
+    else if (action === "pass") pagination.refresh();
+    else if (action === "type") typeAtCut();
+    else if (action === "outline") outline();
+    else if (action === "reset-count") resetCount();
+    else if (action.startsWith("zoom-")) { zoom.set(Number(action.slice(5))); pagination.refresh(); }
+    render();
+  } catch (err) {
+    error.textContent = String(err && err.message || err);
+    error.className = "hint bad";
+  }
+}
+
+document.querySelectorAll("[data-act]").forEach((button) => {
+  button.addEventListener("click", () => run(button.dataset.act));
+});
+
+frame.addEventListener("load", async () => {
+  win = frame.contentWindow;
+  doc = frame.contentDocument;
+  try {
+    await waitFor(() => win?.StandaloneDoc?.state === "ready");
+    loadDemo();
+    render();
+    setInterval(render, 500);
+  } catch (err) {
+    plan.textContent = String(err && err.message || err);
+  }
+});
+</script>
+</body>
+</html>

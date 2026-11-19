@@ -167,6 +167,13 @@ export function createExport(deps = {}) {
        only covers whole-block page starts. Decide between an inline RawInline break (docx
        openxml) and keeping the paragraph whole; both need a print/PDF assertion. */
     clone.querySelectorAll("[data-frag]").forEach((frag) => {
+      /* A cut inside a paragraph has no page-start block to hang a break on. Leave an
+         empty inline marker at the boundary (pandoc's HTML reader keeps a Span's class)
+         and unwrap the fragment; the filter turns the marker into the target's break so
+         the paragraph stays one paragraph. */
+      const marker = clone.ownerDocument.createElement("span");
+      marker.className = "page-break-inline";
+      frag.parentNode.insertBefore(marker, frag);
       while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
       frag.remove();
     });
@@ -216,10 +223,12 @@ export function createExport(deps = {}) {
             .page-break { break-before: page; }
             [data-page-start] { margin-block-start: 0 !important; break-before: page; }
             [data-frag] { margin-block-start: 0 !important; }
+            .page-break-inline { break-before: page; }
             #content { max-width: none; min-height: 0; }
             #content > * { break-inside: avoid; }
-            /* A fragmented paragraph is the one block a page break may enter. */
-            #content > *:has([data-frag]) { break-inside: auto; }
+            /* A paragraph with a page break inside it is the one block a page break may
+               enter. The :has() selector covers both a live fragment and the inline marker. */
+            #content > *:has([data-frag], .page-break-inline) { break-inside: auto; }
             figure.figure { break-inside: avoid; }
             @page { size: ${sheetW} ${sheetH}; margin: ${pad}; }
             @page:right {
@@ -251,6 +260,9 @@ export function createExport(deps = {}) {
     if (doc.querySelector("#content iframe")) problems.push("an iframe leaked");
     if (doc.querySelector('[src^="blob:"], [href^="blob:"]')) problems.push("a blob: URL leaked");
     if (doc.querySelector("[data-frag]")) problems.push("a pagination fragment leaked");
+    if ([...doc.querySelectorAll(".page-break-inline")].some((marker) => marker.textContent.length)) {
+      problems.push("a page-break marker carried text");
+    }
     /* `[data-page-start]` deliberately survives: the static print rules break there. Its
        margin does not (and must not), but only the margin on *that* node is pagination's. */
     if ([...doc.querySelectorAll("[data-page-start]")]

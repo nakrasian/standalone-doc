@@ -81,12 +81,13 @@ export function lineForRoom(lines, blockTop, room, minLines = 2) {
  * height would under-count the tail and place the following blocks too high. That was a
  * live bug in the lab version, invisible until a page had a word straddling its edge.
  */
-export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt, minLines = 2}) {
+export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt, minLines = 2, start = 0}) {
   const last = lineForRoom(lines, blockTop, room, minLines);
   if (last < 0) return null;
 
   const cutTop = lines[last + 1].top - 0.5;
-  let low = 1;
+  /* A tail starts at `start`; the next cut must be after it. */
+  let low = Math.max(1, start + 1);
   let high = text.length;
   while (low < high) {
     const mid = Math.floor((low + high) / 2);
@@ -94,9 +95,10 @@ export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt,
     else low = mid + 1;
   }
   const geometric = low;
-  const offset = wordBoundary(text, geometric);
+  /* A word that straddles the segment start cannot be backed up past it. */
+  const offset = Math.max(start + 1, wordBoundary(text, geometric));
 
-  if (offset <= 0 || offset >= text.length) return null;
+  if (offset <= start || offset >= text.length) return null;
 
   const headBottom = lineBottomAt(offset);
   if (!Number.isFinite(headBottom)) return null;
@@ -155,9 +157,10 @@ export function checkPass({
       failures.push(`fragment ${i}: carries offset ${frag.dataset.frag}, plan said ${cut.offset}`);
     }
     const parent = frag.parentElement;
-    if (!parent || parent.querySelectorAll(":scope > [data-frag]").length > 1) {
-      failures.push(`fragment ${i}: more than one fragment in one block`);
-    }
+    /* N cuts make several sibling fragments in one block; a nested fragment would make
+       the page pushes compound, and a fragment in another block is a mis-split. */
+    if (!parent || parent !== cut.block) failures.push(`fragment ${i}: sits in a different block`);
+    if (frag.querySelector("[data-frag]")) failures.push(`fragment ${i}: is nested inside another fragment`);
     if (!frag.textContent.length) failures.push(`fragment ${i}: is empty`);
   }
 
@@ -186,10 +189,20 @@ export function checkPass({
     const cutBlocks = new Set(applied.map((cut) => plan.blocks.indexOf(cut.block)));
     for (const blockIndex of cutBlocks) {
       if (blockIndex < 0) continue;
+      const cuts = applied.filter((cut) => plan.blocks.indexOf(cut.block) === blockIndex);
       const onPages = items.filter((item) => item.block === blockIndex);
-      if (onPages.length !== 2) failures.push(`block ${blockIndex}: ${onPages.length} page items after a cut, expected 2`);
-      else if (onPages[0].to == null) failures.push(`block ${blockIndex}: the first page item has no to-offset`);
-      else if (onPages[1].from !== onPages[0].to) failures.push(`block ${blockIndex}: from/to do not meet (${onPages[0].to} vs ${onPages[1].from})`);
+      if (onPages.length !== cuts.length + 1) {
+        failures.push(`block ${blockIndex}: ${onPages.length} page items for ${cuts.length} cut(s)`);
+        continue;
+      }
+      if (onPages[0].from !== 0) failures.push(`block ${blockIndex}: the first page item starts at ${onPages[0].from}`);
+      if (onPages[onPages.length - 1].to != null) failures.push(`block ${blockIndex}: the last page item has a to-offset`);
+      for (let j = 0; j < onPages.length - 1; j++) {
+        if (onPages[j].to == null) failures.push(`block ${blockIndex}: page item ${j} has no to-offset`);
+        else if (onPages[j + 1].from !== onPages[j].to) {
+          failures.push(`block ${blockIndex}: from/to do not meet at item ${j} (${onPages[j].to} vs ${onPages[j + 1].from})`);
+        }
+      }
     }
   }
 
@@ -411,22 +424,34 @@ export function createPagination(deps = {}) {
     return false;
   }
 
-  /** The cut that makes this block fit in `room` layout px, or null. */
-  function planSplit(block, room, minLines = 2) {
+  /**
+   * The cut that makes the segment starting at `start` fit in `room` layout px, or null.
+   * The first cut starts at 0 and its top is the block's; a later cut starts where the
+   * previous one ended, and its top is that line's top.
+   */
+  function planSplit(block, room, minLines = 2, start = 0) {
     const box = layout.rect(block);
-    const lines = lineBoxes(block);
+    const all = lineBoxes(block);
+    if (!all.length) return null;
+    const segmentTop = start > 0 ? lineTopAt(block, start + 1) : box.top;
+    const first = start > 0
+      ? all.findIndex((line) => Math.abs(line.top - segmentTop) < 1)
+      : 0;
+    if (first < 0) return null;
+    const lines = all.slice(first);
     const cut = chooseCut({
       text: block.textContent,
       lines,
-      blockTop: box.top,
+      blockTop: segmentTop,
       room,
       lineTopAt: (offset) => lineTopAt(block, offset),
       lineBottomAt: (offset) => lineBottomAt(block, offset),
       minLines,
+      start,
     });
     if (!cut) return null;
     if (anchoredAt(block, cut.offset)) return null;
-    return {...cut, room, blockTop: box.top, blockHeight: box.height};
+    return {...cut, room, blockTop: segmentTop, blockHeight: box.height, start};
   }
 
   /**
@@ -469,32 +494,59 @@ export function createPagination(deps = {}) {
    */
   function applyFragments(splits) {
     const applied = [];
+    /* One group per block, in plan order; a block can now need several cuts. */
+    const groups = [];
     for (const split of splits) {
-      let frag = split.existing;
-      const reused = Boolean(frag);
-      if (!frag) frag = splitBlock(split.block, split.offset);
-      /* Text inserted before the cut shifts the boundary; the fragment is still the right
-         boundary, so update the number rather than re-splitting. */
-      if (Number(frag.dataset.frag) !== split.offset) frag.dataset.frag = String(split.offset);
-      /* A reused fragment is already pushed; the target is measured from its unpushed top,
-         or a no-op pass would read the push as part of the layout and erase it. */
-      const fragTop = layout.rect(frag).top;
-      const currentPush = inlineMargin(frag);
-      const push = Math.max(0, Math.round(split.targetTop - (fragTop - currentPush)));
-      /* The one DOM write a no-op pass may still need, and only when the page moved. */
-      if (Math.abs(currentPush - push) > 0.5) frag.style.marginBlockStart = `${push}px`;
-      applied.push({
-        block: split.block,
-        offset: split.offset,
-        push,
-        targetTop: split.targetTop,
-        reused,
-        fragTopBefore: Math.round(fragTop),
-        fragTopAfter: Math.round(layout.rect(frag).top),
-        plan: split.plan ?? null,
-        blockTopAtApply: Math.round(layout.rect(split.block).top),
-        blockMargin: split.block.style.marginBlockStart || "",
-        blockIsPageStart: split.block.hasAttribute("data-page-start"),
+      const last = groups[groups.length - 1];
+      if (last && last.block === split.block) last.splits.push(split);
+      else groups.push({block: split.block, splits: [split]});
+    }
+
+    for (const group of groups) {
+      const cuts = group.splits;
+      let spans;
+      if (cuts.every((cut) => cut.existing)) {
+        spans = cuts.map((cut) => cut.existing);
+      } else {
+        if (cuts.some((cut) => cut.existing)) mergeBlock(group.block);
+        const first = splitBlock(group.block, cuts[0].offset);
+        spans = [first];
+        let previous = cuts[0].offset;
+        let tail = first;
+        for (let k = 1; k < cuts.length; k++) {
+          /* Split the remaining tail again, then lift the new span out to be a sibling:
+             nested block spans would make the pages' margins compound. */
+          const next = splitBlock(tail, cuts[k].offset - previous);
+          tail.after(next);
+          next.dataset.frag = String(cuts[k].offset);
+          spans.push(next);
+          previous = cuts[k].offset;
+          tail = next;
+        }
+      }
+
+      cuts.forEach((split, k) => {
+        const frag = spans[k];
+        if (Number(frag.dataset.frag) !== split.offset) frag.dataset.frag = String(split.offset);
+        /* A reused fragment is already pushed; the target is measured from its unpushed top,
+           or a no-op pass would read the push as part of the layout and erase it. */
+        const fragTop = layout.rect(frag).top;
+        const currentPush = inlineMargin(frag);
+        const push = Math.max(0, Math.round(split.targetTop - (fragTop - currentPush)));
+        if (Math.abs(currentPush - push) > 0.5) frag.style.marginBlockStart = `${push}px`;
+        applied.push({
+          block: split.block,
+          offset: split.offset,
+          push,
+          targetTop: split.targetTop,
+          reused: Boolean(split.existing),
+          fragTopBefore: Math.round(fragTop),
+          fragTopAfter: Math.round(layout.rect(frag).top),
+          plan: split.plan ?? null,
+          blockTopAtApply: Math.round(layout.rect(split.block).top),
+          blockMargin: split.block.style.marginBlockStart || "",
+          blockIsPageStart: split.block.hasAttribute("data-page-start"),
+        });
       });
     }
     return applied;
@@ -504,15 +556,22 @@ export function createPagination(deps = {}) {
 
   const inlineMargin = (el) => parseFloat(el.style.marginBlockStart || "0") || 0;
 
-  /** The one fragment in a block, with the numbers a pass needs to reuse it. */
+  /** Every fragment in a block, with the numbers a pass needs to reuse them. One cut or N,
+      the shape is the same: a head followed by segments. */
   function fragmentState(el) {
-    const frag = el.querySelector(":scope > [data-frag]");
-    if (!frag) return null;
+    const frags = [...el.querySelectorAll(":scope > [data-frag]")];
+    if (!frags.length) return null;
+    const blockTop = layout.rect(el).top;
+    const offsets = frags.map((frag) => fragmentOffset(el, frag));
+    const pushes = frags.map((frag) => inlineMargin(frag));
+    const heights = frags.map((frag) => layout.rect(frag).height);
     return {
-      frag,
-      offset: fragmentOffset(el, frag),
-      push: inlineMargin(frag),
-      headHeight: layout.rect(frag).top - inlineMargin(frag) - layout.rect(el).top,
+      frags,
+      offsets,
+      pushes,
+      heights,
+      headHeight: layout.rect(frags[0]).top - pushes[0] - blockTop,
+      push: pushes.reduce((sum, value) => sum + value, 0),
     };
   }
 
@@ -564,64 +623,115 @@ export function createPagination(deps = {}) {
 
       // Check if block overflows and adds page + gap
       if (page.items.length && cursor + h > page.top + page.avail) {
-        const nextTop = page.top + page.avail + g.chromeGap;
-
-        /* A block that is not atomic may be cut at its last line that fits. Its tail must
-           itself fit one page: a single cut cannot make a two-page block one page, and a
-           tail that overflows would paint outside the sheet. (N cuts is the next step; a
-           tall block still takes a page of its own, unchanged.)
-
-           A block that is *already* cut is reused when its head still fits the room and its
-           tail still fits a page: that is the no-churn path, and it is the common one while
-           typing after the cut. Anything else needs the block merged and re-measured. */
-        const room = page.top + page.avail - cursor;
         const spec = strategy(el);
-        let cut = null;
-        if (fragmenting && !tall && spec.kind === "lines") {
+        const blockTop = layout.rect(el).top;
+
+        if (fragmenting && spec.kind === "lines") {
           if (state) {
-            if (state.headHeight <= room - 1 && h - state.headHeight <= g.contentH) {
-              cut = {
-                offset: state.offset,
-                headHeight: state.headHeight,
-                existing: state.frag,
-                room,
-                blockTop: layout.rect(el).top,
-                blockHeight: layout.measureH(el),
-                plan: {reused: true, headHeight: Math.round(state.headHeight)},
-              };
-            } else {
-              return {needsMerge: true};
+            /* Reuse every cut when the existing segments still fit their pages: one cut or
+               N, this is the no-churn path while typing after the last one. */
+            const room = page.top + page.avail - cursor;
+            const ordered = state.offsets.every((offset, k) => k === 0 || offset > state.offsets[k - 1]);
+            const fits = ordered
+              && state.offsets[state.offsets.length - 1] < el.textContent.length
+              && state.headHeight <= room - 1
+              && state.heights.every((height) => height <= g.contentH + 1);
+            if (fits) {
+              let from = 0;
+              let pageTop = page.top;
+              let avail = page.avail;
+              let cursorHere = cursor;
+              state.frags.forEach((frag, k) => {
+                const nextTop = pageTop + avail + g.chromeGap;
+                page.items.push({block: i, from, to: state.offsets[k]});
+                const tailPage = {top: nextTop, avail: g.contentH, items: []};
+                pages.push(tailPage);
+                splits.push({
+                  block: el,
+                  offset: state.offsets[k],
+                  headHeight: k === 0 ? state.headHeight : state.heights[k - 1],
+                  targetTop: nextTop + g.pad,
+                  existing: frag,
+                  plan: {reused: true},
+                });
+                from = state.offsets[k];
+                page = tailPage;
+                pageTop = nextTop;
+                avail = g.contentH;
+                cursorHere = nextTop;
+              });
+              page.items.push({block: i, from, to: null});
+              const consumed = state.headHeight
+                + state.heights.slice(0, -1).reduce((sum, value) => sum + value, 0);
+              cursor = pageTop + (h - consumed);
+              continue;
             }
-          } else {
-            cut = planSplit(el, room, spec.minLines ?? 2);
+            return {needsMerge: true};
+          }
+
+          /* Fresh cuts: fill this page, then as many whole pages as the block needs. A
+             tall paragraph is a block like any other now; only an atomic block is not cut. */
+          let from = 0;
+          let consumed = 0;
+          let remaining = h;
+          let cuts = 0;
+          let room = page.top + page.avail - cursor;
+          let pageTop = page.top;
+          let avail = page.avail;
+          let cursorHere = cursor;
+          while (cuts < 64) {
+            const cut = planSplit(el, room, spec.minLines ?? 2, from);
+            if (!cut || cut.offset <= from) break;
+            const nextTop = pageTop + avail + g.chromeGap;
+            page.items.push({block: i, from, to: cut.offset});
+            const tailPage = {top: nextTop, avail: g.contentH, items: []};
+            pages.push(tailPage);
+            splits.push({
+              block: el,
+              offset: cut.offset,
+              headHeight: cut.headHeight,
+              targetTop: nextTop + g.pad,
+              existing: null,
+              plan: {
+                room: Math.round(cut.room),
+                start: cut.start,
+                cutLine: cut.cutLine,
+                lines: cut.lines,
+                geometric: cut.geometric,
+                blockTop: Math.round(cut.blockTop),
+                blockHeight: Math.round(cut.blockHeight),
+                headHeight: Math.round(cut.headHeight),
+                cursor: Math.round(cursorHere),
+                nextTop: Math.round(nextTop),
+              },
+            });
+            from = cut.offset;
+            consumed = cut.headBottom - blockTop;
+            remaining = h - consumed;
+            cuts++;
+            page = tailPage;
+            pageTop = nextTop;
+            avail = g.contentH;
+            cursorHere = nextTop;
+            room = g.contentH;
+            if (remaining <= g.contentH + 1) {
+              tailPage.items.push({block: i, from, to: null});
+              cursor = nextTop + remaining;
+              break;
+            }
+          }
+          if (cuts) {
+            if (remaining > g.contentH + 1) {
+              /* No further cut is possible (a one-line remainder, an anchored inline):
+                 the tail goes on its page whole, as an atomic tall block does. */
+              page.items.push({block: i, from, to: null});
+              cursor = pageTop + remaining;
+            }
+            continue;
           }
         }
 
-        if (cut && h - cut.headHeight <= g.contentH) {
-          page.items.push({block: i, from: 0, to: cut.offset});
-          pages.push({top: nextTop, avail: g.contentH, items: [{block: i, from: cut.offset, to: null}]});
-          splits.push({
-            block: el,
-            offset: cut.offset,
-            headHeight: cut.headHeight,
-            targetTop: nextTop + g.pad,
-            existing: cut.existing ?? null,
-            plan: {
-              room: Math.round(cut.room),
-              blockTop: Math.round(cut.blockTop),
-              lines: cut.lines,
-              cutLine: cut.cutLine,
-              geometric: cut.geometric,
-              blockHeight: Math.round(cut.blockHeight),
-              headHeight: Math.round(cut.headHeight),
-              cursor: Math.round(cursor),
-              nextTop: Math.round(nextTop),
-            },
-          });
-          cursor = nextTop + (h - cut.headHeight);
-          continue;
-        }
-
+        const nextTop = page.top + page.avail + g.chromeGap;
         spacers.push({
           before: el,
           height: nextTop - cursor,
@@ -762,6 +872,9 @@ export function createPagination(deps = {}) {
     timer = setTimeout(() => {
       requestAnimationFrame(() => {
         queued = false;
+        /* The guard at scheduling time is not enough: a pass queued before composition
+           started would fire in the middle of it. `compositionend` schedules again. */
+        if (signals.composing) return;
         lastRun = performance.now();
         refresh();
       });
