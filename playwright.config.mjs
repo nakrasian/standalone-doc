@@ -8,6 +8,8 @@ import { defineConfig, devices } from "@playwright/test";
  * The webServer exists for the http:// specs and for anything that fetches;
  * start it yourself with `npm run dev` and it will be reused.
  */
+const VISUAL = process.env.VISUAL === "1";
+
 export default defineConfig({
   testDir: "./test/browser",
   timeout: 30_000,
@@ -22,13 +24,16 @@ export default defineConfig({
     acceptDownloads: true,
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: VISUAL ? undefined : /pagination-visual\.spec\.js/ },
     /* `page.pdf()` exists only in headless Chromium (Playwright 1.65), so the PDF half of
        the print gate is a Chromium-only spec. The print-media rules are asserted in every
        engine by pagination-print.spec.js; excluding the file here keeps the suite free of
-       "skipped" cases while still running the PDF proof once. */
-    { name: "webkit", testIgnore: /pagination-(print-pdf|ime)\.spec\.js/, use: { ...devices["Desktop Safari"] } },
-    { name: "firefox", testIgnore: /pagination-(print-pdf|ime)\.spec\.js/, use: { ...devices["Desktop Firefox"] } },
+       "skipped" cases while still running the PDF proof once. Clipboard permissions are
+       granted per page context by Playwright, so the copy/paste spec is Chromium-only for
+       the same reason. The visual gate needs a Linux-generated baseline (see its header),
+       so it is collected only when VISUAL=1. */
+    { name: "webkit", testIgnore: VISUAL ? /pagination-(print-pdf|ime|clipboard)\.spec\.js/ : /pagination-(print-pdf|ime|clipboard|visual)\.spec\.js/, use: { ...devices["Desktop Safari"] } },
+    { name: "firefox", testIgnore: VISUAL ? /pagination-(print-pdf|ime|clipboard)\.spec\.js/ : /pagination-(print-pdf|ime|clipboard|visual)\.spec\.js/, use: { ...devices["Desktop Firefox"] } },
   ],
   webServer: {
     command: "node build.mjs dev",

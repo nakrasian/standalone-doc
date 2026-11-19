@@ -1,5 +1,77 @@
 # Changelog
 
+## Unreleased — fragmentation (flag off)
+
+The pagination cycle: a paragraph can cross a page boundary without becoming two
+paragraphs. The work is on `feat/pagination-split` and the flag is off in the
+shipped document until a mode decides to turn it on.
+
+### Added
+
+- **A page break inside a paragraph is a sibling `<span data-frag>` in the same
+  `<p>`**, not a second `<p>`. `Range.extractContents()` moves the tail so
+  nested inline markup (a link, an `<em>`) survives; the span is
+  `display: block` and is pushed to the next page's content top with
+  `margin-block-start`. N cuts are *sibling* spans, never nested, so page
+  pushes do not compound. The text stream, the paragraph count and the undo
+  snapshot are unchanged.
+- **The planner measures the semantic document.** A fragmented block is taller
+  than the text it holds, so a pass merges before it plans and reports its own
+  post-conditions (`checkPass`): text conserved, one fragment per planned cut at
+  the planned offset, every tail within 1.5 px of the named page content top,
+  `from/to` meeting across N+1 items, no orphan page-start margin, and every
+  whole block on the page the plan named — or the numbers that disagreed.
+- **A block table, not a set of tags** (`DEFAULT_STRATEGIES`): `p` is lines,
+  `h1–h6` are whole, `pre`/`table`/`figure`/lists are atomic, `blockquote` is
+  lines only with inline children, and an inline replaced element makes a `p`
+  atomic. `pagination.defineBlock(tag, spec)` is the plugin seam.
+- **Export parity.** `buildStatic()` unwraps the fragments and leaves one empty
+  `.page-break-inline` span; `sd-export.lua` turns it into the target's native
+  break (`w:br`, `#pagebreak()`, `\newpage`), so a `.docx` keeps one paragraph
+  *and* the break. Page starts become an empty `.page-break` Div.
+- **Live print matches the screen measure.** `[data-frag]` and
+  `[data-page-start]` become block breaks, gaps reset, sheets hide, and `#stage`
+  drops its 8.5 in screen width so the printable box is the same 6.7 in measure;
+  `afterprint` re-plans at the restored viewport.
+
+### Fixed
+
+- **Deleting in a fragmented paragraph refills the page in the same pre-paint
+  pass.** A block that got shorter is merged, re-planned and re-split inside the
+  MutationObserver callback, so the next lines move up from the tail instead of
+  waiting for an idle reconcile (which the next keystroke cancelled). A
+  deletion that frees a page drops it in that same pass.
+- **Every deletion gesture that touches a seam removes exactly its range.**
+  Measured in all three engines: Backspace one character *before* the seam
+  deleted two, Delete at or just before it deleted two in Chromium and WebKit,
+  and a selection whose range reached the seam lost an extra character. The
+  editor owns collapsed and selected Backspace/Delete when the range comes
+  within one character of a fragment start.
+- **Copy and cut across a seam carry no page furniture.** The browser serialised
+  the fragment as a line break in `text/plain` and as a `data-frag` element with
+  the page push in `text/html`; pasting it back inserted a paragraph break and a
+  216 px gap. The payload is rebuilt from the text coordinate with the fragments
+  unwrapped, and cut removes exactly the selection.
+- **Page gaps are no longer rounded to whole pixels.** Half a pixel per page
+  accumulated through the flow (3 px by page 36 in a 1,000-block document); the
+  fractional plan value is used, and a reused cut is no longer re-measured with
+  a full line walk on every pass.
+- **A late scroll correction belongs to the pass that scheduled it.** A stale
+  rAF correction from an earlier pass could restore an anchor captured before
+  the reader moved, resetting `scrollTop`; a new pass cancels pending
+  corrections, and only a pass that re-set the selection schedules one.
+
+### Tests and size
+
+132 unit tests and 633 browser tests (210 per engine, plus the three Chromium-only
+clipboard cases) pass; the copy/paste and
+visual specs are Chromium-only (clipboard permissions, Linux baselines). The
+visual baseline is generated on the CI runner and cached there, not committed:
+a page screenshot is platform-specific. On a 1,000-block document a delete at
+the seam costs ~12 ms in Chromium (~3 ms on a three-block document); the browser
+suite asserts a generous budget so a pass that re-walks the document per
+keystroke fails.
+
 ## v0.9.1 — 2026-11-18
 
 The page gap stops being a node in the document, and the exports learn the same

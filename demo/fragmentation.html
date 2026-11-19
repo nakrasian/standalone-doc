@@ -51,9 +51,10 @@
   <div class="row">
     <button data-act="seam">Put caret at the seam</button>
     <button data-act="backspace">Backspace ×5</button>
+    <button data-act="delete">Delete ×5</button>
     <button data-act="enter">Enter at the seam</button>
   </div>
-  <p class="hint">The seam is the first character of the tail. Backspace deletes one character and Enter splits the paragraph there; neither loses a character to the block-box boundary.</p>
+  <p class="hint">The seam is the first character of the tail. Backspace, Delete, and a selection that reaches the seam are owned by the editor: each removes exactly its range, and the pass re-cuts so the page refills from the tail. Enter splits the paragraph there.</p>
 
   <h2>View</h2>
   <div class="row">
@@ -331,7 +332,8 @@ async function run(action) {
       lastScrollDelta = doc.getElementById("viewport").scrollTop - before;
     }
     else if (action === "seam") seamCaret();
-    else if (action === "backspace") { for (let i = 0; i < 5; i++) keyAtSeam("Backspace"); }
+    else if (action === "backspace") { for (let i = 0; i < 5; i++) { seamCaret(); keyAtSeam("Backspace"); } }
+    else if (action === "delete") { for (let i = 0; i < 5; i++) { seamCaret(); keyAtSeam("Delete"); } }
     else if (action === "enter") keyAtSeam("Enter");
     else if (action === "type10") typeTen();
     else if (action === "pass") pagination.refresh();

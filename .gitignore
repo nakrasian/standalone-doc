@@ -16,6 +16,9 @@ lab/
 # Playwright output
 test-results/
 playwright-report/
+# Visual baselines are generated on the Linux CI runner and kept in its cache: a page
+# screenshot is platform-specific (font rasterisation), so macOS images are not baselines.
+test/browser/pagination-visual.spec.js-snapshots/
 
 # Private planning notes at the repo root (never published)
 /*.md

@@ -14,8 +14,8 @@ edit by hand; `npm run check` fails if this file is stale.
 | zoom | 40 | — | — | `command`, `set`, `setPercent`, `in`, `out`, `reset`, `fit`, `syncUI`, `value` | * |
 | selection | 44 | — | — | `capture`, `restore`, `preserve`, `offsetIn`, `pointAt` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | edit |
-| layout | 46 | zoom | — | `x`, `y` | * |
-| pagination | 50 | signals, zoom, layout, selection | — | `offset`, `geometric`, `headHeight`, `headBottom`, `cutLine`, `lines` | * |
+| layout | 46 | zoom | — | `origin`, `rect`, `measureH`, `viewportY`, `scale`, `pageContentTop`, `pageContentBottom` | * |
+| pagination | 50 | signals, zoom, layout, selection | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh`, `setFragmenting`, `diagnostics`, `strategy`, `defineBlock`, `planSplit`, `plan` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination, selection | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |

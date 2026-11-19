@@ -148,8 +148,13 @@
       "late": [],
       "optional": [],
       "provides": [
-        "x",
-        "y"
+        "origin",
+        "rect",
+        "measureH",
+        "viewportY",
+        "scale",
+        "pageContentTop",
+        "pageContentBottom"
       ]
     },
     {
@@ -168,12 +173,17 @@
       "late": [],
       "optional": [],
       "provides": [
-        "offset",
-        "geometric",
-        "headHeight",
-        "headBottom",
-        "cutLine",
-        "lines"
+        "schedule",
+        "pageCount",
+        "pageAt",
+        "syncFolio",
+        "refresh",
+        "setFragmenting",
+        "diagnostics",
+        "strategy",
+        "defineBlock",
+        "planSplit",
+        "plan"
       ]
     },
     {

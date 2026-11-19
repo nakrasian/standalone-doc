@@ -62,6 +62,39 @@ jobs:
             playwright-report
           retention-days: 7
 
+  # The visual gate. Its baseline is generated on this runner, never committed: a page
+  # screenshot resolves the font stack to whatever the platform has (Charter on macOS, a
+  # metric-compatible substitute here), so one platform's picture is not another's baseline.
+  # The cache is the baseline store. A cold key writes the picture and passes; a warm key
+  # compares and fails on a difference. Bump VISUAL_BASELINE when a visual change is
+  # intended, so the cache refreshes instead of failing forever.
+  visual:
+    name: visual (chromium, linux baseline)
+    runs-on: ubuntu-latest
+    env:
+      VISUAL_BASELINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - uses: actions/cache@v4
+        with:
+          path: test/browser/pagination-visual.spec.js-snapshots
+          key: visual-${{ runner.os }}-chromium-v1
+      # `missing` writes a cold baseline and compares a warm one; a mismatch is a failure.
+      - run: VISUAL=1 npx playwright test test/browser/pagination-visual.spec.js --project=chromium --update-snapshots=missing
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-visual
+          path: |
+            test-results
+            playwright-report
+          retention-days: 7
+
   # Still to come:
   #   size:    budgets from size-baseline.json
   #   nightly: CDN link health + sha384 verification (scheduled, non-blocking)
