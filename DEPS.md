@@ -18,8 +18,9 @@ edit by hand; `npm run check` fails if this file is stale.
 | pagination | 50 | signals, zoom, layout, selection | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh`, `setFragmenting`, `diagnostics`, `strategy`, `defineBlock`, `planSplit`, `plan` | * |
 | status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
 | editor | 70 | signals, status, pagination, selection | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock` | edit |
+| comments | 76 | signals, pagination, layout, selection | status? | `init`, `mount`, `list`, `add`, `reply`, `resolve`, `remove`, `focus`, `blur`, `render`, `merge`, `load` | * |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
-| policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `usage`, `blockOf`, `settingsFragment`, `PRESETS` | edit |
+| policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `allows`, `usage`, `blockOf`, `settingsFragment`, `PRESETS` | edit |
 | toolbar | 90 | zoom, editor, figures, status, policy, session | export, plugins? | `save`, `serialize`, `validate`, `viewer`, `settings` | edit |
 | viewer-bar | 92 | pagination, zoom, figures, signals, session | — | `save`, `sync`, `openPanel`, `setHidden`, `isHidden` | view |
 | plugins | 95 | signals, figures, status | — | `activateUi`, `wire`, `unwire`, `openPanel`, `renderPanel`, `updateCount`, `install` | edit |
@@ -41,6 +42,11 @@ graph LR
   pagination --> editor
   selection --> editor
   figures -.->|late| editor
+  signals --> comments
+  pagination --> comments
+  layout --> comments
+  selection --> comments
+  status -.->|optional| comments
   signals --> figures
   pagination --> figures
   status -.->|optional| figures

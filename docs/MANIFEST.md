@@ -82,6 +82,8 @@ cannot claim to be editable when this block says otherwise.
 | `ui` | `ribbon` | `ribbon` or `minimal` — which editor chrome to paint. Presentation only; applied before first paint so a minimal file never flashes its ribbon. |
 | `saveThresholdBytes` | `2097152` | Ask before saving a file larger than this. |
 | `thresholdDeclined` | absent | The size at which the author said "don't ask again". The prompt re-arms at twice this. |
+| `author` | absent | The document's own author, as it signs a comment (`author.kind === "author"`). Absent means nobody has authored a comment; an empty string is a change for nothing. A reviewer's name never lives here: it is `localStorage`, per document. |
+| `capabilities` | absent | `{comments: "off" \| "read" \| "write", edit: "copy" \| "off"}`. **A capability the file does not declare is `absent`** (invariant 28): the loader skips the asset and `policy.target()` marks it absent, so a document that never uses comments does not carry the comments bundle. `"off"` is a declared *no* and behaves like absent; only an export (or the module that wrote the first comment) writes this field. |
 | `timeoutMs` | `8000` | Per-asset load timeout. Behaviour, so it lives here and not in the manifest. |
 | `policy` | absent | The save preset the author chose: `inline`, `smart`, `slim`. Absent means `inline`. |
 | `assets` | absent | An explicit `{id: "inline" \| "online" \| "absent"}` map. **Wins over `policy`** and replaces it on write: a preset is a shorthand for a map, and writing both would be two answers to one question. `absent` means the author removed the asset; an asset that is merely outside the current `mode` leaves the file but keeps its declaration, so the other mode can still be produced (an export, a viewer). |
@@ -129,7 +131,52 @@ Two rules that make the snapshot honest rather than merely present:
   rather than showing an empty "Available" list, which reads exactly like "nothing is
   published".
 
-## 4. Plugins in the manifest
+## 4. `#comment-store` — optional
+
+```html
+<script id="comment-store" type="application/json">{"schema":1,"comments":[…]}</script>
+```
+
+Comments are **content, not a mode**: this block and the blocks' `data-bid` attributes travel
+in every file and every export, the way `#figure-store` does. The mode decides only which
+chrome exists and who may write. **Absent means no comments** — not an empty `{"comments":[]}`,
+which would be a change to the file for nothing.
+
+```json
+{
+  "id": "c_9f2a61b4",
+  "anchor": {"from": 412, "to": 447, "quote": "the phrase this is about", "blocks": ["b_1a2b3c4d", "b_5e6f7a8b"]},
+  "author": {"name": "Nadia", "kind": "author"},
+  "createdAt": "2026-11-18T10:12:03Z",
+  "updatedAt": "2026-11-18T10:12:03Z",
+  "body": "This paragraph contradicts §2.",
+  "resolved": false,
+  "replies": [
+    {"id": "r_7d1e", "author": {"name": "Reader"}, "at": "2026-11-18T11:02:00Z", "body": "Agreed."}
+  ]
+}
+```
+
+- **`anchor` is one range over the document's text stream.** `from`/`to` are offsets in the
+  concatenation of the blocks' `textContent` (blocks joined by `"\n\n"`); `blocks` names the
+  blocks the range touches, and the per-block segments the overlay paints are *derived*, never
+  stored. `quote` is the first 40 normalized characters, a repair hint only.
+- **`data-bid` is on a top-level child of `#content`**, `b_` + 8 base36 characters. It is
+  assigned **only when a comment first needs it** — never on load, never on save — so a
+  document with no comments is byte-identical to one written before comments existed. It is
+  content, so `session.strip()` never removes it.
+- **Repair is deterministic, never fuzzy:** exact range, then a unique `quote` inside the named
+  blocks (or the document, when none of them survive), then a block-level marker, then
+  **orphan** — kept, listed, never dropped (invariant 29).
+- **A comment is immutable except `resolved` and `replies`.** A reply is append-only and an
+  "edit" is a reply that says so. That is what makes a file merge possible without a CRDT.
+- The block's id is `comment-store`, not `comments`: an asset's block carries
+  `id="<assetId>"`, so `#comments` would be shadowed by the module's own `<script>` — the same
+  collision `viewer-bar` already paid for.
+- `check` validates the schema, unique ids, integral ranges, 40-character quotes, `b_` ids, and
+  refuses `capabilities.comments === "off"` in a file that carries this block.
+
+## 5. Plugins in the manifest
 
 Written by `plugins.install()`, read by the loader and the Plugins sheet. Only present when
 the file has at least one.
@@ -161,12 +208,13 @@ plugin. The integrity check does not care what the version says: it compares byt
 
 ---
 
-## 5. Authored, derived, preserved
+## 6. Authored, derived, preserved
 
 Two files are authored and both are checked in: `index.html` (the whole document) and
-`src/` (one file per asset). `manifest.json` is authored **for four fields only** —
-`cdnBase`, `catalog`, and each asset's `mode` / `requiredBy` (plus plugin `url`/`integrity`
-for a pinned third party). Everything else in it is derived from `index.html` and `src/`.
+`src/` (one file per asset). `manifest.json` is authored **for five fields only** —
+`cdnBase`, `catalog`, `settings` (the document's `author` and `capabilities`), and each
+asset's `mode` / `requiredBy` / `capability` (plus plugin `url`/`integrity` for a pinned
+third party). Everything else in it is derived from `index.html` and `src/`.
 
 `npm run combine` rewrites `index.html` from `src/`; `npm run split` does the reverse. Both
 preserve the rest of the document verbatim. What neither touches:
@@ -183,7 +231,7 @@ re-materialised, and the settings the sheet edited. Everything a session rendere
 stripped first — the list is in `src/session.js`, and `validate()` checks the output against
 it before the download starts.
 
-## 6. What the checks enforce
+## 7. What the checks enforce
 
 | gate | question |
 |---|---|
@@ -192,7 +240,7 @@ it before the download starts.
 | `verify-cdn` | Does the CDN serve the bytes a **tag** published? (The tag's tree, not the working tree.) |
 | browser tests | Does the file boot, and does a saved copy reopen as the same document? |
 
-## 7. Compatibility shims (remove at the next breaking change)
+## 8. Compatibility shims (remove at the next breaking change)
 
 A document saved by an older build may be missing fields that now live elsewhere. The loader
 reads them from their old home rather than refusing the file:

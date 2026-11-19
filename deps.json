@@ -259,6 +259,38 @@
       ]
     },
     {
+      "id": "comments",
+      "order": 76,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [
+        "signals",
+        "pagination",
+        "layout",
+        "selection"
+      ],
+      "late": [],
+      "optional": [
+        "status"
+      ],
+      "provides": [
+        "init",
+        "mount",
+        "list",
+        "add",
+        "reply",
+        "resolve",
+        "remove",
+        "focus",
+        "blur",
+        "render",
+        "merge",
+        "load"
+      ]
+    },
+    {
       "id": "figures",
       "order": 80,
       "mode": "inline",
@@ -323,6 +355,7 @@
         "resolve",
         "planned",
         "target",
+        "allows",
         "usage",
         "blockOf",
         "settingsFragment",

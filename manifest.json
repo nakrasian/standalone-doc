@@ -9,7 +9,10 @@
     "ui": "ribbon",
     "editable": true,
     "toolbar": true,
-    "saveThresholdBytes": 2097152
+    "saveThresholdBytes": 2097152,
+    "capabilities": {
+      "comments": "write"
+    }
   },
   "assets": [
     {
@@ -172,8 +175,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 43504,
-      "sha384": "sha384-rzTEPb/jLQc2ODKUsT/V7+uTJA/zDKjrPGDpyAm5mDTN6DAu1JKFDdCaIOn0zM/+",
+      "bytes": 45361,
+      "sha384": "sha384-8mMrZWIq2HIn4235RDxtGC2hXBgB8wv925qes9/vBlbsQ03BVbSrKPuQty32XT97",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -202,8 +205,8 @@
       "order": 7,
       "tag": "script",
       "file": "src/apply-settings.js",
-      "bytes": 2511,
-      "sha384": "sha384-W27FmRTUi+abfTouH0lZr7ClON9VEPoOOXp6mrAwAgSkm+zrzC2aG2jFsIhx/gZH",
+      "bytes": 2847,
+      "sha384": "sha384-mjb+zETpJMoYASOYsUtyrne3fVb1CCflGWMU4+lHzyMcovKuVe6XrLE5mTLyiVFG",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -223,8 +226,8 @@
       "order": 8,
       "tag": "script",
       "file": "src/session.js",
-      "bytes": 4775,
-      "sha384": "sha384-CTRa4iCsWj3OVsvH4MsUMI8K9UxyjilM0GILfHPiX8P18ymYs6wDhgbx9outs5zb",
+      "bytes": 5137,
+      "sha384": "sha384-Wu0nKuBvHdIsXptg1wNGPOTG06kMy0wy/ME4tpSpFrFraAEYEBX6TXNpMENhybRd",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -293,8 +296,8 @@
       "order": 44,
       "tag": "script",
       "file": "src/selection.js",
-      "bytes": 6284,
-      "sha384": "sha384-gDv+N53i3HXa0STvkMcPujX+dkGkgtjM8thBVoKRQZA00xdte46FWR+jxKJy1Wwt",
+      "bytes": 7156,
+      "sha384": "sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -464,6 +467,47 @@
       "env": true
     },
     {
+      "id": "comments",
+      "kind": "js",
+      "order": 76,
+      "tag": "script",
+      "file": "src/comments.js",
+      "bytes": 33120,
+      "sha384": "sha384-YHycQ/TwHQo+tZReNGg9527bF71S4LgjF4kfdEZLpjZPCxaS5tcobnKSalV+oLj3",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "role": "module",
+      "label": "Comments",
+      "capability": "comments",
+      "deps": [
+        "signals",
+        "pagination",
+        "layout",
+        "selection"
+      ],
+      "optional": [
+        "status"
+      ],
+      "provides": [
+        "init",
+        "mount",
+        "list",
+        "add",
+        "reply",
+        "resolve",
+        "remove",
+        "focus",
+        "blur",
+        "render",
+        "merge",
+        "load"
+      ],
+      "env": true,
+      "settings": true
+    },
+    {
       "id": "figures",
       "kind": "js",
       "order": 80,
@@ -521,8 +565,8 @@
       "order": 85,
       "tag": "script",
       "file": "src/policy.js",
-      "bytes": 18729,
-      "sha384": "sha384-l2rHTNsDyh8ADksBL+JNZ3Gua3UueqUKRHTBEPJoLxbfCXRraIRLkDPI5elC+gIa",
+      "bytes": 21144,
+      "sha384": "sha384-jbz0lZkEpLafuSuyV07jjJiqMmcJMoKkGlny+OMRULKSAqAjZ1YNlqraHTThlkvW",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -540,6 +584,7 @@
         "resolve",
         "planned",
         "target",
+        "allows",
         "usage",
         "blockOf",
         "settingsFragment",

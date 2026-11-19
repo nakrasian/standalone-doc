@@ -27,6 +27,23 @@ export function createPolicy(deps = {}) {
     return requiredBy.includes("*") || requiredBy.includes(mode);
   }
 
+  /**
+   * A capability the document does not declare is `absent` (invariant 28).
+   *
+   * The same rule as `inMode`, for the same reason: bytes whose feature this file
+   * cannot offer are a bigger file with the same missing feature. `capabilities` is
+   * authored by an export — or by the module that first writes a comment — never
+   * inferred here, because an undeclared capability is the default that keeps the
+   * comments bundle out of the documents that never use it.
+   */
+  function allows(asset, capabilities) {
+    if (!asset.capability) return true;
+    const value = (capabilities || {})[asset.capability];
+    /* `"off"` is a declared *no*, not a value: a document that authorises nobody to
+       annotate must not carry the annotator because a string is truthy. */
+    return Boolean(value) && value !== "off";
+  }
+
   /* What should happen to one asset. Order is the point: the loader can never be
      offloaded, a capability this document lacks is absent, a switched-off plugin is
      absent, then the author's override, then the preset.
@@ -37,9 +54,10 @@ export function createPolicy(deps = {}) {
      last line: a plugin a figure *needs* cannot be `absent`, or that figure renders as
      "unavailable" in a reader's copy. The sheet stops offering the choice; this is the
      door it stops at. */
-  function target(asset, {mode, policy, overrides, usage}) {
+  function target(asset, {mode, policy, overrides, usage, capabilities}) {
     if (isInfra(asset)) return "inline";
     if (!inMode(asset, mode)) return "absent";
+    if (!allows(asset, capabilities)) return "absent";
     /* A switched-off plugin does not run, so carrying its bytes would be a bigger file
        with the same broken figure: absent is the honest answer, and the Plugins sheet
        refuses to produce that state while a figure needs it. */
@@ -60,7 +78,7 @@ export function createPolicy(deps = {}) {
    * figures that need each plugin; `baseBytes` is the document minus its asset
    * bodies, so the estimate is comparable to the file about to be written.
    */
-  function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, baseBytes = 0, absentOutside = false} = {}) {
+  function plan(manifest, {policy = "inline", mode = "edit", overrides = {}, usage = {}, capabilities = null, baseBytes = 0, absentOutside = false} = {}) {
     const decisions = [...((manifest && manifest.assets) || [])]
       .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map((asset) => {
@@ -77,13 +95,16 @@ export function createPolicy(deps = {}) {
           bytes: asset.bytes || 0,
         };
         if (asset.plugin) decision.pluginEnabled = plugin ? plugin.enabled !== false : false;
-        decision.to = target({...asset, pluginEnabled: decision.pluginEnabled}, {mode, policy, overrides, usage});
+        /* The capability travels on the decision so `presetFor()` can re-plan from
+           decisions alone without the manifest it came from. */
+        if (asset.capability) decision.capability = asset.capability;
+        decision.to = target({...asset, pluginEnabled: decision.pluginEnabled}, {mode, policy, overrides, usage, capabilities});
         return decision;
       });
     const inlineBytes = decisions
       .filter((decision) => decision.to === "inline")
       .reduce((sum, decision) => sum + decision.bytes, 0);
-    return {policy, mode, usage, absentOutside, decisions, inlineBytes, estimate: baseBytes + inlineBytes};
+    return {policy, mode, usage, capabilities, absentOutside, decisions, inlineBytes, estimate: baseBytes + inlineBytes};
   }
 
   /** The asset states a plan produces, ignoring the loader (never a choice). */
@@ -99,7 +120,7 @@ export function createPolicy(deps = {}) {
     for (const policy of PRESETS) {
       const candidate = plan(
         {assets: planned.decisions.map((decision) => ({...decision, mode: "inline"}))},
-        {policy, mode: planned.mode, usage: planned.usage || {}},
+        {policy, mode: planned.mode, usage: planned.usage || {}, capabilities: planned.capabilities || null},
       );
       if (stateOf(candidate) === wanted) return policy;
     }
@@ -405,7 +426,23 @@ export function createPolicy(deps = {}) {
       delete next.policy;
     }
     next.mode = planned.mode;
+    /* `capabilities` is authored by the caller (an export, or the module that wrote the
+       first comment) and must agree with the manifest this same save writes. Written
+       here rather than after `apply()` for that reason, and written only when it
+       differs: re-serialising the stored object on every save would reorder keys and
+       turn a no-op save into a diff. */
+    if (planned.capabilities && !sameCapabilities(planned.capabilities, stored.capabilities)) {
+      next.capabilities = {...planned.capabilities};
+    }
     return next;
+  }
+
+  /** Key order is not a fact about capabilities; compare them as a map. */
+  function sameCapabilities(a, b) {
+    if (!b || typeof b !== "object") return false;
+    const keys = Object.keys(a);
+    if (keys.length !== Object.keys(b).length) return false;
+    return keys.every((key) => a[key] === b[key]);
   }
 
   /** The document's stored choice: an explicit map wins over a preset. */
@@ -436,7 +473,7 @@ export function createPolicy(deps = {}) {
     return registry && registry.settings ? registry.settings() : settings;
   };
 
-  function planned({policy, overrides, mode, baseBytes = 0, absentOutside = false} = {}) {
+  function planned({policy, overrides, mode, capabilities, baseBytes = 0, absentOutside = false} = {}) {
     const registry = env.StandaloneDoc;
     const manifest = registry && registry.manifest ? registry.manifest() : {assets: []};
     const current = liveSettings();
@@ -447,10 +484,14 @@ export function createPolicy(deps = {}) {
       mode: mode || current.mode,
       overrides: chosen.overrides,
       usage: usage(),
+      /* An export names the capabilities the copy will declare. A save inherits the
+         document's own, including "none declared" — which must stay null, not `{}`,
+         so `settingsFragment()` writes nothing. */
+      capabilities: capabilities !== undefined ? capabilities : current.capabilities || null,
       baseBytes,
       absentOutside,
     });
   }
 
-  return {plan, apply, persist, presetFor, resolve, planned, target, usage, blockOf, settingsFragment, PRESETS};
+  return {plan, apply, persist, presetFor, resolve, planned, target, allows, usage, blockOf, settingsFragment, PRESETS};
 }

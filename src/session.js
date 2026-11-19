@@ -24,7 +24,10 @@ export function createSession(deps = {}) {
   function strip(clone) {
     clone.removeAttribute("data-boot-state");
 
-    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui]")
+    /* `[data-runtime="ephemeral"]` is the general form of "this node is the session's":
+       the comment overlay is one, and anything else that must never reach a file opts in
+       here rather than by earning its own selector. */
+    clone.querySelectorAll("#sheets > *, .page-spacer, [data-emoji-menu], [data-plugin-ui], [data-runtime='ephemeral']")
       .forEach((node) => node.remove());
 
     /* Pagination never reaches the file. A fragment is a wrapper, not content: move its
@@ -78,6 +81,7 @@ export function createSession(deps = {}) {
        the marker. A generic `[style*=margin-block-start]` scan would call an author's own
        inline margin a leak. */
     if (doc.querySelector("[data-emoji-menu]")) found.push("an emoji menu leaked into the file");
+    if (doc.querySelector("#comment-layer")) found.push("the comment layer leaked into the file");
     if (doc.querySelector("dialog[open]")) found.push("a dialog was saved open");
     if (doc.querySelector("[data-menu-panel]:not([hidden])")) found.push("a menu panel was saved open");
     if ([...doc.querySelectorAll("[data-dirty]")].some((node) => !node.hidden)) found.push("the dirty dot was saved visible");

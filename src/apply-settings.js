@@ -20,6 +20,10 @@ export function createApplySettings(deps = {}) {
        says `off` before the first paint, so the File menu never offers a library it does
        not have. */
     root.dataset.cloud = settings.cloud ? "on" : "off";
+    /* Which comment affordances this file has. `off` is the default for every document
+       that never declared a capability, and it is what CSS reads to hide a marker layer
+       whose module was not built. Presentation only: the loader decided what exists. */
+    root.dataset.comments = settings.capabilities?.comments || "off";
 
     /* A built flavour carries only the chrome its mode builds, but `index.html` is the
        source of all of them and a hand-edited copy can carry a block it never runs. Paint

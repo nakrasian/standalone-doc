@@ -182,3 +182,65 @@ test("an override cannot keep a switched-off plugin in the file", () => {
   );
   assert.equal(targetMap(planned).mermaid, "absent", "the switch is decided before the override");
 });
+
+/* ---------------------------------------------------------------- capabilities */
+
+/* A capability the document does not declare is absent — the same rule as a mode, and
+   the reason a document that never used comments does not carry the comments bundle
+   (invariant 28). `off` is the one value that must not read as truthy. */
+const WITH_CAPABILITY = {
+  assets: [
+    ...ASSETS.map((asset) => ({...asset, mode: "inline"})),
+    {id: "comments", kind: "js", order: 76, requiredBy: ["*"], capability: "comments", mode: "inline", bytes: 6_000},
+    {id: "comment-styles", kind: "css", order: 26, requiredBy: ["*"], capability: "comments", mode: "inline", bytes: 2_000},
+  ],
+};
+
+test("an undeclared capability is absent in every policy and mode", () => {
+  for (const preset of ["inline", "smart", "slim"]) {
+    for (const mode of ["edit", "comment", "view"]) {
+      const planned = targetMap(policy.plan(WITH_CAPABILITY, {policy: preset, mode}));
+      assert.equal(planned.comments, "absent", `${preset}/${mode}: no declaration means no bytes`);
+      assert.equal(planned["comment-styles"], "absent");
+    }
+  }
+});
+
+test("a declared capability travels, and \"off\" is a declared no", () => {
+  const write = targetMap(policy.plan(WITH_CAPABILITY, {policy: "inline", mode: "comment", capabilities: {comments: "write"}}));
+  assert.equal(write.comments, "inline", "a document that may be annotated carries the annotator");
+  assert.equal(write["comment-styles"], "inline");
+
+  const read = targetMap(policy.plan(WITH_CAPABILITY, {policy: "slim", mode: "view", capabilities: {comments: "read"}}));
+  assert.equal(read.comments, "online", "the preset still decides how it travels");
+  assert.equal(read["comment-styles"], "online");
+
+  const off = targetMap(policy.plan(WITH_CAPABILITY, {policy: "inline", mode: "view", capabilities: {comments: "off"}}));
+  assert.equal(off.comments, "absent", "\"off\" is false, not a truthy string");
+  assert.equal(off["comment-styles"], "absent");
+});
+
+test("capabilities survive a preset round trip", () => {
+  const declared = {comments: "write", edit: "off"};
+  const planned = policy.plan(WITH_CAPABILITY, {policy: "inline", mode: "comment", capabilities: declared});
+  assert.deepEqual(planned.capabilities, declared, "the plan carries what the file will declare");
+  /* `presetFor()` re-plans from decisions alone; a capability dropped there would make a
+     document with an absent comments bundle look like a hand-edited storage map. */
+  assert.equal(policy.presetFor(planned), "inline");
+  const slim = policy.plan(WITH_CAPABILITY, {policy: "slim", mode: "comment", capabilities: declared});
+  assert.equal(policy.presetFor(slim), "slim", "the same capability set does not look like an override");
+  assert.equal(targetMap(slim).comments, "online");
+});
+
+test("settingsFragment writes capabilities only when they differ", () => {
+  const declared = {comments: "write"};
+  const planned = policy.plan(WITH_CAPABILITY, {policy: "inline", mode: "edit", capabilities: declared});
+  assert.deepEqual(policy.settingsFragment(planned, {}).capabilities, declared, "an export declares them");
+
+  const stored = {capabilities: declared};
+  const same = policy.plan(WITH_CAPABILITY, {policy: "inline", mode: "edit", capabilities: {...declared}});
+  assert.equal(policy.settingsFragment(same, stored).capabilities, declared, "the stored object is reused, so its key order is stable");
+
+  const none = policy.plan(WITH_CAPABILITY, {policy: "inline", mode: "edit"});
+  assert.equal("capabilities" in policy.settingsFragment(none, {}), false, "a no-op save invents nothing");
+});

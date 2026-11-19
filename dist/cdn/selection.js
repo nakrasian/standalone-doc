@@ -1,4 +1,4 @@
-/* One coordinate for the caret, the undo snapshot and pagination: `{block, textOffset}`.
+/* One coordinate for the caret, the undo snapshot and pagination: `{block, id, textOffset}`.
  *
  * The lab measured why a node path is not good enough (`lab/016` §11): wrapping a
  * paragraph's tail in a `display:block` span moves the text one level deeper, so a path
@@ -6,25 +6,37 @@
  * block's text stream survives the wrap, the merge and a re-split — which is exactly what
  * `Range.extractContents()` preserves.
  *
- * The block is addressed by its index in `#content.children`. A fragment is a child of the
- * block, never a sibling, so the index is stable across a pass. The lab's prototype also
- * accepted a `data-bid`; comments will introduce one, and this is the place to prefer it
- * when it exists (a saved anchor must not depend on document order).
+ * The point carries two names for its block:
+ *
+ *   `block` — its index in `#content.children`. A fragment is a child of the block, never a
+ *             sibling, so the index is stable across a pass, and the editor's own points are
+ *             built from it.
+ *   `id`    — the block's `data-bid`, when it has one. Comments assign those, so an anchor
+ *             saved in a file must not depend on document order; a block that moved keeps
+ *             its identity. `resolve()` prefers the id and falls back to the index, which is
+ *             why every point captured before this existed still restores.
  *
  * This module is the production form of `lab/016-comment-spans/selection.mjs`. It is
  * deliberately DOM-only and dependency-free: pagination and the editor both consume it,
  * and a unit test cannot fake a live Selection.
  */
 
+/** A `data-bid` is `b_` plus base36; anything else is not an id we assigned. */
+export const BID = /^[A-Za-z0-9_-]{1,32}$/;
+
 export function createSelection() {
-  /** The block a node belongs to, as an index in `#content.children`. */
+  /** The block a node belongs to, as an index in `#content.children` plus its id. */
   function blockOf(content, node) {
     if (node === content) return null;
     const el = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
     const block = el?.closest?.("#content > *") || null;
     if (!block || !content.contains(block)) return null;
     const index = [...content.children].indexOf(block);
-    return index < 0 ? null : {block, index};
+    if (index < 0) return null;
+    /* Only an id this document could have assigned is accepted: a hand-edited `data-bid`
+       with a quote in it would otherwise reach a selector. */
+    const id = block.dataset?.bid;
+    return {block, index, id: id && BID.test(id) ? id : null};
   }
 
   /** Character offset of a (node, offset) pair inside its block. */
@@ -72,11 +84,11 @@ export function createSelection() {
       if (!blocks.length) return null;
       const atEnd = nodeOffset > 0;
       const index = atEnd ? blocks.length - 1 : 0;
-      return {block: index, offset: atEnd ? blocks[index].textContent.length : 0};
+      return {block: index, id: blocks[index].dataset?.bid || null, offset: atEnd ? blocks[index].textContent.length : 0};
     }
     const found = blockOf(content, node);
     if (!found) return null;
-    return {block: found.index, offset: offsetIn(found.block, node, nodeOffset)};
+    return {block: found.index, id: found.id, offset: offsetIn(found.block, node, nodeOffset)};
   }
 
   function samePoint(a, b) {
@@ -99,9 +111,11 @@ export function createSelection() {
     return {start, end, collapsed: range.collapsed};
   }
 
-  /** Resolve a captured endpoint in the current DOM. */
+  /** Resolve a captured endpoint in the current DOM: its id first, then its index. */
   function resolve(content, point) {
-    const block = content.children[point.block];
+    let block = null;
+    if (point.id) block = [...content.children].find((el) => el.dataset?.bid === point.id) || null;
+    if (!block) block = content.children[point.block];
     if (!block) return null;
     return pointAt(block, point.offset);
   }

@@ -46,6 +46,10 @@ import {
 } from "./lib/compile.mjs";
 import { dedentCode as dedent, indentCode as reindent } from "./lib/indent.mjs";
 import { auditContract, extractContract, LEGACY_GLOBALS } from "./lib/deps.mjs";
+/* The comment store's validator is the same function the browser uses, so `check` cannot
+   disagree with the writer about what a valid record is. The module's top level is pure
+   (the DOM lives inside `createComments`), which is what makes this import safe. */
+import { BID_RE, QUOTE_MAX, validComment } from "./src/comments.js";
 
 /** global name → asset id, for spotting implicit cross-module references. The
  *  bindings themselves are gone; this is a tripwire, not a publication list. */
@@ -106,6 +110,7 @@ const REGIONS = [
   { id: "status", kind: "js", order: 60, label: "Status line", requiredBy: ["edit"]  },
   { id: "editor", kind: "js", order: 70, label: "Editor", requiredBy: ["edit"]  },
   { id: "figures", kind: "js", order: 80, label: "Figures", requiredBy: ["*"]  },
+  { id: "comments", kind: "js", order: 76, label: "Comments", requiredBy: ["*"], capability: "comments"  },
   { id: "policy", kind: "js", order: 85, label: "Save policy", requiredBy: ["edit"]  },
   { id: "plugins", kind: "js", order: 95, label: "Plugins", requiredBy: ["edit"]  },
   { id: "toolbar", kind: "js", order: 90, label: "Toolbar binding", requiredBy: ["edit"]  },
@@ -309,6 +314,11 @@ function buildManifest(assets, previous) {
     const meta = REGIONS.find((r) => r.id === a.id) || {};
     const mode = before?.mode ?? meta.mode ?? "inline";
     const requiredBy = before?.requiredBy ?? meta.requiredBy ?? ["*"];
+    /* A capability is authored, like `mode` and `requiredBy`: a build cannot derive
+       whether an asset's feature is on in a given document. Rebuilt from scratch like
+       every other entry, so it is copied here or it disappears on the next combine
+       (invariant 28). */
+    const capability = before?.capability ?? meta.capability;
     const label = before?.label ?? meta.label;
     if (before && (before.mode !== (meta.mode ?? "inline") || String(before.requiredBy) !== String(meta.requiredBy ?? ["*"]))) preserved++;
     const entry = {
@@ -328,6 +338,7 @@ function buildManifest(assets, previous) {
        combine — this list is what stops a plugin's grouping, label or category from
        being silently dropped. */
     if (label) entry.label = label;
+    if (capability) entry.capability = capability;
     for (const key of ["category", "plugin"]) {
       if (before?.[key] != null) entry[key] = before[key];
     }
@@ -398,6 +409,9 @@ function docManifest(manifest, overrides = {}) {
         requiredBy: a.requiredBy || ["*"],
         bytes: a.bytes,
       };
+      /* A capability the document declares travels to the reader for the same reason
+         `requiredBy` does: the loader decides what to build without a second lookup. */
+      if (a.capability) entry.capability = a.capability;
       if (a.category) entry.category = a.category;
       if (a.plugin) entry.plugin = a.plugin;
       if (a.label) entry.label = a.label;
@@ -443,10 +457,10 @@ const manifestBlock = (doc) =>
  * this document need", settings answer "how does it behave". `mode` used to live
  * in the manifest and is read from there as a fallback for one release.
  */
-function docSettings(manifest, { mode, toolbar } = {}) {
+function docSettings(manifest, { mode, toolbar, capabilities } = {}) {
   const authored = manifest.settings || {};
   const docMode = mode ?? authored.mode ?? DEFAULT_SETTINGS.mode;
-  return {
+  const doc = {
     schema: 1,
     mode: docMode,
     ui: authored.ui === "minimal" ? "minimal" : "ribbon",
@@ -462,6 +476,15 @@ function docSettings(manifest, { mode, toolbar } = {}) {
        timeout is behaviour, not an asset. Falls back to the manifest for one release. */
     timeoutMs: Number(authored.timeoutMs ?? manifest.timeoutMs) || 8000,
   };
+  /* Both are absent unless the document authored them: an empty `author` or an empty
+     `capabilities` map in every file would be bytes spent saying nothing, and an empty
+     capability is not the same fact as an undeclared one (invariant 28). */
+  if (typeof authored.author === "string" && authored.author.trim()) doc.author = authored.author.trim();
+  /* A flavour names its own capabilities: a viewer copy is authored with `read`/`off`
+     even when the editor it was built from declares `write`. */
+  const declared = capabilities ?? authored.capabilities;
+  if (declared && typeof declared === "object" && Object.keys(declared).length) doc.capabilities = declared;
+  return doc;
 }
 
 const settingsBlock = (settings) =>
@@ -993,11 +1016,96 @@ async function cmdCheck({ exit = true } = {}) {
         }
       }
     }
+    /* Comments are content: the same validator the browser writes with, run on the
+       source and on every flavour. */
+    const files = [["index.html", html]];
+    for (const name of ["editor", "slim", "viewer"]) {
+      if (exists(`${DIST}/${name}.html`)) files.push([`${name}.html`, read(`${DIST}/${name}.html`)]);
+    }
+    for (const [name, body] of files) {
+      for (const problem of commentsProblems(body, name)) all.push(problem);
+      for (const problem of blockIdProblems(body, name)) all.push(problem);
+    }
   } catch (err) {
     all.push(`manifest: ${err.message}`);
   }
 
-  /* The published plugin is generated like everything else in dist/, so it can be stale. */
+  /* ------------------------------------------------------------- comments */
+
+/** `#comments` is document state: check it as content, on every file that carries it. */
+function commentsProblems(html, name) {
+  const problems = [];
+  const block = /<script id="comment-store" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
+  const found = /<script id="doc-settings" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
+  let settings = {};
+  try {
+    settings = found ? JSON.parse(found[1]) : {};
+  } catch {
+    settings = {};
+  }
+  const capability = settings.capabilities?.comments || "off";
+  if (!block) return problems;
+  /* A contradiction in both directions: `off` says nobody may see comments, and the block
+     says here they are. The writer (`settingsFragment`) gives them the same save, so a
+     disagreement means a hand edit. */
+  if (capability === "off") {
+    problems.push(`${name}: #doc-settings says capabilities.comments is "off" and the file carries a #comment-store block`);
+  }
+  let data = null;
+  try {
+    data = JSON.parse(block[1]);
+  } catch (error) {
+    problems.push(`${name}: #comment-store is not JSON — ${error.message}`);
+    return problems;
+  }
+  if (!data || typeof data !== "object" || !Array.isArray(data.comments)) {
+    problems.push(`${name}: #comments must be {"schema":1,"comments":[…]}`);
+    return problems;
+  }
+  if (data.schema !== 1) problems.push(`${name}: #comment-store schema ${data.schema} is not known`);
+  const ids = new Set();
+  for (const comment of data.comments) {
+    if (!validComment(comment)) {
+      problems.push(`${name}: #comment-store record ${JSON.stringify(comment?.id ?? null)} is not a comment (id, anchor, author.name and body are required)`);
+      continue;
+    }
+    if (ids.has(comment.id)) problems.push(`${name}: #comment-store id "${comment.id}" appears twice`);
+    ids.add(comment.id);
+    const anchor = comment.anchor;
+    if (!Number.isInteger(anchor.from) || !Number.isInteger(anchor.to) || anchor.from < 0 || anchor.to < anchor.from) {
+      problems.push(`${name}: comment "${comment.id}" has an impossible range [${anchor.from}, ${anchor.to})`);
+    }
+    if (typeof anchor.quote !== "string" || anchor.quote.length > QUOTE_MAX) {
+      problems.push(`${name}: comment "${comment.id}" carries a quote that is not a ${QUOTE_MAX}-character hint`);
+    }
+    if (!anchor.blocks.every((id) => typeof id === "string" && BID_RE.test(id))) {
+      problems.push(`${name}: comment "${comment.id}" names a block id that is not a b_ id`);
+    }
+    for (const reply of comment.replies || []) {
+      if (!reply || typeof reply.id !== "string" || typeof reply.body !== "string" || !reply.author?.name) {
+        problems.push(`${name}: comment "${comment.id}" has a reply without an id, author or body`);
+      }
+    }
+  }
+  return problems;
+}
+
+/** `data-bid` is content, so it is unique and well formed, or the file is lying. */
+function blockIdProblems(html, name) {
+  const problems = [];
+  const seen = new Set();
+  const content = /<article id="content"[^>]*>([\s\S]*?)<\/article>/.exec(html);
+  if (!content) return problems;
+  for (const match of content[1].matchAll(/data-bid="([^"]*)"/g)) {
+    const id = match[1];
+    if (!BID_RE.test(id)) problems.push(`${name}: data-bid "${id}" is not a b_ id`);
+    if (seen.has(id)) problems.push(`${name}: data-bid "${id}" appears on two blocks`);
+    seen.add(id);
+  }
+  return problems;
+}
+
+/* The published plugin is generated like everything else in dist/, so it can be stale. */
   try {
     for (const problem of stalePlugins()) {
       all.push(`plugins: ${problem} — run: node build.mjs build`);
@@ -1313,6 +1421,14 @@ function inMode(asset, mode) {
   return requiredBy.includes("*") || requiredBy.includes(mode);
 }
 
+/** The build-time twin of `policy.allows()`: a capability a flavour does not declare is
+ *  `absent`, and its block leaves the file (invariant 28). */
+function allows(asset, capabilities) {
+  if (!asset.capability) return true;
+  const value = (capabilities || {})[asset.capability];
+  return Boolean(value) && value !== "off";
+}
+
 /**
  * The viewer: the same document in view mode, with the editing capability *absent*
  * rather than offloaded. `inline` is the policy, so it opens from `file://` with no
@@ -1337,7 +1453,16 @@ function buildEditor(html, manifest) {
 }
 
 function buildViewer(html, manifest) {
-  const view = new Set(manifest.assets.filter((asset) => inMode(asset, "view")).map((asset) => asset.id));
+  /* The shipped viewer is the generic reader, not a copy of a document that has comments:
+     it declares the capability `off` and drops the module, exactly as it drops the editor.
+     A viewer *copy* of a commented document declares `read` (decision 4: markers show, no
+     annotation) and carries the bundle, because that copy has something to show. */
+  const capabilities = {comments: "off", edit: "off"};
+  const view = new Set(
+    manifest.assets
+      .filter((asset) => inMode(asset, "view") && allows(asset, capabilities))
+      .map((asset) => asset.id),
+  );
   /* Both halves are declared, and neither is inherited:
        kept     -> `inline`, because the copy carries it (the viewer bar is `online` here
                    for an editor, and this copy must not fetch what it already has);
@@ -1347,7 +1472,7 @@ function buildViewer(html, manifest) {
      then repeated (lab/014). `url` + `integrity` stay on the entry, so the declaration
      says where the bytes are as well as that they are not here. */
   const modes = Object.fromEntries(manifest.assets.map((asset) => [asset.id, view.has(asset.id) ? "inline" : "absent"]));
-  let out = withDocSettings(withDocManifest(html, docManifest(manifest, modes)), docSettings(manifest, {mode: "view", toolbar: true}));
+  let out = withDocSettings(withDocManifest(html, docManifest(manifest, modes)), docSettings(manifest, {mode: "view", toolbar: true, capabilities}));
   for (const asset of manifest.assets) {
     if (!view.has(asset.id)) out = withoutAsset(out, asset.id);
   }

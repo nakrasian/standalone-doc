@@ -116,7 +116,7 @@ test("construction follows the manifest order, not document order", async ({ pag
   /* Manifest order, even though the blocks were reversed in the file. */
   expect(state.built).toEqual([
     "apply-settings", "session", "signals", "zoom", "selection", "progress", "layout", "pagination",
-    "status", "editor", "figures", "policy", "toolbar", "plugins", "export",
+    "status", "editor", "comments", "figures", "policy", "toolbar", "plugins", "export",
   ]);
   expect(state.signals).toBe("object");
   expect(state.figures).toBe("object");
@@ -174,8 +174,10 @@ test("a view-mode document boots without the editor", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(state.state).toBe("ready");
-  expect(state.built).toEqual(["apply-settings", "session", "signals", "zoom", "selection", "layout", "pagination", "figures", "viewer-bar"]);
-  expect(state.constructed).toEqual(["apply-settings", "figures", "layout", "pagination", "selection", "session", "signals", "viewer-bar", "zoom"]);
+  /* `comments` is not an editing module: it is gated by the *capability*, which this
+     hand-edited copy still declares (the mode is the runtime's read-only clamp). */
+  expect(state.built).toEqual(["apply-settings", "session", "signals", "zoom", "selection", "layout", "pagination", "comments", "figures", "viewer-bar"]);
+  expect(state.constructed).toEqual(["apply-settings", "comments", "figures", "layout", "pagination", "selection", "session", "signals", "viewer-bar", "zoom"]);
   /* The lock is the loader's job, from the settings block — not the markup's. */
   expect(state.mode).toBe("view");
   expect(state.editable).toBe("false");
@@ -284,7 +286,8 @@ test.describe("boot dialog", () => {
     const seen = await dialog(page);
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
-    expect(seen.rows).toBe(21);
+    /* One row per non-infra asset in the plan: the comments bundle included. */
+    expect(seen.rows).toBe(22);
     expect(seen.barNow).toBe("100");
   });
 

@@ -71,7 +71,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     const ids = Array.isArray(entry?.assets) && entry.assets.length ? entry.assets : [id];
     return ids
       .map((assetId) => assetById(assetId))
-      .filter(Boolean)
+      /* An `absent` declaration is "this left the file", so there is nothing to build
+         and nothing to fetch: a plugin whose assets all left is unavailable, not
+         damaged (invariant 28). */
+      .filter((asset) => asset && asset.mode !== "absent")
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
@@ -151,6 +154,14 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       policy: authored?.policy ?? null,
       assets: authored?.assets ?? null,
       thresholdDeclined: Number(authored?.thresholdDeclined) || 0,
+      /* The author's name is document data: it is what a reviewer's reply is
+         attributed against, and the editor's Document panel reads it back. Kept as a
+         string (never `undefined`) so a template binding cannot print "undefined". */
+      author: typeof authored?.author === "string" ? authored.author : "",
+      /* `{comments: "off" | "read" | "write", edit: "copy" | "off"}`. Undeclared is
+         `{}`, never a default: an empty object keeps `settingsFragment()` from writing
+         a capability the document never had, and `allows()` from turning bytes on. */
+      capabilities: authored?.capabilities && typeof authored.capabilities === "object" ? authored.capabilities : {},
       /* The library this document belongs to, or null for a file. Read live by the
          toolbar's save, so the settings sheet can write it and the next ⌘S obeys. */
       cloud: cloudOf(authored && authored.cloud),
@@ -479,6 +490,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       },
       /** A capability this document built (figures, editor, toolbar), or a refusal. */
       use: (name) => capability(name),
+      /** Whether it is there at all — the question a plugin should ask first, because
+          `use()` on an absent capability fails the plugin, not the feature. */
+      can: (name) => Boolean(providers[name]),
       /** Host-owned cleanup: withdraws things even if the plugin never does. */
       track: (dispose) => scope.add(dispose),
       on: (event, fn) => scope.add(on(event, fn)),
@@ -496,12 +510,21 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return requiredBy.includes("*") || requiredBy.includes(mode);
   }
 
+  /* The runtime twin of `policy.allows()` and of the build's filter: a capability the
+     document does not declare is `absent`, so `boot()` skips it rather than failing on
+     a block it was never supposed to fetch (invariant 28). */
+  function allows(asset, capabilities) {
+    if (!asset.capability) return true;
+    const value = (capabilities || {})[asset.capability];
+    return Boolean(value) && value !== "off";
+  }
+
   /* Only constructed modules: infrastructure is already running, and a plugin is
      built by require(), not by boot. */
   function planned() {
-    const mode = settings().mode;
+    const {mode, capabilities} = settings();
     return manifest()
-      .assets.filter((asset) => inMode(asset, mode) && !isPlugin(asset))
+      .assets.filter((asset) => inMode(asset, mode) && allows(asset, capabilities) && !isPlugin(asset))
       .sort((a, b) => a.order - b.order);
   }
 
@@ -746,6 +769,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
    * must not be able to drift apart.
    */
   async function constructOne(asset, { loaded, index = 0, total = 1, lazy = false } = {}) {
+    if (asset.mode === "absent") {
+      throw failure("unavailable", asset.id, "is not carried by this document");
+    }
     /* Fragments and stylesheets are not modules: an inline one is already in the
        document (that is the point of shipping markup), a fetched one is inserted
        here, before anything that reads it. */
@@ -1026,6 +1052,8 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     /** What a plugin's activate() returned, or null when it is not built. */
     instance: (id) => live[id]?.activation || null,
     provide,
+    /** Whether this document built a named capability. */
+    can: (name) => Boolean(providers[name]),
     hostApi: HOST_API,
     plugins,
     boot,
