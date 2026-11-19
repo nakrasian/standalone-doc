@@ -1,5 +1,8 @@
 export function createToolbar(deps = {}) {
   const {zoom, editor, figures, status, policy, session} = deps;
+  /* The store is a capability, not a module this one may assume: a document can be an
+     editor without carrying comments (a capability is authored). */
+  const comments = deps.optional("comments");
   /* export (100) is built after toolbar (90) and is only reached from a click. */
   const exporter = deps.late("export");
 
@@ -212,6 +215,8 @@ export function createToolbar(deps = {}) {
       policy: options.policy,
       overrides: options.overrides,
       mode: options.mode,
+      /* An export declares what its copy may do; a save inherits the document's own. */
+      capabilities: options.capabilities,
       absentOutside: options.absentOutside === true,
     });
     const {problems} = await policy.apply(clone, planned);
@@ -318,7 +323,7 @@ export function createToolbar(deps = {}) {
 
   /* Which panel is showing. One dialog, five questions; the tab is a view of the draft, not
      a second draft. */
-  const TABS = ["document", "storage", "runtime", "plugins", "about"];
+  const TABS = ["document", "storage", "runtime", "plugins", "comments", "about"];
   let activeTab = "document";
 
   function selectTab(name) {
@@ -335,7 +340,33 @@ export function createToolbar(deps = {}) {
        mounted on first activation because that mount is the one that reads a catalog (a
        network call, an author may never want it). */
     if (name === "plugins") mountPluginsPanel();
+    if (name === "comments") paintComments();
     if (name === "about") paintAbout();
+  }
+
+  /* The Comments panel is a view of the store, never a second store. It lists what the
+     file carries in the same order the bar does (unresolved first) and focuses a thread
+     by closing the dialog: a popover behind a modal is not a popover. */
+  function paintComments() {
+    const dialog = settingsDialog();
+    if (!dialog) return;
+    const list = dialog.querySelector("[data-dd-comments-list]");
+    const count = dialog.querySelector("[data-dd-comment-count]");
+    const author = dialog.querySelector("[data-dd-author]");
+    if (author) author.textContent = settingsDraft?.author?.trim() || "—";
+    const api = comments();
+    if (!api) {
+      if (count) count.textContent = "not part of this document";
+      if (list) list.textContent = "";
+      return;
+    }
+    const totals = api.counts();
+    if (count) {
+      count.textContent = totals.total
+        ? `${totals.unresolved} unresolved · ${totals.total} total`
+        : "none yet";
+    }
+    if (list) api.panel(list);
   }
 
   function mountPluginsPanel() {
@@ -688,6 +719,14 @@ export function createToolbar(deps = {}) {
     for (const tab of dialog.querySelectorAll("[data-dd-tab]")) {
       tab.addEventListener("click", () => selectTab(tab.dataset.ddTab));
     }
+    dialog.querySelector("[data-dd-comments-list]").addEventListener("click", (event) => {
+      const row = event.target.closest("[data-comment-id]");
+      if (!row) return;
+      const comment = comments()?.list().find((candidate) => candidate.id === row.dataset.commentId);
+      if (!comment) return;
+      closeDocSettings();
+      comments()?.focus?.(comment);
+    });
     dialog.querySelector("[data-dd-copy]").addEventListener("click", async (event) => {
       const button = event.currentTarget;
       const text = globalThis.StandaloneDoc.diagnostics();
@@ -1439,6 +1478,7 @@ export function createToolbar(deps = {}) {
     const saveBtn = e.target.closest("[data-save]");
     const viewerBtn = e.target.closest("[data-viewer]");
     const shortcutBtn = e.target.closest("[data-shortcuts]");
+    const commentBtn = e.target.closest("[data-comment-add-edit]");
     const zoomBtn = e.target.closest("[data-zoom]");
 
     /* A field inside a menu must not close it on click: the caret has to
@@ -1456,6 +1496,13 @@ export function createToolbar(deps = {}) {
     if (viewerBtn) {askViewer().then((choice) => choice && viewer(choice)); return;}
     if (saveBtn) {save(); return;}
     if (shortcutBtn) {showShortcuts(); return;}
+    if (commentBtn) {
+      /* The Add button is a no-op without a selection; say why on the item rather than
+         opening a dialog that cannot act. */
+      const result = comments()?.begin?.();
+      if (result && !result.ok) commentBtn.title = result.reason;
+      return;
+    }
 
     if (!e.target.closest("[data-emoji-menu]")) {
       if (!keepMenu) closeAllMenus();

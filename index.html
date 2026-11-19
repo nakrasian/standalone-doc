@@ -1601,6 +1601,50 @@
     /* a clickable size readout: it opens the sheet at Size & loading */
     .stats[data-stats] { cursor: pointer; border-radius: 4px; }
     .stats[data-stats]:hover { background: var(--hover); }
+
+    /* Comments panel: the same rows the doc-bar lists, rendered by the comments module. The
+       panel is the author's view; adding a comment is the Insert menu's, because that is where
+       the selection still exists. */
+    #doc-settings-dialog .dd-comments {
+      margin-top: 6px;
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    #doc-settings-dialog .dd-comments .doc-comment {
+      display: block;
+      width: 100%;
+      padding: 7px 8px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    #doc-settings-dialog .dd-comments .doc-comment:hover,
+    #doc-settings-dialog .dd-comments .doc-comment:focus-visible {
+      background: var(--ds-hover, #eef0f4);
+    }
+
+    #doc-settings-dialog .dd-comments .doc-comment[data-resolved] .doc-comment-body {
+      color: #6b7280;
+      text-decoration: line-through;
+    }
+
+    #doc-settings-dialog .dd-comments .doc-comment-meta {
+      display: block;
+      margin-top: 2px;
+      font-size: 11.5px;
+      color: #6b7280;
+    }
+
+    #doc-settings-dialog .dd-comments .doc-empty {
+      margin: 6px 0;
+      color: #6b7280;
+    }
   </style>
 <!-- /@asset -->
 <!-- @asset id="boot-ui-styles" kind="css" order="25" -->
@@ -1966,6 +2010,7 @@
             <div class="menu-sep"></div>
             <div class="menu-label">Inline</div>
             <button data-menu-item data-link>Link</button>
+            <button data-menu-item data-comment-add-edit title="Select text first">Comment on selection…</button>
             <button data-menu-item data-cmd="insertUnorderedList">Bulleted list</button>
             <button data-menu-item data-cmd="insertOrderedList">Numbered list</button>
             <div class="menu-sep"></div>
@@ -2252,13 +2297,17 @@
 <!-- @asset id="doc-bar-markup" kind="html" order="15" -->
     <header id="doc-bar" data-chrome contenteditable="false">
       <span class="folio" data-folio>—</span>
+      <span class="doc-kind" data-doc-kind hidden>Review copy</span>
+      <button type="button" class="doc-add" data-comment-add hidden disabled title="Select some text to comment on">Add comment</button>
       <span class="grow"></span>
       <span class="doc-title" data-doc-title></span>
       <span class="grow"></span>
+      <button type="button" class="doc-count" data-comments-toggle hidden aria-haspopup="dialog" aria-expanded="false">Comments <b data-comments-count>0</b></button>
       <span class="doc-wrap">
         <button type="button" data-doc-settings aria-haspopup="dialog" aria-expanded="false">Settings</button>
         <div class="doc-panel" data-doc-panel role="dialog" aria-label="Document settings" hidden>
-          <p class="doc-row"><span>Mode</span><b>view — read only</b></p>
+          <p class="doc-note" data-doc-kind-note hidden>Review copy — you can add comments; the text is locked.</p>
+          <p class="doc-row"><span>Mode</span><b data-doc-mode>view — read only</b></p>
           <p class="doc-row"><span>Pages</span><b data-doc-pages>—</b></p>
           <p class="doc-row"><span>Runtime</span><code data-doc-pin>—</code></p>
           <div class="doc-sep"></div>
@@ -2276,12 +2325,15 @@
       </span>
       <button type="button" class="save-text" data-save title="Download a copy of this document">Save a copy</button>
       <button type="button" class="doc-restore" data-doc-restore aria-label="Show the reading bar" title="Show the reading bar" hidden>≡</button>
+      <div class="doc-panel doc-comments" data-comments-panel role="dialog" aria-label="Comments" hidden></div>
     </header>
 <!-- /@asset -->
 
 <!-- @asset id="doc-bar-styles" kind="css" order="21" -->
   <style id="doc-bar-styles">
-    /* The viewer's only chrome: a folio, a save, and a reader's settings.
+    /* The one bar a copy has: reader chrome in `view`, annotation chrome in `comment`.
+       It is the same element in both, because a review copy needs the folio, the save and
+       the zoom too — a second `comment-bar` would have been this file copied.
        It mirrors the editor's `#ui-minimal` bar (34px, folio left, title centred, Save
        right) with its own rules: `toolbar-styles.css` is `requiredBy: ["edit"]` and costs
        30.5 KB, which a viewer must not pay for two buttons. The tokens are the editor's
@@ -2504,6 +2556,87 @@
       color: var(--doc-muted);
     }
 
+    /* Which review affordances exist. The `hidden` attribute is set by the bar's binding
+       from `#doc-settings`, so a copy can never be upgraded by editing markup. */
+    header#doc-bar .doc-add {
+      border-color: var(--doc-line);
+      background: var(--doc-paper);
+      color: var(--doc-ink);
+      font-weight: 600;
+    }
+
+    header#doc-bar .doc-add:disabled {
+      color: #9aa1ab;
+      border-color: transparent;
+      cursor: default;
+    }
+
+    header#doc-bar .doc-add:not(:disabled):hover {
+      background: var(--doc-hover);
+    }
+
+    header#doc-bar .doc-kind {
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+
+    header#doc-bar .doc-count b {
+      margin-left: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    header#doc-bar .doc-comments {
+      width: 320px;
+      max-height: min(60vh, 460px);
+      overflow: auto;
+      padding: 8px;
+    }
+
+    header#doc-bar .doc-comments[hidden] {
+      display: none;
+    }
+
+    header#doc-bar .doc-comment {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      text-align: left;
+      font: inherit;
+      color: var(--doc-ink);
+      cursor: pointer;
+    }
+
+    header#doc-bar .doc-comment:hover,
+    header#doc-bar .doc-comment:focus-visible {
+      background: var(--doc-hover);
+    }
+
+    header#doc-bar .doc-comment-meta {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--doc-muted);
+    }
+
+    header#doc-bar .doc-comment[data-resolved=""] .doc-comment-body {
+      color: var(--doc-muted);
+      text-decoration: line-through;
+    }
+
+    header#doc-bar .doc-empty {
+      margin: 8px;
+      font-size: 12px;
+      color: var(--doc-muted);
+    }
+
     @media print {
       header#doc-bar {
         display: none;
@@ -2516,7 +2649,8 @@
   <script type="module" id="doc-bar">
     /*@compiled-from src/doc-bar.js — envelope is build-owned; edit the body or src/*/
     export function createDocBar(deps = {}) {
-      const {pagination, zoom, figures, signals, session, env} = deps;
+      const {pagination, zoom, figures, signals, session, settings, env} = deps;
+      const comments = deps.optional("comments");
       const {document} = env;
       const registry = env.StandaloneDoc;
 
@@ -2525,10 +2659,22 @@
 
       const panel = bar.querySelector("[data-doc-panel]");
       const panelButton = bar.querySelector("[data-doc-settings]");
+      const commentsPanel = bar.querySelector("[data-comments-panel]");
+      const commentsButton = bar.querySelector("[data-comments-toggle]");
+      const commentsCount = bar.querySelector("[data-comments-count]");
+      const addButton = bar.querySelector("[data-comment-add]");
+      const kindChip = bar.querySelector("[data-doc-kind]");
+      const kindNote = bar.querySelector("[data-doc-kind-note]");
+      const modeText = bar.querySelector("[data-doc-mode]");
       const titleEl = bar.querySelector("[data-doc-title]");
       const pagesEl = bar.querySelector("[data-doc-pages]");
       const pinEl = bar.querySelector("[data-doc-pin]");
       const restoreButton = bar.querySelector("[data-doc-restore]");
+
+      const caps = settings.capabilities || {};
+      /* Writing is a capability of the *file*; the mode decides whether the text is yours to
+         change, and a review copy's text is not. */
+      const canComment = () => caps.comments === "write" && settings.mode !== "view";
 
       const manifest = () => {
         try {
@@ -2538,8 +2684,30 @@
         }
       };
 
-      /* What this document is. The folio is pagination's (it owns [data-folio], shared with
-         the editor's minimal bar); the rest is the file's own manifest and title. */
+      /* The selection is the only thing that decides whether "Add comment" can act, and it
+         changes without a click. Coalesce to one frame: a `selectionchange` per keystroke is
+         the flicker lab/016 measured. */
+      let selectionFrame = 0;
+      const hasSelection = () => {
+        const selection = globalThis.getSelection?.();
+        const content = document.getElementById("content");
+        if (!selection || selection.isCollapsed || !selection.rangeCount) return false;
+        const range = selection.getRangeAt(0);
+        return Boolean(content && content.contains(range.startContainer) && content.contains(range.endContainer));
+      };
+
+      function syncSelection() {
+        if (selectionFrame) return;
+        selectionFrame = requestAnimationFrame(() => {
+          selectionFrame = 0;
+          if (!addButton) return;
+          const ready = hasSelection();
+          addButton.disabled = !ready;
+          addButton.title = ready ? "Comment on the selected text" : "Select some text to comment on";
+        });
+      }
+
+      /** What this document is. The folio is pagination's; the rest is the file's own. */
       function sync() {
         if (titleEl) titleEl.textContent = document.title;
         if (pagesEl) pagesEl.textContent = String(pagination.pageCount());
@@ -2548,14 +2716,31 @@
           pinEl.textContent = /@([^/]+)\//.exec(base)?.[1] ?? "inline";
           pinEl.title = base;
         }
+        bar.dataset.kind = settings.mode;
+        bar.dataset.comments = caps.comments || "off";
+        /* A review copy says what it is, once, where the reader is already looking. */
+        if (kindChip) kindChip.hidden = settings.mode !== "comment";
+        if (kindNote) kindNote.hidden = settings.mode !== "comment";
+        if (modeText) modeText.textContent = settings.mode === "comment" ? "comment — comments only" : "view — read only";
+        if (addButton) {
+          addButton.hidden = !canComment();
+          addButton.disabled = addButton.hidden || !hasSelection();
+        }
+        const count = comments()?.counts?.() || {total: 0, unresolved: 0};
+        if (commentsCount) commentsCount.textContent = String(count.unresolved || count.total);
+        if (commentsButton) {
+          commentsButton.hidden = !(count.total > 0 || canComment());
+          commentsButton.setAttribute("aria-label", `${count.total} comment${count.total === 1 ? "" : "s"}`);
+        }
+        if (commentsPanel && !commentsPanel.hidden) comments()?.panel?.(commentsPanel);
         pagination.syncFolio();
       }
 
       /**
-       * A viewer's save is a download: a read-only document cannot write the file it came
-       * from. Same act as the editor's Save, minus the policy — the manifest already says
-       * what travels. Both paths strip the same list (`session.js`), which is what keeps a
-       * file identical whichever flavour saved it.
+       * A copy's save is a download: a read-only document cannot write the file it came from.
+       * Same act as the editor's Save, minus the policy — the manifest already says what
+       * travels. Both paths strip the same list (`session.js`), which is what keeps a file
+       * identical whichever flavour saved it.
        */
       function save() {
         const clone = document.documentElement.cloneNode(true);
@@ -2579,7 +2764,10 @@
         if (hidden) bar.dataset.sessionHidden = "";
         else delete bar.dataset.sessionHidden;
         if (restoreButton) restoreButton.hidden = !hidden;
-        if (hidden) openPanel(false);
+        if (hidden) {
+          openPanel(false);
+          openComments(false);
+        }
       }
 
       const isHidden = () => bar.hasAttribute("data-session-hidden");
@@ -2589,15 +2777,25 @@
         panel.hidden = !open;
         panelButton?.setAttribute("aria-expanded", String(open));
         if (open) {
+          openComments(false);
           sync();
           zoom.syncUI();
         }
+      }
+
+      function openComments(open) {
+        if (!commentsPanel || !commentsButton) return;
+        if (open) comments()?.panel?.(commentsPanel);
+        commentsPanel.hidden = !open;
+        commentsButton.setAttribute("aria-expanded", String(open));
+        if (open) openPanel(false);
       }
 
       bar.addEventListener("click", (event) => {
         if (event.target.closest("[data-save]")) {
           save();
           openPanel(false);
+          openComments(false);
           return;
         }
         if (event.target.closest("[data-doc-hide]")) {
@@ -2613,22 +2811,53 @@
           openPanel(panel ? panel.hidden : false);
           return;
         }
+        if (event.target.closest("[data-comments-toggle]")) {
+          openComments(commentsPanel ? commentsPanel.hidden : false);
+          return;
+        }
+        if (event.target.closest("[data-comment-add]")) {
+          const result = comments()?.begin?.();
+          if (result && !result.ok && addButton) addButton.title = result.reason;
+          return;
+        }
+        const row = event.target.closest("[data-comment-id]");
+        if (row && commentsPanel?.contains(row)) {
+          const comment = comments()?.list?.().find((candidate) => candidate.id === row.dataset.commentId);
+          if (comment) {
+            comments()?.focus?.(comment);
+            openComments(false);
+          }
+          return;
+        }
         const zoomButton = event.target.closest("[data-zoom]");
         if (zoomButton) {
           zoom.command(zoomButton.dataset.zoom);
           return;
         }
         if (panel && !panel.hidden && !panel.contains(event.target)) openPanel(false);
+        if (commentsPanel && !commentsPanel.hidden && !commentsPanel.contains(event.target)) openComments(false);
       });
 
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && panel && !panel.hidden) openPanel(false);
+        if (event.key !== "Escape") return;
+        if (panel && !panel.hidden) openPanel(false);
+        else if (commentsPanel && !commentsPanel.hidden) openComments(false);
       });
 
+      /* A button click moves the caret out of the document, which takes the selection with
+         it — and the selection is the whole input to "Add comment". Cancel the mousedown so
+         the range is still live when the click handler runs; the click itself still fires. */
+      bar.addEventListener("mousedown", (event) => {
+        if (event.target.closest("[data-comment-add]")) event.preventDefault();
+      });
+
+      document.addEventListener("selectionchange", syncSelection);
+
+      comments()?.onChange?.(sync);
       signals.on("layout", sync);
       sync();
 
-      return {save, sync, openPanel, setHidden, isHidden};
+      return {save, sync, openPanel, openComments, setHidden, isHidden};
     }
     StandaloneDoc.register("doc-bar", createDocBar);
   </script>
@@ -2714,7 +2943,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"write"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":33001,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-I/Dul95xt88xyTc5JK+Xn2snJZPMGn5Ypr3TetCS0C0bUtOyEMnFJg0/7VPQvPa7"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":1513,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-QvUsWn+hHOpWYg7UmhkkzitkYqHtlry+qv+WZd55UtVfX9zAtu9XpCAKnMlIUkPD"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":5385,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-nZzCMhmJqBvhGYvxhQxN9e8Hxxy7aSJfXZvEP2P/xi60S/Uo1rfY1hg/Cy9Sq3b6"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":3857,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-C3mm8oJ9m8UFXSjEuRI7duhcbqSm0yq7TSUMWKWAQnUCqFsS3KTgWH9aTDfyFqLg"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":45358,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2844,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-EGgTFYC8BEY8wZc9ZkaAGrQYMNYdt+gaNEQTx2LzNUTbk8oRCwYBhYzLiwj4g3m4"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":33117,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-w0VOucswhkQRGJm+/++nccg1NC8s4y6enXX/OlwQAdVKsl81QRM0w4HGvp5wOCOg"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":21144,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-jbz0lZkEpLafuSuyV07jjJiqMmcJMoKkGlny+OMRULKSAqAjZ1YNlqraHTThlkvW"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":66232,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-86CxUW97eOrGCkm+6w5Rei/JFpz/3ZvX1gP1mXMozO8onb1+P28vhFswG5yXkBuc"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":9864,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-7KGHvqWypSp+JryRQqqmCk35KuKXSJoMNMESHCnW57lTd1TM9RKV46BNX63bvf+8"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":34068,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-hoZ2yOa9Ab8Bnwh7LDlDbNdWyH6gd1l/BCyxwq2Nb1PLjxipX6NPW8OgsYxUdO8l"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16263,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-XSQegPIatrJ6f+JU3sTHTNvwuBR/cCNGVeNemKR92MUGn2kCPRsm3xbKcLAQ30rs"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2099,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-JLaIFL0l4BW2D95sk81W+nPD1QcUw3nTgpKhbnQMrcf5lBAtAGwdD821p2whuWh+"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7178,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-cCXiRCuTixnghuxnux4FNmYNadWksJ35aM2k/0o0lJJt9J0GuqFTAq2D4fHzFz1v"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":8258,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-Cpd/OG4KT923a02qcynlmttumeAPw71KAXvdWMS0DfoC7vow+ig8acTwsICbDr5E"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":45358,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2874,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Zu0QyksLXlJsrwCVNr+IeeIO897dLpvWB7sRvroohq+WE4xGL4xJxFMh2DxQdRVV"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":46697,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-Kt43DHF6cD9sOl2FJFe5uQraE47txxZS5W0S+mnnbi2uwA9xiQwkn3rMJ0VuXVP7"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":21439,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-ld/WFkZBBwfLS5bobfN12cydj2i2ScN7q6nq3hqoT6eABgikDoqWZW3TTOv4DK8T"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":68357,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-XCLO10nRSTprOiPhL3LP1YmfkeMDrMZoG3JyZWfWXJFvov2BKgOZ8sSJrZiOJDZR"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":10779,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-Z9yYy39npgE9V85vm6D04VQ8ZT9wpmYKwZKB8FtCrGDpVR0CDhZQuh5ZhDzGJeDZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -4297,9 +4526,9 @@
 
         /* A built flavour carries only the chrome its mode builds, but `index.html` is the
            source of all of them and a hand-edited copy can carry a block it never runs. Paint
-           the chrome this mode owns, and only that — the bar is a viewer's. */
-        const viewerBar = document.getElementById("doc-bar");
-        if (viewerBar) viewerBar.hidden = settings.mode !== "view";
+           the chrome this mode owns, and only that — one bar serves a viewer and a reviewer. */
+        const bar = document.getElementById("doc-bar");
+        if (bar) bar.hidden = settings.mode !== "view" && settings.mode !== "comment";
         /* The same rule the other way round, and it is not symmetry for its own sake: a
            document saved with its editor inline and then switched to view mode carries the
            ribbon's markup without the module that drives it. Dead furniture is worse than
@@ -7486,7 +7715,12 @@
 
       const content = document.getElementById("content");
       const stage = document.getElementById("stage");
-      const writable = () => settings.capabilities?.comments === "write" && settings.mode !== "view";
+
+      /* The injected snapshot is what the loader built; the block is what the file says now.
+         The Document panel edits `author` during the session, and a comment authored after
+         that has to use the name the sheet just wrote. */
+      const live = () => env.StandaloneDoc?.settings?.() || settings;
+      const writable = () => live().capabilities?.comments === "write" && live().mode !== "view";
 
       /* Both are optional in the sense that matters: a document with no `#content` has no
          document to annotate, and the module still has to return its API. */
@@ -7496,6 +7730,58 @@
       let cache = new Map();
       let frame = 0;
       let focused = null;
+      let composer = null;
+      let pending = null;
+      const listeners = new Set();
+
+      /* Who is writing. The author's name is the document's (it is what a reviewer replies
+         to); a reviewer's name is this browser's, keyed by the document, and never written
+         into a file — a reviewer cannot sign for the author (decision 2). A `file://` copy
+         has no library id, so the key falls back to its path and title: the same reviewer
+         re-opening the same copy keeps their name. */
+      const docKey = () => {
+        const id = live().cloud?.id;
+        const where = globalThis.location?.pathname || "";
+        return `sd:reviewer:${id || `${where}#${document.title}`}`;
+      };
+
+      function authorName() {
+        try {
+          return globalThis.localStorage?.getItem(docKey()) || "";
+        } catch {
+          /* A private window or a blocked origin: an unnamed reviewer is still a reviewer. */
+          return "";
+        }
+      }
+
+      function setAuthorName(name) {
+        const trimmed = String(name || "").trim();
+        if (!trimmed) return "";
+        try {
+          globalThis.localStorage?.setItem(docKey(), trimmed);
+        } catch {
+          /* Storage is a convenience, not a requirement. */
+        }
+        return trimmed;
+      }
+
+      /** Who a record is attributed to: the author in edit mode, a reviewer everywhere else. */
+      function writer(name) {
+        return live().mode === "edit"
+          ? {name: live().author || name || "Author", kind: "author"}
+          : {name: name || authorName() || "Reader", kind: "reviewer"};
+      }
+
+      /** Every mutation ends here, so the bar can update a count without polling. */
+      function changed() {
+        for (const fn of listeners) {
+          try {
+            fn();
+          } catch {
+            /* A listener is chrome; its failure must not lose the edit that fired it. */
+          }
+        }
+      }
 
       /* ------------------------------------------------------------------ storage */
 
@@ -7510,6 +7796,7 @@
           /* Absent means "no comments". An empty array is a change to the file for nothing. */
           block?.remove();
           status()?.markDirty();
+          changed();
           return;
         }
         if (!block) {
@@ -7520,6 +7807,7 @@
         }
         block.textContent = serializeStore(store);
         status()?.markDirty();
+        changed();
       }
 
       /* ------------------------------------------------------------------- blocks */
@@ -7775,6 +8063,75 @@
         }
       }
 
+      /**
+       * A writable thread's verbs. Deliberately three: reply, resolve, and the parent's
+       * delete. Editing a comment is a reply — a review history that can be rewritten is
+       * not a history (invariant 29).
+       */
+      function actions(parent, comment, result) {
+        const footer = document.createElement("div");
+        footer.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eef0f4;display:flex;gap:6px;flex-wrap:wrap";
+
+        const resolve = document.createElement("button");
+        resolve.type = "button";
+        resolve.textContent = comment.resolved ? "Reopen" : "Resolve";
+        resolve.style.cssText = "font:12px system-ui;padding:3px 8px;border:1px solid #dfe1e6;border-radius:6px;background:#fff;cursor:pointer";
+        resolve.addEventListener("click", () => {
+          const next = setResolved(comment.id, !comment.resolved);
+          if (next) focus(next);
+        });
+
+        const replyButton = document.createElement("button");
+        replyButton.type = "button";
+        replyButton.textContent = "Reply";
+        replyButton.style.cssText = resolve.style.cssText;
+        replyButton.addEventListener("click", () => {
+          const box = document.createElement("textarea");
+          box.rows = 2;
+          box.placeholder = "Reply…";
+          box.setAttribute("aria-label", "Reply");
+          box.style.cssText = "flex:1 1 100%;margin-top:6px;font:13px system-ui;padding:6px;border:1px solid #dfe1e6;border-radius:6px";
+          const send = document.createElement("button");
+          send.type = "button";
+          send.textContent = "Send";
+          send.style.cssText = resolve.style.cssText;
+          const post = () => {
+            const next = reply(comment.id, {body: box.value, author: writer()});
+            if (next) focus(next);
+          };
+          send.addEventListener("click", post);
+          box.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) post();
+          });
+          replyButton.replaceWith(box);
+          footer.append(send);
+          box.focus();
+        });
+
+        footer.append(resolve, replyButton);
+
+        if (live().mode === "edit") {
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.textContent = "Delete";
+          removeButton.style.cssText = resolve.style.cssText;
+          removeButton.addEventListener("click", () => {
+            remove(comment.id);
+            blur();
+          });
+          footer.append(removeButton);
+        }
+
+        if (result?.how === "orphan") {
+          const note = document.createElement("span");
+          note.style.cssText = "font:11px system-ui;color:#92400e";
+          note.textContent = "Its paragraph is gone.";
+          footer.append(note);
+        }
+
+        parent.append(footer);
+      }
+
       function placePopover(anchorEl) {
         if (!popover) return;
         const box = anchorEl?.getBoundingClientRect?.();
@@ -7793,6 +8150,7 @@
         const panel = document.createElement("div");
         panel.style.cssText = "padding:10px 12px;font:14px/1.45 system-ui;color:#1b1f24;background:#fff;border:1px solid #dfe1e6;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,0.18);max-width:320px";
         thread(panel, comment, result);
+        if (writable()) actions(panel, comment, result);
         popover.append(panel);
         popover.hidden = false;
         focused = comment.id;
@@ -7831,16 +8189,18 @@
        * document with no comments stays byte-identical to one written before this module
        * existed.
        */
-      function add({body, author} = {}) {
+      function add({body, author, range: captured} = {}) {
         if (!writable() || !content || !body || !String(body).trim()) return null;
         const idx = provisionalIndex();
-        const range = selectedRange(idx);
+        /* The composer takes focus, which takes the selection: `begin()` captures the range
+           first and hands it over, so what is commented on is what was selected. */
+        const range = captured || selectedRange(idx);
         if (!range) return null;
         const draft = anchorOf(idx, range.from, range.to);
         if (!draft.blocks.length) return null;
         const ids = draft.blocks.map((name) => realIdFor(name, idx.list));
         const anchor = {...draft, blocks: ids};
-        const comment = commentAt({anchor, body, author: author || {name: settings.author || "Author", kind: "author"}});
+        const comment = commentAt({anchor, body, author: author || writer()});
         store.comments.push(comment);
         save();
         draw();
@@ -7886,6 +8246,179 @@
         return store.comments.map((comment) => ({...comment, state: resolveAnchor(comment.anchor, idx).how}));
       };
 
+      /** How the bar labels itself: unresolved first, because that is the work left. */
+      function counts() {
+        const idx = index();
+        let unresolved = 0;
+        let orphans = 0;
+        for (const comment of store.comments) {
+          if (!comment.resolved) unresolved += 1;
+          if (resolveAnchor(comment.anchor, idx).how === "orphan") orphans += 1;
+        }
+        return {total: store.comments.length, unresolved, orphans};
+      }
+
+      /** The thread list, unresolved first, for the bar's panel and the Comments tab. */
+      function panel(container) {
+        container.replaceChildren();
+        const idx = index();
+        const rows = [...store.comments].sort(
+          (a, b) => Number(Boolean(a.resolved)) - Number(Boolean(b.resolved)) || String(a.createdAt).localeCompare(String(b.createdAt)),
+        );
+        if (!rows.length) {
+          const empty = document.createElement("p");
+          empty.className = "doc-empty";
+          empty.textContent = writable() ? "No comments yet. Select text, then Add comment." : "No comments in this copy.";
+          container.append(empty);
+          return container;
+        }
+        for (const comment of rows) {
+          const state = resolveAnchor(comment.anchor, idx).how;
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "doc-comment";
+          button.dataset.commentId = comment.id;
+          if (comment.resolved) button.dataset.resolved = "";
+          const body = document.createElement("span");
+          body.className = "doc-comment-body";
+          body.textContent = comment.body.length > 96 ? `${comment.body.slice(0, 96)}…` : comment.body;
+          const meta = document.createElement("span");
+          meta.className = "doc-comment-meta";
+          const flags = [comment.author.name, state === "orphan" ? "unattached" : state === "block" ? "on the paragraph" : null];
+          if (comment.replies?.length) flags.push(`${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`);
+          meta.textContent = flags.filter(Boolean).join(" · ");
+          button.append(body, meta);
+          container.append(button);
+        }
+        return container;
+      }
+
+      /* ------------------------------------------------------------------ composer */
+
+      function closeComposer() {
+        if (composer) composer.hidden = true;
+        pending = null;
+      }
+
+      /** The document's own author, written where the Document panel would have written it. */
+      function setDocumentAuthor(name) {
+        const block = document.getElementById("doc-settings");
+        if (!block) return "";
+        const trimmed = String(name || "").trim();
+        if (!trimmed) return "";
+        try {
+          const next = JSON.parse(block.textContent || "{}");
+          next.author = trimmed;
+          block.textContent = JSON.stringify(next);
+          status()?.markDirty();
+        } catch {
+          return "";
+        }
+        return trimmed;
+      }
+
+      function openComposer(range, anchorEl) {
+        if (!composer) return null;
+        const editing = live().mode === "edit";
+        pending = {range};
+        /* Who is signing: the file's author in edit mode, this browser's name for a reviewer.
+           Either way the question is asked at most once. */
+        const named = editing ? Boolean(live().author) : Boolean(authorName());
+        composer.replaceChildren();
+        const form = document.createElement("form");
+        form.style.cssText = "display:block;padding:10px 12px;font:14px/1.45 system-ui;color:#1b1f24;background:#fff;border:1px solid #dfe1e6;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,0.18);width:320px";
+        const heading = document.createElement("p");
+        heading.style.cssText = "margin:0 0 6px;font:12px system-ui;color:#6b7280";
+        heading.textContent = editing ? "Comment as the author" : "Comment as a reviewer";
+        const box = document.createElement("textarea");
+        box.rows = 3;
+        box.required = true;
+        box.placeholder = "What is wrong, or what is good?";
+        box.setAttribute("aria-label", "Comment");
+        box.style.cssText = "width:100%;box-sizing:border-box;font:13px/1.4 system-ui;padding:6px 8px;border:1px solid #dfe1e6;border-radius:6px;resize:vertical";
+        const name = document.createElement("input");
+        name.type = "text";
+        name.value = editing ? (live().author || "") : authorName();
+        name.placeholder = editing ? "Your name (saved in this file)" : "Your name (kept in this browser)";
+        name.setAttribute("aria-label", "Your name");
+        name.autocomplete = "nickname";
+        name.style.cssText = "width:100%;box-sizing:border-box;margin-top:6px;font:13px system-ui;padding:5px 8px;border:1px solid #dfe1e6;border-radius:6px";
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;gap:6px;justify-content:flex-end;margin-top:8px";
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.textContent = "Cancel";
+        cancel.style.cssText = "font:12px system-ui;padding:4px 10px;border:1px solid #dfe1e6;border-radius:6px;background:#fff;cursor:pointer";
+        const submit = document.createElement("button");
+        submit.type = "submit";
+        submit.textContent = "Comment";
+        submit.style.cssText = "font:12px system-ui;padding:4px 10px;border:1px solid #2f6fed;border-radius:6px;background:#2f6fed;color:#fff;cursor:pointer";
+        form.append(heading, box);
+        /* The author signs for themselves; a reviewer may be asked once. */
+        if (!named) form.append(name);
+        row.append(cancel, submit);
+        form.append(row);
+        composer.append(form);
+        cancel.addEventListener("click", closeComposer);
+        box.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            closeComposer();
+          }
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) form.requestSubmit();
+        });
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          if (!named && !name.value.trim()) {
+            name.focus();
+            return;
+          }
+          const typed = !named ? String(name.value).trim() : "";
+          const who = editing
+            ? writer(setDocumentAuthor(typed))
+            : writer(setAuthorName(typed));
+          const created = add({body: box.value, author: who, range: pending?.range});
+          closeComposer();
+          if (created) focus(created);
+        });
+        /* Shown on the next frame: the click that opened it is still propagating, and the
+           outside-click handler would otherwise see a visible composer and close it. */
+        requestAnimationFrame(() => {
+          if (!composer || pending == null) return;
+          composer.hidden = false;
+          box.focus();
+        });
+        const box_ = anchorEl?.getBoundingClientRect?.();
+        const width = 340;
+        const margin = 8;
+        const left = box_ ? Math.min(globalThis.innerWidth - width - margin, Math.max(margin, box_.left)) : margin * 4;
+        const top = box_ ? Math.min(globalThis.innerHeight - 200, Math.max(margin, box_.bottom + 6)) : margin * 8;
+        composer.style.left = `${Math.round(left)}px`;
+        composer.style.top = `${Math.round(top)}px`;
+        return composer;
+      }
+
+      /**
+       * Start a comment on the current selection. Returns `{ok, reason}`: a button that can
+       * only fail silently is a button that teaches nothing.
+       */
+      function begin() {
+        if (!writable()) return {ok: false, reason: "This copy does not take comments."};
+        const idx = provisionalIndex();
+        const range = selectedRange(idx);
+        if (!range) return {ok: false, reason: "Select the text you want to comment on first."};
+        const selectionRange = globalThis.getSelection?.()?.rangeCount ? globalThis.getSelection().getRangeAt(0) : null;
+        const rect = selectionRange?.getBoundingClientRect?.();
+        openComposer(range, rect ? {getBoundingClientRect: () => rect} : null);
+        return {ok: true};
+      }
+
+      /** Subscribe to "the store changed" — the bar's count, a panel's list. */
+      function onChange(fn) {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      }
+
       /* ------------------------------------------------------------------ session */
 
       function schedule() {
@@ -7916,6 +8449,14 @@
           popover.style.cssText = "position:fixed;z-index:60;pointer-events:auto";
           document.body.append(popover);
         }
+        if (!composer) {
+          composer = document.createElement("div");
+          composer.id = "comment-composer";
+          composer.dataset.pluginUi = "";
+          composer.hidden = true;
+          composer.style.cssText = "position:fixed;z-index:61;pointer-events:auto";
+          document.body.append(composer);
+        }
         draw();
         return layer;
       }
@@ -7929,13 +8470,20 @@
         signals.on("resize", schedule);
         document.fonts?.ready.then(schedule).catch(() => {});
         document.addEventListener("click", (event) => {
+          if (composer && !composer.hidden && !composer.contains(event.target) && !event.target.closest?.("#comment-layer")) {
+            closeComposer();
+          }
           if (popover?.hidden) return;
           if (popover.contains(event.target)) return;
           if (event.target.closest?.("#comment-layer")) return;
+          /* The bar is chrome that opens threads, not a click "outside" them. */
+          if (event.target.closest?.("#doc-bar")) return;
           blur();
         });
         document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape" && !popover?.hidden) blur();
+          if (event.key !== "Escape") return;
+          if (composer && !composer.hidden) closeComposer();
+          else if (popover && !popover.hidden) blur();
         });
         layer?.addEventListener("click", (event) => {
           const pill = event.target.closest("#comment-orphans");
@@ -7962,7 +8510,10 @@
 
       init();
 
-      const api = {init, mount, list, add, reply, resolve: setResolved, remove, focus, blur, render: draw, merge: mergeInto, load};
+      const api = {
+        init, mount, list, add, reply, resolve: setResolved, remove, focus, blur, render: draw,
+        begin, counts, panel, onChange, canWrite: writable, authorName, setAuthorName, merge: mergeInto, load,
+      };
       /* Offered to plugins, which must never own the store: a plugin may present comments,
          and may not become the thing that writes them (invariant 11). */
       env.StandaloneDoc?.provide?.("comments", api);
@@ -9386,7 +9937,9 @@
           /* Selection is an editing affordance: #figure-tools is an edit-only fragment, so an
              outline in a viewer promises actions that cannot exist (lab/010, measured). */
           const mode = env?.StandaloneDoc?.settings?.().mode ?? document.documentElement.dataset.mode;
-          if (mode === "view") return;
+          /* Selection is an editing affordance. A review copy's text is locked, and a
+             viewer's has no tools to offer: only the editor selects a figure. */
+          if (mode !== "edit") return;
           const figure = event.target.closest && event.target.closest("figure.figure");
           if (figure && content.contains(figure)) {
             select(figure);
@@ -9900,6 +10453,10 @@
           delete next.policy;
         }
         next.mode = planned.mode;
+        /* A mode that cannot edit says so. `registry.settings()` clamps this at read time, but
+           writing `editable: true` into a review copy is a false claim about the file, and a
+           reader who hand-edits `mode` would inherit it. */
+        if (planned.mode !== "edit") next.editable = false;
         /* `capabilities` is authored by the caller (an export, or the module that wrote the
            first comment) and must agree with the manifest this same save writes. Written
            here rather than after `apply()` for that reason, and written only when it
@@ -9978,6 +10535,9 @@
     /*@compiled-from src/toolbar.js — envelope is build-owned; edit the body or src/*/
     export function createToolbar(deps = {}) {
       const {zoom, editor, figures, status, policy, session} = deps;
+      /* The store is a capability, not a module this one may assume: a document can be an
+         editor without carrying comments (a capability is authored). */
+      const comments = deps.optional("comments");
       /* export (100) is built after toolbar (90) and is only reached from a click. */
       const exporter = deps.late("export");
 
@@ -10190,6 +10750,8 @@
           policy: options.policy,
           overrides: options.overrides,
           mode: options.mode,
+          /* An export declares what its copy may do; a save inherits the document's own. */
+          capabilities: options.capabilities,
           absentOutside: options.absentOutside === true,
         });
         const {problems} = await policy.apply(clone, planned);
@@ -10296,7 +10858,7 @@
 
       /* Which panel is showing. One dialog, five questions; the tab is a view of the draft, not
          a second draft. */
-      const TABS = ["document", "storage", "runtime", "plugins", "about"];
+      const TABS = ["document", "storage", "runtime", "plugins", "comments", "about"];
       let activeTab = "document";
 
       function selectTab(name) {
@@ -10313,7 +10875,33 @@
            mounted on first activation because that mount is the one that reads a catalog (a
            network call, an author may never want it). */
         if (name === "plugins") mountPluginsPanel();
+        if (name === "comments") paintComments();
         if (name === "about") paintAbout();
+      }
+
+      /* The Comments panel is a view of the store, never a second store. It lists what the
+         file carries in the same order the bar does (unresolved first) and focuses a thread
+         by closing the dialog: a popover behind a modal is not a popover. */
+      function paintComments() {
+        const dialog = settingsDialog();
+        if (!dialog) return;
+        const list = dialog.querySelector("[data-dd-comments-list]");
+        const count = dialog.querySelector("[data-dd-comment-count]");
+        const author = dialog.querySelector("[data-dd-author]");
+        if (author) author.textContent = settingsDraft?.author?.trim() || "—";
+        const api = comments();
+        if (!api) {
+          if (count) count.textContent = "not part of this document";
+          if (list) list.textContent = "";
+          return;
+        }
+        const totals = api.counts();
+        if (count) {
+          count.textContent = totals.total
+            ? `${totals.unresolved} unresolved · ${totals.total} total`
+            : "none yet";
+        }
+        if (list) api.panel(list);
       }
 
       function mountPluginsPanel() {
@@ -10666,6 +11254,14 @@
         for (const tab of dialog.querySelectorAll("[data-dd-tab]")) {
           tab.addEventListener("click", () => selectTab(tab.dataset.ddTab));
         }
+        dialog.querySelector("[data-dd-comments-list]").addEventListener("click", (event) => {
+          const row = event.target.closest("[data-comment-id]");
+          if (!row) return;
+          const comment = comments()?.list().find((candidate) => candidate.id === row.dataset.commentId);
+          if (!comment) return;
+          closeDocSettings();
+          comments()?.focus?.(comment);
+        });
         dialog.querySelector("[data-dd-copy]").addEventListener("click", async (event) => {
           const button = event.currentTarget;
           const text = globalThis.StandaloneDoc.diagnostics();
@@ -11417,6 +12013,7 @@
         const saveBtn = e.target.closest("[data-save]");
         const viewerBtn = e.target.closest("[data-viewer]");
         const shortcutBtn = e.target.closest("[data-shortcuts]");
+        const commentBtn = e.target.closest("[data-comment-add-edit]");
         const zoomBtn = e.target.closest("[data-zoom]");
 
         /* A field inside a menu must not close it on click: the caret has to
@@ -11434,6 +12031,13 @@
         if (viewerBtn) {askViewer().then((choice) => choice && viewer(choice)); return;}
         if (saveBtn) {save(); return;}
         if (shortcutBtn) {showShortcuts(); return;}
+        if (commentBtn) {
+          /* The Add button is a no-op without a selection; say why on the item rather than
+             opening a dialog that cannot act. */
+          const result = comments()?.begin?.();
+          if (result && !result.ok) commentBtn.title = result.reason;
+          return;
+        }
 
         if (!e.target.closest("[data-emoji-menu]")) {
           if (!keepMenu) closeAllMenus();
@@ -13283,6 +13887,7 @@
       <button type="button" role="tab" data-dd-tab="storage" aria-controls="dd-storage" aria-selected="false">Storage</button>
       <button type="button" role="tab" data-dd-tab="runtime" aria-controls="dd-runtime" aria-selected="false">Runtime</button>
       <button type="button" role="tab" data-dd-tab="plugins" aria-controls="dd-plugins" aria-selected="false">Plugins</button>
+      <button type="button" role="tab" data-dd-tab="comments" aria-controls="dd-comments" aria-selected="false">Comments</button>
       <button type="button" role="tab" data-dd-tab="about" aria-controls="dd-about" aria-selected="false">About</button>
     </div>
 
@@ -13359,6 +13964,22 @@
         <!-- Filled by src/plugins.js on first activation: the panel is a host element, and the
              plugin module owns everything inside it (install, storage, updates). -->
         <div data-dd-plugins></div>
+      </section>
+
+      <section class="dd-panel" id="dd-comments" data-dd-panel="comments" role="tabpanel" hidden>
+        <!-- The author's view of the same store a reviewer's copy carries. Adding is the
+             Insert menu's job: it is where the selection is, and a modal cannot hold one. -->
+        <p>Comments travel with the file. A reviewer's copy can add its own; the text here
+          stays yours. <b>Insert › Comment on selection…</b> adds one.</p>
+        <div class="ds-row">
+          <span class="grow">Signed as</span>
+          <b data-dd-author>—</b>
+        </div>
+        <div class="ds-row">
+          <span class="grow">Threads</span>
+          <span class="ds-hint" data-dd-comment-count>none yet</span>
+        </div>
+        <div class="dd-comments" data-dd-comments-list></div>
       </section>
 
       <section class="dd-panel" id="dd-about" data-dd-panel="about" role="tabpanel" hidden>

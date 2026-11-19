@@ -53,6 +53,7 @@
     <button type="button" role="tab" data-dd-tab="storage" aria-controls="dd-storage" aria-selected="false">Storage</button>
     <button type="button" role="tab" data-dd-tab="runtime" aria-controls="dd-runtime" aria-selected="false">Runtime</button>
     <button type="button" role="tab" data-dd-tab="plugins" aria-controls="dd-plugins" aria-selected="false">Plugins</button>
+    <button type="button" role="tab" data-dd-tab="comments" aria-controls="dd-comments" aria-selected="false">Comments</button>
     <button type="button" role="tab" data-dd-tab="about" aria-controls="dd-about" aria-selected="false">About</button>
   </div>
 
@@ -129,6 +130,22 @@
       <!-- Filled by src/plugins.js on first activation: the panel is a host element, and the
            plugin module owns everything inside it (install, storage, updates). -->
       <div data-dd-plugins></div>
+    </section>
+
+    <section class="dd-panel" id="dd-comments" data-dd-panel="comments" role="tabpanel" hidden>
+      <!-- The author's view of the same store a reviewer's copy carries. Adding is the
+           Insert menu's job: it is where the selection is, and a modal cannot hold one. -->
+      <p>Comments travel with the file. A reviewer's copy can add its own; the text here
+        stays yours. <b>Insert › Comment on selection…</b> adds one.</p>
+      <div class="ds-row">
+        <span class="grow">Signed as</span>
+        <b data-dd-author>—</b>
+      </div>
+      <div class="ds-row">
+        <span class="grow">Threads</span>
+        <span class="ds-hint" data-dd-comment-count>none yet</span>
+      </div>
+      <div class="dd-comments" data-dd-comments-list></div>
     </section>
 
     <section class="dd-panel" id="dd-about" data-dd-panel="about" role="tabpanel" hidden>

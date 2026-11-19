@@ -327,7 +327,7 @@ test("a preset reaches the saved file", async ({ page }) => {
   expect(result.validate).toEqual([]);
 });
 
-test("one dialog, five panels, and only one of them is showing", async ({ page }) => {
+test("one dialog, six panels, and only one of them is showing", async ({ page }) => {
   await load(page);
   await page.click(GEAR);
   await page.click("#ui-ribbon [data-settings-open]");
@@ -342,14 +342,14 @@ test("one dialog, five panels, and only one of them is showing", async ({ page }
     };
   });
 
-  expect(await panels()).toEqual({selected: "document", visible: ["document"], tabs: ["document", "storage", "runtime", "plugins", "about"]});
+  expect(await panels()).toEqual({selected: "document", visible: ["document"], tabs: ["document", "storage", "runtime", "plugins", "comments", "about"]});
   /* The mode is stated once, in the head, and is not a control: a viewer is an export. */
   expect(await page.evaluate(() => document.querySelector("[data-dd-state]").textContent)).toContain("edit mode");
   expect(await page.locator("[data-dd-panel] select[data-ds='mode']").count()).toBe(0);
 
-  for (const name of ["storage", "runtime", "about"]) {
+  for (const name of ["storage", "runtime", "comments", "about"]) {
     await page.click(`[data-dd-tab="${name}"]`);
-    expect(await panels()).toEqual({selected: name, visible: [name], tabs: ["document", "storage", "runtime", "plugins", "about"]});
+    expect(await panels()).toEqual({selected: name, visible: [name], tabs: ["document", "storage", "runtime", "plugins", "comments", "about"]});
   }
 });
 

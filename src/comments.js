@@ -361,7 +361,12 @@ export function createComments(deps = {}) {
 
   const content = document.getElementById("content");
   const stage = document.getElementById("stage");
-  const writable = () => settings.capabilities?.comments === "write" && settings.mode !== "view";
+
+  /* The injected snapshot is what the loader built; the block is what the file says now.
+     The Document panel edits `author` during the session, and a comment authored after
+     that has to use the name the sheet just wrote. */
+  const live = () => env.StandaloneDoc?.settings?.() || settings;
+  const writable = () => live().capabilities?.comments === "write" && live().mode !== "view";
 
   /* Both are optional in the sense that matters: a document with no `#content` has no
      document to annotate, and the module still has to return its API. */
@@ -371,6 +376,58 @@ export function createComments(deps = {}) {
   let cache = new Map();
   let frame = 0;
   let focused = null;
+  let composer = null;
+  let pending = null;
+  const listeners = new Set();
+
+  /* Who is writing. The author's name is the document's (it is what a reviewer replies
+     to); a reviewer's name is this browser's, keyed by the document, and never written
+     into a file — a reviewer cannot sign for the author (decision 2). A `file://` copy
+     has no library id, so the key falls back to its path and title: the same reviewer
+     re-opening the same copy keeps their name. */
+  const docKey = () => {
+    const id = live().cloud?.id;
+    const where = globalThis.location?.pathname || "";
+    return `sd:reviewer:${id || `${where}#${document.title}`}`;
+  };
+
+  function authorName() {
+    try {
+      return globalThis.localStorage?.getItem(docKey()) || "";
+    } catch {
+      /* A private window or a blocked origin: an unnamed reviewer is still a reviewer. */
+      return "";
+    }
+  }
+
+  function setAuthorName(name) {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return "";
+    try {
+      globalThis.localStorage?.setItem(docKey(), trimmed);
+    } catch {
+      /* Storage is a convenience, not a requirement. */
+    }
+    return trimmed;
+  }
+
+  /** Who a record is attributed to: the author in edit mode, a reviewer everywhere else. */
+  function writer(name) {
+    return live().mode === "edit"
+      ? {name: live().author || name || "Author", kind: "author"}
+      : {name: name || authorName() || "Reader", kind: "reviewer"};
+  }
+
+  /** Every mutation ends here, so the bar can update a count without polling. */
+  function changed() {
+    for (const fn of listeners) {
+      try {
+        fn();
+      } catch {
+        /* A listener is chrome; its failure must not lose the edit that fired it. */
+      }
+    }
+  }
 
   /* ------------------------------------------------------------------ storage */
 
@@ -385,6 +442,7 @@ export function createComments(deps = {}) {
       /* Absent means "no comments". An empty array is a change to the file for nothing. */
       block?.remove();
       status()?.markDirty();
+      changed();
       return;
     }
     if (!block) {
@@ -395,6 +453,7 @@ export function createComments(deps = {}) {
     }
     block.textContent = serializeStore(store);
     status()?.markDirty();
+    changed();
   }
 
   /* ------------------------------------------------------------------- blocks */
@@ -650,6 +709,75 @@ export function createComments(deps = {}) {
     }
   }
 
+  /**
+   * A writable thread's verbs. Deliberately three: reply, resolve, and the parent's
+   * delete. Editing a comment is a reply — a review history that can be rewritten is
+   * not a history (invariant 29).
+   */
+  function actions(parent, comment, result) {
+    const footer = document.createElement("div");
+    footer.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eef0f4;display:flex;gap:6px;flex-wrap:wrap";
+
+    const resolve = document.createElement("button");
+    resolve.type = "button";
+    resolve.textContent = comment.resolved ? "Reopen" : "Resolve";
+    resolve.style.cssText = "font:12px system-ui;padding:3px 8px;border:1px solid #dfe1e6;border-radius:6px;background:#fff;cursor:pointer";
+    resolve.addEventListener("click", () => {
+      const next = setResolved(comment.id, !comment.resolved);
+      if (next) focus(next);
+    });
+
+    const replyButton = document.createElement("button");
+    replyButton.type = "button";
+    replyButton.textContent = "Reply";
+    replyButton.style.cssText = resolve.style.cssText;
+    replyButton.addEventListener("click", () => {
+      const box = document.createElement("textarea");
+      box.rows = 2;
+      box.placeholder = "Reply…";
+      box.setAttribute("aria-label", "Reply");
+      box.style.cssText = "flex:1 1 100%;margin-top:6px;font:13px system-ui;padding:6px;border:1px solid #dfe1e6;border-radius:6px";
+      const send = document.createElement("button");
+      send.type = "button";
+      send.textContent = "Send";
+      send.style.cssText = resolve.style.cssText;
+      const post = () => {
+        const next = reply(comment.id, {body: box.value, author: writer()});
+        if (next) focus(next);
+      };
+      send.addEventListener("click", post);
+      box.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) post();
+      });
+      replyButton.replaceWith(box);
+      footer.append(send);
+      box.focus();
+    });
+
+    footer.append(resolve, replyButton);
+
+    if (live().mode === "edit") {
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.textContent = "Delete";
+      removeButton.style.cssText = resolve.style.cssText;
+      removeButton.addEventListener("click", () => {
+        remove(comment.id);
+        blur();
+      });
+      footer.append(removeButton);
+    }
+
+    if (result?.how === "orphan") {
+      const note = document.createElement("span");
+      note.style.cssText = "font:11px system-ui;color:#92400e";
+      note.textContent = "Its paragraph is gone.";
+      footer.append(note);
+    }
+
+    parent.append(footer);
+  }
+
   function placePopover(anchorEl) {
     if (!popover) return;
     const box = anchorEl?.getBoundingClientRect?.();
@@ -668,6 +796,7 @@ export function createComments(deps = {}) {
     const panel = document.createElement("div");
     panel.style.cssText = "padding:10px 12px;font:14px/1.45 system-ui;color:#1b1f24;background:#fff;border:1px solid #dfe1e6;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,0.18);max-width:320px";
     thread(panel, comment, result);
+    if (writable()) actions(panel, comment, result);
     popover.append(panel);
     popover.hidden = false;
     focused = comment.id;
@@ -706,16 +835,18 @@ export function createComments(deps = {}) {
    * document with no comments stays byte-identical to one written before this module
    * existed.
    */
-  function add({body, author} = {}) {
+  function add({body, author, range: captured} = {}) {
     if (!writable() || !content || !body || !String(body).trim()) return null;
     const idx = provisionalIndex();
-    const range = selectedRange(idx);
+    /* The composer takes focus, which takes the selection: `begin()` captures the range
+       first and hands it over, so what is commented on is what was selected. */
+    const range = captured || selectedRange(idx);
     if (!range) return null;
     const draft = anchorOf(idx, range.from, range.to);
     if (!draft.blocks.length) return null;
     const ids = draft.blocks.map((name) => realIdFor(name, idx.list));
     const anchor = {...draft, blocks: ids};
-    const comment = commentAt({anchor, body, author: author || {name: settings.author || "Author", kind: "author"}});
+    const comment = commentAt({anchor, body, author: author || writer()});
     store.comments.push(comment);
     save();
     draw();
@@ -761,6 +892,179 @@ export function createComments(deps = {}) {
     return store.comments.map((comment) => ({...comment, state: resolveAnchor(comment.anchor, idx).how}));
   };
 
+  /** How the bar labels itself: unresolved first, because that is the work left. */
+  function counts() {
+    const idx = index();
+    let unresolved = 0;
+    let orphans = 0;
+    for (const comment of store.comments) {
+      if (!comment.resolved) unresolved += 1;
+      if (resolveAnchor(comment.anchor, idx).how === "orphan") orphans += 1;
+    }
+    return {total: store.comments.length, unresolved, orphans};
+  }
+
+  /** The thread list, unresolved first, for the bar's panel and the Comments tab. */
+  function panel(container) {
+    container.replaceChildren();
+    const idx = index();
+    const rows = [...store.comments].sort(
+      (a, b) => Number(Boolean(a.resolved)) - Number(Boolean(b.resolved)) || String(a.createdAt).localeCompare(String(b.createdAt)),
+    );
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "doc-empty";
+      empty.textContent = writable() ? "No comments yet. Select text, then Add comment." : "No comments in this copy.";
+      container.append(empty);
+      return container;
+    }
+    for (const comment of rows) {
+      const state = resolveAnchor(comment.anchor, idx).how;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "doc-comment";
+      button.dataset.commentId = comment.id;
+      if (comment.resolved) button.dataset.resolved = "";
+      const body = document.createElement("span");
+      body.className = "doc-comment-body";
+      body.textContent = comment.body.length > 96 ? `${comment.body.slice(0, 96)}…` : comment.body;
+      const meta = document.createElement("span");
+      meta.className = "doc-comment-meta";
+      const flags = [comment.author.name, state === "orphan" ? "unattached" : state === "block" ? "on the paragraph" : null];
+      if (comment.replies?.length) flags.push(`${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`);
+      meta.textContent = flags.filter(Boolean).join(" · ");
+      button.append(body, meta);
+      container.append(button);
+    }
+    return container;
+  }
+
+  /* ------------------------------------------------------------------ composer */
+
+  function closeComposer() {
+    if (composer) composer.hidden = true;
+    pending = null;
+  }
+
+  /** The document's own author, written where the Document panel would have written it. */
+  function setDocumentAuthor(name) {
+    const block = document.getElementById("doc-settings");
+    if (!block) return "";
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return "";
+    try {
+      const next = JSON.parse(block.textContent || "{}");
+      next.author = trimmed;
+      block.textContent = JSON.stringify(next);
+      status()?.markDirty();
+    } catch {
+      return "";
+    }
+    return trimmed;
+  }
+
+  function openComposer(range, anchorEl) {
+    if (!composer) return null;
+    const editing = live().mode === "edit";
+    pending = {range};
+    /* Who is signing: the file's author in edit mode, this browser's name for a reviewer.
+       Either way the question is asked at most once. */
+    const named = editing ? Boolean(live().author) : Boolean(authorName());
+    composer.replaceChildren();
+    const form = document.createElement("form");
+    form.style.cssText = "display:block;padding:10px 12px;font:14px/1.45 system-ui;color:#1b1f24;background:#fff;border:1px solid #dfe1e6;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,0.18);width:320px";
+    const heading = document.createElement("p");
+    heading.style.cssText = "margin:0 0 6px;font:12px system-ui;color:#6b7280";
+    heading.textContent = editing ? "Comment as the author" : "Comment as a reviewer";
+    const box = document.createElement("textarea");
+    box.rows = 3;
+    box.required = true;
+    box.placeholder = "What is wrong, or what is good?";
+    box.setAttribute("aria-label", "Comment");
+    box.style.cssText = "width:100%;box-sizing:border-box;font:13px/1.4 system-ui;padding:6px 8px;border:1px solid #dfe1e6;border-radius:6px;resize:vertical";
+    const name = document.createElement("input");
+    name.type = "text";
+    name.value = editing ? (live().author || "") : authorName();
+    name.placeholder = editing ? "Your name (saved in this file)" : "Your name (kept in this browser)";
+    name.setAttribute("aria-label", "Your name");
+    name.autocomplete = "nickname";
+    name.style.cssText = "width:100%;box-sizing:border-box;margin-top:6px;font:13px system-ui;padding:5px 8px;border:1px solid #dfe1e6;border-radius:6px";
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:6px;justify-content:flex-end;margin-top:8px";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.style.cssText = "font:12px system-ui;padding:4px 10px;border:1px solid #dfe1e6;border-radius:6px;background:#fff;cursor:pointer";
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.textContent = "Comment";
+    submit.style.cssText = "font:12px system-ui;padding:4px 10px;border:1px solid #2f6fed;border-radius:6px;background:#2f6fed;color:#fff;cursor:pointer";
+    form.append(heading, box);
+    /* The author signs for themselves; a reviewer may be asked once. */
+    if (!named) form.append(name);
+    row.append(cancel, submit);
+    form.append(row);
+    composer.append(form);
+    cancel.addEventListener("click", closeComposer);
+    box.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        closeComposer();
+      }
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) form.requestSubmit();
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!named && !name.value.trim()) {
+        name.focus();
+        return;
+      }
+      const typed = !named ? String(name.value).trim() : "";
+      const who = editing
+        ? writer(setDocumentAuthor(typed))
+        : writer(setAuthorName(typed));
+      const created = add({body: box.value, author: who, range: pending?.range});
+      closeComposer();
+      if (created) focus(created);
+    });
+    /* Shown on the next frame: the click that opened it is still propagating, and the
+       outside-click handler would otherwise see a visible composer and close it. */
+    requestAnimationFrame(() => {
+      if (!composer || pending == null) return;
+      composer.hidden = false;
+      box.focus();
+    });
+    const box_ = anchorEl?.getBoundingClientRect?.();
+    const width = 340;
+    const margin = 8;
+    const left = box_ ? Math.min(globalThis.innerWidth - width - margin, Math.max(margin, box_.left)) : margin * 4;
+    const top = box_ ? Math.min(globalThis.innerHeight - 200, Math.max(margin, box_.bottom + 6)) : margin * 8;
+    composer.style.left = `${Math.round(left)}px`;
+    composer.style.top = `${Math.round(top)}px`;
+    return composer;
+  }
+
+  /**
+   * Start a comment on the current selection. Returns `{ok, reason}`: a button that can
+   * only fail silently is a button that teaches nothing.
+   */
+  function begin() {
+    if (!writable()) return {ok: false, reason: "This copy does not take comments."};
+    const idx = provisionalIndex();
+    const range = selectedRange(idx);
+    if (!range) return {ok: false, reason: "Select the text you want to comment on first."};
+    const selectionRange = globalThis.getSelection?.()?.rangeCount ? globalThis.getSelection().getRangeAt(0) : null;
+    const rect = selectionRange?.getBoundingClientRect?.();
+    openComposer(range, rect ? {getBoundingClientRect: () => rect} : null);
+    return {ok: true};
+  }
+
+  /** Subscribe to "the store changed" — the bar's count, a panel's list. */
+  function onChange(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  }
+
   /* ------------------------------------------------------------------ session */
 
   function schedule() {
@@ -791,6 +1095,14 @@ export function createComments(deps = {}) {
       popover.style.cssText = "position:fixed;z-index:60;pointer-events:auto";
       document.body.append(popover);
     }
+    if (!composer) {
+      composer = document.createElement("div");
+      composer.id = "comment-composer";
+      composer.dataset.pluginUi = "";
+      composer.hidden = true;
+      composer.style.cssText = "position:fixed;z-index:61;pointer-events:auto";
+      document.body.append(composer);
+    }
     draw();
     return layer;
   }
@@ -804,13 +1116,20 @@ export function createComments(deps = {}) {
     signals.on("resize", schedule);
     document.fonts?.ready.then(schedule).catch(() => {});
     document.addEventListener("click", (event) => {
+      if (composer && !composer.hidden && !composer.contains(event.target) && !event.target.closest?.("#comment-layer")) {
+        closeComposer();
+      }
       if (popover?.hidden) return;
       if (popover.contains(event.target)) return;
       if (event.target.closest?.("#comment-layer")) return;
+      /* The bar is chrome that opens threads, not a click "outside" them. */
+      if (event.target.closest?.("#doc-bar")) return;
       blur();
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !popover?.hidden) blur();
+      if (event.key !== "Escape") return;
+      if (composer && !composer.hidden) closeComposer();
+      else if (popover && !popover.hidden) blur();
     });
     layer?.addEventListener("click", (event) => {
       const pill = event.target.closest("#comment-orphans");
@@ -837,7 +1156,10 @@ export function createComments(deps = {}) {
 
   init();
 
-  const api = {init, mount, list, add, reply, resolve: setResolved, remove, focus, blur, render: draw, merge: mergeInto, load};
+  const api = {
+    init, mount, list, add, reply, resolve: setResolved, remove, focus, blur, render: draw,
+    begin, counts, panel, onChange, canWrite: writable, authorName, setAuthorName, merge: mergeInto, load,
+  };
   /* Offered to plugins, which must never own the store: a plugin may present comments,
      and may not become the thing that writes them (invariant 11). */
   env.StandaloneDoc?.provide?.("comments", api);

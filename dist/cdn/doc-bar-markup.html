@@ -1,11 +1,15 @@
 <span class="folio" data-folio>—</span>
+<span class="doc-kind" data-doc-kind hidden>Review copy</span>
+<button type="button" class="doc-add" data-comment-add hidden disabled title="Select some text to comment on">Add comment</button>
 <span class="grow"></span>
 <span class="doc-title" data-doc-title></span>
 <span class="grow"></span>
+<button type="button" class="doc-count" data-comments-toggle hidden aria-haspopup="dialog" aria-expanded="false">Comments <b data-comments-count>0</b></button>
 <span class="doc-wrap">
   <button type="button" data-doc-settings aria-haspopup="dialog" aria-expanded="false">Settings</button>
   <div class="doc-panel" data-doc-panel role="dialog" aria-label="Document settings" hidden>
-    <p class="doc-row"><span>Mode</span><b>view — read only</b></p>
+    <p class="doc-note" data-doc-kind-note hidden>Review copy — you can add comments; the text is locked.</p>
+    <p class="doc-row"><span>Mode</span><b data-doc-mode>view — read only</b></p>
     <p class="doc-row"><span>Pages</span><b data-doc-pages>—</b></p>
     <p class="doc-row"><span>Runtime</span><code data-doc-pin>—</code></p>
     <div class="doc-sep"></div>
@@ -23,3 +27,4 @@
 </span>
 <button type="button" class="save-text" data-save title="Download a copy of this document">Save a copy</button>
 <button type="button" class="doc-restore" data-doc-restore aria-label="Show the reading bar" title="Show the reading bar" hidden>≡</button>
+<div class="doc-panel doc-comments" data-comments-panel role="dialog" aria-label="Comments" hidden></div>

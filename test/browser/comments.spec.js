@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const fileUrl = (name = "index.html") => "file://" + path.join(ROOT, name);
+const GEAR = '#ui-ribbon [data-menu][aria-label="Document settings"]';
 
 async function load(page, url = fileUrl()) {
   const problems = [];
@@ -186,5 +187,67 @@ test.describe("comments: the store and the anchor", () => {
       marks: document.querySelectorAll("#comment-layer .comment-mark").length,
     }));
     expect(after).toEqual({block: false, marks: 0});
+  });
+});
+
+/* ------------------------------------------------------------------- the author */
+
+/* Edit mode has no bar: the author's entry point is the Insert menu (where a selection
+   still exists) and their list is the Comments panel. Both are wired to the same store
+   the review copies use. */
+test.describe("comments: the author in edit mode", () => {
+  test("Insert › Comment on selection authors a comment and signs the file", async ({ page }) => {
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    /* The menu click must not take the selection with it — the toolbar cancels mousedown
+       for exactly this reason. */
+    await page.getByRole("button", {name: "Insert", exact: true}).click();
+    await page.locator("[data-comment-add-edit]").click();
+
+    const composer = page.locator("#comment-composer");
+    await expect(composer).toBeVisible();
+    await expect(composer).toContainText("Comment as the author");
+    /* index.html has no author yet, so the composer asks once and writes it to the file. */
+    await composer.locator("textarea").fill("This claim needs a citation.");
+    await composer.locator('input[type="text"]').fill("Nadia");
+    await composer.locator('button[type="submit"]').click();
+    await expect(composer).toBeHidden();
+
+    const state = await page.evaluate(() => ({
+      record: JSON.parse(document.getElementById("comment-store").textContent).comments[0],
+      author: JSON.parse(document.getElementById("doc-settings").textContent).author ?? null,
+      marks: document.querySelectorAll("#comment-layer .comment-mark").length,
+    }));
+    expect(state.record.body).toBe("This claim needs a citation.");
+    expect(state.record.author).toEqual({name: "Nadia", kind: "author"});
+    expect(state.author).toBe("Nadia");
+    expect(state.marks).toBeGreaterThan(0);
+  });
+
+  test("the Comments panel counts, orders and focuses threads", async ({ page }) => {
+    await load(page);
+    /* Two threads: the second is resolved, so the first row must be the open one. */
+    await selectText(page, [0, 1], [0, 6]);
+    await page.evaluate(() => {
+      const comments = globalThis.StandaloneDoc.modules.comments;
+      comments.add({body: "Open thread.", author: {name: "Nadia", kind: "author"}});
+      comments.add({body: "Done thread.", author: {name: "Nadia", kind: "author"}});
+      const done = comments.list().find((comment) => comment.body === "Done thread.");
+      comments.resolve(done.id, true);
+    });
+
+    await page.click(GEAR);
+    await page.click("#app-toolbar [data-settings-open]");
+    await page.click('[data-dd-tab="comments"]');
+    const panel = page.locator("#dd-comments");
+    await expect(panel.locator("[data-dd-comment-count]")).toHaveText("1 unresolved · 2 total");
+    const rows = panel.locator(".doc-comment");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toContainText("Open thread.");
+    await expect(rows.last()).toContainText("Done thread.");
+
+    await rows.first().click();
+    await expect(page.locator("#doc-settings-dialog")).not.toHaveAttribute("open", "");
+    await expect(page.locator("#comment-popover")).toContainText("Open thread.");
   });
 });

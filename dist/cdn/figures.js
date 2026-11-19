@@ -1409,7 +1409,9 @@ export function createFigures(deps = {}) {
       /* Selection is an editing affordance: #figure-tools is an edit-only fragment, so an
          outline in a viewer promises actions that cannot exist (lab/010, measured). */
       const mode = env?.StandaloneDoc?.settings?.().mode ?? document.documentElement.dataset.mode;
-      if (mode === "view") return;
+      /* Selection is an editing affordance. A review copy's text is locked, and a
+         viewer's has no tools to offer: only the editor selects a figure. */
+      if (mode !== "edit") return;
       const figure = event.target.closest && event.target.closest("figure.figure");
       if (figure && content.contains(figure)) {
         select(figure);

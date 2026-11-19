@@ -1167,3 +1167,47 @@ dialog.plugin-trust .pt-foot button.pt-go {
 /* a clickable size readout: it opens the sheet at Size & loading */
 .stats[data-stats] { cursor: pointer; border-radius: 4px; }
 .stats[data-stats]:hover { background: var(--hover); }
+
+/* Comments panel: the same rows the doc-bar lists, rendered by the comments module. The
+   panel is the author's view; adding a comment is the Insert menu's, because that is where
+   the selection still exists. */
+#doc-settings-dialog .dd-comments {
+  margin-top: 6px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+#doc-settings-dialog .dd-comments .doc-comment {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+#doc-settings-dialog .dd-comments .doc-comment:hover,
+#doc-settings-dialog .dd-comments .doc-comment:focus-visible {
+  background: var(--ds-hover, #eef0f4);
+}
+
+#doc-settings-dialog .dd-comments .doc-comment[data-resolved] .doc-comment-body {
+  color: #6b7280;
+  text-decoration: line-through;
+}
+
+#doc-settings-dialog .dd-comments .doc-comment-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #6b7280;
+}
+
+#doc-settings-dialog .dd-comments .doc-empty {
+  margin: 6px 0;
+  color: #6b7280;
+}

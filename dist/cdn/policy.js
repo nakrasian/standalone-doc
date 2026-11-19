@@ -426,6 +426,10 @@ export function createPolicy(deps = {}) {
       delete next.policy;
     }
     next.mode = planned.mode;
+    /* A mode that cannot edit says so. `registry.settings()` clamps this at read time, but
+       writing `editable: true` into a review copy is a false claim about the file, and a
+       reader who hand-edits `mode` would inherit it. */
+    if (planned.mode !== "edit") next.editable = false;
     /* `capabilities` is authored by the caller (an export, or the module that wrote the
        first comment) and must agree with the manifest this same save writes. Written
        here rather than after `apply()` for that reason, and written only when it

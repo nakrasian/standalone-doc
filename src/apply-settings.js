@@ -27,9 +27,9 @@ export function createApplySettings(deps = {}) {
 
     /* A built flavour carries only the chrome its mode builds, but `index.html` is the
        source of all of them and a hand-edited copy can carry a block it never runs. Paint
-       the chrome this mode owns, and only that — the bar is a viewer's. */
-    const viewerBar = document.getElementById("doc-bar");
-    if (viewerBar) viewerBar.hidden = settings.mode !== "view";
+       the chrome this mode owns, and only that — one bar serves a viewer and a reviewer. */
+    const bar = document.getElementById("doc-bar");
+    if (bar) bar.hidden = settings.mode !== "view" && settings.mode !== "comment";
     /* The same rule the other way round, and it is not symmetry for its own sake: a
        document saved with its editor inline and then switched to view mode carries the
        ribbon's markup without the module that drives it. Dead furniture is worse than

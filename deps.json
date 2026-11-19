@@ -17,11 +17,14 @@
         "session"
       ],
       "late": [],
-      "optional": [],
+      "optional": [
+        "comments"
+      ],
       "provides": [
         "save",
         "sync",
         "openPanel",
+        "openComments",
         "setHidden",
         "isHidden"
       ]
@@ -287,6 +290,13 @@
         "focus",
         "blur",
         "render",
+        "begin",
+        "counts",
+        "panel",
+        "onChange",
+        "canWrite",
+        "authorName",
+        "setAuthorName",
         "merge",
         "load"
       ]
@@ -382,6 +392,7 @@
         "export"
       ],
       "optional": [
+        "comments",
         "plugins"
       ],
       "provides": [

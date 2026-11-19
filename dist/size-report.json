@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 608238
+    "bytes": 635613
   },
   "assets": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 37096
+      "bytes": 38315
     },
     {
       "id": "boot-ui-styles",
@@ -27,22 +27,22 @@
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 17422
+      "bytes": 17538
     },
     {
       "id": "doc-bar-markup",
       "kind": "html",
-      "bytes": 1662
+      "bytes": 2278
     },
     {
       "id": "doc-bar-styles",
       "kind": "css",
-      "bytes": 6172
+      "bytes": 8249
     },
     {
       "id": "doc-bar",
       "kind": "js",
-      "bytes": 4406
+      "bytes": 9167
     },
     {
       "id": "figure-tools",
@@ -62,7 +62,7 @@
     {
       "id": "apply-settings",
       "kind": "js",
-      "bytes": 3190
+      "bytes": 3220
     },
     {
       "id": "session",
@@ -112,22 +112,22 @@
     {
       "id": "comments",
       "kind": "js",
-      "bytes": 36350
+      "bytes": 51134
     },
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 61281
+      "bytes": 61450
     },
     {
       "id": "policy",
       "kind": "js",
-      "bytes": 23107
+      "bytes": 23418
     },
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 72058
+      "bytes": 74367
     },
     {
       "id": "plugins",
@@ -142,7 +142,7 @@
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 10231
+      "bytes": 11178
     },
     {
       "id": "bootstrap",
@@ -151,9 +151,9 @@
     }
   ],
   "flavors": {
-    "index.html": 608238,
-    "asset-bodies": 590522,
-    "markup-and-runtime": 17716,
-    "dist/slim.html": 91181
+    "index.html": 635613,
+    "asset-bodies": 617861,
+    "markup-and-runtime": 17752,
+    "dist/slim.html": 91217
   }
 }

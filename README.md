@@ -99,6 +99,31 @@ session's — a saved copy carries the bar back.
 `buildViewer()` authors it, and a viewer saved before v0.5.0 never did, so it stays bar-less.
 `#app-toolbar` — the editor's ribbon — is a different element and never exists in a viewer.
 
+### Comments and review copies
+
+Comments are content: `#comment-store` and the `data-bid` block ids travel in every file and
+every export, and the mode decides only who may write them. A comment anchors one range over
+the document's text stream, so it survives edits; a phrase that cannot be found falls back to
+the paragraph, and a paragraph that is gone leaves the comment *unattached* rather than
+dropped.
+
+There are three writers, one per capability:
+
+- **the editor** (`edit`, `comments: "write"`) — select text, then *Insert › Comment on
+  selection…*; the Comments panel in Document settings lists the threads. The comment is
+  signed with the file's `author`, asked once and saved in the document;
+- **a review copy** (`comment`, `comments: "write"`, `edit: "off"`) — the text is locked and
+  the one bar carries *Add comment*, the thread list and *Save a copy*. A reviewer's name is
+  asked once and kept in the browser, keyed by the document — never written into the file's
+  `author`;
+- **a viewer copy** (`view`, `comments: "read"`) — markers and a read-only thread, no
+  annotation affordance at all. A viewer exported with `comments: "off"` carries neither the
+  store's module nor the bundle.
+
+A copy never writes back to the file it came from (invariant 21): *Save a copy* downloads a
+new file with the same `#comment-store`, and the overlay, composer and popovers are session
+chrome that `session.strip()` removes from it.
+
 ### A document in a library
 
 `#doc-settings.cloud` is `{id, api}`. With it, Save PUTs the serialized document to that

@@ -244,3 +244,14 @@ test("settingsFragment writes capabilities only when they differ", () => {
   const none = policy.plan(WITH_CAPABILITY, {policy: "inline", mode: "edit"});
   assert.equal("capabilities" in policy.settingsFragment(none, {}), false, "a no-op save invents nothing");
 });
+
+test("a non-edit mode is declared read-only, and an edit-mode save does not invent the key", () => {
+  const comment = policy.plan({assets: ASSETS.map((a) => ({...a, mode: "inline"}))}, {policy: "inline", mode: "comment"});
+  const written = policy.settingsFragment(comment, {schema: 1, mode: "edit", editable: true});
+  assert.equal(written.mode, "comment");
+  assert.equal(written.editable, false, "the file must not claim to be editable when it cannot be");
+
+  const edit = policy.plan({assets: ASSETS.map((a) => ({...a, mode: "inline"}))}, {policy: "inline", mode: "edit"});
+  assert.equal("editable" in policy.settingsFragment(edit, {schema: 1, mode: "edit"}), false, "a no-op edit save adds nothing");
+  assert.equal(policy.settingsFragment(edit, {editable: false}).editable, false, "a locked editor keeps its lock");
+});
