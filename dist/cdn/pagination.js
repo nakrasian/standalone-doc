@@ -772,6 +772,14 @@ export function createPagination(deps = {}) {
          again, and only a merge can make it so. */
       if (fragmenting && state) return {needsMerge: true};
 
+      /* A page opened by a tall block starts below the flow; the first block on it needs a
+         page-start margin. (A page opened by a normal overflow was already pushed by the
+         spacer, so `cursor` is already at its top.) */
+      if (!page.items.length && cursor < page.top - 0.5) {
+        spacers.push({before: el, height: page.top - cursor});
+        cursor = page.top;
+      }
+
       // Resizes page size to size of oversized block
       if (tall) {
         page.avail = h;
@@ -785,7 +793,9 @@ export function createPagination(deps = {}) {
         const nextTop = page.top + page.avail + g.chromeGap;
         page = {top: nextTop, avail: g.contentH, items: []};
         pages.push(page);
-        cursor = nextTop;
+        /* Leave `cursor` at the tall block's content end. The page opens below the flow, so
+           the next block needs a page-start margin to reach its top; resetting cursor to
+           `nextTop` here puts that block in the gap. */
       }
     }
 
@@ -885,6 +895,7 @@ export function createPagination(deps = {}) {
   // Rendering/reformatting logic:
   let applying = false;
   let timer = null;
+  let frame = 0;
   let queued = false;
   let lastRun = 0;
 
@@ -892,7 +903,23 @@ export function createPagination(deps = {}) {
   function schedule() {
     if (queued || applying || signals.composing) return;
 
+    /* While fragmenting, the pass runs in the MutationObserver callback itself: that is
+       after the edit and before the next paint. Deferring it by a frame (let alone 120 ms)
+       paints the un-cut paragraph first — text in the page gap and over the next sheet —
+       and that flash is what "not formatted properly" was. The no-churn path keeps this
+       affordable: a pass that changes no cut writes nothing. */
+    if (fragmenting) {
+      queued = false;
+      clearTimeout(timer);
+      timer = null;
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      lastRun = performance.now();
+      refresh();
+      return;
+    }
     queued = true;
+
     const idle = performance.now() - lastRun > 350;
 
     clearTimeout(timer);
@@ -954,22 +981,31 @@ export function createPagination(deps = {}) {
   /* The viewport anchor: the selected block's client top before a pass, restored after.
      The page model can move content when the plan changes (a page added or removed); the
      reader is looking at the caret, so that block must stay put within a line. */
+  /* The scroll position the reader had before the pass. A page break can move the caret to
+     the next page; following it would scroll a page for a change the reader did not make.
+     Keeping the position is the honest default — the text under the caret may move, but the
+     view does not chase it. */
   function scrollAnchor() {
-    const saved = selection.capture(content);
-    if (!saved) return null;
-    const block = content.children[saved.start.block];
-    if (!block) return null;
-    return {block, top: block.getBoundingClientRect().top};
+    return {scrollTop: viewport.scrollTop};
   }
 
   function restoreScroll(anchor) {
-    if (!anchor || !anchor.block.isConnected) return;
-    const delta = anchor.block.getBoundingClientRect().top - anchor.top;
-    if (Math.abs(delta) > 0.5) viewport.scrollTop += delta;
+    if (!anchor) return;
+    if (Math.abs(viewport.scrollTop - anchor.scrollTop) > 0.5) {
+      viewport.scrollTop = anchor.scrollTop;
+    }
   }
 
   function pass({merge = false} = {}) {
     if (applying) return;
+    /* A manual refresh (a mode switch, a demo button) supersedes a queued one. */
+    if (queued) {
+      clearTimeout(timer);
+      timer = null;
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      queued = false;
+    }
 
     applying = true;
     let merged = 0;
@@ -1033,8 +1069,16 @@ export function createPagination(deps = {}) {
     } finally {
       applying = false;
       /* After the selection is back: a browser may scroll to reveal the caret, and the
-         anchor correction should be the last word on where the reader is. */
+         anchor correction should be the last word on where the reader is. The synchronous
+         call handles a same-frame scroll; WebKit and Firefox can reveal the caret on a
+         later frame, so the correction runs again just before the next paints. */
       restoreScroll(anchor);
+      if (anchor) {
+        requestAnimationFrame(() => {
+          restoreScroll(anchor);
+          requestAnimationFrame(() => restoreScroll(anchor));
+        });
+      }
     }
     signals.emit("layout", {pages: pageCount(), check});
   }

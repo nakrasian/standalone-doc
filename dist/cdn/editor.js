@@ -449,8 +449,94 @@ export function createEditor(deps = {}) {
     syncToolbar();
   }
 
+  /* Backspace at the start of a fragment. The tail is a block-level span inside the same
+     paragraph, and Chromium treats that boundary as a block join: one Backspace there
+     deletes two characters. The visible document has no boundary, so delete exactly the
+     character before the caret and let the planner re-cut on the next frame. */
+  function fragmentStartsAt(block, offset) {
+    for (const frag of block.querySelectorAll(":scope > [data-frag]")) {
+      if (selection.offsetIn(block, frag, 0) === offset) return true;
+    }
+    return false;
+  }
+
+  function backspaceAtSeam(event) {
+    if (event.key !== "Backspace" || event.altKey || event.metaKey || event.ctrlKey) return;
+    const caret = selection.capture(content);
+    if (!caret || !caret.collapsed) return;
+    const block = content.children[caret.start.block];
+    if (!block || caret.start.offset <= 0) return;
+    if (!fragmentStartsAt(block, caret.start.offset)) return;
+
+    const from = selection.pointAt(block, caret.start.offset - 1);
+    const to = selection.pointAt(block, caret.start.offset);
+    if (!from || !to) return;
+    event.preventDefault();
+    const range = document.createRange();
+    range.setStart(from.node, from.offset);
+    range.setEnd(to.node, to.offset);
+    range.deleteContents();
+    block.normalize();
+    selection.restore(content, {
+      start: {block: caret.start.block, offset: caret.start.offset - 1},
+      end: {block: caret.start.block, offset: caret.start.offset - 1},
+      collapsed: true,
+    });
+    remember();
+    flushTyping();
+    history.record();
+    status.markDirty();
+    pagination.schedule();
+    syncToolbar();
+  }
+
+  /* Enter at the start of a fragment. Firefox deletes a character at the block-box
+     boundary before splitting, so the same guard applies: unwrap the fragments, split the
+     paragraph at the caret, and let the next pass cut the new block. */
+  function enterAtSeam(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) return;
+    if (event.isComposing) return;
+    const caret = selection.capture(content);
+    if (!caret || !caret.collapsed) return;
+    const block = content.children[caret.start.block];
+    if (!block || caret.start.offset <= 0) return;
+    if (!fragmentStartsAt(block, caret.start.offset)) return;
+
+    event.preventDefault();
+    for (const frag of [...block.querySelectorAll("[data-frag]")]) {
+      while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+      frag.remove();
+    }
+    block.normalize();
+    const point = selection.pointAt(block, caret.start.offset);
+    if (!point) return;
+    const range = document.createRange();
+    range.setStart(point.node, point.offset);
+    range.setEnd(block, block.childNodes.length);
+    const tail = range.extractContents();
+    const tag = /^h[1-6]$/i.test(block.localName) ? "p" : block.localName;
+    const next = document.createElement(tag === "div" ? "p" : tag);
+    next.append(tail);
+    if (!next.firstChild) next.append(document.createElement("br"));
+    block.after(next);
+    const index = [...content.children].indexOf(next);
+    selection.restore(content, {
+      start: {block: index, offset: 0},
+      end: {block: index, offset: 0},
+      collapsed: true,
+    });
+    remember();
+    flushTyping();
+    history.record();
+    status.markDirty();
+    pagination.schedule();
+    syncToolbar();
+  }
+
   function init() {
     try {document.execCommand("defaultParagraphSeparator", false, "p");} catch { }
+    content.addEventListener("keydown", backspaceAtSeam);
+    content.addEventListener("keydown", enterAtSeam);
     document.addEventListener("selectionchange", () => {
       remember();
       syncToolbar();

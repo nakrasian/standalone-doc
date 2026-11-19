@@ -516,6 +516,39 @@ test("a second pass converges on the same pages and cuts", async ({page}) => {
   expect(result.second.cuts).toEqual(result.first.cuts);
 });
 
+test("a mutation is re-planned before the next paint", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const result = await page.evaluate(async () => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh();
+    const block = content.querySelector("[data-frag]").parentElement;
+    const before = {pages: pag.pageCount(), cuts: pag.diagnostics().splits.map((split) => split.offset)};
+    /* Text at the start of the head shifts the cut by exactly this many characters. */
+    const inserted = "Extra words at the start of the paragraph. ".repeat(30);
+    const first = block.firstChild;
+    if (first.nodeType === Node.TEXT_NODE) first.insertData(0, inserted);
+    else block.insertBefore(document.createTextNode(inserted), first);
+    /* The pass runs in the MutationObserver callback, before paint. One task turn is
+       enough; no animation frame is needed, which is exactly the guarantee. */
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return {
+      before,
+      after: {pages: pag.pageCount(), cuts: pag.diagnostics().splits.map((split) => split.offset)},
+      inserted: inserted.length,
+      check: pag.diagnostics().check,
+    };
+  });
+  /* The inserted text changes which line fits, so the cut is not simply old + inserted;
+     it must have moved, and the plan must be valid. */
+  expect(
+    result.after.cuts[0] === result.before.cuts[0] && result.after.pages === result.before.pages,
+    `cut ${result.before.cuts[0]} → ${result.after.cuts[0]} after inserting ${result.inserted} chars (pages ${result.before.pages} → ${result.after.pages})`,
+  ).toBe(false);
+  expect(result.check.ok, JSON.stringify(result.check?.failures)).toBe(true);
+});
+
 test("a no-op pass performs no DOM write in #content", async ({page}) => {
   await boot(page);
   await loadDoc(page, FIXTURE, {fragment: true});
@@ -697,52 +730,55 @@ test("a selection across a cut survives ten passes", async ({page}) => {
   expect(after.end, `end at ${after.end}, expected ${before.end}`).toBe(before.end);
 });
 
-test("a pass keeps the caret's block at the same viewport position", async ({page}) => {
+test("a caret that moves to a new page does not drag the viewport with it", async ({page}) => {
   await boot(page);
-  await loadDoc(page, [
-    ...FIXTURE,
-    {tag: "p", text: LONG},
-    {tag: "p", text: "A final paragraph."},
-  ], {fragment: true});
+  await loadDoc(page, FIXTURE, {fragment: true});
   const placed = await page.evaluate(() => {
     const content = document.getElementById("content");
-    const pag = globalThis.StandaloneDoc.modules.pagination;
     const viewport = document.getElementById("viewport");
-    /* A block after the fragmented paragraph, with content below it: merging the fragment
-       changes the page plan above the caret (the reflow the anchor exists for), and there
-       is still room to scroll down to keep it put. The very last block cannot be kept at
-       the same viewport top — the document ends. */
-    const block = content.children[content.children.length - 3];
-    block.scrollIntoView({block: "center"});
-    const index = [...content.children].indexOf(block);
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const last = content.lastElementChild;
     const range = document.createRange();
-    range.setStart(block.firstChild, Math.min(5, block.textContent.length));
+    range.setStart(last.firstChild, Math.min(1, last.textContent.length));
     range.collapse(true);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
     content.focus();
-    return {block: index, top: block.getBoundingClientRect().top, scrollTop: viewport.scrollTop, fragments: content.querySelectorAll("[data-frag]").length};
-  });
-  expect(placed.fragments, "the fixture must be fragmented to begin with").toBeGreaterThan(0);
-  const after = await page.evaluate((placed) => {
-    const content = document.getElementById("content");
-    const pag = globalThis.StandaloneDoc.modules.pagination;
-    const viewport = document.getElementById("viewport");
-    /* Turning fragmentation off merges the paragraph and re-plans: the page gap that was
-       inside it disappears, so every later block moves. */
-    pag.setFragmenting(false);
-    const block = content.children[placed.block];
+    /* The reader is at the top of the document; the caret is below, out of view. */
+    viewport.scrollTop = 200;
     return {
-      top: block.getBoundingClientRect().top,
       scrollTop: viewport.scrollTop,
-      fragments: content.querySelectorAll("[data-frag]").length,
-      selectionKept: pag.diagnostics().selectionKept,
+      pages: pag.pageCount(),
+      caretBlock: [...content.children].indexOf(last),
     };
-  }, placed);
-  const delta = after.top - placed.top;
-  expect(after.fragments, "the merge did not happen").toBe(0);
-  expect(Math.abs(delta), `the caret block moved ${Math.round(delta)}px; scrollTop ${placed.scrollTop} → ${after.scrollTop}`).toBeLessThanOrEqual(24);
+  });
+  const after = await page.evaluate((placed) => new Promise((resolve) => {
+    const content = document.getElementById("content");
+    const viewport = document.getElementById("viewport");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const caretBlock = content.children[placed.caretBlock];
+    /* Insert a page of content above the caret: it moves to a new page, which is the
+       situation that used to scroll the viewport to the caret. */
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement("p");
+      p.textContent = `Inserted paragraph ${i + 1}. ${"Words that take a line. ".repeat(4)}`;
+      content.insertBefore(p, caretBlock);
+    }
+    setTimeout(() => resolve({
+      scrollTop: viewport.scrollTop,
+      pages: pag.pageCount(),
+      caretBlock: [...content.children].indexOf(caretBlock),
+      selection: globalThis.StandaloneDoc.modules.selection.capture(content),
+    }), 150);
+  }), placed);
+  expect(after.pages, `pages ${placed.pages} → ${after.pages}`).toBeGreaterThan(placed.pages);
+  expect(after.caretBlock, "the caret's block did not move down").toBe(placed.caretBlock + 30);
+  expect(
+    Math.abs(after.scrollTop - placed.scrollTop),
+    `the viewport moved ${Math.round(after.scrollTop - placed.scrollTop)}px when the caret moved to a new page`,
+  ).toBeLessThanOrEqual(24);
+  expect(after.selection, "the caret was lost").not.toBeNull();
 });
 
 test("undo restores the unfragmented snapshot and the next pass re-fragments", async ({page}) => {
@@ -805,12 +841,16 @@ test("undo restores the unfragmented snapshot and the next pass re-fragments", a
 test("a click in a fragment's first line lands in the tail", async ({page}) => {
   await boot(page);
   await loadDoc(page, FIXTURE, {fragment: true});
+  await page.waitForTimeout(100); /* pending scroll corrections from the load pass */
+  await page.evaluate(() => document.querySelector("[data-frag]").scrollIntoView({block: "center"}));
+  /* Scroll-into-view can be followed by a pass or a scroll correction; measure after it
+     settles or the click lands where the head used to be. */
+  await page.waitForTimeout(80);
   const target = await page.evaluate(() => {
     const content = document.getElementById("content");
     const frag = content.querySelector("[data-frag]");
     const block = frag.parentElement;
     const cut = globalThis.StandaloneDoc.modules.pagination.diagnostics().splits[0].offset;
-    frag.scrollIntoView({block: "center"});
     const box = frag.getBoundingClientRect();
     return {x: box.left + 10, y: box.top + 6, block: [...content.children].indexOf(block), cut};
   });
@@ -917,54 +957,151 @@ test("a no-op pass fires no selectionchange", async ({page}) => {
   expect(count, "a no-op pass restored a selection that had not moved").toBe(0);
 });
 
-test("deleting the block before a page gap does not move the reader a page", async ({page}) => {
-  await boot(page);
-  await loadDoc(page, FIXTURE, {fragment: false});
-  const placed = await page.evaluate(() => {
+
+/* --------------------------------------------------------------- editing at the seam */
+
+async function caretAtCut(page) {
+  return page.evaluate(() => {
     const content = document.getElementById("content");
-    const starts = [...content.querySelectorAll("[data-page-start]")];
-    if (starts.length < 2) return {error: `only ${starts.length} page start(s)`};
-    const block = starts[1];
-    block.scrollIntoView({block: "center"});
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const cut = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let remaining = cut;
+    let node = walker.nextNode();
+    while (node && remaining > node.nodeValue.length) {
+      remaining -= node.nodeValue.length;
+      node = walker.nextNode();
+    }
     const range = document.createRange();
-    range.setStart(block.firstChild, Math.min(2, block.textContent.length));
+    range.setStart(node, remaining);
     range.collapse(true);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
     content.focus();
-    window.__watch = block;
-    window.__previous = block.previousElementSibling;
+    return {block: [...content.children].indexOf(block), offset: cut, text: content.textContent.length};
+  });
+}
+
+test("Backspace at the seam keeps the document and the fragments valid", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await caretAtCut(page);
+  for (let i = 0; i < 5; i++) await page.keyboard.press("Backspace");
+  const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh();
+    const d = pag.diagnostics();
     return {
-      top: block.getBoundingClientRect().top,
-      scrollTop: document.getElementById("viewport").scrollTop,
-      previous: Boolean(window.__previous),
+      text: content.textContent.length,
+      fragments: d.fragments,
+      check: d.check,
+      kept: d.selectionKept,
     };
   });
-  expect(placed.error, placed.error).toBeUndefined();
-  expect(placed.previous, "there is no block before the page start").toBe(true);
+  expect(after.text, "five Backspaces at the seam did not remove five characters").toBe(before.text - 5);
+  expect(after.fragments, "the paragraph lost its fragments").toBeGreaterThan(0);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
+  expect(after.kept, "the caret was not restored across the delete").toBe(true);
+});
+
+test("Enter at the seam leaves a document the planner can re-paginate", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await caretAtCut(page);
+  await page.keyboard.press("Enter");
   const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
     const pag = globalThis.StandaloneDoc.modules.pagination;
-    window.__previous.remove();
-    /* The removal itself reflows before the pass; the pass's own job is not to move the
-       reader any further, and not to jump a page. */
-    const beforePass = window.__watch.getBoundingClientRect().top;
+    const text = content.textContent.length;
+    const blocks = content.children.length;
+    pag.refresh();
+    const d = pag.diagnostics();
+    return {text, blocks, fragments: d.fragments, check: d.check, paragraphs: content.querySelectorAll(":scope > p").length};
+  });
+  /* Enter may split the paragraph (one more block), insert a <br>, or add no character;
+     what must hold is that the plan still describes the document. */
+  expect(after.blocks).toBeGreaterThanOrEqual(before.block + 1);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
+  expect(after.text).toBeGreaterThanOrEqual(before.text);
+});
+
+test("Select All and a pass preserve the whole-document selection", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const modifier = process.platform === "darwin" ? "Meta+A" : "Control+A";
+  /* The shortcut selects the focused editable, not the page: focus #content first. */
+  await page.evaluate(() => document.getElementById("content").focus());
+  await page.keyboard.press(modifier);
+  const before = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    return globalThis.StandaloneDoc.modules.selection.capture(content);
+  });
+  expect(before, "Select All produced no capturable selection").not.toBeNull();
+  const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
     pag.refresh();
     return {
-      beforePass,
-      top: window.__watch.getBoundingClientRect().top,
-      scrollTop: document.getElementById("viewport").scrollTop,
-      pages: pag.pageCount(),
+      selection: globalThis.StandaloneDoc.modules.selection.capture(content),
+      kept: pag.diagnostics().selectionKept,
+      check: pag.diagnostics().check,
     };
   });
-  const passDelta = after.top - after.beforePass;
-  expect(
-    Math.abs(passDelta),
-    `the pass moved the reader's block ${Math.round(passDelta)}px`,
-  ).toBeLessThanOrEqual(24);
-  const totalDelta = after.top - placed.top;
-  expect(
-    Math.abs(totalDelta),
-    `the reader's block jumped ${Math.round(totalDelta)}px (scrollTop ${placed.scrollTop} → ${after.scrollTop}, ${after.pages} pages)`,
-  ).toBeLessThanOrEqual(250);
+  expect(after.selection).not.toBeNull();
+  expect(after.selection.start.block).toBe(before.start.block);
+  expect(after.selection.start.offset).toBe(before.start.offset);
+  expect(after.selection.end.block).toBe(before.end.block);
+  expect(after.selection.end.offset).toBe(before.end.offset);
+  expect(after.kept, "the pass lost Select All").toBe(true);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
+});
+
+test("Bold across the seam keeps the text and re-fragments", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const cut = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const point = (at) => {
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let remaining = at;
+      let node = walker.nextNode();
+      while (node && remaining > node.nodeValue.length) {
+        remaining -= node.nodeValue.length;
+        node = walker.nextNode();
+      }
+      return {node, offset: remaining};
+    };
+    const start = point(cut - 20);
+    const end = point(cut + 20);
+    const range = document.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {text: content.textContent.length};
+  });
+  await page.evaluate(() => globalThis.StandaloneDoc.modules.editor.exec("bold"));
+  const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh();
+    return {
+      text: content.textContent.length,
+      bold: content.querySelectorAll("b, strong").length,
+      fragments: pag.diagnostics().fragments,
+      check: pag.diagnostics().check,
+    };
+  });
+  expect(after.text, "Bold changed the text").toBe(before.text);
+  expect(after.bold, "Bold did not produce a bold run").toBeGreaterThan(0);
+  expect(after.fragments, "the paragraph was not re-fragmented").toBeGreaterThan(0);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
 });

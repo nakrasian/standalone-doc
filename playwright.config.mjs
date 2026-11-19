@@ -23,8 +23,12 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    /* `page.pdf()` exists only in headless Chromium (Playwright 1.65), so the PDF half of
+       the print gate is a Chromium-only spec. The print-media rules are asserted in every
+       engine by pagination-print.spec.js; excluding the file here keeps the suite free of
+       "skipped" cases while still running the PDF proof once. */
+    { name: "webkit", testIgnore: /pagination-print-pdf\.spec\.js/, use: { ...devices["Desktop Safari"] } },
+    { name: "firefox", testIgnore: /pagination-print-pdf\.spec\.js/, use: { ...devices["Desktop Firefox"] } },
   ],
   webServer: {
     command: "node build.mjs dev",

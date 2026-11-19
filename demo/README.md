@@ -23,6 +23,9 @@ Open <http://127.0.0.1:8080/demo/fragmentation.html>. It must be served over
 | **Toggle fragmentation** | `pagination.setFragmenting()` — the session-only switch; the file never carries it |
 | **Force a pass** | `pagination.refresh()` |
 | **Type at the cut** | puts the caret eight characters before the first cut, types `x`, and forces a pass |
+| **Type 10 chars** | types ten characters, one every 40 ms, at the current caret |
+| **Put caret at the seam** | places the caret at the first character of the first fragment |
+| **Backspace ×5** / **Enter at the seam** | dispatches the key at the seam; the editor's seam guard deletes exactly one character / splits there |
 | **67% / 100% / 200%** | `zoom.set()`, then a pass |
 | **Toggle geometry outlines** | outlines `[data-frag]` (blue, dashed) and `[data-page-start]` (amber) in the frame |
 | **Reset mutation count** | zeroes the `MutationObserver` counter on `#content` |
@@ -48,8 +51,28 @@ Open <http://127.0.0.1:8080/demo/fragmentation.html>. It must be served over
   stays where the reader left it.
 - **The post-conditions are the test.** `post-conditions` is `pagination`'s own
   `checkPass`: text conserved, one fragment per cut at the planned offset, each
-  tail on its page top, `from/to` meeting, no orphan margin. A failure prints
-  the numbers.
+  tail on its page top, `from/to` meeting, no orphan margin, and every whole
+  block on the page the plan named. A failure prints the numbers.
+- **No intermediate paint.** While fragmenting, the pass runs inside the
+  `MutationObserver` callback — after the edit, before paint — instead of after a
+  120 ms debounce. Typing *Type 10 chars* never shows an un-cut paragraph in the
+  page gap; the no-churn path is what keeps it affordable.
+- **The viewport does not follow the caret.** The pass remembers
+  `scrollTop` before it changes the flow and restores it after, including after
+  an asynchronous caret reveal (a rAF correction for WebKit/Firefox). A cut that
+  pushes the caret to the next page leaves the reader on the page they were
+  reading; `scrollTop` and `last scroll Δ` show it.
+- **Editing at the seam is guarded.** The tail is a block box inside the
+  paragraph; Chromium and Firefox treat its start as a block boundary, so a raw
+  Backspace deletes two characters and Enter deletes one before splitting. The
+  editor intercepts both at the seam and performs the one-character deletion /
+  paragraph split itself. Watch `#content mutations` and the fragment count
+  after *Backspace ×5* and *Enter at the seam*.
+- **Print and PDF.** The live print stylesheet is asserted in all three engines
+  (`[data-frag]` and `[data-page-start]` are block breaks, gaps reset, sheets
+  hidden). The PDF half runs in Chromium only because Playwright's `page.pdf()`
+  is headless-Chromium-only; the real `buildStatic()` output is printed and its
+  page count checked against the plan.
 
 ## Limits worth seeing
 

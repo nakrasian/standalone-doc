@@ -339,8 +339,8 @@
       "order": 50,
       "tag": "script",
       "file": "src/pagination.js",
-      "bytes": 44798,
-      "sha384": "sha384-Gzm5k6/tX30NIwEuxxnowqaG28f+EbOat1ikb00OaesOqVg6t+rn0gyYtUiJkxhd",
+      "bytes": 46767,
+      "sha384": "sha384-A4CKTxTUqT2IQ+plbaKKQrEQyS53kJfboYu492ciX2izOur/LGNCAkNGU/htCHUW",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -419,8 +419,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 16658,
-      "sha384": "sha384-xqhJ+xgaN2gInhJaP2gT3hZYI87tqTWdmUE5LcZsOWFE29HrYUjQcIaQSNcI93Qs",
+      "bytes": 20189,
+      "sha384": "sha384-yueZ0kb08Lj8ljy35NwcHlWotUg88JGeu3dkVLdQ6TWSVLJvSRieVWJwfYrN25AF",
       "mode": "inline",
       "requiredBy": [
         "edit"
