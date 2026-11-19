@@ -721,12 +721,20 @@ export function createComments(deps = {}) {
       rail.replaceChildren();
       return;
     }
-    const width = Math.min(324, Math.max(200, margin - 6));
-    rail.style.left = `${Math.round((sheet?.right ?? 0) + 6)}px`;
-    rail.style.right = "auto";
+    /* Pinned to the right edge; its width is the margin's, so it cannot cover the page. */
+    const width = Math.min(324, Math.max(200, margin - 8));
+    rail.style.left = "auto";
+    rail.style.right = "8px";
     rail.style.width = `${width}px`;
     rail.style.top = `${Math.round((box?.top ?? 0) + 6)}px`;
     rail.style.maxHeight = `${Math.max(180, Math.round((box?.height ?? 600) - 12))}px`;
+    if (railTab) {
+      /* Cheap on purpose: `layoutRail()` runs on every pass, and resolving anchors for a
+         label would make a pagination pass walk the document again. */
+      const total = store.comments.length;
+      const unresolved = store.comments.filter((comment) => !comment.resolved).length;
+      railTab.textContent = `Comments ${unresolved || total}`;
+    }
   }
 
   function quoteOf(comment) {
@@ -835,10 +843,46 @@ export function createComments(deps = {}) {
     return el;
   }
 
+  function notifyRail() {
+    document.dispatchEvent(new CustomEvent("comments:rail"));
+  }
+
+  function railShown() {
+    return railMode && railOpen && store.comments.length > 0;
+  }
+
+  /** The column's own header: what is in it, and the way to put it away. */
+  function railHeader() {
+    const head = document.createElement("p");
+    head.className = "comment-rail-head";
+    const title = document.createElement("span");
+    title.textContent = "Comments";
+    const count = document.createElement("span");
+    count.className = "comment-rail-count";
+    const total = store.comments.length;
+    const unresolved = store.comments.filter((comment) => !comment.resolved).length;
+    count.textContent = String(unresolved || total);
+    count.title = `${unresolved} open · ${total} total`;
+    const hide = document.createElement("button");
+    hide.type = "button";
+    hide.dataset.railClose = "";
+    hide.setAttribute("aria-label", "Hide comments");
+    hide.title = "Hide comments";
+    hide.textContent = "×";
+    hide.addEventListener("click", () => {
+      railOpen = false;
+      layoutRail();
+      notifyRail();
+    });
+    head.append(title, count, hide);
+    return head;
+  }
+
   function renderRail() {
     if (!rail || !railMode) return;
     const keep = rail.scrollTop;
     rail.replaceChildren();
+    rail.append(railHeader());
     const {open, done} = rows();
     const addGroup = (label) => {
       const el = document.createElement("p");
@@ -986,7 +1030,10 @@ export function createComments(deps = {}) {
       }
       return;
     }
-    if (event.type === "click" && (event.target.closest("[data-card-head]") || event.target === cardEl)) {
+    if (event.type === "click") {
+      /* Clicking anywhere on the card goes to the words — except the controls that mean
+         something else (reply, resolve, delete). Hover already works the other way. */
+      if (event.target.closest("[data-reply-form], .comment-actions, input, textarea, select, a")) return;
       navigate(comment);
     }
   }
@@ -1030,6 +1077,7 @@ export function createComments(deps = {}) {
       railDirty = true;
       renderRail();
     }
+    notifyRail();
     return {rail: true, open: railOpen};
   }
 
@@ -1344,6 +1392,7 @@ export function createComments(deps = {}) {
         layoutRail();
         railDirty = true;
         renderRail();
+        notifyRail();
       });
       document.body.append(railTab);
     }
@@ -1452,7 +1501,7 @@ export function createComments(deps = {}) {
 
   const api = {
     init, mount, list, add, reply, resolve: setResolved, remove, focus, navigate, blur, render: draw,
-    begin, counts, panel, onChange, toggleList, railActive, canWrite: writable, authorName, setAuthorName,
+    begin, counts, panel, onChange, toggleList, railActive, railShown, canWrite: writable, authorName, setAuthorName,
     merge: mergeInto, replace, load, newCommentId,
   };
   /* Offered to plugins, which must never own the store: a plugin may present comments,

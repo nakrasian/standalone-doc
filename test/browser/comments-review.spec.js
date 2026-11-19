@@ -332,19 +332,31 @@ test.describe("the review copy's rail", () => {
       const viewport = document.getElementById("viewport").getBoundingClientRect();
       const sheet = document.getElementById("stage").getBoundingClientRect();
       const rail = document.getElementById("comment-rail").getBoundingClientRect();
+      const style = getComputedStyle(document.getElementById("comment-rail"));
+      const card = document.querySelector("#comment-rail .comment-card");
+      const cardStyle = getComputedStyle(card);
       return {
         padding: getComputedStyle(document.getElementById("viewport")).paddingRight,
         centred: Math.abs((sheet.left + sheet.right) / 2 - (viewport.left + viewport.right) / 2),
+        edge: viewport.right - rail.right,
         railRightOfPage: rail.left - sheet.right,
-        railInsideViewport: viewport.right - rail.right,
         railWidth: Math.round(rail.width),
+        paneBlur: style.backdropFilter || style.webkitBackdropFilter,
+        cardBackground: cardStyle.backgroundColor,
+        cardImage: cardStyle.backgroundImage,
       };
     });
     expect(geometry.padding).toBe("0px");
     expect(geometry.centred).toBeLessThan(2);
-    expect(geometry.railRightOfPage).toBeGreaterThanOrEqual(4);
-    expect(geometry.railInsideViewport).toBeGreaterThanOrEqual(0);
+    /* Pinned to the right edge, inside the margin, never over the page. */
+    expect(geometry.edge).toBeGreaterThanOrEqual(0);
+    expect(geometry.edge).toBeLessThanOrEqual(10);
+    expect(geometry.railRightOfPage).toBeGreaterThanOrEqual(0);
     expect(geometry.railWidth).toBeGreaterThan(200);
+    /* The *column* is the glass; the cards on it stay plain white. */
+    expect(geometry.paneBlur).toContain("blur");
+    expect(geometry.cardBackground).toBe("rgb(255, 255, 255)");
+    expect(geometry.cardImage).toBe("none");
   });
 
   test("the keyboard starts a comment in a copy that has no toolbar", async ({ page }) => {

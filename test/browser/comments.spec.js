@@ -388,6 +388,76 @@ test.describe("comments: the rail", () => {
     await expect(page.locator("#comment-layer .comment-mark[data-flash]")).not.toHaveCount(0);
   });
 
+  test("the rail hides from its own header and comes back from the tab", async ({ page }) => {
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    await page.evaluate(() => {
+      globalThis.StandaloneDoc.modules.comments.add({body: "Hide me.", author: {name: "Nadia", kind: "author"}});
+    });
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+
+    await page.locator("#comment-rail [data-rail-close]").click();
+    await expect(page.locator("#comment-rail")).toBeHidden();
+    await expect(page.locator("#comment-rail-tab")).toBeVisible();
+    /* The page is untouched by the rail coming and going. */
+    const padding = await page.evaluate(() => getComputedStyle(document.getElementById("viewport")).paddingRight);
+    expect(padding).toBe("0px");
+
+    await page.locator("#comment-rail-tab").click();
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+    await expect(page.locator("#comment-rail-tab")).toBeHidden();
+  });
+
+  test("hover and click work both ways: card to highlight, and highlight to card", async ({ page }) => {
+    await load(page);
+    /* A document tall enough that "go to the words" has somewhere to go. */
+    await page.evaluate(() => {
+      const content = document.getElementById("content");
+      const target = content.children[1];
+      target.textContent = Array.from({length: 30}, (_, i) => `Sentence ${i + 1}: the comment is on this paragraph and the reader will be far away from it.`).join(" ");
+      for (let i = 0; i < 24; i += 1) {
+        const p = document.createElement("p");
+        p.textContent = `Filler ${i + 1}, so the target can be scrolled out of view while the rail keeps it in reach.`;
+        content.append(p);
+      }
+      globalThis.StandaloneDoc.modules.pagination.refresh();
+    });
+    await page.evaluate(() => {
+      const content = document.getElementById("content");
+      const block = content.children[1];
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      const node = walker.nextNode();
+      globalThis.getSelection().setBaseAndExtent(node, 0, node, 40);
+      globalThis.StandaloneDoc.modules.comments.add({body: "Both ways.", author: {name: "Nadia", kind: "author"}});
+      document.getElementById("viewport").scrollTop = document.getElementById("viewport").scrollHeight;
+    });
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+    const before = await page.evaluate(() => document.getElementById("viewport").scrollTop);
+    expect(before).toBeGreaterThan(200);
+
+    /* Card → highlight: hovering the card lights the marks. */
+    await page.locator("#comment-rail .comment-card .comment-body").hover();
+    await expect(page.locator("#comment-layer .comment-mark[data-hover]")).not.toHaveCount(0);
+    expect(await page.evaluate(() => document.getElementById("viewport").scrollTop)).toBe(before);
+
+    /* Card → words: a click anywhere on the card goes there. */
+    await page.locator("#comment-rail .comment-card .comment-body").click();
+    await expect.poll(() => page.evaluate(() => document.getElementById("viewport").scrollTop)).toBeLessThan(before);
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toHaveCount(1);
+
+    /* The controls keep their own meaning: typing a reply must not move the page. Let the
+       smooth scroll from the click finish first, then park and compare. */
+    await page.waitForTimeout(900);
+    const parked = await page.evaluate(() => document.getElementById("viewport").scrollTop);
+    await page.locator("#comment-rail .comment-card input[aria-label=Reply]").click();
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => document.getElementById("viewport").scrollTop)).toBe(parked);
+
+    /* Highlight → card: hovering the mark lights the card. */
+    await page.locator("#comment-layer .comment-mark").first().hover();
+    await expect(page.locator("#comment-rail .comment-card[data-hover]")).toHaveCount(1);
+  });
+
   test("a narrow layout has no room for the rail, and falls back to a popover", async ({ page }) => {
     await page.setViewportSize({width: 900, height: 800});
     await load(page);

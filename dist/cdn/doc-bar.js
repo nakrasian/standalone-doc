@@ -87,7 +87,7 @@ export function createDocBar(deps = {}) {
       commentsButton.setAttribute("aria-label", `${count.total} comment${count.total === 1 ? "" : "s"}`);
       /* In a wide layout the rail *is* the list; the button toggles it rather than a
          second copy of the same rows. */
-      if (comments()?.railActive?.()) commentsButton.setAttribute("aria-expanded", "false");
+      if (comments()?.railActive?.()) commentsButton.setAttribute("aria-expanded", String(Boolean(comments()?.railShown?.())));
       else commentsButton.setAttribute("aria-expanded", String(Boolean(commentsPanel && !commentsPanel.hidden)));
     }
     if (commentsPanel) {
@@ -253,6 +253,7 @@ export function createDocBar(deps = {}) {
   document.addEventListener("selectionchange", syncSelection);
 
   comments()?.onChange?.(sync);
+  document.addEventListener("comments:rail", sync);
   signals.on("layout", sync);
   sync();
 

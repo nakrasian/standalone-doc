@@ -136,17 +136,22 @@ The one field that matters is **may take an editable copy**:
   deleted, so nothing — including its author — can turn it into an editor.
 
 **Reading comments.** A document with comments shows them in a **rail beside the page** (the
-editor, a review copy and a viewer all use it): frosted-glass cards in document order,
-unresolved first, resolved kept below. The page stays centred — the rail lives in the margin
-beside it and is only as wide as that margin (a 1280px window gives it 220px; 1600px gives it
-the full 324). When the margin is too small to hold a card, the same card becomes a popover
-next to the marker — the document is never narrowed to make room.
+editor, a review copy and a viewer all use it): cards in document order, unresolved first,
+resolved kept below. The rail itself is a frosted **column** — a translucent pane with
+`backdrop-filter`, so a page fitted or zoomed behind it reads as separate from the text — and
+the cards on it stay plain white. It is pinned to the right edge but only as wide as the
+page's margin (220px at 1280, the full 324 at 1600), so the centred document is never narrowed
+or covered; when the margin is too small for a card it becomes the popover next to the marker
+instead.
 
-Hovering a highlight previews its card; clicking **opens** it (pins the card, scrolls only if
-the words are out of view, flashes the highlight). Adding, replying and resolving never move
-the page: the card updates where it is. A resolved comment paints **no highlight** — the
-record stays in the rail to reopen or delete. **⌘⌥M** (Ctrl+Alt+M) starts a comment from the
-selection, in every mode; the editor also has *Insert › Comment on selection…*.
+Hover and click work **both ways**: hovering a highlight lights its card and hovering a card
+lights the highlight; clicking either goes to the other — a card click pins it and scrolls only
+if the words are out of view, then flashes them. Adding, replying and resolving never move the
+page: the card updates where it is. **The rail hides from the × in its header and comes back
+from the little edge tab** (which states the open count), in every mode. A resolved comment
+paints **no highlight** — the record stays in the rail to reopen or delete. **⌘⌥M**
+(Ctrl+Alt+M) starts a comment from the selection, in every mode; the editor also has
+*Insert › Comment on selection…*.
 
 **Comments on their own.** *File › Save as… › HTML › Comments only…* writes the store in a
 minimal document (a few KB), and *File › Import comments…* accepts either that file or a full

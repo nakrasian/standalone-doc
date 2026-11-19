@@ -131,8 +131,8 @@
       "order": 92,
       "tag": "script",
       "file": "src/doc-bar.js",
-      "bytes": 10407,
-      "sha384": "sha384-3OjHul+7P73kX+fmQfc5EvHbkJPLd5Q5mYevUXxyOk5BDzxHECyKtxO7FYMNS53+",
+      "bytes": 10494,
+      "sha384": "sha384-fwRJXVOclUH4Psu4CU/D5d5rFh0LLyFogMzTSJGoxJaT3Q+j9LYm0cpy9+9qPiH6",
       "mode": "online",
       "requiredBy": [
         "view",
@@ -167,8 +167,8 @@
       "order": 26,
       "tag": "style",
       "file": "src/comment-styles.css",
-      "bytes": 6571,
-      "sha384": "sha384-QJpa1I7cMIbVI8IYziYprg1hnik8bqBDm1sVHqq8zF5f0NH0DeC7THhxf+fBkuzu",
+      "bytes": 7059,
+      "sha384": "sha384-P+MqrfyLOZy1k8AqMzmN9RcGWgE/D+MLXWMHlPUZbOlmT8FPCtL2BACOt8qVdhB3",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -496,8 +496,8 @@
       "order": 76,
       "tag": "script",
       "file": "src/comments.js",
-      "bytes": 56627,
-      "sha384": "sha384-n0XL6NCHe0r+3+D7ROwIZivn188YIj+XdDr/bsQ4WTE5rvVsPfLUzQoWKt9k7kK/",
+      "bytes": 58551,
+      "sha384": "sha384-uW/2Cix/YW54jXN5ld9hpHtQcKxt9TMIMfZmlGDmHhxkXFyjqXZYOBu9TTDPhTvv",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -532,6 +532,7 @@
         "onChange",
         "toggleList",
         "railActive",
+        "railShown",
         "canWrite",
         "authorName",
         "setAuthorName",

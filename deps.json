@@ -297,6 +297,7 @@
         "onChange",
         "toggleList",
         "railActive",
+        "railShown",
         "canWrite",
         "authorName",
         "setAuthorName",
