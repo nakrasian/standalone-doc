@@ -22,18 +22,18 @@ test("dist/editor.html is the source minus the chrome only a viewer builds", () 
   /* `index.html` is the source of every asset; a flavour is a mode. Anything an editor does
      not build leaves the file, and its manifest entry keeps the pin so a document that
      becomes a viewer can fetch it. */
-  for (const id of ["viewer-bar-markup", "viewer-bar-styles", "viewer-bar"]) {
-    assert.ok(!editor.includes(`id="${id === "viewer-bar-markup" ? "viewer-bar" : id}"`), `${id} must not be in the editor flavour`);
+  for (const id of ["doc-bar-markup", "doc-bar-styles", "doc-bar"]) {
+    assert.ok(!editor.includes(`id="${id === "doc-bar-markup" ? "doc-bar" : id}"`), `${id} must not be in the editor flavour`);
     const entry = JSON.parse(/<script id="asset-manifest" type="application\/json">([\s\S]*?)<\/script>/.exec(editor)[1])
       .assets.find((asset) => asset.id === id);
     assert.equal(entry.mode, "online", `${id}: an offloaded asset is still described`);
     assert.ok(entry.url && entry.integrity, `${id}: and still pinned, so a viewer save can fetch it`);
   }
   /* Everything edit mode builds is still there. */
-  for (const id of ["editor", "signals", "toolbar-markup", "viewer-bar-markup"]) {
+  for (const id of ["editor", "signals", "toolbar-markup", "doc-bar-markup"]) {
     const inSource = source.includes(`@asset id="${id}"`);
     const inEditor = editor.includes(`@asset id="${id}"`);
-    assert.equal(inEditor, id !== "viewer-bar-markup" && inSource, `${id}: presence must match the mode, not the source`);
+    assert.equal(inEditor, id !== "doc-bar-markup" && inSource, `${id}: presence must match the mode, not the source`);
   }
   assert.ok(editor.includes('id="editor"'), "the editor itself is in the editor flavour");
 });

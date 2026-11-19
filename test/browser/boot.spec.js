@@ -176,8 +176,8 @@ test("a view-mode document boots without the editor", async ({ page }) => {
   expect(state.state).toBe("ready");
   /* `comments` is not an editing module: it is gated by the *capability*, which this
      hand-edited copy still declares (the mode is the runtime's read-only clamp). */
-  expect(state.built).toEqual(["apply-settings", "session", "signals", "zoom", "selection", "layout", "pagination", "comments", "figures", "viewer-bar"]);
-  expect(state.constructed).toEqual(["apply-settings", "comments", "figures", "layout", "pagination", "selection", "session", "signals", "viewer-bar", "zoom"]);
+  expect(state.built).toEqual(["apply-settings", "session", "signals", "zoom", "selection", "layout", "pagination", "comments", "figures", "doc-bar"]);
+  expect(state.constructed).toEqual(["apply-settings", "comments", "doc-bar", "figures", "layout", "pagination", "selection", "session", "signals", "zoom"]);
   /* The lock is the loader's job, from the settings block — not the markup's. */
   expect(state.mode).toBe("view");
   expect(state.editable).toBe("false");

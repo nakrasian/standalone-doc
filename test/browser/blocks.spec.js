@@ -4,15 +4,15 @@ import { fileURLToPath } from "node:url";
 
 /* An asset block is found *by its id* — `script[id="<assetId>"]` in the loader, the
  * `<!-- @asset -->` markers in the build — and a markup asset may give its own root the
- * same id. `viewer-bar` did: the `<header>` and the compiled `<script>` shared it, so
- * `#viewer-bar { display: flex }` matched the script too, outranked the UA sheet, and
+ * same id. `doc-bar` did: the `<header>` and the compiled `<script>` shared it, so
+ * `#doc-bar { display: flex }` matched the script too, outranked the UA sheet, and
  * painted the whole module's source below the toolbar — in `index.html`, in every viewer
  * file, and in every copy either one saved.
  *
  * Two rules keep that from coming back, and this spec is the one place that asserts both:
  *   - `page-styles.css` says `script, style { display: none !important }`, so no sheet can
  *     make source text of a block;
- *   - `viewer-bar-styles.css` qualifies its selectors `header#viewer-bar`, so its own
+ *   - `doc-bar-styles.css` qualifies its selectors `header#doc-bar`, so its own
  *     `display: flex` never lands on the block to begin with.
  *
  * The second assertion of every case (the bar still paints at 34px) is what stops the fix
@@ -43,7 +43,7 @@ const audit = (page) =>
   page.evaluate(() => {
     const blocks = [...document.querySelectorAll("script[id], style[id]")];
     const text = document.body.innerText;
-    const bar = document.getElementById("viewer-bar");
+    const bar = document.getElementById("doc-bar");
     return {
       blocks: blocks.length,
       painted: blocks
@@ -76,7 +76,7 @@ test("a viewer paints its bar and none of its blocks", async ({ page }) => {
   expect(problems).toEqual([]);
   expect(found.painted).toEqual([]);
   expect(found.leaks).toEqual([]);
-  /* The bar is a `<header>`: `header#viewer-bar` is what the sheet targets now. */
+  /* The bar is a `<header>`: `header#doc-bar` is what the sheet targets now. */
   expect(found.barDisplay).toBe("flex");
   expect(found.barHeight).toBe(34);
 });
@@ -86,7 +86,7 @@ test("a saved copy carries the block but not its text", async ({ page }) => {
   const target = path.join(ROOT, FIX, "saved.html");
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 20_000 }),
-    page.click("#viewer-bar [data-save]"),
+    page.click("#doc-bar [data-save]"),
   ]);
   await download.saveAs(target);
 

@@ -142,7 +142,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       ui: authored?.ui === "minimal" ? "minimal" : "ribbon",
       editable: mode === "edit" && (authored?.editable ?? true),
       /* "Show chrome", not "show the editor toolbar": a view-mode document can carry a
-         bar of its own (viewer-bar), and a file saved before that existed never authored
+         bar of its own (doc-bar), and a file saved before that existed never authored
          this, so it keeps its chrome-less look. */
       toolbar: authored?.toolbar ?? mode !== "view",
       saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,

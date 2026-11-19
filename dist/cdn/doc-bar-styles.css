@@ -1,0 +1,228 @@
+/* The viewer's only chrome: a folio, a save, and a reader's settings.
+   It mirrors the editor's `#ui-minimal` bar (34px, folio left, title centred, Save
+   right) with its own rules: `toolbar-styles.css` is `requiredBy: ["edit"]` and costs
+   30.5 KB, which a viewer must not pay for two buttons. The tokens are the editor's
+   values, repeated on purpose.
+
+   Every selector is qualified `header#doc-bar`, not `#doc-bar`: an asset id is
+   also the id of its block, so the `doc-bar` script element carried the same id as this
+   bar's root. `#doc-bar { display: flex }` then matched the script element too, outranked
+   the UA sheet, and painted the module's source below the toolbar in index.html and in
+   every viewer file. The tag keeps the sheet off the block; `page-styles.css` holds the
+   general rule. */
+
+header#doc-bar {
+  --doc-ink: #1b1f24;
+  --doc-muted: #6b7280;
+  --doc-line: #dfe1e6;
+  --doc-paper: #fff;
+  --doc-hover: #eef0f4;
+  --doc-accent: #2f6fed;
+
+  flex: 0 0 auto;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  background: #fbfbfc;
+  border-bottom: 1px solid var(--doc-line);
+  font: 500 12px/1 system-ui, -apple-system, sans-serif;
+  color: var(--doc-muted);
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+  z-index: 40;
+}
+
+/* `toolbar` in #doc-settings means "show chrome". A viewer saved before this release
+   never authored it, so it stays bar-less — see registry.settings(). */
+html[data-toolbar="off"] header#doc-bar {
+  display: none;
+}
+
+/* Reading, not authoring: the bar can step out of the way for this session. Its own
+   children go, one restore button stays — hiding is never a dead end, and nothing about
+   it reaches the file (`session.strip()` removes the attribute from a saved clone). */
+header#doc-bar[data-session-hidden] > :not([data-doc-restore]) {
+  display: none;
+}
+
+header#doc-bar[data-session-hidden] {
+  justify-content: flex-end;
+  height: 26px;
+  border-bottom-color: transparent;
+  background: transparent;
+}
+
+.doc-restore {
+  border: 1px solid var(--doc-line);
+  background: var(--doc-paper);
+  color: var(--doc-muted);
+  border-radius: 999px;
+  width: 26px;
+  height: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.doc-restore:hover,
+.doc-restore:focus-visible {
+  background: var(--doc-hover);
+  color: var(--doc-ink);
+}
+
+.doc-chip {
+  border: 1px solid var(--doc-line);
+  background: var(--doc-paper);
+  color: var(--doc-muted);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.doc-chip:hover {
+  background: var(--doc-hover);
+  color: var(--doc-ink);
+}
+
+header#doc-bar .folio {
+  min-width: 6.5em;
+  font-variant-numeric: tabular-nums;
+  color: #9aa1ab;
+}
+
+header#doc-bar .doc-title {
+  max-width: 26em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  color: var(--doc-ink);
+}
+
+header#doc-bar .grow {
+  flex: 1;
+}
+
+header#doc-bar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  color: var(--doc-ink);
+  cursor: pointer;
+}
+
+/* Both halves of one trap: `header#doc-bar { display: flex }` and
+   `header#doc-bar button { display: inline-flex }` outrank the UA sheet's
+   `[hidden] { display: none }`, so a hidden bar (or a hidden button inside one) still
+   paints. Say the intent once, for the bar and for everything in it.
+
+   The qualifier above is the other half of that lesson: anything this sheet says about
+   "the bar" must not be able to land on the bar's asset block. */
+header#doc-bar[hidden],
+header#doc-bar [hidden] {
+  display: none !important;
+}
+
+header#doc-bar button:hover {
+  background: var(--doc-hover);
+}
+
+header#doc-bar button:focus-visible {
+  outline: 2px solid var(--doc-accent);
+  outline-offset: 1px;
+}
+
+header#doc-bar button.save-text {
+  color: var(--doc-accent);
+  font-weight: 600;
+}
+
+header#doc-bar button[aria-expanded="true"] {
+  background: var(--doc-hover);
+}
+
+header#doc-bar .doc-wrap {
+  position: relative;
+}
+
+header#doc-bar .doc-panel {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  width: 268px;
+  padding: 12px 14px;
+  background: var(--doc-paper);
+  border: 1px solid var(--doc-line);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(20, 24, 32, .14);
+  color: var(--doc-ink);
+  font-weight: 400;
+  white-space: normal;
+  text-align: left;
+  z-index: 50;
+}
+
+header#doc-bar .doc-panel[hidden] {
+  display: none;
+}
+
+header#doc-bar .doc-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--doc-muted);
+}
+
+header#doc-bar .doc-row b {
+  margin-left: auto;
+  color: var(--doc-ink);
+  font-weight: 600;
+}
+
+header#doc-bar .doc-row code {
+  margin-left: auto;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--doc-ink);
+}
+
+header#doc-bar .doc-sep {
+  height: 1px;
+  margin: 9px 0;
+  background: var(--doc-line);
+}
+
+header#doc-bar .doc-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+header#doc-bar .doc-zoom [data-zoom-label] {
+  min-width: 5.2em;
+  text-align: center;
+  font-size: 12px;
+  color: var(--doc-ink);
+}
+
+header#doc-bar .doc-note {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--doc-muted);
+}
+
+@media print {
+  header#doc-bar {
+    display: none;
+  }
+}

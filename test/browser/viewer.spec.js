@@ -52,9 +52,10 @@ test("the viewer opens from disk with no network and no editing modules", async 
   expect(problems).toEqual([]);
   expect(external).toEqual([]);
   expect(state.state).toBe("ready");
-  /* `viewer-bar` is the reader's chrome: a folio, a save, and settings. It is a view-mode
-     module, so its presence is the difference between a viewer and a read-only file. */
-  expect(state.modules).toEqual(["apply-settings", "figures", "layout", "pagination", "selection", "session", "signals", "viewer-bar", "zoom"]);
+  /* `doc-bar` is the reader's chrome: a folio, a save, and settings. It is the one bar
+     a view or review copy has, so its presence is the difference between a copy with
+     chrome and a read-only file. */
+  expect(state.modules).toEqual(["apply-settings", "doc-bar", "figures", "layout", "pagination", "selection", "session", "signals", "zoom"]);
   expect(state.order).toEqual(state.modules.slice().sort((a, b) => state.order.indexOf(a) - state.order.indexOf(b)));
   /* Nothing to remove at read time: the capability never came. */
   expect(state.editingBlocks).toBe(0);

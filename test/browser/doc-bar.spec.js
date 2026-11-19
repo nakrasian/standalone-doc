@@ -102,12 +102,12 @@ async function load(page, url) {
 }
 
 const bar = (page) => page.evaluate(() => {
-  const el = document.getElementById("viewer-bar");
+  const el = document.getElementById("doc-bar");
   const text = (selector) => el?.querySelector(selector)?.textContent?.trim() ?? null;
   return {
     visible: !!el?.offsetHeight,
     folio: text("[data-folio]"),
-    title: text("[data-vb-title]"),
+    title: text("[data-doc-title]"),
     save: text("[data-save]"),
     mode: document.documentElement.dataset.mode,
     editable: document.getElementById("content")?.getAttribute("contenteditable"),
@@ -171,23 +171,23 @@ test("the folio tracks the reader page by page", async ({ page }) => {
 
 test("settings show what the document is, and zoom drives the real module", async ({ page }) => {
   await load(page, VIEWER);
-  const panel = page.locator("[data-vb-panel]");
+  const panel = page.locator("[data-doc-panel]");
   await expect(panel).toBeHidden();
 
-  await page.click("[data-vb-settings]");
+  await page.click("[data-doc-settings]");
   await expect(panel).toBeVisible();
   const opened = await page.evaluate(() => ({
-    pin: document.querySelector("[data-vb-pin]").textContent,
-    pages: document.querySelector("[data-vb-pages]").textContent,
+    pin: document.querySelector("[data-doc-pin]").textContent,
+    pages: document.querySelector("[data-doc-pages]").textContent,
     label: document.querySelector("[data-zoom-label]").textContent,
-    expanded: document.querySelector("[data-vb-settings]").getAttribute("aria-expanded"),
+    expanded: document.querySelector("[data-doc-settings]").getAttribute("aria-expanded"),
   }));
   expect(opened.pin).toMatch(/^v\d+\.\d+\.\d+$/);
   expect(opened.pages).toBe(String((await bar(page)).pages));
   expect(opened.label).toBe("Zoom · 100%");
   expect(opened.expanded).toBe("true");
 
-  await page.click('#viewer-bar [data-zoom="in"]');
+  await page.click('#doc-bar [data-zoom="in"]');
   const zoomed = await page.evaluate(() => ({
     value: StandaloneDoc.modules.zoom.value,
     label: document.querySelector("[data-zoom-label]").textContent,
@@ -195,7 +195,7 @@ test("settings show what the document is, and zoom drives the real module", asyn
   expect(zoomed.value).toBeGreaterThan(1);
   expect(zoomed.label).not.toBe("Zoom · 100%");
 
-  await page.click('#viewer-bar [data-zoom="reset"]');
+  await page.click('#doc-bar [data-zoom="reset"]');
   expect(await page.evaluate(() => StandaloneDoc.modules.zoom.value)).toBe(1);
 
   await page.keyboard.press("Escape");
@@ -208,7 +208,7 @@ test("save downloads a copy that reopens as the same viewer", async ({ page }) =
   const target = path.join(ROOT, FIX, "saved.html");
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 20_000 }),
-    page.click("#viewer-bar [data-save]"),
+    page.click("#doc-bar [data-save]"),
   ]);
   await download.saveAs(target);
 
@@ -222,7 +222,7 @@ test("save downloads a copy that reopens as the same viewer", async ({ page }) =
       spacers: doc.querySelectorAll(".page-spacer").length,
       sheets: doc.querySelectorAll(".sheet").length,
       boot: doc.documentElement.hasAttribute("data-boot-state"),
-      bar: Boolean(doc.getElementById("viewer-bar")),
+      bar: Boolean(doc.getElementById("doc-bar")),
     };
   }, text);
   expect(saved.spacers).toBe(0);
@@ -272,7 +272,7 @@ test("a broken viewer repairs itself and saves the repair", async ({ page }) => 
   const target = path.join(ROOT, FIX, "repaired.html");
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 20_000 }),
-    page.click("#viewer-bar [data-save]"),
+    page.click("#doc-bar [data-save]"),
   ]);
   await download.saveAs(target);
 
@@ -290,9 +290,9 @@ test("a document paints only the chrome its own mode builds", async ({ page }) =
      carry the block. */
   await load(page, fileUrl("index.html"));
   await expect(page.locator("#app-toolbar")).toBeVisible();
-  /* `header#viewer-bar`: the js asset's block shares the id, so the bare selector is
+  /* `header#doc-bar`: the js asset's block shares the id, so the bare selector is
      ambiguous in the source document (a flavour never carries both). */
-  await expect(page.locator("header#viewer-bar")).toBeHidden();
+  await expect(page.locator("header#doc-bar")).toBeHidden();
 });
 
 test("an editing document carries no bar — the asset is offloaded, not built", async ({ page }) => {
@@ -300,9 +300,9 @@ test("an editing document carries no bar — the asset is offloaded, not built",
   const state = await page.evaluate(() => {
     const doc = JSON.parse(document.getElementById("asset-manifest").textContent);
     return {
-      bar: !!document.getElementById("viewer-bar"),
-      built: Object.keys(StandaloneDoc.modules).includes("viewer-bar"),
-      entries: doc.assets.filter((asset) => asset.id.startsWith("viewer-bar"))
+      bar: !!document.getElementById("doc-bar"),
+      built: Object.keys(StandaloneDoc.modules).includes("doc-bar"),
+      entries: doc.assets.filter((asset) => asset.id.startsWith("doc-bar"))
         .map((asset) => ({ mode: asset.mode, pinned: !!(asset.url && asset.integrity) })),
     };
   });
@@ -317,26 +317,26 @@ test("an editing document carries no bar — the asset is offloaded, not built",
 
 test("the bar can step aside for this session, and the file keeps it", async ({ page }) => {
   await load(page, VIEWER);
-  const bar = page.locator("#viewer-bar");
-  await page.click("#viewer-bar [data-vb-settings]");
-  await page.click("#viewer-bar [data-vb-hide]");
+  const bar = page.locator("#doc-bar");
+  await page.click("#doc-bar [data-doc-settings]");
+  await page.click("#doc-bar [data-doc-hide]");
 
   /* Collapsed to a restore affordance: hiding is never a dead end. */
-  await expect(page.locator("#viewer-bar [data-vb-restore]")).toBeVisible();
-  await expect(page.locator("#viewer-bar [data-save]")).toBeHidden();
-  await expect(page.locator("#viewer-bar [data-folio]")).toBeHidden();
+  await expect(page.locator("#doc-bar [data-doc-restore]")).toBeVisible();
+  await expect(page.locator("#doc-bar [data-save]")).toBeHidden();
+  await expect(page.locator("#doc-bar [data-folio]")).toBeHidden();
 
-  await page.click("#viewer-bar [data-vb-restore]");
-  await expect(page.locator("#viewer-bar [data-save]")).toBeVisible();
-  await expect(page.locator("#viewer-bar [data-vb-restore]")).toBeHidden();
+  await page.click("#doc-bar [data-doc-restore]");
+  await expect(page.locator("#doc-bar [data-save]")).toBeVisible();
+  await expect(page.locator("#doc-bar [data-doc-restore]")).toBeHidden();
 
   /* Hide again and save: the reader's session must not reach the file. Restoring opened
      the panel, so the hide control is already there. */
-  await page.click("#viewer-bar [data-vb-hide]");
+  await page.click("#doc-bar [data-doc-hide]");
   const target = path.join(ROOT, FIX, "hidden.html");
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 20_000 }),
-    page.evaluate(() => StandaloneDoc.modules["viewer-bar"].save()),
+    page.evaluate(() => StandaloneDoc.modules["doc-bar"].save()),
   ]);
   await download.saveAs(target);
   const text = fs.readFileSync(target, "utf8");
@@ -344,8 +344,8 @@ test("the bar can step aside for this session, and the file keeps it", async ({ 
   const saved = await page.evaluate((html) => {
     const doc = new DOMParser().parseFromString(html, "text/html");
     return {
-      hidden: doc.querySelector("#viewer-bar")?.hasAttribute("data-session-hidden"),
-      restore: doc.querySelector("[data-vb-restore]")?.hidden,
+      hidden: doc.querySelector("#doc-bar")?.hasAttribute("data-session-hidden"),
+      restore: doc.querySelector("[data-doc-restore]")?.hidden,
       boot: doc.documentElement.hasAttribute("data-boot-state"),
     };
   }, text);
@@ -356,7 +356,7 @@ test("the bar can step aside for this session, and the file keeps it", async ({ 
   const reopened = await page.context().newPage();
   const problems = await load(reopened, "file://" + target);
   expect(problems).toEqual([]);
-  await expect(reopened.locator("#viewer-bar [data-save]")).toBeVisible();
+  await expect(reopened.locator("#doc-bar [data-save]")).toBeVisible();
 });
 
 test("a saved file carries no session state, whichever flavour saved it", async ({ page }) => {

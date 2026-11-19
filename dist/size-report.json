@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 608288
+    "bytes": 608238
   },
   "assets": [
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 11622
+      "bytes": 11619
     },
     {
       "id": "toolbar-styles",
@@ -30,19 +30,19 @@
       "bytes": 17422
     },
     {
-      "id": "viewer-bar-markup",
+      "id": "doc-bar-markup",
       "kind": "html",
-      "bytes": 1642
+      "bytes": 1662
     },
     {
-      "id": "viewer-bar-styles",
+      "id": "doc-bar-styles",
       "kind": "css",
-      "bytes": 6215
+      "bytes": 6172
     },
     {
-      "id": "viewer-bar",
+      "id": "doc-bar",
       "kind": "js",
-      "bytes": 4412
+      "bytes": 4406
     },
     {
       "id": "figure-tools",
@@ -52,7 +52,7 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 49348
+      "bytes": 49345
     },
     {
       "id": "boot-ui",
@@ -62,7 +62,7 @@
     {
       "id": "apply-settings",
       "kind": "js",
-      "bytes": 3193
+      "bytes": 3190
     },
     {
       "id": "session",
@@ -112,7 +112,7 @@
     {
       "id": "comments",
       "kind": "js",
-      "bytes": 36353
+      "bytes": 36350
     },
     {
       "id": "figures",
@@ -137,7 +137,7 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 44750
+      "bytes": 44747
     },
     {
       "id": "dialogs",
@@ -151,9 +151,9 @@
     }
   ],
   "flavors": {
-    "index.html": 608288,
-    "asset-bodies": 590566,
-    "markup-and-runtime": 17722,
-    "dist/slim.html": 91172
+    "index.html": 608238,
+    "asset-bodies": 590522,
+    "markup-and-runtime": 17716,
+    "dist/slim.html": 91181
   }
 }

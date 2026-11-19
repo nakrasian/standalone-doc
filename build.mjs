@@ -99,8 +99,8 @@ const REGIONS = [
   { id: "toolbar-markup", kind: "html", order: 12, label: "Toolbar", requiredBy: ["edit"], tag: "header"  },
   { id: "figure-tools", kind: "html", order: 13, label: "Figure tools", requiredBy: ["edit"], tag: "div"  },
   { id: "dialogs", kind: "html", order: 14, label: "Dialogs", requiredBy: ["edit"], tag: "div"  },
-  { id: "viewer-bar-markup", kind: "html", order: 15, label: "Viewer bar", requiredBy: ["view"], tag: "header"  },
-  { id: "viewer-bar-styles", kind: "css", order: 21, label: "Viewer bar styles", requiredBy: ["view"]  },
+  { id: "doc-bar-markup", kind: "html", order: 15, label: "Document bar", requiredBy: ["view", "comment"], tag: "header"  },
+  { id: "doc-bar-styles", kind: "css", order: 21, label: "Document bar styles", requiredBy: ["view", "comment"]  },
   { id: "signals", kind: "js", order: 30, label: "Signals", requiredBy: ["*"]  },
   { id: "zoom", kind: "js", order: 40, label: "Zoom", requiredBy: ["*"]  },
   { id: "selection", kind: "js", order: 44, label: "Selection", requiredBy: ["*"]  },
@@ -115,7 +115,7 @@ const REGIONS = [
   { id: "plugins", kind: "js", order: 95, label: "Plugins", requiredBy: ["edit"]  },
   { id: "toolbar", kind: "js", order: 90, label: "Toolbar binding", requiredBy: ["edit"]  },
   { id: "export", kind: "js", order: 100, label: "Export", requiredBy: ["edit"]  },
-  { id: "viewer-bar", kind: "js", order: 92, label: "Viewer bar binding", requiredBy: ["view"]  },
+  { id: "doc-bar", kind: "js", order: 92, label: "Document bar binding", requiredBy: ["view", "comment"]  },
   { id: "bootstrap", kind: "js", order: 120, label: "Bootstrap", requiredBy: ["*"]  },
 ];
 
@@ -467,7 +467,7 @@ function docSettings(manifest, { mode, toolbar, capabilities } = {}) {
     /* A setting may restrict edit mode further (a locked document); it cannot
        contradict the mode. View and comment are read-only by definition. */
     editable: docMode === "edit" && (authored.editable ?? true),
-    /* "Show chrome". A viewer has a bar of its own (`viewer-bar`), so view mode is no
+    /* "Show chrome". A viewer has a bar of its own (`doc-bar`), so view mode is no
        longer chrome-less by definition; an explicit override wins, and a file that never
        authored the key keeps the old default. */
     toolbar: toolbar ?? authored.toolbar ?? (docMode !== "view"),

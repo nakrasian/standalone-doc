@@ -172,7 +172,7 @@ which would be a change to the file for nothing.
   "edit" is a reply that says so. That is what makes a file merge possible without a CRDT.
 - The block's id is `comment-store`, not `comments`: an asset's block carries
   `id="<assetId>"`, so `#comments` would be shadowed by the module's own `<script>` — the same
-  collision `viewer-bar` already paid for.
+  collision `doc-bar`'s predecessor already paid for.
 - `check` validates the schema, unique ids, integral ranges, 40-character quotes, `b_` ids, and
   refuses `capabilities.comments === "off"` in a file that carries this block.
 

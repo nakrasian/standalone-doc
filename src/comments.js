@@ -23,7 +23,7 @@
 export const SEP = "\n\n";
 export const QUOTE_MAX = 40;
 /* The block's id is `comment-store`, not `comments`, and that is the same collision the
-   repo already paid for once (`viewer-bar`: an asset's block carries `id="<assetId>"`, so a
+   repo already paid for once (`doc-bar`: an asset's block carries `id="<assetId>"`, so a
    data block named `comments` would be shadowed by the module's own `<script>` — and
    `getElementById("comments")` would hand a parser the module's source). `figure-store` /
    `figures` is the same pair, for the same reason. */

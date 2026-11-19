@@ -84,9 +84,9 @@ const shapeOf = (page, html) =>
     return {
       settings: JSON.parse(doc.getElementById("doc-settings").textContent),
       ribbon: doc.querySelector("#app-toolbar") !== null,
-      bar: doc.querySelector("#viewer-bar") !== null,
+      bar: doc.querySelector("#doc-bar") !== null,
       editor: mode("toolbar"),
-      viewerBar: mode("viewer-bar"),
+      viewerBar: mode("doc-bar"),
       problems: StandaloneDoc.modules.toolbar.validate(copy),
     };
   }, html);
@@ -241,7 +241,7 @@ test("publish posts a view-mode copy that carries no write target", async ({ pag
   const opened = await page.evaluate(() => ({
     mode: StandaloneDoc.settings().mode,
     ribbon: Boolean(document.querySelector("#app-toolbar")),
-    bar: Boolean(document.querySelector("#viewer-bar")),
+    bar: Boolean(document.querySelector("#doc-bar")),
     errors: StandaloneDoc.errors || [],
   }));
   expect(opened.mode).toBe("view");

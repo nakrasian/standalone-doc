@@ -36,7 +36,7 @@
 
        A block is found by its id — `script[id="<assetId>"]` in the loader, the markers in
        `build.mjs` — so an asset id can collide with the id a markup asset gives its own root
-       (`viewer-bar`: the bar's markup root and the bar's script shared one). The UA sheet's
+       (`doc-bar`: the bar's markup root and the bar's script shared one). The UA sheet's
        `script { display: none }` loses to any author rule, including one about a *different*
        element with that id, and the block then paints its source: header comment, whole module,
        and the register() line. Assert the intent here, once, so no stylesheet can make source
@@ -2249,58 +2249,58 @@
   </header>
 <!-- /@asset -->
 
-<!-- @asset id="viewer-bar-markup" kind="html" order="15" -->
-    <header id="viewer-bar" data-chrome contenteditable="false">
+<!-- @asset id="doc-bar-markup" kind="html" order="15" -->
+    <header id="doc-bar" data-chrome contenteditable="false">
       <span class="folio" data-folio>—</span>
       <span class="grow"></span>
-      <span class="vb-title" data-vb-title></span>
+      <span class="doc-title" data-doc-title></span>
       <span class="grow"></span>
-      <span class="vb-wrap">
-        <button type="button" data-vb-settings aria-haspopup="dialog" aria-expanded="false">Settings</button>
-        <div class="vb-panel" data-vb-panel role="dialog" aria-label="Document settings" hidden>
-          <p class="vb-row"><span>Mode</span><b>view — read only</b></p>
-          <p class="vb-row"><span>Pages</span><b data-vb-pages>—</b></p>
-          <p class="vb-row"><span>Runtime</span><code data-vb-pin>—</code></p>
-          <div class="vb-sep"></div>
-          <div class="vb-zoom">
+      <span class="doc-wrap">
+        <button type="button" data-doc-settings aria-haspopup="dialog" aria-expanded="false">Settings</button>
+        <div class="doc-panel" data-doc-panel role="dialog" aria-label="Document settings" hidden>
+          <p class="doc-row"><span>Mode</span><b>view — read only</b></p>
+          <p class="doc-row"><span>Pages</span><b data-doc-pages>—</b></p>
+          <p class="doc-row"><span>Runtime</span><code data-doc-pin>—</code></p>
+          <div class="doc-sep"></div>
+          <div class="doc-zoom">
             <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
             <span data-zoom-label>Zoom · 100%</span>
             <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
             <button type="button" data-zoom="reset">Reset</button>
             <button type="button" data-zoom="fit">Fit</button>
           </div>
-          <div class="vb-sep"></div>
-          <p class="vb-row"><span>Bar</span><button type="button" class="vb-chip" data-vb-hide>Hide while reading</button></p>
-          <p class="vb-note">Hiding is this session's, not the file's. <b>Save a copy</b> downloads the document.</p>
+          <div class="doc-sep"></div>
+          <p class="doc-row"><span>Bar</span><button type="button" class="doc-chip" data-doc-hide>Hide while reading</button></p>
+          <p class="doc-note">Hiding is this session's, not the file's. <b>Save a copy</b> downloads the document.</p>
         </div>
       </span>
       <button type="button" class="save-text" data-save title="Download a copy of this document">Save a copy</button>
-      <button type="button" class="vb-restore" data-vb-restore aria-label="Show the reading bar" title="Show the reading bar" hidden>≡</button>
+      <button type="button" class="doc-restore" data-doc-restore aria-label="Show the reading bar" title="Show the reading bar" hidden>≡</button>
     </header>
 <!-- /@asset -->
 
-<!-- @asset id="viewer-bar-styles" kind="css" order="21" -->
-  <style id="viewer-bar-styles">
+<!-- @asset id="doc-bar-styles" kind="css" order="21" -->
+  <style id="doc-bar-styles">
     /* The viewer's only chrome: a folio, a save, and a reader's settings.
        It mirrors the editor's `#ui-minimal` bar (34px, folio left, title centred, Save
        right) with its own rules: `toolbar-styles.css` is `requiredBy: ["edit"]` and costs
        30.5 KB, which a viewer must not pay for two buttons. The tokens are the editor's
        values, repeated on purpose.
 
-       Every selector is qualified `header#viewer-bar`, not `#viewer-bar`: an asset id is
-       also the id of its block, so the `viewer-bar` script element carried the same id as this
-       bar's root. `#viewer-bar { display: flex }` then matched the script element too, outranked
+       Every selector is qualified `header#doc-bar`, not `#doc-bar`: an asset id is
+       also the id of its block, so the `doc-bar` script element carried the same id as this
+       bar's root. `#doc-bar { display: flex }` then matched the script element too, outranked
        the UA sheet, and painted the module's source below the toolbar in index.html and in
        every viewer file. The tag keeps the sheet off the block; `page-styles.css` holds the
        general rule. */
 
-    header#viewer-bar {
-      --vb-ink: #1b1f24;
-      --vb-muted: #6b7280;
-      --vb-line: #dfe1e6;
-      --vb-paper: #fff;
-      --vb-hover: #eef0f4;
-      --vb-accent: #2f6fed;
+    header#doc-bar {
+      --doc-ink: #1b1f24;
+      --doc-muted: #6b7280;
+      --doc-line: #dfe1e6;
+      --doc-paper: #fff;
+      --doc-hover: #eef0f4;
+      --doc-accent: #2f6fed;
 
       flex: 0 0 auto;
       height: 34px;
@@ -2309,9 +2309,9 @@
       gap: 4px;
       padding: 0 10px;
       background: #fbfbfc;
-      border-bottom: 1px solid var(--vb-line);
+      border-bottom: 1px solid var(--doc-line);
       font: 500 12px/1 system-ui, -apple-system, sans-serif;
-      color: var(--vb-muted);
+      color: var(--doc-muted);
       user-select: none;
       white-space: nowrap;
       position: relative;
@@ -2320,28 +2320,28 @@
 
     /* `toolbar` in #doc-settings means "show chrome". A viewer saved before this release
        never authored it, so it stays bar-less — see registry.settings(). */
-    html[data-toolbar="off"] header#viewer-bar {
+    html[data-toolbar="off"] header#doc-bar {
       display: none;
     }
 
     /* Reading, not authoring: the bar can step out of the way for this session. Its own
        children go, one restore button stays — hiding is never a dead end, and nothing about
        it reaches the file (`session.strip()` removes the attribute from a saved clone). */
-    header#viewer-bar[data-session-hidden] > :not([data-vb-restore]) {
+    header#doc-bar[data-session-hidden] > :not([data-doc-restore]) {
       display: none;
     }
 
-    header#viewer-bar[data-session-hidden] {
+    header#doc-bar[data-session-hidden] {
       justify-content: flex-end;
       height: 26px;
       border-bottom-color: transparent;
       background: transparent;
     }
 
-    .vb-restore {
-      border: 1px solid var(--vb-line);
-      background: var(--vb-paper);
-      color: var(--vb-muted);
+    .doc-restore {
+      border: 1px solid var(--doc-line);
+      background: var(--doc-paper);
+      color: var(--doc-muted);
       border-radius: 999px;
       width: 26px;
       height: 20px;
@@ -2349,46 +2349,46 @@
       cursor: pointer;
     }
 
-    .vb-restore:hover,
-    .vb-restore:focus-visible {
-      background: var(--vb-hover);
-      color: var(--vb-ink);
+    .doc-restore:hover,
+    .doc-restore:focus-visible {
+      background: var(--doc-hover);
+      color: var(--doc-ink);
     }
 
-    .vb-chip {
-      border: 1px solid var(--vb-line);
-      background: var(--vb-paper);
-      color: var(--vb-muted);
+    .doc-chip {
+      border: 1px solid var(--doc-line);
+      background: var(--doc-paper);
+      color: var(--doc-muted);
       border-radius: 6px;
       padding: 3px 8px;
       font: inherit;
       cursor: pointer;
     }
 
-    .vb-chip:hover {
-      background: var(--vb-hover);
-      color: var(--vb-ink);
+    .doc-chip:hover {
+      background: var(--doc-hover);
+      color: var(--doc-ink);
     }
 
-    header#viewer-bar .folio {
+    header#doc-bar .folio {
       min-width: 6.5em;
       font-variant-numeric: tabular-nums;
       color: #9aa1ab;
     }
 
-    header#viewer-bar .vb-title {
+    header#doc-bar .doc-title {
       max-width: 26em;
       overflow: hidden;
       text-overflow: ellipsis;
       font-weight: 500;
-      color: var(--vb-ink);
+      color: var(--doc-ink);
     }
 
-    header#viewer-bar .grow {
+    header#doc-bar .grow {
       flex: 1;
     }
 
-    header#viewer-bar button {
+    header#doc-bar button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -2399,136 +2399,136 @@
       border-radius: 6px;
       background: transparent;
       font: inherit;
-      color: var(--vb-ink);
+      color: var(--doc-ink);
       cursor: pointer;
     }
 
-    /* Both halves of one trap: `header#viewer-bar { display: flex }` and
-       `header#viewer-bar button { display: inline-flex }` outrank the UA sheet's
+    /* Both halves of one trap: `header#doc-bar { display: flex }` and
+       `header#doc-bar button { display: inline-flex }` outrank the UA sheet's
        `[hidden] { display: none }`, so a hidden bar (or a hidden button inside one) still
        paints. Say the intent once, for the bar and for everything in it.
 
        The qualifier above is the other half of that lesson: anything this sheet says about
        "the bar" must not be able to land on the bar's asset block. */
-    header#viewer-bar[hidden],
-    header#viewer-bar [hidden] {
+    header#doc-bar[hidden],
+    header#doc-bar [hidden] {
       display: none !important;
     }
 
-    header#viewer-bar button:hover {
-      background: var(--vb-hover);
+    header#doc-bar button:hover {
+      background: var(--doc-hover);
     }
 
-    header#viewer-bar button:focus-visible {
-      outline: 2px solid var(--vb-accent);
+    header#doc-bar button:focus-visible {
+      outline: 2px solid var(--doc-accent);
       outline-offset: 1px;
     }
 
-    header#viewer-bar button.save-text {
-      color: var(--vb-accent);
+    header#doc-bar button.save-text {
+      color: var(--doc-accent);
       font-weight: 600;
     }
 
-    header#viewer-bar button[aria-expanded="true"] {
-      background: var(--vb-hover);
+    header#doc-bar button[aria-expanded="true"] {
+      background: var(--doc-hover);
     }
 
-    header#viewer-bar .vb-wrap {
+    header#doc-bar .doc-wrap {
       position: relative;
     }
 
-    header#viewer-bar .vb-panel {
+    header#doc-bar .doc-panel {
       position: absolute;
       top: 32px;
       right: 0;
       width: 268px;
       padding: 12px 14px;
-      background: var(--vb-paper);
-      border: 1px solid var(--vb-line);
+      background: var(--doc-paper);
+      border: 1px solid var(--doc-line);
       border-radius: 10px;
       box-shadow: 0 10px 28px rgba(20, 24, 32, .14);
-      color: var(--vb-ink);
+      color: var(--doc-ink);
       font-weight: 400;
       white-space: normal;
       text-align: left;
       z-index: 50;
     }
 
-    header#viewer-bar .vb-panel[hidden] {
+    header#doc-bar .doc-panel[hidden] {
       display: none;
     }
 
-    header#viewer-bar .vb-row {
+    header#doc-bar .doc-row {
       display: flex;
       gap: 10px;
       align-items: baseline;
       margin: 0 0 6px;
       font-size: 12px;
-      color: var(--vb-muted);
+      color: var(--doc-muted);
     }
 
-    header#viewer-bar .vb-row b {
+    header#doc-bar .doc-row b {
       margin-left: auto;
-      color: var(--vb-ink);
+      color: var(--doc-ink);
       font-weight: 600;
     }
 
-    header#viewer-bar .vb-row code {
+    header#doc-bar .doc-row code {
       margin-left: auto;
       font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-      color: var(--vb-ink);
+      color: var(--doc-ink);
     }
 
-    header#viewer-bar .vb-sep {
+    header#doc-bar .doc-sep {
       height: 1px;
       margin: 9px 0;
-      background: var(--vb-line);
+      background: var(--doc-line);
     }
 
-    header#viewer-bar .vb-zoom {
+    header#doc-bar .doc-zoom {
       display: flex;
       align-items: center;
       gap: 4px;
     }
 
-    header#viewer-bar .vb-zoom [data-zoom-label] {
+    header#doc-bar .doc-zoom [data-zoom-label] {
       min-width: 5.2em;
       text-align: center;
       font-size: 12px;
-      color: var(--vb-ink);
+      color: var(--doc-ink);
     }
 
-    header#viewer-bar .vb-note {
+    header#doc-bar .doc-note {
       margin: 0;
       font-size: 11.5px;
-      color: var(--vb-muted);
+      color: var(--doc-muted);
     }
 
     @media print {
-      header#viewer-bar {
+      header#doc-bar {
         display: none;
       }
     }
   </style>
 <!-- /@asset -->
 
-<!-- @asset id="viewer-bar" kind="js" order="92" -->
-  <script type="module" id="viewer-bar">
-    /*@compiled-from src/viewer-bar.js — envelope is build-owned; edit the body or src/*/
-    export function createViewerBar(deps = {}) {
+<!-- @asset id="doc-bar" kind="js" order="92" -->
+  <script type="module" id="doc-bar">
+    /*@compiled-from src/doc-bar.js — envelope is build-owned; edit the body or src/*/
+    export function createDocBar(deps = {}) {
       const {pagination, zoom, figures, signals, session, env} = deps;
       const {document} = env;
       const registry = env.StandaloneDoc;
 
-      const bar = document.getElementById("viewer-bar");
+      const bar = document.getElementById("doc-bar");
       if (!bar) return {save: () => null, sync: () => {}};
 
-      const panel = bar.querySelector("[data-vb-panel]");
-      const panelButton = bar.querySelector("[data-vb-settings]");
-      const titleEl = bar.querySelector("[data-vb-title]");
-      const pagesEl = bar.querySelector("[data-vb-pages]");
-      const pinEl = bar.querySelector("[data-vb-pin]");
-      const restoreButton = bar.querySelector("[data-vb-restore]");
+      const panel = bar.querySelector("[data-doc-panel]");
+      const panelButton = bar.querySelector("[data-doc-settings]");
+      const titleEl = bar.querySelector("[data-doc-title]");
+      const pagesEl = bar.querySelector("[data-doc-pages]");
+      const pinEl = bar.querySelector("[data-doc-pin]");
+      const restoreButton = bar.querySelector("[data-doc-restore]");
 
       const manifest = () => {
         try {
@@ -2600,16 +2600,16 @@
           openPanel(false);
           return;
         }
-        if (event.target.closest("[data-vb-hide]")) {
+        if (event.target.closest("[data-doc-hide]")) {
           setHidden(true);
           return;
         }
-        if (event.target.closest("[data-vb-restore]")) {
+        if (event.target.closest("[data-doc-restore]")) {
           setHidden(false);
           openPanel(true);
           return;
         }
-        if (event.target.closest("[data-vb-settings]")) {
+        if (event.target.closest("[data-doc-settings]")) {
           openPanel(panel ? panel.hidden : false);
           return;
         }
@@ -2630,7 +2630,7 @@
 
       return {save, sync, openPanel, setHidden, isHidden};
     }
-    StandaloneDoc.register("viewer-bar", createViewerBar);
+    StandaloneDoc.register("doc-bar", createDocBar);
   </script>
 <!-- /@asset -->
 
@@ -2714,7 +2714,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"write"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10155,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-UdX4Yd99vNl8ij+pd7ayEo6tRw7iWhg7UmFKoTOBPOXAQvuwS/e3IxdXVvUVRQj/"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":33001,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-I/Dul95xt88xyTc5JK+Xn2snJZPMGn5Ypr3TetCS0C0bUtOyEMnFJg0/7VPQvPa7"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"viewer-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view"],"bytes":1493,"label":"Viewer bar","open":"<header id=\"viewer-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/viewer-bar-markup.html","integrity":"sha384-VUm10x51v+JWZ1QYNUEM/qJXDSmV57fMIs5/40ziA/Fag0ejs/ISE7N+2CADl8m6"},{"id":"viewer-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view"],"bytes":5428,"label":"Viewer bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/viewer-bar-styles.css","integrity":"sha384-joTnCAL6pPCtIypzEdTWu8pSREiOuMMYkXIIWVQ6MHJQNj1wfYRf2jFxwTw/0t0b"},{"id":"viewer-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view"],"bytes":3854,"label":"Viewer bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createViewerBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/viewer-bar.js","integrity":"sha384-0GAM8FmvTXQYBOQUEUnb1I3O1F7GJui1hUXMfPLw/tTNKWW/g+5Q4tlCMtkurFVV"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":45361,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2847,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-mjb+zETpJMoYASOYsUtyrne3fVb1CCflGWMU4+lHzyMcovKuVe6XrLE5mTLyiVFG"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-Wu0nKuBvHdIsXptg1wNGPOTG06kMy0wy/ME4tpSpFrFraAEYEBX6TXNpMENhybRd"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":33120,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-YHycQ/TwHQo+tZReNGg9527bF71S4LgjF4kfdEZLpjZPCxaS5tcobnKSalV+oLj3"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":21144,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-jbz0lZkEpLafuSuyV07jjJiqMmcJMoKkGlny+OMRULKSAqAjZ1YNlqraHTThlkvW"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":66232,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-86CxUW97eOrGCkm+6w5Rei/JFpz/3ZvX1gP1mXMozO8onb1+P28vhFswG5yXkBuc"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42995,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-CfDL71CZcsSZpADLdbnUEwdeiKaO0emPXH8Sq5kXgo61ONTvsHFKaEjyRMnD8OF8"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":9864,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-7KGHvqWypSp+JryRQqqmCk35KuKXSJoMNMESHCnW57lTd1TM9RKV46BNX63bvf+8"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":33001,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-I/Dul95xt88xyTc5JK+Xn2snJZPMGn5Ypr3TetCS0C0bUtOyEMnFJg0/7VPQvPa7"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16151,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-J6FQndylxGdWS9c6/wrVB10L2fUa2WHyeI+pi1EZphZgbR6Mmuf3tbXptuiWJnZd"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":1513,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-QvUsWn+hHOpWYg7UmhkkzitkYqHtlry+qv+WZd55UtVfX9zAtu9XpCAKnMlIUkPD"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":5385,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-nZzCMhmJqBvhGYvxhQxN9e8Hxxy7aSJfXZvEP2P/xi60S/Uo1rfY1hg/Cy9Sq3b6"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":3857,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-C3mm8oJ9m8UFXSjEuRI7duhcbqSm0yq7TSUMWKWAQnUCqFsS3KTgWH9aTDfyFqLg"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":45358,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2844,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-EGgTFYC8BEY8wZc9ZkaAGrQYMNYdt+gaNEQTx2LzNUTbk8oRCwYBhYzLiwj4g3m4"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":33117,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-w0VOucswhkQRGJm+/++nccg1NC8s4y6enXX/OlwQAdVKsl81QRM0w4HGvp5wOCOg"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56239,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-rqAxAoyzwSkylpQTp/BI7okZZ/rs52j3ebclGqTOVFfzIlJsjQ/sLkjk5bU3DQP7"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":21144,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-jbz0lZkEpLafuSuyV07jjJiqMmcJMoKkGlny+OMRULKSAqAjZ1YNlqraHTThlkvW"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":66232,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-86CxUW97eOrGCkm+6w5Rei/JFpz/3ZvX1gP1mXMozO8onb1+P28vhFswG5yXkBuc"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":9864,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-7KGHvqWypSp+JryRQqqmCk35KuKXSJoMNMESHCnW57lTd1TM9RKV46BNX63bvf+8"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -2861,7 +2861,7 @@
           ui: authored?.ui === "minimal" ? "minimal" : "ribbon",
           editable: mode === "edit" && (authored?.editable ?? true),
           /* "Show chrome", not "show the editor toolbar": a view-mode document can carry a
-             bar of its own (viewer-bar), and a file saved before that existed never authored
+             bar of its own (doc-bar), and a file saved before that existed never authored
              this, so it keeps its chrome-less look. */
           toolbar: authored?.toolbar ?? mode !== "view",
           saveThresholdBytes: authored?.saveThresholdBytes ?? 2 * 1024 * 1024,
@@ -4298,7 +4298,7 @@
         /* A built flavour carries only the chrome its mode builds, but `index.html` is the
            source of all of them and a hand-edited copy can carry a block it never runs. Paint
            the chrome this mode owns, and only that — the bar is a viewer's. */
-        const viewerBar = document.getElementById("viewer-bar");
+        const viewerBar = document.getElementById("doc-bar");
         if (viewerBar) viewerBar.hidden = settings.mode !== "view";
         /* The same rule the other way round, and it is not symmetry for its own sake: a
            document saved with its editor inline and then switched to view mode carries the
@@ -4370,8 +4370,8 @@
           if (!node.getAttribute("style")) node.removeAttribute("style");
         });
 
-        clone.querySelectorAll("[data-menu-panel], [data-vb-panel]").forEach((node) => node.setAttribute("hidden", ""));
-        clone.querySelectorAll("[data-vb-settings]").forEach((node) => node.setAttribute("aria-expanded", "false"));
+        clone.querySelectorAll("[data-menu-panel], [data-doc-panel]").forEach((node) => node.setAttribute("hidden", ""));
+        clone.querySelectorAll("[data-doc-settings]").forEach((node) => node.setAttribute("aria-expanded", "false"));
         clone.querySelectorAll("[data-submenu-trigger]").forEach((node) => node.setAttribute("aria-expanded", "false"));
         clone.querySelectorAll("dialog[open]").forEach((node) => node.removeAttribute("open"));
         clone.querySelectorAll(".menu").forEach((menu) => {
@@ -4382,9 +4382,9 @@
         clone.querySelector("#stage")?.removeAttribute("style");
 
         /* A viewer's bar can be tucked away while reading; the file keeps it. */
-        const bar = clone.querySelector("#viewer-bar");
+        const bar = clone.querySelector("#doc-bar");
         bar?.removeAttribute("data-session-hidden");
-        clone.querySelector("[data-vb-restore]")?.setAttribute("hidden", "");
+        clone.querySelector("[data-doc-restore]")?.setAttribute("hidden", "");
 
         /* `status.refresh()` sets a title as well as text, so resetting the text alone would
            make a second save differ from the first. */
@@ -7148,7 +7148,7 @@
     export const SEP = "\n\n";
     export const QUOTE_MAX = 40;
     /* The block's id is `comment-store`, not `comments`, and that is the same collision the
-       repo already paid for once (`viewer-bar`: an asset's block carries `id="<assetId>"`, so a
+       repo already paid for once (`doc-bar`: an asset's block carries `id="<assetId>"`, so a
        data block named `comments` would be shadowed by the module's own `<script>` — and
        `getElementById("comments")` would hand a parser the module's source). `figure-store` /
        `figures` is the same pair, for the same reason. */
@@ -12884,7 +12884,7 @@
            TODO(v0.9.2): the margin model no longer creates a spacer, so this exception, the
            `.page-spacer + *` print rule and the Lua filter's spacer branch can go once no
            pre-margin document is in circulation. */
-        clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
+        clone.querySelectorAll("#app-toolbar,#doc-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
         clone.querySelectorAll("#sheets > *, [data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
 
         /* A fragment is a page break, not a paragraph. Unwrap it so pandoc, a printer and a

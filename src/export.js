@@ -155,7 +155,7 @@ export function createExport(deps = {}) {
        TODO(v0.9.2): the margin model no longer creates a spacer, so this exception, the
        `.page-spacer + *` print rule and the Lua filter's spacer branch can go once no
        pre-margin document is in circulation. */
-    clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
+    clone.querySelectorAll("#app-toolbar,#doc-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
     clone.querySelectorAll("#sheets > *, [data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
 
     /* A fragment is a page break, not a paragraph. Unwrap it so pandoc, a printer and a

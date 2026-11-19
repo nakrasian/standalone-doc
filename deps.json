@@ -2,11 +2,12 @@
   "schema": 1,
   "assets": [
     {
-      "id": "viewer-bar",
+      "id": "doc-bar",
       "order": 92,
       "mode": "online",
       "requiredBy": [
-        "view"
+        "view",
+        "comment"
       ],
       "deps": [
         "pagination",

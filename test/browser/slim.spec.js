@@ -127,12 +127,12 @@ test("a view-mode document never asks the CDN for editor assets", async ({ page 
     .map((url) => url.split("/").pop())
     .sort();
 
-  expect(built).toEqual(["apply-settings", "session", "signals", "zoom", "selection", "layout", "pagination", "comments", "figures", "viewer-bar"]);
+  expect(built).toEqual(["apply-settings", "session", "signals", "zoom", "selection", "layout", "pagination", "comments", "figures", "doc-bar"]);
   /* progress is authoring-only, so a viewer never fetches it. The bar is the opposite:
      view-only, so a view-mode document is the one flavour that does fetch it. */
   expect(fetched).toEqual([
-    "apply-settings.js", "comments.js", "figures.js", "layout.js", "page-styles.css", "pagination.js", "selection.js",
-    "session.js", "signals.js", "viewer-bar-markup.html", "viewer-bar-styles.css", "viewer-bar.js", "zoom.js",
+    "apply-settings.js", "comments.js", "doc-bar-markup.html", "doc-bar-styles.css", "doc-bar.js", "figures.js",
+    "layout.js", "page-styles.css", "pagination.js", "selection.js", "session.js", "signals.js", "zoom.js",
   ]);
 });
 
@@ -165,9 +165,9 @@ test("a slim document can be saved back to a fully inline file", async ({ page }
         .filter((asset) => (asset.requiredBy || ["*"]).some((need) => need === "*" || need === "edit"))
         .filter((asset) => asset.mode === "online")
         .map((asset) => asset.id),
-      viewerBlock: parsed.getElementById("viewer-bar") !== null,
+      viewerBlock: parsed.getElementById("doc-bar") !== null,
       viewerDeclared: JSON.parse(parsed.getElementById("asset-manifest").textContent).assets
-        .find((asset) => asset.id === "viewer-bar")?.mode ?? null,
+        .find((asset) => asset.id === "doc-bar")?.mode ?? null,
       /* inline is the default, so materialising it stores no policy key. Parsed, not
          text-matched: "assets" also names the manifest's array. */
       storesPolicy: (() => {

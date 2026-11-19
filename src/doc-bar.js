@@ -1,17 +1,17 @@
-export function createViewerBar(deps = {}) {
+export function createDocBar(deps = {}) {
   const {pagination, zoom, figures, signals, session, env} = deps;
   const {document} = env;
   const registry = env.StandaloneDoc;
 
-  const bar = document.getElementById("viewer-bar");
+  const bar = document.getElementById("doc-bar");
   if (!bar) return {save: () => null, sync: () => {}};
 
-  const panel = bar.querySelector("[data-vb-panel]");
-  const panelButton = bar.querySelector("[data-vb-settings]");
-  const titleEl = bar.querySelector("[data-vb-title]");
-  const pagesEl = bar.querySelector("[data-vb-pages]");
-  const pinEl = bar.querySelector("[data-vb-pin]");
-  const restoreButton = bar.querySelector("[data-vb-restore]");
+  const panel = bar.querySelector("[data-doc-panel]");
+  const panelButton = bar.querySelector("[data-doc-settings]");
+  const titleEl = bar.querySelector("[data-doc-title]");
+  const pagesEl = bar.querySelector("[data-doc-pages]");
+  const pinEl = bar.querySelector("[data-doc-pin]");
+  const restoreButton = bar.querySelector("[data-doc-restore]");
 
   const manifest = () => {
     try {
@@ -83,16 +83,16 @@ export function createViewerBar(deps = {}) {
       openPanel(false);
       return;
     }
-    if (event.target.closest("[data-vb-hide]")) {
+    if (event.target.closest("[data-doc-hide]")) {
       setHidden(true);
       return;
     }
-    if (event.target.closest("[data-vb-restore]")) {
+    if (event.target.closest("[data-doc-restore]")) {
       setHidden(false);
       openPanel(true);
       return;
     }
-    if (event.target.closest("[data-vb-settings]")) {
+    if (event.target.closest("[data-doc-settings]")) {
       openPanel(panel ? panel.hidden : false);
       return;
     }

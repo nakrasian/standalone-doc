@@ -42,8 +42,8 @@ export function createSession(deps = {}) {
       if (!node.getAttribute("style")) node.removeAttribute("style");
     });
 
-    clone.querySelectorAll("[data-menu-panel], [data-vb-panel]").forEach((node) => node.setAttribute("hidden", ""));
-    clone.querySelectorAll("[data-vb-settings]").forEach((node) => node.setAttribute("aria-expanded", "false"));
+    clone.querySelectorAll("[data-menu-panel], [data-doc-panel]").forEach((node) => node.setAttribute("hidden", ""));
+    clone.querySelectorAll("[data-doc-settings]").forEach((node) => node.setAttribute("aria-expanded", "false"));
     clone.querySelectorAll("[data-submenu-trigger]").forEach((node) => node.setAttribute("aria-expanded", "false"));
     clone.querySelectorAll("dialog[open]").forEach((node) => node.removeAttribute("open"));
     clone.querySelectorAll(".menu").forEach((menu) => {
@@ -54,9 +54,9 @@ export function createSession(deps = {}) {
     clone.querySelector("#stage")?.removeAttribute("style");
 
     /* A viewer's bar can be tucked away while reading; the file keeps it. */
-    const bar = clone.querySelector("#viewer-bar");
+    const bar = clone.querySelector("#doc-bar");
     bar?.removeAttribute("data-session-hidden");
-    clone.querySelector("[data-vb-restore]")?.setAttribute("hidden", "");
+    clone.querySelector("[data-doc-restore]")?.setAttribute("hidden", "");
 
     /* `status.refresh()` sets a title as well as text, so resetting the text alone would
        make a second save differ from the first. */

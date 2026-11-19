@@ -88,7 +88,7 @@ fetch cached by the CDN, which serves one file as 404 while its neighbours are f
 
 ### The viewer's chrome
 
-A `view`-mode document builds `viewer-bar`: a 34 px bar with a folio, the title, *Save a copy*
+A `view`-mode document builds `doc-bar`: a 34 px bar with a folio, the title, *Save a copy*
 and a settings popover (mode, pages, pinned runtime, zoom). It is the reason a repaired viewer
 can keep its repair — the repair card promises "save the file" only when a `[data-save]` exists.
 Its save is a download, because a read-only document cannot write the file it came from. A
