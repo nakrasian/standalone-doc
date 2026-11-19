@@ -115,7 +115,7 @@ test("construction follows the manifest order, not document order", async ({ pag
   expect(state.state).toBe("ready");
   /* Manifest order, even though the blocks were reversed in the file. */
   expect(state.built).toEqual([
-    "apply-settings", "session", "signals", "zoom", "progress", "layout", "pagination",
+    "apply-settings", "session", "signals", "zoom", "selection", "progress", "layout", "pagination",
     "status", "editor", "figures", "policy", "toolbar", "plugins", "export",
   ]);
   expect(state.signals).toBe("object");
@@ -174,8 +174,8 @@ test("a view-mode document boots without the editor", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(state.state).toBe("ready");
-  expect(state.built).toEqual(["apply-settings", "session", "signals", "zoom", "layout", "pagination", "figures", "viewer-bar"]);
-  expect(state.constructed).toEqual(["apply-settings", "figures", "layout", "pagination", "session", "signals", "viewer-bar", "zoom"]);
+  expect(state.built).toEqual(["apply-settings", "session", "signals", "zoom", "selection", "layout", "pagination", "figures", "viewer-bar"]);
+  expect(state.constructed).toEqual(["apply-settings", "figures", "layout", "pagination", "selection", "session", "signals", "viewer-bar", "zoom"]);
   /* The lock is the loader's job, from the settings block — not the markup's. */
   expect(state.mode).toBe("view");
   expect(state.editable).toBe("false");
@@ -284,7 +284,7 @@ test.describe("boot dialog", () => {
     const seen = await dialog(page);
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
-    expect(seen.rows).toBe(20);
+    expect(seen.rows).toBe(21);
     expect(seen.barNow).toBe("100");
   });
 

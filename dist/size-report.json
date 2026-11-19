@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 521604
+    "bytes": 528728
   },
   "assets": [
     {
@@ -80,6 +80,11 @@
       "bytes": 5181
     },
     {
+      "id": "selection",
+      "kind": "js",
+      "bytes": 6980
+    },
+    {
       "id": "layout",
       "kind": "js",
       "bytes": 4385
@@ -87,7 +92,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 36032
+      "bytes": 37485
     },
     {
       "id": "progress",
@@ -102,7 +107,7 @@
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 20407
+      "bytes": 18549
     },
     {
       "id": "figures",
@@ -141,9 +146,9 @@
     }
   ],
   "flavors": {
-    "index.html": 521604,
-    "asset-bodies": 505014,
-    "markup-and-runtime": 16590,
-    "dist/slim.html": 88317
+    "index.html": 528728,
+    "asset-bodies": 511589,
+    "markup-and-runtime": 17139,
+    "dist/slim.html": 88744
   }
 }

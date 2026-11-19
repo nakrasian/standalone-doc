@@ -254,7 +254,7 @@ export function strategyForTag(tag, {blockChildren = false, replaced = false} = 
 /* --------------------------------------------------------------- the pagination engine */
 
 export function createPagination(deps = {}) {
-  const {signals, zoom, layout, env = globalThis} = deps;
+  const {signals, zoom, layout, selection, env = globalThis} = deps;
   const {document} = env;
 
   /** Phrasing children. An unknown tag counts as block: safer than cutting a structure. */
@@ -731,21 +731,41 @@ export function createPagination(deps = {}) {
     }
   }
 
-  function pass() {
+  /* The viewport anchor: the selected block's client top before a pass, restored after.
+     The page model can move content when the plan changes (a page added or removed); the
+     reader is looking at the caret, so that block must stay put within a line. */
+  function scrollAnchor() {
+    const saved = selection.capture(content);
+    if (!saved) return null;
+    const block = content.children[saved.start.block];
+    if (!block) return null;
+    return {block, top: block.getBoundingClientRect().top};
+  }
+
+  function restoreScroll(anchor) {
+    if (!anchor || !anchor.block.isConnected) return;
+    const delta = anchor.block.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(delta) > 0.5) viewport.scrollTop += delta;
+  }
+
+  function pass({merge = false} = {}) {
     if (applying) return;
 
     applying = true;
     let merged = 0;
     let applied = [];
     let check = null;
+    let selectionKept = null;
+    const anchor = scrollAnchor();
     try {
-      signals.mute(() => {
+      const outcome = selection.preserve(content, () => signals.mute(() => {
         /* Measurement must see the semantic document: a fragmented block is taller than
            the text it holds, so planning over fragments would plan its own output. The
            text is captured *before* the merge so a merge that loses characters fails the
            post-condition instead of hiding in it. */
-        const textBefore = fragmenting ? content.textContent : null;
-        if (fragmenting) merged = mergeFragments();
+        const mustMerge = fragmenting || merge;
+        const textBefore = mustMerge ? content.textContent : null;
+        if (mustMerge) merged = mergeFragments();
         const p = plan();
         applyGaps(p);
         if (fragmenting) applied = applyFragments(p.splits);
@@ -768,7 +788,9 @@ export function createPagination(deps = {}) {
           }
         }
         lastPlan = {p, merged, applied, check};
-      });
+      }));
+      selectionKept = outcome.kept;
+      lastPlan.selectionKept = selectionKept;
     } catch (err) {
       /* Transactional: a broken pass must never leave a half-fragmented document on
          screen. Merge, leave the plan alone, and let the caller see the error. */
@@ -778,12 +800,15 @@ export function createPagination(deps = {}) {
       throw err;
     } finally {
       applying = false;
+      /* After the selection is back: a browser may scroll to reveal the caret, and the
+         anchor correction should be the last word on where the reader is. */
+      restoreScroll(anchor);
     }
     signals.emit("layout", {pages: pageCount(), check});
   }
 
-  function refresh() {
-    pass();
+  function refresh(options = {}) {
+    pass(options);
   }
 
   /** Session-only: fragment inside paragraphs, or keep blocks whole. Not persisted. */
@@ -794,12 +819,11 @@ export function createPagination(deps = {}) {
       return fragmenting;
     }
     fragmenting = wanted;
-    /* Turning it off must also remove what it left: a pass without fragmentation does not
-       merge, so the tail would stay a page below its head forever. */
-    if (!fragmenting) {
-      signals.mute(() => mergeFragments());
-    }
-    refresh();
+    /* Turning it off must also remove what it left, but the merge has to happen *inside*
+       the pass: it reflows the document, and the selection and scroll anchors must be
+       captured before it, not after. A pass without fragmentation does not merge by
+       itself, so it is asked to. */
+    refresh({merge: !wanted});
     return fragmenting;
   }
 
@@ -812,6 +836,7 @@ export function createPagination(deps = {}) {
       fragments: fragmenting ? fragmentCount() : 0,
       gaps: p ? p.spacers.length : 0,
       mergedLastPass: lastPlan?.merged ?? 0,
+      selectionKept: lastPlan?.selectionKept ?? null,
       check: lastPlan?.check ?? null,
       pageTops: p?.pageTops ?? [],
       pageBottoms: p?.pageBottoms ?? [],

@@ -1,5 +1,5 @@
 export function createEditor(deps = {}) {
-  const {signals, status, pagination, env} = deps;
+  const {signals, status, pagination, selection, env} = deps;
   /* A back-edge: figures (80) is built after editor (70). Only restore() reads
      it, and restore() is reachable from undo/redo, never from construction. */
   const figures = deps.late("figures");
@@ -55,20 +55,18 @@ export function createEditor(deps = {}) {
     });
   }
 
+  /* The bookmark a toolbar action restores is the same coordinate undo and pagination use:
+     `{block, textOffset}`. A live Range cannot survive a fragment pass, because the text it
+     points at moves into a block-level span. */
   function remember() {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount && inside(sel.anchorNode)) {
-      saved = sel.getRangeAt(0).cloneRange();
-    }
+    const next = selection.capture(content);
+    if (next) saved = next;
   }
 
   function restore() {
-    if (!saved || !inside(saved.commonAncestorContainer)) return false;
+    if (!saved) return false;
     content.focus();
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(saved);
-    return true;
+    return selection.restore(content, saved);
   }
 
   function caretToEnd() {
@@ -214,72 +212,16 @@ export function createEditor(deps = {}) {
 
   /* ---- undo/redo -------------------------------------------------- */
 
-  function childIndex(node) {
-    let index = 0;
-    for (let n = node.previousSibling; n; n = n.previousSibling) {
-      if (!isSpacer(n)) index++;
-    }
-    return index;
-  }
-
-  // Paths ignore generated spacers, so they match the snapshot HTML
-  // (which strips them) and survive a pagination pass.
-  function pathOf(node) {
-    const path = [];
-    let n = node;
-    while (n && n !== content) {
-      const parent = n.parentNode;
-      if (!parent) return null;
-      path.unshift(childIndex(n));
-      n = parent;
-    }
-    return n === content ? path : null;
-  }
-
-  function nodeAt(path) {
-    let n = content;
-    for (const index of path) {
-      let count = 0;
-      let next = null;
-      for (const child of n.childNodes) {
-        if (isSpacer(child)) continue;
-        if (count === index) {next = child; break;}
-        count++;
-      }
-      if (!next) return null;
-      n = next;
-    }
-    return n;
-  }
-
-  function spacerAncestor(node) {
-    if (!node) return null;
-    const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-    return el && el.closest ? el.closest(".page-spacer") : null;
-  }
-
+  /* Undo and the toolbar bookmark share one coordinate, owned by src/selection.js.
+     A path would be invalidated by a fragment wrapper; an offset is not. */
   function captureSelection() {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return null;
-    const range = sel.getRangeAt(0);
-    if (!inside(range.startContainer) || !inside(range.endContainer)) return null;
-    if (spacerAncestor(range.startContainer) || spacerAncestor(range.endContainer)) return null;
-    const a = pathOf(sel.anchorNode);
-    const f = pathOf(sel.focusNode);
-    if (!a || !f) return null;
-    return {a, ao: sel.anchorOffset, f, fo: sel.focusOffset};
+    return selection.capture(content);
   }
 
   function applySelection(saved) {
-    if (!saved) return;
-    const a = nodeAt(saved.a);
-    const f = nodeAt(saved.f);
-    if (!a || !f) return;
-    const clamp = (node, offset) => Math.max(0, Math.min(offset,
-      node.nodeType === Node.TEXT_NODE ? node.data.length : node.childNodes.length));
+    if (!saved) return false;
     content.focus();
-    const live = window.getSelection();
-    live.setBaseAndExtent(a, clamp(a, saved.ao), f, clamp(f, saved.fo));
+    return selection.restore(content, saved);
   }
 
   const history = (() => {

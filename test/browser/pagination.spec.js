@@ -87,6 +87,9 @@ async function loadDoc(page, blocks, {fragment = false} = {}) {
     };
     pagination.setFragmenting(fragment);
     pagination.refresh();
+    /* The fixture replaces the document after boot, so the undo baseline must be the
+       fixture, not the demo content history.reset() recorded at construction. */
+    globalThis.StandaloneDoc.modules.editor.history.reset();
     const d = pagination.diagnostics();
     return {
       whole,
@@ -436,4 +439,265 @@ test("a continuation fragment is not indented by an inherited text-indent", asyn
   expect(indents.head).not.toBe("0px");
   expect(indents.tail, "the continuation line must not inherit the paragraph indent").toBe("0px");
   expect(state.check.ok, JSON.stringify(state.check?.failures)).toBe(true);
+});
+
+/* --------------------------------------------------------------- caret and viewport */
+
+/** Read the live selection as {block, offset, endBlock, endOffset} in text coordinates. */
+const readSelection = () => {
+  const content = document.getElementById("content");
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  const point = (node, nodeOffset) => {
+    const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    const block = el.closest("#content > *");
+    const index = [...content.children].indexOf(block);
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let total = 0;
+    let text = walker.nextNode();
+    while (text) {
+      if (text === node) return {block: index, offset: total + Math.min(nodeOffset, text.nodeValue.length)};
+      total += text.nodeValue.length;
+      text = walker.nextNode();
+    }
+    return {block: index, offset: total};
+  };
+  const start = point(range.startContainer, range.startOffset);
+  const end = point(range.endContainer, range.endOffset);
+  return {...start, endBlock: end.block, endOffset: end.offset, text: content.textContent.length};
+};
+
+test("typing at the cut keeps the caret across a pass", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const placed = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const offset = pag.diagnostics().splits[0].offset;
+    const frag = content.querySelector("[data-frag]");
+    const block = frag.parentElement;
+    const index = [...content.children].indexOf(block);
+    const target = offset - 8;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let remaining = target;
+    let node = walker.nextNode();
+    while (node) {
+      if (remaining <= node.nodeValue.length) break;
+      remaining -= node.nodeValue.length;
+      node = walker.nextNode();
+    }
+    const range = document.createRange();
+    range.setStart(node, remaining);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {block: index, target, text: block.textContent.length};
+  });
+  await page.keyboard.type("x");
+  const after = await page.evaluate((placed) => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh();
+    return {
+      selection: (() => {
+        const content = document.getElementById("content");
+        const sel = window.getSelection();
+        const range = sel.getRangeAt(0);
+        const el = range.startContainer.nodeType === Node.ELEMENT_NODE
+          ? range.startContainer : range.startContainer.parentElement;
+        const block = el.closest("#content > *");
+        const index = [...content.children].indexOf(block);
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        let total = 0;
+        let node = walker.nextNode();
+        while (node) {
+          if (node === range.startContainer) break;
+          total += node.nodeValue.length;
+          node = walker.nextNode();
+        }
+        return {block: index, offset: total + range.startOffset, text: block.textContent.length};
+      })(),
+      diagnostics: pag.diagnostics(),
+    };
+  }, placed);
+
+  expect(after.selection.block, "the caret moved to another block").toBe(placed.block);
+  expect(after.selection.offset, `caret at ${after.selection.offset}, typed at ${placed.target}`).toBe(placed.target + 1);
+  expect(after.selection.text).toBe(placed.text + 1);
+  expect(after.diagnostics.fragments, "the edited block is still fragmented").toBeGreaterThan(0);
+  expect(after.diagnostics.selectionKept, JSON.stringify(after.diagnostics.check?.failures)).toBe(true);
+});
+
+test("a selection across a cut survives ten passes", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const before = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const offset = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const point = (at) => {
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let remaining = at;
+      let node = walker.nextNode();
+      while (node) {
+        if (remaining <= node.nodeValue.length) return {node, offset: remaining};
+        remaining -= node.nodeValue.length;
+        node = walker.nextNode();
+      }
+      return {node: block, offset: block.childNodes.length};
+    };
+    const start = point(offset - 20);
+    const end = point(offset + 20);
+    const range = document.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    const blockIndex = [...content.children].indexOf(block);
+    return {block: blockIndex, start: offset - 20, end: offset + 20};
+  });
+  for (let i = 0; i < 10; i++) {
+    const state = await page.evaluate(() => {
+      const pag = globalThis.StandaloneDoc.modules.pagination;
+      pag.refresh();
+      return {kept: pag.diagnostics().selectionKept, check: pag.diagnostics().check};
+    });
+    expect(state.kept, `pass ${i + 1} lost the selection: ${JSON.stringify(state.check?.failures)}`).toBe(true);
+  }
+  const after = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const block = content.querySelector("[data-frag]").parentElement;
+    const index = [...content.children].indexOf(block);
+    const sel = window.getSelection();
+    const range = sel.getRangeAt(0);
+    const point = (node, nodeOffset) => {
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let total = 0;
+      let text = walker.nextNode();
+      while (text) {
+        if (text === node) return total + Math.min(nodeOffset, text.nodeValue.length);
+        total += text.nodeValue.length;
+        text = walker.nextNode();
+      }
+      return total;
+    };
+    return {
+      block: index,
+      start: point(range.startContainer, range.startOffset),
+      end: point(range.endContainer, range.endOffset),
+    };
+  });
+  expect(after.block).toBe(before.block);
+  expect(after.start, `start at ${after.start}, expected ${before.start}`).toBe(before.start);
+  expect(after.end, `end at ${after.end}, expected ${before.end}`).toBe(before.end);
+});
+
+test("a pass keeps the caret's block at the same viewport position", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, [
+    ...FIXTURE,
+    {tag: "p", text: LONG},
+    {tag: "p", text: "A final paragraph."},
+  ], {fragment: true});
+  const placed = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const viewport = document.getElementById("viewport");
+    /* A block after the fragmented paragraph, with content below it: merging the fragment
+       changes the page plan above the caret (the reflow the anchor exists for), and there
+       is still room to scroll down to keep it put. The very last block cannot be kept at
+       the same viewport top — the document ends. */
+    const block = content.children[content.children.length - 3];
+    block.scrollIntoView({block: "center"});
+    const index = [...content.children].indexOf(block);
+    const range = document.createRange();
+    range.setStart(block.firstChild, Math.min(5, block.textContent.length));
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {block: index, top: block.getBoundingClientRect().top, scrollTop: viewport.scrollTop, fragments: content.querySelectorAll("[data-frag]").length};
+  });
+  expect(placed.fragments, "the fixture must be fragmented to begin with").toBeGreaterThan(0);
+  const after = await page.evaluate((placed) => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const viewport = document.getElementById("viewport");
+    /* Turning fragmentation off merges the paragraph and re-plans: the page gap that was
+       inside it disappears, so every later block moves. */
+    pag.setFragmenting(false);
+    const block = content.children[placed.block];
+    return {
+      top: block.getBoundingClientRect().top,
+      scrollTop: viewport.scrollTop,
+      fragments: content.querySelectorAll("[data-frag]").length,
+      selectionKept: pag.diagnostics().selectionKept,
+    };
+  }, placed);
+  const delta = after.top - placed.top;
+  expect(after.fragments, "the merge did not happen").toBe(0);
+  expect(Math.abs(delta), `the caret block moved ${Math.round(delta)}px; scrollTop ${placed.scrollTop} → ${after.scrollTop}`).toBeLessThanOrEqual(24);
+});
+
+test("undo restores the unfragmented snapshot and the next pass re-fragments", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, FIXTURE, {fragment: true});
+  const placed = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const offset = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const index = [...content.children].indexOf(block);
+    const point = (at) => {
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let remaining = at;
+      let node = walker.nextNode();
+      while (node) {
+        if (remaining <= node.nodeValue.length) return {node, offset: remaining};
+        remaining -= node.nodeValue.length;
+        node = walker.nextNode();
+      }
+      return {node: block, offset: block.childNodes.length};
+    };
+    const at = point(offset - 8);
+    const range = document.createRange();
+    range.setStart(at.node, at.offset);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {block: index, offset: offset - 8, text: content.textContent.length};
+  });
+  await page.keyboard.type("abc");
+  await page.waitForTimeout(500); /* the typing burst becomes one history entry */
+  const result = await page.evaluate((placed) => {
+    const content = document.getElementById("content");
+    const editor = globalThis.StandaloneDoc.modules.editor;
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const typed = content.textContent.length;
+    editor.exec("undo");
+    const restored = content.textContent.length;
+    const fragmentsBeforePass = content.querySelectorAll("[data-frag]").length;
+    pag.refresh();
+    return {
+      typed,
+      restored,
+      fragmentsBeforePass,
+      fragmentsAfterPass: content.querySelectorAll("[data-frag]").length,
+      kept: pag.diagnostics().selectionKept,
+      text: content.textContent.length,
+    };
+  }, placed);
+  expect(result.typed).toBe(placed.text + 3);
+  expect(result.restored, "undo did not remove the typing").toBe(placed.text);
+  expect(result.fragmentsBeforePass, "the undo snapshot still carried a fragment").toBe(0);
+  expect(result.fragmentsAfterPass, "the next pass did not re-fragment").toBeGreaterThan(0);
+  expect(result.kept, "the caret was not restored across undo + re-fragment").toBe(true);
 });

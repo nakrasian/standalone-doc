@@ -288,6 +288,29 @@
       ]
     },
     {
+      "id": "selection",
+      "kind": "js",
+      "order": 44,
+      "tag": "script",
+      "file": "src/selection.js",
+      "bytes": 6284,
+      "sha384": "sha384-gDv+N53i3HXa0STvkMcPujX+dkGkgtjM8thBVoKRQZA00xdte46FWR+jxKJy1Wwt",
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "role": "module",
+      "label": "Selection",
+      "deps": [],
+      "provides": [
+        "capture",
+        "restore",
+        "preserve",
+        "offsetIn",
+        "pointAt"
+      ]
+    },
+    {
       "id": "layout",
       "kind": "js",
       "order": 46,
@@ -316,8 +339,8 @@
       "order": 50,
       "tag": "script",
       "file": "src/pagination.js",
-      "bytes": 32857,
-      "sha384": "sha384-zlstDOK0OnjvNRoR5iMlIrzBP7qdlEf96lYhh9pYAWH7uImRtwe1bTc5r2Vqh2kb",
+      "bytes": 34218,
+      "sha384": "sha384-O+ZCA4rlvw0kI4kasLjQb+zHXdmXqWIgDLPrHYWChgrsDn7+/IjSAkpT8n/75Tfj",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -327,7 +350,8 @@
       "deps": [
         "signals",
         "zoom",
-        "layout"
+        "layout",
+        "selection"
       ],
       "provides": [
         "offset",
@@ -395,8 +419,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 18300,
-      "sha384": "sha384-VJX0le7tctU87pWHNsJsIQpeFhsvdjpPCibWBB8IH3omon6HeyY318wrBhhcjDGF",
+      "bytes": 16658,
+      "sha384": "sha384-xqhJ+xgaN2gInhJaP2gT3hZYI87tqTWdmUE5LcZsOWFE29HrYUjQcIaQSNcI93Qs",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -406,7 +430,8 @@
       "deps": [
         "signals",
         "status",
-        "pagination"
+        "pagination",
+        "selection"
       ],
       "late": [
         "figures"

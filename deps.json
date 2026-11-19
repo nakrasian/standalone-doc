@@ -118,6 +118,24 @@
       ]
     },
     {
+      "id": "selection",
+      "order": 44,
+      "mode": "inline",
+      "requiredBy": [
+        "*"
+      ],
+      "deps": [],
+      "late": [],
+      "optional": [],
+      "provides": [
+        "capture",
+        "restore",
+        "preserve",
+        "offsetIn",
+        "pointAt"
+      ]
+    },
+    {
       "id": "layout",
       "order": 46,
       "mode": "inline",
@@ -144,7 +162,8 @@
       "deps": [
         "signals",
         "zoom",
-        "layout"
+        "layout",
+        "selection"
       ],
       "late": [],
       "optional": [],
@@ -206,7 +225,8 @@
       "deps": [
         "signals",
         "status",
-        "pagination"
+        "pagination",
+        "selection"
       ],
       "late": [
         "figures"

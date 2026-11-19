@@ -99,6 +99,7 @@ const REGIONS = [
   { id: "viewer-bar-styles", kind: "css", order: 21, label: "Viewer bar styles", requiredBy: ["view"]  },
   { id: "signals", kind: "js", order: 30, label: "Signals", requiredBy: ["*"]  },
   { id: "zoom", kind: "js", order: 40, label: "Zoom", requiredBy: ["*"]  },
+  { id: "selection", kind: "js", order: 44, label: "Selection", requiredBy: ["*"]  },
   { id: "layout", kind: "js", order: 46, label: "Layout geometry", requiredBy: ["*"]  },
   { id: "pagination", kind: "js", order: 50, label: "Pagination", requiredBy: ["*"]  },
   { id: "progress", kind: "js", order: 45, label: "Progress dialog", requiredBy: ["edit"]  },
