@@ -264,7 +264,9 @@ export function createCitations() {
         const items = ordered.map((key) => {
           const entry = lookup(key);
           const body = entry
-            ? `<a href="#cite-${escapeAttr(key)}">${escapeHtml(entryLine(key, style, library()))}</a>`
+            /* Rich: the title may carry `<i>` or `<sup>`, and `richText` is what makes it a
+               tag rather than the text "<i>". */
+            ? `<a href="#cite-${escapeAttr(key)}">${entryLineHtml(key, style, library())}</a>`
             + `<span class="bib-key">${escapeHtml(key)}</span>`
             : `<span>${escapeHtml(key)} — not in this document's library</span>`;
           const attrs = `id="bib-${escapeAttr(key)}" data-key="${escapeAttr(key)}"${entry ? "" : " data-missing"}`;
@@ -1368,9 +1370,112 @@ export function normaliseZotero({csl, json}) {
 
 export const CSL_STYLES = ["numeric", "author-date", "vancouver"];
 
+/* ------------------------------------------------------------- markup inside a field
+ *
+ * A CSL text field is not plain text. Zotero puts **HTML-like markup** in `title`,
+ * `container-title`, `publisher` and the rest — `<i>`, `<b>`, `<sup>` (an asterisk), `<sub>`,
+ * `<span class="nocase">` — and publisher-supplied metadata arrives as JATS, which Zotero
+ * stores verbatim: measured in one public library, `<Emphasis Type="Bold">` in a title and
+ * `<sup>*</sup>` in another. Fields also carry **entities** (`Taylor &amp; Francis Group`).
+ *
+ * Escaping a field as a whole therefore renders its tags as text, and escaping its entities
+ * twice renders `&amp;amp;`. Two functions, and every call site chooses one:
+ *
+ *   plainText(value)  text — for a marker's label, an export, `textContent`, a filter
+ *   richText(value)   HTML — escaped, with a small allow-list of inline tags restored
+ *
+ * The allow-list carries **no attributes**, so no style, no `onerror`, no `href`: the output
+ * is built by this function and nothing from the field survives as an attribute.
+ */
+
+/** The inline tags a citation may keep. No attributes, no nesting rules beyond balance. */
+const RICH_TAGS = new Set(["i", "b", "em", "strong", "sup", "sub"]);
+const TAG_RE = /<\s*(\/?)\s*([A-Za-z][\w:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*?)\s*(\/?)\s*>/g;
+
+/** `&amp;` and friends, once. Numbers last so a literal `&amp;lt;` stays `&lt;`→`&lt;`. */
+export function decodeEntities(value) {
+  return String(value ?? "")
+    .replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (match, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&(lt|gt|quot|apos|nbsp);/g, (match, name) =>
+      ({"lt": "<", "gt": ">", "quot": "\"", "apos": "'", "nbsp": "\u00a0"}[name]))
+    .replace(/&amp;/g, "&");
+}
+
+/** JATS `<Emphasis Type="Bold">` → the tags this renderer can emit. */
+function emphasisTags(attrs) {
+  const type = /Type\s*=\s*["']([^"']*)["']/i.exec(attrs)?.[1]?.toLowerCase() || "";
+  if (type.includes("bold") && type.includes("italic")) return ["b", "i"];
+  if (type.includes("bold")) return ["b"];
+  if (type.includes("italic")) return ["i"];
+  if (type.includes("super")) return ["sup"];
+  if (type.includes("sub")) return ["sub"];
+  return [];
+}
+
+/**
+ * Text of a field: tags removed, entities decoded. This is what a label, a filter and an
+ * export need — a marker reading `Introduction to WordNet <sup>*</sup>` would be a bug.
+ */
+export function plainText(value) {
+  return decodeEntities(String(value ?? "").replace(TAG_RE, "")).replace(/\s+/g, " ").trim();
+}
+
+/**
+ * A field as HTML: everything escaped, then the allow-listed inline tags put back. Tags that
+ * are not allowed are **dropped and their text kept** (`<span class="nocase">`, `<p>`), which
+ * is what a reader wants from a stray wrapper.
+ */
+export function richText(value) {
+  const raw = decodeEntities(String(value ?? ""));
+  const stack = [];
+  let out = "";
+  let last = 0;
+  for (const match of raw.matchAll(TAG_RE)) {
+    out += escapeHtml(raw.slice(last, match.index));
+    last = match.index + match[0].length;
+    const [, closing, rawName, attrs, selfClosing] = match;
+    const name = rawName.toLowerCase();
+    if (name === "emphasis") {
+      if (closing) {
+        const opened = stack.pop();
+        if (opened?.length) out += opened.slice().reverse().map((tag) => `</${tag}>`).join("");
+        continue;
+      }
+      const tags = emphasisTags(attrs);
+      stack.push(tags);
+      out += tags.map((tag) => `<${tag}>`).join("");
+      continue;
+    }
+    if (!RICH_TAGS.has(name)) {
+      /* Transparent: emit nothing, but remember it so its closing tag is swallowed too. */
+      if (!selfClosing) stack.push(closing ? null : []);
+      continue;
+    }
+    if (closing) {
+      const opened = stack[stack.length - 1];
+      if (opened && opened[0] === name) {
+        stack.pop();
+        out += `</${name}>`;
+      }
+      continue;
+    }
+    if (selfClosing) { out += `<${name}>`; continue; }
+    /* Reopening the same tag (`<i>a<i>b</i>`) is legal HTML and common enough in metadata. */
+    stack.push([name]);
+    out += `<${name}>`;
+  }
+  out += escapeHtml(raw.slice(last));
+  /* Close anything the field left open, so one bad record cannot unstyle the page after it. */
+  for (const opened of stack.reverse()) {
+    if (opened?.length) out += opened.slice().reverse().map((tag) => `</${tag}>`).join("");
+  }
+  return out;
+}
+
 export function familyOf(entry) {
-  return entry?.author?.[0]?.family || entry?.author?.[0]?.literal
-    || entry?.editor?.[0]?.family || entry?.publisher || entry?.title || "Anon.";
+  return nameFamily(entry?.author?.[0]) || entry?.editor?.[0]?.family
+    || entry?.publisher || entry?.title || "Anon.";
 }
 
 export function entryYear(entry) {
@@ -1379,11 +1484,12 @@ export function entryYear(entry) {
 
 export function shortAuthors(entry) {
   const authors = entry?.author || [];
-  if (authors.length > 2) return `${familyOf(entry)} et al.`;
+  if (authors.length > 2) return `${plainText(familyOf(entry))} et al.`;
   if (authors.length === 2) {
-    return `${authors[0].family || authors[0].literal} & ${authors[1].family || authors[1].literal}`;
+    return `${plainText(nameFamily(authors[0]))} & ${plainText(nameFamily(authors[1]))}`;
   }
-  return familyOf(entry);
+  /* A no-author entry falls back to its title, which is exactly where markup lives. */
+  return plainText(familyOf(entry));
 }
 
 /**
@@ -1425,29 +1531,75 @@ export function bibOrder(keys, style, store) {
 }
 
 /** One reference line. Enough to judge the page; a CSL processor replaces this body only. */
-export function entryLine(key, style, store) {
+/**
+ * One reference line, in two forms: `entryLine` is plain text, `entryLineHtml` is safe HTML
+ * with the field's own inline markup restored. One composer, two field transforms.
+ *
+ * The shapes here are a hand-rolled APA-ish subset, not CSL. Two things it deliberately got
+ * right once the library was real: a **book keeps its publisher and place** (the first version
+ * printed neither, so every book ended at its title), and a page range gets an **en dash**.
+ */
+function composeEntry(key, style, store, fmt) {
   const entry = store[key];
   if (!entry) return `${key} — not in this document's library`;
   const year = entryYear(entry);
-  const container = entry["container-title"] || "";
-  const vol = entry.volume ? `, ${entry.volume}` : "";
-  const issue = entry.issue ? `(${entry.issue})` : "";
-  const page = entry.page ? `, ${entry.page}` : "";
-  const doi = entry.DOI ? ` https://doi.org/${entry.DOI}` : entry.URL ? ` ${entry.URL}` : "";
+  const title = fmt(entry.title || "");
+  const container = entry["container-title"] ? fmt(entry["container-title"]) : "";
+  const publisher = entry.publisher ? fmt(entry.publisher) : "";
+  const place = entry["publisher-place"] ? fmt(entry["publisher-place"]) : "";
+  const volume = entry.volume ? `, ${fmt(entry.volume)}` : "";
+  const issue = entry.issue ? `(${fmt(entry.issue)})` : "";
+  /* APA wants an en dash in a range; Zotero gives a hyphen. */
+  const page = entry.page ? `, ${fmt(entry.page).replace(/(\d)\s*-\s*(\d)/g, "$1–$2")}` : "";
+  const doi = entry.DOI ? ` https://doi.org/${fmt(entry.DOI)}` : entry.URL ? ` ${fmt(entry.URL)}` : "";
+  const imprint = publisher ? `${place ? `${place}: ` : ""}${publisher}.` : "";
+
   if (style === "vancouver") {
-    const initials = (entry.author || []).map((n) => n.literal
-      || `${n.family} ${(n.given || "").split(/\s+/).map((w) => w[0] || "").join("")}`);
-    return `${initials.join(", ")}. ${entry.title || ""}. ${container}. ${year}${vol}${issue}${page}.${doi}`
-      .replace(/\s+/g, " ").trim();
+    const names = (entry.author || []).map((name) => name.literal
+      ? fmt(name.literal)
+      : `${fmt(nameFamily(name))} ${String(name.given || "").split(/\s+/).map((word) => word[0] || "").join("")}`.trim());
+    const imprintV = publisher ? `${place ? `${place}: ` : ""}${publisher}` : "";
+    return `${names.join(", ")}. ${title}. ${container ? `${container}. ` : ""}${year}${volume}${issue}${page}.${imprintV ? ` ${imprintV}.` : ""}${doi}`
+      .replace(/\s+/g, " ").replace(/\.\./g, ".").trim();
   }
-  const names = (entry.author || []).map((name) => name.literal
-    || `${name.family}${name.given ? `, ${name.given.replace(/(^|\s)(\S)\S*/g, "$1$2.")}` : ""}`);
+
+  const names = (entry.author || []).map((name) => {
+    if (name.literal) return fmt(name.literal);
+    const family = fmt(nameFamily(name));
+    const given = name.given ? `, ${fmt(initialsOf(name.given))}` : "";
+    const suffix = name.suffix ? `, ${fmt(name.suffix)}` : "";
+    return `${family}${given}${suffix}`;
+  });
   const shown = names.length > 7 ? [...names.slice(0, 6), "…", names.at(-1)] : names;
   const joined = shown.length > 2
     ? `${shown.slice(0, -1).join(", ")}, & ${shown.at(-1)}`
     : shown.join(" & ");
-  const rest = container ? `${container}${vol}${issue}${page}.` : "";
-  return `${joined} (${year}). ${entry.title || ""}. ${rest}${doi}`.replace(/\s+/g, " ").trim();
+  const rest = container
+    ? `${container}${volume}${issue}${page}.${imprint ? ` ${imprint}` : ""}`
+    : imprint;
+  return `${joined} (${year}). ${title}. ${rest}${doi}`.replace(/\s+/g, " ").trim();
+}
+
+export function entryLine(key, style, store) {
+  return composeEntry(key, style, store, plainText);
+}
+
+/** The same line as HTML: the field's `<i>` renders, everything else is escaped. */
+export function entryLineHtml(key, style, store) {
+  return composeEntry(key, style, store, richText);
+}
+
+/** `van der Berg` — the particle belongs to the name, and Zotero keeps it in its own field. */
+export function nameFamily(name) {
+  if (!name) return "";
+  if (name.literal) return name.literal;
+  const particle = name["non-dropping-particle"] || name["dropping-particle"] || "";
+  return [particle, name.family].filter(Boolean).join(" ");
+}
+
+/** `Barry L.` → `B. L.` — the same rule the first version had, extracted so both styles share it. */
+export function initialsOf(given) {
+  return String(given || "").replace(/(^|\s)(\S)\S*/g, "$1$2.").trim();
 }
 
 /* ------------------------------------------------------------------ import, re-import */

@@ -33,6 +33,7 @@ const byteLength = (text) => Buffer.byteLength(text, "utf8");
 const BIB = (year) => [
   `@article{smith${year === 2020 ? "2020a" : "2020a"},`,
   "  author = {Smith, John and Jones, Anne},",
+  /* A `.bib` cannot carry HTML, so the markup case is a CSL-JSON import below. */
   "  title = {A study of citations in long-form documents},",
   `  journal = {Journal of Documentation}, year = {${year}}, volume = {76}, pages = {411--430}`,
   "}",
@@ -61,7 +62,7 @@ function makeDoc() {
   });
   manifest.plugins = {
     citations: {
-      label: "Citations", version: "0.1.1", api: 2, island: "sealed", enabled: true,
+      label: "Citations", version: "0.1.2", api: 2, island: "sealed", enabled: true,
       entry: "citations", assets: ["citations"],
       contributes: {
         inline: [{ id: "citation", label: "Citation…" }],
@@ -249,6 +250,50 @@ test("the reference list toggles off / cited / whole library, and the choice tra
 
   await setList("cited");
   expect(await page.evaluate(() => document.querySelectorAll("#bibliography [data-key]").length)).toBe(1);
+});
+
+test("a field's inline markup renders in the list and never in the label", async ({ page }) => {
+  await boot(page);
+  /* Zotero's CSL-JSON carries HTML in text fields; this is the same shape. */
+  const csl = JSON.stringify([
+    {
+      "citation-key": "markup2020", type: "article-journal",
+      author: [{family: "Smith", given: "John"}], issued: {"date-parts": [[2020]]},
+      title: "An <i>On</i>-line database <sup>*</sup>", "container-title": "Computational Linguistics",
+      volume: "16", page: "211-216",
+    },
+    { "citation-key": "book2019", type: "book", author: [{family: "Berg", given: "Jan", "non-dropping-particle": "van der"}],
+      issued: {"date-parts": [[2019]]}, title: "<i>The</i> Book of Things",
+      publisher: "Taylor &amp; Francis", "publisher-place": "London" },
+  ]);
+  const said = await withPanel(page, `((cslJson) => {
+    const dialog = document.querySelector("dialog.plugin-panel[open]");
+    const box = dialog.querySelector("[data-cp-import]");
+    box.value = cslJson;
+    box.dispatchEvent(new Event("input", {bubbles: true}));
+    dialog.querySelector("[data-cp-do]").click();
+    return dialog.querySelector("[data-cp-out]").textContent;
+  })(${JSON.stringify(csl)})`);
+  expect(said).toContain("2 parsed");
+
+  await cite(page, "#content p:nth-of-type(1)", "markup");
+  const rendered = await page.evaluate(() => {
+    const entry = document.querySelector('#bibliography [data-key="markup2020"]');
+    return {
+      html: entry.innerHTML,
+      italics: entry.querySelectorAll("i").length,
+      sups: entry.querySelectorAll("sup").length,
+      text: entry.textContent,
+      label: document.querySelector("a.cite").textContent,
+    };
+  });
+  expect(rendered.italics).toBe(1);
+  expect(rendered.sups).toBe(1);
+  expect(rendered.text).toContain("An On-line database *");
+  expect(rendered.text).not.toContain("<i>");
+  /* The label is text: a marker reading `<i>` would be the bug this replaced. */
+  expect(rendered.label).toBe("[1]");
+  expect(rendered.label).not.toContain("<");
 });
 
 test("a save carries the store, labels and stylesheet, and the file reads without the plugin", async ({ page }) => {

@@ -106,7 +106,7 @@ const BUNDLES = [
   {
     id: "citations",
     label: "Citations",
-    version: "0.1.1",
+    version: "0.1.2",
     /* 2: this plugin calls `editor.insertInline()` and `pagination.defineBlock()`, and relies
        on `data-atomic` being honoured by the planner. A host that does not have them must
        refuse it *before* activate() rather than after a citation half-lands. */

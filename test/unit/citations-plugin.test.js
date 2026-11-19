@@ -9,6 +9,9 @@ import assert from "node:assert/strict";
  */
 import {
   betterBibtexKey,
+  entryLineHtml,
+  plainText,
+  richText,
   fetchZoteroLibrary,
   isReferenceItem,
   zoteroUrl,
@@ -431,4 +434,85 @@ test("the reader refuses a library with no name, and surfaces an http failure", 
     () => fetchZoteroLibrary({library: "groups/1", fetchImpl: async () => ({ok: false, status: 403})}),
     /HTTP 403/,
   );
+});
+
+/* ------------------------------------------- a CSL field is not plain text */
+
+/* Zotero puts HTML-like markup in CSL text fields — `<i>`, `<sup>*</sup>`, JATS
+   `<Emphasis Type="Bold">` from publisher metadata — and entities (`Taylor &amp; Francis
+   Group`). Escaping a field as a whole printed the tags; escaping twice printed `&amp;amp;`.
+   Measured in a public library (lab/017 §formatting). */
+
+test("a field's inline markup renders, and everything else is escaped", () => {
+  assert.equal(richText("Introduction to WordNet <sup>*</sup>"), "Introduction to WordNet <sup>*</sup>");
+  assert.equal(richText("<i>On</i>-line"), "<i>On</i>-line");
+  assert.equal(richText("<em>a</em> and <strong>b</strong>"), "<em>a</em> and <strong>b</strong>");
+  /* JATS, as Zotero stores publisher metadata verbatim. */
+  assert.equal(richText('<Emphasis Type="BoldItalic">x</Emphasis>'), "<b><i>x</i></b>");
+  /* Entities are decoded once and escaped once: "&" in, "&amp;" out, never "&amp;amp;". */
+  assert.equal(richText("Taylor &amp; Francis"), "Taylor &amp; Francis");
+  assert.equal(plainText("Taylor &amp; Francis"), "Taylor & Francis");
+});
+
+test("markup that is not allow-listed is dropped and its text kept", () => {
+  assert.equal(richText('<span class="nocase">iPhone</span>'), "iPhone");
+  assert.equal(richText("<p>a</p><p>b</p>"), "ab");
+  assert.equal(richText("<script>bad()</script>ok"), "bad()ok", "the tag goes; the text is just text");
+  /* The allow-list carries no attributes, so nothing from a field can become one. */
+  const nasty = richText('<img src=x onerror="alert(1)">hi');
+  assert.equal(nasty.includes("<img"), false);
+  assert.equal(nasty.includes("onerror"), false);
+  assert.equal(nasty, "hi");
+});
+
+test("unbalanced markup cannot leak past the field", () => {
+  /* One bad record must not unstyle the reference after it. */
+  assert.equal(richText("<i>half"), "<i>half</i>");
+  assert.equal(richText("mismatch <i>x</b> y</i>"), "mismatch <i>x y</i>");
+  assert.equal(richText("a <b>b</b> <i>c</i>"), "a <b>b</b> <i>c</i>");
+});
+
+test("plainText is what a label, a filter and an export get", () => {
+  assert.equal(plainText("Introduction to WordNet <sup>*</sup>"), "Introduction to WordNet *");
+  assert.equal(plainText("<i>On</i>-line"), "On-line", "removing a tag must not insert a space");
+  assert.equal(plainText("a\n b"), "a b");
+  assert.equal(plainText(null), "");
+});
+
+const MARKED = {
+  article: {
+    id: "article", type: "article-journal", author: [{family: "Smith", given: "John"}],
+    issued: {"date-parts": [[2020]]}, title: "An <i>On</i>-line database <sup>*</sup>",
+    "container-title": "Computational Linguistics", volume: "16", page: "211-216",
+  },
+  book: {
+    id: "book", type: "book",
+    author: [{"non-dropping-particle": "van der", family: "Berg", given: "Jan", suffix: "Jr."}],
+    issued: {"date-parts": [[2019]]},
+    title: "<i>The</i> Book of Things", publisher: "Taylor &amp; Francis", "publisher-place": "London",
+  },
+};
+
+test("the reference line has a text form and an html form", () => {
+  const text = entryLine("article", "author-date", MARKED);
+  const html = entryLineHtml("article", "author-date", MARKED);
+  assert.equal(text.includes("<i>"), false, "the text form carries no tags");
+  assert.match(text, /An On-line database \*/);
+  assert.match(html, /An <i>On<\/i>-line database <sup>\*<\/sup>/);
+  /* The same line otherwise. */
+  assert.equal(plainText(html), text);
+});
+
+test("a book keeps its place and publisher, and a name keeps its particle", () => {
+  /* The first version printed neither: every book ended at its title. */
+  const line = entryLine("book", "author-date", MARKED);
+  assert.match(line, /^van der Berg, J\., Jr\. \(2019\)\. The Book of Things\. London: Taylor & Francis\.$/);
+  assert.equal(entryLineHtml("book", "author-date", MARKED).includes("Taylor &amp; Francis"), true);
+  /* The marker's label shortens the same way, without markup. */
+  assert.equal(labelFor(["book"], "author-date", MARKED), "(van der Berg et al., 2019)".replace(" et al.", ""));
+});
+
+test("a page range is an en dash", () => {
+  assert.match(entryLine("article", "author-date", MARKED), /211–216/);
+  assert.match(entryLine("article", "vancouver", MARKED), /211–216/);
 });
