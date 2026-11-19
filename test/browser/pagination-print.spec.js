@@ -50,6 +50,10 @@ test("the live document's print stylesheet breaks at fragments", async ({page}) 
   await load(page);
   await page.emulateMedia({media: "print"});
   const styles = await page.evaluate(() => {
+    /* Emulated media changes the measure, so a pass may be queued behind it. Take the
+       state the rules are read from in this task: the print rules are the assertion, not
+       which pass happened to be last. */
+    globalThis.StandaloneDoc.modules.pagination.refresh();
     const frag = document.querySelector("[data-frag]");
     return frag ? {
       display: getComputedStyle(frag).display,
@@ -65,10 +69,32 @@ test("the live document's print stylesheet breaks at fragments", async ({page}) 
   expect(styles.sheets).toBe("none");
 });
 
+test("a pass during print preview keeps the screen plan", async ({page}) => {
+  /* Print media hides `#probe` and resets the page furniture (`[data-page-start]` and the
+     fragment pushes), so a pass there would measure a zero page and plan against a
+     document that is not the screen. The pass is deferred: print keeps the screen plan's
+     fragments and breaks, and `afterprint` re-plans. This fixture is what caught the
+     hidden probes twice. */
+  const before = await load(page);
+  expect(before.fragments, "the fixture must be fragmented").toBeGreaterThan(0);
+  await page.emulateMedia({media: "print"});
+  const during = await page.evaluate(() => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.refresh();
+    const d = pag.diagnostics();
+    return {pages: d.pages, fragments: d.fragments, check: d.check, contentH: pag.plan()?.contentH};
+  });
+  expect(during.contentH, "the hidden probes measured a zero page").toBeGreaterThan(0);
+  expect(during.pages).toBe(before.pages);
+  expect(during.fragments).toBe(before.fragments);
+  expect(during.check.ok, JSON.stringify(during.check?.failures)).toBe(true);
+});
+
 test("a page-start block prints as a break, with its gap reset", async ({page}) => {
   await load(page, {fragment: false});
   await page.emulateMedia({media: "print"});
   const start = await page.evaluate(() => {
+    globalThis.StandaloneDoc.modules.pagination.refresh();
     const el = document.querySelector("[data-page-start]");
     return el ? {
       breakBefore: getComputedStyle(el).breakBefore,

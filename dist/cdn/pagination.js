@@ -364,6 +364,8 @@ export function createPagination(deps = {}) {
      the head no longer fits, which is the no-churn path. */
   const planned = new Map();
 
+  let lastGeometry = null;
+
   function geometry() {
     const px = (el) => el.getBoundingClientRect().height;
 
@@ -371,12 +373,18 @@ export function createPagination(deps = {}) {
     const pitch = px(prPitch);
     const pad = px(prPad);
 
-    return {
+    const g = {
       contentH,
       pitch,
       pad,
       chromeGap: pitch - contentH,
     };
+    /* The probes are `display: none` in print media (and while the app is hidden), so a
+       pass triggered by the print preview's reflow would measure a zero page and merge
+       every fragment. Print wants the screen measure anyway: reuse the last good one. */
+    if (!(contentH > 0) || !(pitch > 0)) return lastGeometry || g;
+    lastGeometry = g;
+    return g;
   }
 
   function collectBlocks() {
@@ -1106,6 +1114,11 @@ export function createPagination(deps = {}) {
 
   function pass({merge = false} = {}) {
     if (applying) return;
+    /* Print media hides the probes and resets the page furniture (margins, pushes) so the
+       printer can place the breaks. A pass there would plan against a document that is not
+       the screen and then fail its own post-conditions; the print keeps the screen plan's
+       fragments and breaks, and `afterprint` (editor.js) re-plans at the real viewport. */
+    if (env.matchMedia?.("print")?.matches) return;
     clearTimeout(reconcileTimer);
     reconcileTimer = null;
     /* A manual refresh (a mode switch, a demo button) supersedes a queued one. */

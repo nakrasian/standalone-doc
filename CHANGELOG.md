@@ -60,6 +60,12 @@ reading or editing session and a saved file never carries a fragment.
   accumulated through the flow (3 px by page 36 in a 1,000-block document); the
   fractional plan value is used, and a reused cut is no longer re-measured with
   a full line walk on every pass.
+- **A pagination pass is deferred while print media matches.** The print
+  stylesheet hides the page-size probes (a pass then measured a zero-height page
+  and merged every fragment) and resets the page margins and fragment pushes (the
+  plan could no longer satisfy its own post-conditions). Print keeps the screen
+  plan's fragments and breaks; `afterprint` re-plans. `geometry()` also falls
+  back to the last good measurement when the probes are hidden.
 - **A late scroll correction belongs to the pass that scheduled it.** A stale
   rAF correction from an earlier pass could restore an anchor captured before
   the reader moved, resetting `scrollTop`; a new pass cancels pending
@@ -67,7 +73,7 @@ reading or editing session and a saved file never carries a fragment.
 
 ### Tests and size
 
-132 unit tests and 633 browser tests (210 per engine, plus the three Chromium-only
+132 unit tests and 636 browser tests (211 per engine, plus the three Chromium-only
 clipboard cases) pass; the copy/paste and
 visual specs are Chromium-only (clipboard permissions, Linux baselines). The
 visual baseline is generated on the CI runner and cached there, not committed:
