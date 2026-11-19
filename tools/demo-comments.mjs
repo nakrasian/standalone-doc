@@ -202,7 +202,7 @@ fs.mkdirSync(path.dirname(OUT), {recursive: true});
 fs.writeFileSync(OUT, injected);
 const kb = (n) => `${Math.round(n / 1024)} KB`;
 console.log(`demo: wrote ${path.relative(ROOT, OUT)} (${kb(Buffer.byteLength(injected))})`);
-console.log("demo: three comments are seeded at load; the panel does the two exports.");
+console.log("demo: five comments are seeded at load (one resolved); the panel does the two exports.");
 console.log("demo: run  npm run dev  and open");
 console.log("        http://127.0.0.1:8080/.test-tmp/comments-demo.html");
 console.log("demo: served over http, the page pins dist/cdn on this origin, so “Edit a copy…” works offline-of-CDN.");
