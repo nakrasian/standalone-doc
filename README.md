@@ -140,10 +140,12 @@ editor, a review copy and a viewer all use it): cards in document order, unresol
 resolved kept below. The rail's background is **a whisper of blur, not a panel**: 26% white
 with `backdrop-filter: blur(10px)` and no border, radius, gradient or shadow — enough to lift
 the white cards off the page without the column reading as a bar. It is pinned to the right
-edge but only as wide as the page's margin (220px at 1280, the full 324 at 1600), so the
-centred document is never narrowed or covered; when the margin is too small for a card it
-becomes the popover next to the marker instead — and zooming back rebuilds the column with its
-cards rather than leaving an empty one behind.
+edge. When the page's margin has room, it sits in it and is only as wide as that room (220px
+at 1280, the full 324 at 1600), so the centred document is never narrowed or covered — and
+the pane is invisible, because there is nothing behind it to soften. When there is no margin
+(a zoom, a narrower window) it **overlays the page instead of disappearing**, and that is
+exactly when the translucent blur appears. Only a viewport too narrow for a column at all
+(< 760px) falls back to the popover next to the marker.
 
 Hover and click work **both ways**: hovering a highlight lights its card and hovering a card
 lights the highlight; clicking either goes to the other — a card click pins it and scrolls only

@@ -341,6 +341,7 @@ test.describe("the review copy's rail", () => {
         edge: viewport.right - rail.right,
         railRightOfPage: rail.left - sheet.right,
         railWidth: Math.round(rail.width),
+        overlay: document.getElementById("comment-rail").dataset.overlay !== undefined,
         paneBlur: style.backdropFilter || style.webkitBackdropFilter,
         paneAlpha: Number((/rgba?\([^)]*?,\s*([\d.]+)\)/.exec(style.backgroundColor) || [])[1] ?? 1),
         paneBorder: style.borderTopWidth,
@@ -356,10 +357,11 @@ test.describe("the review copy's rail", () => {
     expect(geometry.edge).toBeLessThanOrEqual(10);
     expect(geometry.railRightOfPage).toBeGreaterThanOrEqual(0);
     expect(geometry.railWidth).toBeGreaterThan(200);
-    /* The column is a whisper of blur — no panel, no border, no radius — and the cards
-       on it stay plain white. */
-    expect(geometry.paneBlur).toContain("blur");
-    expect(geometry.paneAlpha).toBeLessThan(0.5);
+    /* In the margin the column is invisible as a pane: no frost, no border, no radius.
+       The cards are plain white; the blur belongs to the overlay case. */
+    expect(geometry.overlay).toBe(false);
+    expect(geometry.paneBlur).toBe("none");
+    expect(geometry.paneAlpha).toBe(0);
     expect(geometry.paneBorder).toBe("0px");
     expect(geometry.paneRadius).toBe("0px");
     expect(geometry.cardBackground).toBe("rgb(255, 255, 255)");

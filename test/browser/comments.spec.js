@@ -458,7 +458,7 @@ test.describe("comments: the rail", () => {
     await expect(page.locator("#comment-rail .comment-card[data-hover]")).toHaveCount(1);
   });
 
-  test("zooming past the margin hides the rail, and zooming back restores its cards", async ({ page }) => {
+  test("zooming past the margin turns the rail into an overlay, and the blur follows", async ({ page }) => {
     await load(page);
     await selectText(page, [0, 2], [1, 6]);
     await page.evaluate(() => {
@@ -466,20 +466,45 @@ test.describe("comments: the rail", () => {
     });
     await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
 
-    /* 300% makes the page wider than the viewport: there is no margin left, so the rail
-       gives way to the popover fallback. */
-    await page.evaluate(() => globalThis.StandaloneDoc.modules.zoom.set(3));
-    await expect.poll(() => page.evaluate(() => document.getElementById("comment-rail").hidden), {timeout: 5_000}).toBe(true);
+    const pane = () => page.evaluate(() => {
+      const rail = document.getElementById("comment-rail");
+      const stage = document.getElementById("stage").getBoundingClientRect();
+      const style = getComputedStyle(rail);
+      return {
+        overlay: rail.dataset.overlay !== undefined,
+        blur: style.backdropFilter || style.webkitBackdropFilter,
+        background: style.backgroundColor,
+        overlapsPage: rail.getBoundingClientRect().left < stage.right,
+        cards: rail.querySelectorAll(".comment-card").length,
+      };
+    });
 
-    /* And back: the column must be rebuilt, not left visible and empty. */
+    /* In the margin: a column, not a pane — no frost when there is nothing behind it. */
+    const margin = await pane();
+    expect(margin.overlay).toBe(false);
+    expect(margin.blur).toBe("none");
+    expect(margin.background).toBe("rgba(0, 0, 0, 0)");
+    expect(margin.overlapsPage).toBe(false);
+
+    /* 300% leaves no margin: the rail stays, and now it is over the page — blurred. */
+    await page.evaluate(() => globalThis.StandaloneDoc.modules.zoom.set(3));
+    await expect.poll(async () => (await pane()).overlay, {timeout: 5_000}).toBe(true);
+    const overlay = await pane();
+    expect(overlay.cards).toBe(1);
+    expect(overlay.blur).toContain("blur");
+    expect(overlay.background).not.toBe("rgba(0, 0, 0, 0)");
+    expect(overlay.overlapsPage).toBe(true);
+
+    /* And back: the pane goes away, the column returns, nothing is left empty. */
     await page.evaluate(() => globalThis.StandaloneDoc.modules.zoom.set(1));
-    await expect(page.locator("#comment-rail")).toBeVisible();
+    await expect.poll(async () => (await pane()).overlay, {timeout: 5_000}).toBe(false);
     await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
     await expect(page.locator("#comment-rail .comment-card")).toContainText("Zoom me.");
+    expect((await pane()).blur).toBe("none");
   });
 
-  test("a narrow layout has no room for the rail, and falls back to a popover", async ({ page }) => {
-    await page.setViewportSize({width: 900, height: 800});
+  test("a viewport too narrow for a column falls back to a popover", async ({ page }) => {
+    await page.setViewportSize({width: 700, height: 800});
     await load(page);
     await selectText(page, [0, 2], [1, 6]);
     await page.evaluate(() => {

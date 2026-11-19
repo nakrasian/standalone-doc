@@ -692,7 +692,6 @@ export function createComments(deps = {}) {
 
   /* --------------------------------------------------------------------- rail */
 
-  const RAIL_QUERY = "(min-width: 1180px)";
   const byPosition = (a, b) => (a.comment.anchor.from ?? 0) - (b.comment.anchor.from ?? 0);
 
   function rows() {
@@ -711,10 +710,14 @@ export function createComments(deps = {}) {
     const sheet = stage?.getBoundingClientRect?.();
     const box = viewport?.getBoundingClientRect?.();
     const has = store.comments.length > 0;
-    /* The page stays centred: the rail lives in the margin beside it, and is only as wide
-       as that margin. Below ~220px it becomes a popover rather than covering the text. */
+    /* The page stays centred, and the rail lives in the margin beside it when there is
+       one. When there is not — a zoom, a narrower window — it **overlays** the page instead
+       of disappearing, and that is the only time its blur has text behind it to soften. A
+       viewport too narrow for a column at all falls back to the popover. */
     const margin = sheet && box ? Math.round(box.right - sheet.right - 6) : 0;
-    const wide = (globalThis.matchMedia?.(RAIL_QUERY).matches ?? false) && margin >= 214;
+    const viewportWidth = box?.width ?? 0;
+    const fits = margin >= 214;
+    const wide = viewportWidth >= 760;
     const wasShown = railMode && railOpen && !rail.hidden && rail.childElementCount > 0;
     railMode = wide;
     const shown = wide && railOpen && has;
@@ -722,10 +725,14 @@ export function createComments(deps = {}) {
     if (railTab) railTab.hidden = !(wide && !railOpen && has);
     if (!shown) {
       rail.replaceChildren();
+      delete rail.dataset.overlay;
       return false;
     }
-    /* Pinned to the right edge; its width is the margin's, so it cannot cover the page. */
-    const width = Math.min(324, Math.max(200, margin - 8));
+    const width = fits
+      ? Math.min(324, Math.max(200, margin - 8))
+      : Math.min(324, Math.max(240, viewportWidth - 32));
+    if (fits) delete rail.dataset.overlay;
+    else rail.dataset.overlay = "";
     rail.style.left = "auto";
     rail.style.right = "8px";
     rail.style.width = `${width}px`;
@@ -1491,12 +1498,6 @@ export function createComments(deps = {}) {
     }
     globalThis.addEventListener?.("resize", schedule);
 
-    const query = globalThis.matchMedia?.(RAIL_QUERY);
-    query?.addEventListener?.("change", () => {
-      layoutRail();
-      railDirty = true;
-      renderRail();
-    });
     schedule();
     return {comments: store.comments.length};
   }
