@@ -135,6 +135,15 @@ The one field that matters is **may take an editable copy**:
 - without it the copy is **sealed**: the editor's blocks are gone *and* their addresses are
   deleted, so nothing — including its author — can turn it into an editor.
 
+**Reading comments.** A document with comments shows them in a **rail beside the page** (the
+editor, a review copy and a viewer all use it): cards in document order, unresolved first,
+resolved kept below. Hovering a highlight previews its card; clicking pins it until the reader
+clicks away or presses Escape, and the highlight flashes once so the eye can find it. A
+resolved comment paints **no highlight** — the record stays in the rail to reopen or delete.
+Below 1180px there is no honest room for a 324px column beside an 8.5in sheet, so the same
+card becomes a popover next to the marker. **⌘⌥M** (Ctrl+Alt+M) starts a comment from the
+selection, in every mode; the editor also has *Insert › Comment on selection…*.
+
 **Comments on their own.** *File › Save as… › HTML › Comments only…* writes the store in a
 minimal document (a few KB), and *File › Import comments…* accepts either that file or a full
 copy, parsed with `DOMParser` rather than searched. The import applies what is unambiguous

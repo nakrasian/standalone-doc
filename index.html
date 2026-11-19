@@ -1267,6 +1267,26 @@
     }
 
     /* ---- document settings sheet ---- */
+    #copy-dialog,
+    #import-dialog {
+      width: min(560px, calc(100vw - 32px));
+      max-height: min(84dvh, 720px);
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+      color: var(--ink);
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    #copy-dialog::backdrop,
+    #import-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+    #copy-dialog:focus,
+    #copy-dialog:focus-visible,
+    #import-dialog:focus,
+    #import-dialog:focus-visible { outline: none; }
+
     #doc-settings-dialog {
       width: min(600px, calc(100vw - 32px));
       max-height: min(86dvh, 780px);
@@ -1347,7 +1367,7 @@
        the same frame the other sheets use — a dialog that is not in `dialog#<id>` gets the UA
        default, which is how this one shipped unstyled the first time. */
     #publish-dialog,
-    #viewer-dialog {
+    #copy-dialog {
       width: min(520px, calc(100vw - 32px));
       padding: 0;
       border: 1px solid var(--line);
@@ -1359,25 +1379,30 @@
     }
 
     #publish-dialog::backdrop,
-    #viewer-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+    #copy-dialog::backdrop { background: rgba(16, 22, 30, .34); }
     #publish-dialog:focus,
     #publish-dialog:focus-visible,
-    #viewer-dialog:focus,
-    #viewer-dialog:focus-visible { outline: none; }
+    #copy-dialog:focus,
+    #copy-dialog:focus-visible { outline: none; }
 
     #publish-dialog form,
-    #viewer-dialog form { padding: 18px 20px 16px; }
+    #copy-dialog form,
+    #import-dialog form { padding: 18px 20px 16px; }
     #publish-dialog h2,
-    #viewer-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    #copy-dialog h2,
+    #import-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
     #publish-dialog .sp-sub,
-    #viewer-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
-    #publish-dialog .sp-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+    #copy-dialog .sp-sub,
+    #import-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
+    #publish-dialog .sp-note,
+    #copy-dialog .sp-note,
+    #import-dialog .sp-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 
     /* The two rows are `.sp-row`, whose rules are shared with the save-policy sheet: the
        label wraps, the control does not. */
-    #viewer-dialog .sp-row { border-top: 0; padding: 6px 0; }
-    #viewer-dialog .sp-text .sp-why { display: block; }
-    #viewer-dialog .sp-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; }
+    #copy-dialog .sp-row { border-top: 0; padding: 6px 0; }
+    #copy-dialog .sp-text .sp-why { display: block; }
+    #copy-dialog .sp-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; }
 
     #publish-dialog input {
       width: 100%;
@@ -1397,20 +1422,33 @@
     }
 
     #publish-dialog .dialog-actions,
-    #viewer-dialog .dialog-actions {
+    #copy-dialog .dialog-actions,
+    #import-dialog .dialog-actions {
       gap: 8px;
       align-items: center;
       margin-top: 16px;
     }
 
     #publish-dialog .dialog-actions button,
-    #viewer-dialog .dialog-actions button {
+    #copy-dialog .dialog-actions button,
+    #import-dialog .dialog-actions button {
       height: 30px; padding: 0 14px; font: inherit;
       border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer;
     }
     #publish-dialog .dialog-actions button.primary,
-    #viewer-dialog .dialog-actions button.primary {
+    #copy-dialog .dialog-actions button.primary,
+    #import-dialog .dialog-actions button.primary {
       border-color: var(--accent); background: var(--accent); color: #fff;
+    }
+
+    /* `button:disabled` clears every background with !important; a disabled primary would
+       then be white text on white. Grey it, and keep the label legible. */
+    #import-dialog .dialog-actions button.primary:disabled,
+    #copy-dialog .dialog-actions button.primary:disabled {
+      background: #eef0f4 !important;
+      border-color: var(--line);
+      color: var(--muted);
+      opacity: 1;
     }
 
     #doc-settings-dialog .ds-chips { display: flex; gap: 6px; }
@@ -1688,6 +1726,41 @@
       background: #eff4ff;
       color: #1d4ed8;
       font-weight: 600;
+    }
+
+    /* The copy dialog's kind picker: three radios on one line, because they are one choice. */
+    #copy-dialog .sp-kinds {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      flex: 0 0 auto;
+    }
+
+    #copy-dialog .sp-kinds label {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    #copy-dialog .sp-row input[type="checkbox"],
+    #copy-dialog .sp-kinds input[type="radio"] {
+      flex: 0 0 auto;
+      width: 15px;
+      height: 15px;
+    }
+
+    /* The import list is the same row shape the settings panel uses, with room to breathe. */
+    #import-dialog .dd-comments {
+      max-height: 46dvh;
+      overflow: auto;
+      margin: 4px 0 0;
+      border-top: 1px solid var(--line);
+    }
+
+    #import-dialog .import-conflict {
+      padding: 10px 2px;
     }
   </style>
 <!-- /@asset -->
@@ -2795,8 +2868,15 @@
         if (commentsButton) {
           commentsButton.hidden = !(count.total > 0 || canComment());
           commentsButton.setAttribute("aria-label", `${count.total} comment${count.total === 1 ? "" : "s"}`);
+          /* In a wide layout the rail *is* the list; the button toggles it rather than a
+             second copy of the same rows. */
+          if (comments()?.railActive?.()) commentsButton.setAttribute("aria-expanded", "false");
+          else commentsButton.setAttribute("aria-expanded", String(Boolean(commentsPanel && !commentsPanel.hidden)));
         }
-        if (commentsPanel && !commentsPanel.hidden) comments()?.panel?.(commentsPanel);
+        if (commentsPanel) {
+          if (comments()?.railActive?.()) commentsPanel.hidden = true;
+          else if (!commentsPanel.hidden) comments()?.panel?.(commentsPanel);
+        }
         pagination.syncFolio();
       }
 
@@ -2855,6 +2935,17 @@
         if (open) openPanel(false);
       }
 
+      /** The list is the rail when there is room for one, and the panel when there is not. */
+      function toggleComments() {
+        if (comments()?.railActive?.()) {
+          const state = comments()?.toggleList?.();
+          commentsButton?.setAttribute("aria-expanded", String(Boolean(state?.open)));
+          openPanel(false);
+          return;
+        }
+        openComments(commentsPanel ? commentsPanel.hidden : false);
+      }
+
       bar.addEventListener("click", (event) => {
         if (event.target.closest("[data-save]")) {
           save();
@@ -2876,7 +2967,7 @@
           return;
         }
         if (event.target.closest("[data-comments-toggle]")) {
-          openComments(commentsPanel ? commentsPanel.hidden : false);
+          toggleComments();
           return;
         }
         if (event.target.closest("[data-doc-adopt]")) {
@@ -2952,6 +3043,265 @@
     }
     StandaloneDoc.register("doc-bar", createDocBar);
   </script>
+<!-- /@asset -->
+
+<!-- @asset id="comment-styles" kind="css" order="26" -->
+  <style id="comment-styles">
+    /* Comments: the rail, the cards, and the highlight.
+     *
+     * This sheet loads only in a document that declares the comments capability, which is why
+     * it is not part of `page-styles.css`: a reader who never sees a comment pays nothing for
+     * these rules. The rail is the list Google Docs has — a column beside the page, not a
+     * popover over it — and it is the same list in the editor, a review copy and a viewer.
+     *
+     * The width decision lives here, not in the module: below 1180px there is no honest room
+     * for a 324px column beside an 8.5in sheet, so the module falls back to a popover and this
+     * sheet's rail rules simply never match a visible element.
+     */
+
+    /* The page gets narrower instead of the rail covering text: `#viewport` is the scroll
+       container, and the stage centres itself in what is left. `clip` rather than `hidden` so
+       the sticky chrome above is unaffected. */
+    html[data-comments-rail="on"] #viewport {
+      padding-right: 340px;
+    }
+
+    @media print {
+      html[data-comments-rail="on"] #viewport {
+        padding-right: 0;
+      }
+    }
+
+    #comment-rail {
+      position: fixed;
+      right: 8px;
+      width: 324px;
+      z-index: 45;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 2px 2px 24px;
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
+      color: #1b1f24;
+      user-select: none;
+    }
+
+    #comment-rail[hidden] {
+      display: none;
+    }
+
+    .comment-card {
+      flex: 0 0 auto;
+      padding: 10px 12px;
+      border: 1px solid #dfe1e6;
+      border-left: 3px solid #f59e0b;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+      transition: border-color .15s, box-shadow .15s, background .15s;
+      user-select: text;
+    }
+
+    /* Hover is a preview; pinned is a decision. Both are visible on the page and in the rail,
+       so the reader can tell which comment a highlight belongs to without clicking. */
+    .comment-card[data-hover] {
+      border-color: #f59e0b;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, .18);
+    }
+
+    .comment-card[data-pinned] {
+      border-color: #d97706;
+      border-left-width: 5px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, .12);
+      background: #fffdf7;
+    }
+
+    .comment-card[data-resolved] {
+      border-left-color: #9ca3af;
+      background: #fbfbfc;
+    }
+
+    .comment-card-head {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .comment-card-author {
+      font-weight: 700;
+    }
+
+    .comment-card-meta {
+      font-size: 11.5px;
+      color: #6b7280;
+    }
+
+    .comment-card-badge {
+      margin-left: auto;
+      font-size: 11px;
+      color: #047857;
+    }
+
+    .comment-quote {
+      margin: 6px 0 4px;
+      padding-left: 8px;
+      border-left: 2px solid #f3d19e;
+      color: #6b7280;
+      font-size: 12px;
+      font-style: italic;
+      max-height: 3.4em;
+      overflow: hidden;
+    }
+
+    .comment-body {
+      margin: 0 0 6px;
+      white-space: pre-wrap;
+    }
+
+    .comment-replies {
+      margin: 6px 0 0;
+      padding-left: 16px;
+      font-size: 12.5px;
+    }
+
+    .comment-replies li {
+      margin-bottom: 3px;
+    }
+
+    .comment-note {
+      margin: 4px 0 0;
+      font-size: 11.5px;
+      color: #92400e;
+    }
+
+    .comment-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #eef0f4;
+    }
+
+    .comment-actions button,
+    .comment-reply button {
+      border: 1px solid #dfe1e6;
+      border-radius: 6px;
+      background: #fff;
+      padding: 3px 8px;
+      font: 12px system-ui;
+      color: #1b1f24;
+      cursor: pointer;
+    }
+
+    .comment-actions button:hover,
+    .comment-reply button:hover {
+      background: #eef0f4;
+    }
+
+    .comment-actions button[data-danger] {
+      color: #b91c1c;
+    }
+
+    .comment-reply {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .comment-reply input {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 7px;
+      border: 1px solid #dfe1e6;
+      border-radius: 6px;
+      font: 12.5px system-ui;
+    }
+
+    .comment-reply input:focus {
+      outline: 2px solid #93b4ff;
+      outline-offset: 1px;
+    }
+
+    .comment-group {
+      margin: 8px 2px 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #9aa1ab;
+    }
+
+    /* Reopening the rail after it was closed: a tab at the edge, never a dead end. */
+    #comment-rail-tab {
+      position: fixed;
+      right: 0;
+      top: 96px;
+      z-index: 45;
+      padding: 10px 6px;
+      border: 1px solid #dfe1e6;
+      border-right: 0;
+      border-radius: 8px 0 0 8px;
+      background: #fff;
+      font: 600 11px/1.1 system-ui;
+      color: #6b7280;
+      writing-mode: vertical-rl;
+      cursor: pointer;
+    }
+
+    #comment-rail-tab[hidden] {
+      display: none;
+    }
+
+    /* A marker is a highlight, not a UI: it takes no pointer focus ring, and it must never
+       look like text selection. */
+    #comment-layer .comment-mark {
+      border: 0;
+      padding: 0;
+      margin: 0;
+    }
+
+    #comment-layer .comment-mark[data-hover] {
+      background: rgba(245, 158, 11, .42);
+    }
+
+    #comment-layer .comment-mark[data-flash] {
+      animation: comment-flash 1.1s ease-out;
+    }
+
+    @keyframes comment-flash {
+      0% { background: rgba(245, 158, 11, .85); }
+      100% { background: rgba(245, 158, 11, .28); }
+    }
+
+    #comment-layer .comment-mark[data-resolved] {
+      display: none;
+    }
+
+    /* The thread popover stays for narrow layouts (the rail cannot fit); it is the same card,
+       with its own box. */
+    #comment-popover .comment-card {
+      width: 320px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, .18);
+    }
+
+    @media print {
+      #comment-rail,
+      #comment-rail-tab {
+        display: none;
+      }
+    }
+  </style>
 <!-- /@asset -->
 
 <!-- @asset id="figure-tools" kind="html" order="13" -->
@@ -3034,7 +3384,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"write"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":34956,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-K6BZdMh9Rt1sdnYQqHsSMF+RPeLwnVQUqvnKhpokLzlxhoP9Fvgrb82aixIpbOjU"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16530,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-O6lhn/GhaaEkbGGZz1vodoIAB0MzR00XAbilqVN2H9+k88PJkdSTCcVqVe7wJ1Bd"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":9623,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-37JRLb5viykpQVw1jnTK6gfUE+aAhBYnv/rWSawK1cRiPC1gdudrTfGw6Yajncmy"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":49631,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18618,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3182,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":47329,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-WL3pEcbhiMPMbu6uPi7FrmlV/psNcQmoIvYq5O75ioZK/DIdvQOPTwY+nQWrT2xc"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":22500,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":82460,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-4Zv6m6wWnAFsAdzB8+WdUoaSZZQE5UMq+sA9pgUyoTAVMnVml9Y+hf4TiZMvar+e"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":12784,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-OhatyeFVBDNrkH+7+ERApSrDctrfYFV8HFI2aQ5i06V6UR6D6WXKi0YPt5Lv5/xp"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":36809,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-BsVHzecmNxazduVLdS90yg9F+4Z60dL42IWwnUZq24fnLUbx3dDCkDUeY1UOB7OG"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16530,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-O6lhn/GhaaEkbGGZz1vodoIAB0MzR00XAbilqVN2H9+k88PJkdSTCcVqVe7wJ1Bd"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":10407,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-3OjHul+7P73kX+fmQfc5EvHbkJPLd5Q5mYevUXxyOk5BDzxHECyKtxO7FYMNS53+"},{"id":"comment-styles","kind":"css","role":"module","order":26,"mode":"inline","requiredBy":["*"],"bytes":5327,"capability":"comments","label":"Comment styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comment-styles.css","integrity":"sha384-EszaQ+Jp9yxKATNPbZv05o0dRYW3tp3aYZbum20VQ5pmkEtZDCMIESbGrtB1Aj6Z"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":49631,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18618,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3182,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":55208,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-SlJyw4+Uj5OeiG8jHIwQfNJSbDLVZWkx/7TcFsA8+HTQg5VxxJUH1ga1zZ6vglzN"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":22500,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":82881,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-deOWKcv7aeYOfDiS9ZLMsUONJNoLWZyV6vHBWIWDbtM/DDp/jAW1HUZcPBGzLIQR"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":12784,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-OhatyeFVBDNrkH+7+ERApSrDctrfYFV8HFI2aQ5i06V6UR6D6WXKi0YPt5Lv5/xp"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -7891,7 +8241,8 @@
     /* --------------------------------------------------------------- the session */
 
     /**
-     * The DOM half: block ids, the marker overlay, the thread popover.
+     * The DOM half: block ids, the marker overlay, the rail (or a popover when there is no
+     * room for it) and the composer.
      *
      * Markers are **not** wrapped around text. Wrapping mutates `#content`, which is the
      * caret, the undo stack, `figures.prepareClone()` and pagination's own measurement —
@@ -7903,6 +8254,11 @@
      * measured: `range.getClientRects()` across a page break returns the gap as one **948 px**
      * rect in all three engines, and clipping alone still paints a page-height lie because
      * the rect exists at all. A text-node rect cannot span the gap.
+     *
+     * The rail is the list a reader lives in: cards beside the page, in document order, with
+     * the resolved ones kept below them. Hovering a highlight previews its card; clicking
+     * pins it until the reader clicks away. A comment that has been resolved paints **no**
+     * highlight — the record is still there, in the list, to reopen or delete.
      */
     export function createComments(deps = {}) {
       const {signals, pagination, layout, selection, settings, env} = deps;
@@ -7918,16 +8274,22 @@
       const live = () => env.StandaloneDoc?.settings?.() || settings;
       const writable = () => live().capabilities?.comments === "write" && live().mode !== "view";
 
-      /* Both are optional in the sense that matters: a document with no `#content` has no
-         document to annotate, and the module still has to return its API. */
       let layer = null;
+      let rail = null;
+      let railTab = null;
       let popover = null;
+      let composer = null;
       let store = {schema: 1, comments: []};
       let cache = new Map();
       let frame = 0;
       let focused = null;
-      let composer = null;
       let pending = null;
+      let railMode = false;
+      let railOpen = true;
+      let pinned = null;
+      let hovered = null;
+      let railDirty = true;
+      const flashTimers = new Map();
       const listeners = new Set();
 
       /* Who is writing. The author's name is the document's (it is what a reviewer replies
@@ -7968,8 +8330,9 @@
           : {name: name || authorName() || "Reader", kind: "reviewer"};
       }
 
-      /** Every mutation ends here, so the bar can update a count without polling. */
+      /** Every mutation ends here, so the chrome can update without polling. */
       function changed() {
+        railDirty = true;
         for (const fn of listeners) {
           try {
             fn();
@@ -8054,7 +8417,7 @@
 
       /* ----------------------------------------------------------------- geometry */
 
-      /** The page content bands, in layout px, from the pass that just run. */
+      /** The page content bands, in layout px, from the pass that just ran. */
       function pageBands() {
         const plan = pagination.plan();
         if (!plan || !plan.pageTops?.length) return null;
@@ -8115,7 +8478,7 @@
         return rects;
       }
 
-      /** Where a block-level (or orphan) marker goes: the block's first line, or the page. */
+      /** Where a block-level (or orphan) marker goes: the block's first line. */
       function blockRect(blockEl) {
         const rect = layout.rect(blockEl);
         return [{left: Math.max(0, rect.right - 10), top: rect.top + 2, width: 8, height: 8}];
@@ -8131,6 +8494,8 @@
         cache = next;
         return next;
       }
+
+      const stateOf = (comment) => (cache.get(comment.id) || {how: "orphan"}).how;
 
       function clearLayer() {
         if (!layer) return;
@@ -8160,6 +8525,8 @@
             `width:${Math.max(2, rect.width)}px`,
             `height:${Math.max(2, rect.height)}px`,
           ].join(";");
+          if (comment.id === hovered) el.dataset.hover = "";
+          if (comment.id === pinned) el.dataset.pinned = "";
           layer.append(el);
         }
       }
@@ -8173,6 +8540,9 @@
         for (const comment of store.comments) {
           const result = resolved.get(comment.id);
           if (!result) continue;
+          /* Resolved means done: no highlight in the text. The record stays in the list, to
+             reopen or delete. */
+          if (comment.resolved) continue;
           if (result.how === "orphan") continue;
           if (result.how === "block") {
             const blockId = result.anchor.blocks?.[0];
@@ -8191,13 +8561,20 @@
               marker(blockRect(block.el), comment, {block: true});
               continue;
             }
-            /* Culling is deliberately absent: the plan's threshold is ~200 comments, and it
-               should be measured before it is optimised. */
             marker(rects, comment);
           }
         }
         const orphans = [...resolved.values()].filter((result) => result.how === "orphan").length;
         if (orphans) drawOrphanPill(orphans);
+        /* The layout decides whether a rail exists at all, so it must be known before the
+           cards are built: the first draw runs before any `layout` signal has been seen. */
+        layoutRail();
+        if (railDirty) {
+          renderRail();
+          railDirty = false;
+        } else {
+          applyState();
+        }
       }
 
       function drawOrphanPill(count) {
@@ -8211,43 +8588,103 @@
         layer.append(el);
       }
 
-      /* ------------------------------------------------------------------- threads */
+      /* --------------------------------------------------------------------- rail */
 
-      function thread(parent, comment, result) {
-        const header = document.createElement("div");
-        header.style.cssText = "display:flex;gap:8px;align-items:baseline;margin:0 0 6px";
-        const who = document.createElement("strong");
-        who.textContent = comment.author.name;
+      const RAIL_QUERY = "(min-width: 1180px)";
+      const byPosition = (a, b) => (a.comment.anchor.from ?? 0) - (b.comment.anchor.from ?? 0);
+
+      function rows() {
+        const idx = index();
+        resolveAll(idx);
+        const items = store.comments.map((comment) => ({comment, state: stateOf(comment)}));
+        return {
+          open: items.filter((item) => !item.comment.resolved).sort(byPosition),
+          done: items.filter((item) => item.comment.resolved).sort(byPosition),
+        };
+      }
+
+      function layoutRail() {
+        if (!rail) return;
+        const wide = globalThis.matchMedia?.(RAIL_QUERY).matches ?? false;
+        railMode = wide;
+        const viewport = document.getElementById("viewport");
+        const box = viewport?.getBoundingClientRect?.();
+        const has = store.comments.length > 0;
+        const shown = wide && railOpen && has;
+        document.documentElement.dataset.commentsRail = shown ? "on" : "off";
+        rail.hidden = !shown;
+        if (railTab) railTab.hidden = !(wide && !railOpen && has);
+        if (!shown) {
+          rail.replaceChildren();
+          return;
+        }
+        rail.style.top = `${Math.round((box?.top ?? 0) + 6)}px`;
+        rail.style.maxHeight = `${Math.max(180, Math.round((box?.height ?? 600) - 12))}px`;
+      }
+
+      function quoteOf(comment) {
+        return comment.anchor.quote || "";
+      }
+
+      function card(comment, state) {
+        const el = document.createElement("article");
+        el.className = "comment-card";
+        el.dataset.commentCard = "";
+        el.dataset.commentId = comment.id;
+        if (comment.resolved) el.dataset.resolved = "";
+        if (state === "orphan") el.dataset.orphan = "";
+        if (comment.id === pinned) el.dataset.pinned = "";
+        if (comment.id === hovered) el.dataset.hover = "";
+
+        const head = document.createElement("button");
+        head.type = "button";
+        head.className = "comment-card-head";
+        head.dataset.cardHead = "";
+        const author = document.createElement("span");
+        author.className = "comment-card-author";
+        author.textContent = comment.author.name;
         const meta = document.createElement("span");
-        meta.style.cssText = "color:#6b7280;font:12px system-ui";
+        meta.className = "comment-card-meta";
         meta.textContent = [comment.author.kind === "author" ? "author" : "reviewer", comment.createdAt?.slice(0, 10)].filter(Boolean).join(" · ");
-        header.append(who, meta);
+        head.append(author, meta);
         if (comment.resolved) {
           const badge = document.createElement("span");
+          badge.className = "comment-card-badge";
           badge.textContent = "resolved";
-          badge.style.cssText = "margin-left:auto;font:12px system-ui;color:#047857";
-          header.append(badge);
+          head.append(badge);
+        }
+        el.append(head);
+
+        const quote = quoteOf(comment);
+        if (quote) {
+          const p = document.createElement("p");
+          p.className = "comment-quote";
+          p.textContent = `“${quote}”`;
+          el.append(p);
         }
 
         const body = document.createElement("p");
-        body.style.cssText = "margin:0 0 6px;white-space:pre-wrap";
+        body.className = "comment-body";
         body.textContent = comment.body;
+        el.append(body);
 
-        parent.append(header, body);
-
-        if (result?.anchor?.quote && result.how !== "exact") {
+        if (state === "orphan") {
           const note = document.createElement("p");
-          note.style.cssText = "margin:0 0 6px;font:12px system-ui;color:#92400e";
-          note.textContent = result.how === "shifted" ? "Re-attached by its quotation." : "The text this was about is gone; the comment is on the paragraph.";
-          parent.append(note);
+          note.className = "comment-note";
+          note.textContent = "Its paragraph is gone. The comment is kept here.";
+          el.append(note);
+        } else if (state === "block") {
+          const note = document.createElement("p");
+          note.className = "comment-note";
+          note.textContent = "The words moved; this is on the paragraph now.";
+          el.append(note);
         }
 
         if (comment.replies?.length) {
           const list = document.createElement("ol");
-          list.style.cssText = "margin:6px 0 0;padding-left:18px";
+          list.className = "comment-replies";
           for (const reply of comment.replies) {
             const item = document.createElement("li");
-            item.style.cssText = "margin:0 0 4px";
             const name = document.createElement("strong");
             name.textContent = reply.author?.name || "Reviewer";
             const text = document.createElement("span");
@@ -8255,101 +8692,200 @@
             item.append(name, text);
             list.append(item);
           }
-          parent.append(list);
+          el.append(list);
         }
-      }
 
-      /**
-       * A writable thread's verbs. Deliberately three: reply, resolve, and the parent's
-       * delete. Editing a comment is a reply — a review history that can be rewritten is
-       * not a history (invariant 29).
-       */
-      function actions(parent, comment, result) {
-        const footer = document.createElement("div");
-        footer.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eef0f4;display:flex;gap:6px;flex-wrap:wrap";
+        if (writable()) {
+          const actions = document.createElement("div");
+          actions.className = "comment-actions";
 
-        const resolve = document.createElement("button");
-        resolve.type = "button";
-        resolve.textContent = comment.resolved ? "Reopen" : "Resolve";
-        resolve.style.cssText = "font:12px system-ui;padding:3px 8px;border:1px solid #dfe1e6;border-radius:6px;background:#fff;cursor:pointer";
-        resolve.addEventListener("click", () => {
-          const next = setResolved(comment.id, !comment.resolved);
-          if (next) focus(next);
-        });
+          const resolve = document.createElement("button");
+          resolve.type = "button";
+          resolve.dataset.resolveComment = "";
+          resolve.textContent = comment.resolved ? "Reopen" : "Resolve";
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.dataset.deleteComment = "";
+          remove.dataset.danger = "";
+          remove.textContent = "Delete";
+          actions.append(resolve, remove);
+          el.append(actions);
 
-        const replyButton = document.createElement("button");
-        replyButton.type = "button";
-        replyButton.textContent = "Reply";
-        replyButton.style.cssText = resolve.style.cssText;
-        replyButton.addEventListener("click", () => {
-          const box = document.createElement("textarea");
-          box.rows = 2;
-          box.placeholder = "Reply…";
-          box.setAttribute("aria-label", "Reply");
-          box.style.cssText = "flex:1 1 100%;margin-top:6px;font:13px system-ui;padding:6px;border:1px solid #dfe1e6;border-radius:6px";
+          const reply = document.createElement("form");
+          reply.className = "comment-reply";
+          reply.dataset.replyForm = "";
+          const input = document.createElement("input");
+          input.type = "text";
+          input.placeholder = `Reply as ${live().mode === "edit" ? live().author || "the author" : authorName() || "a reviewer"}…`;
+          input.setAttribute("aria-label", "Reply");
           const send = document.createElement("button");
-          send.type = "button";
+          send.type = "submit";
           send.textContent = "Send";
-          send.style.cssText = resolve.style.cssText;
-          const post = () => {
-            const next = reply(comment.id, {body: box.value, author: writer()});
-            if (next) focus(next);
-          };
-          send.addEventListener("click", post);
-          box.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) post();
-          });
-          replyButton.replaceWith(box);
-          footer.append(send);
-          box.focus();
-        });
-
-        footer.append(resolve, replyButton);
-
-        if (live().mode === "edit") {
-          const removeButton = document.createElement("button");
-          removeButton.type = "button";
-          removeButton.textContent = "Delete";
-          removeButton.style.cssText = resolve.style.cssText;
-          removeButton.addEventListener("click", () => {
-            remove(comment.id);
-            blur();
-          });
-          footer.append(removeButton);
+          reply.append(input, send);
+          el.append(reply);
         }
 
-        if (result?.how === "orphan") {
-          const note = document.createElement("span");
-          note.style.cssText = "font:11px system-ui;color:#92400e";
-          note.textContent = "Its paragraph is gone.";
-          footer.append(note);
-        }
-
-        parent.append(footer);
+        return el;
       }
+
+      function renderRail() {
+        if (!rail || !railMode) return;
+        rail.replaceChildren();
+        const {open, done} = rows();
+        const addGroup = (label) => {
+          const el = document.createElement("p");
+          el.className = "comment-group";
+          el.textContent = label;
+          rail.append(el);
+        };
+        if (open.length || !done.length) {
+          for (const row of open) rail.append(card(row.comment, row.state));
+        }
+        if (done.length) {
+          if (open.length) addGroup("Resolved");
+          for (const row of done) rail.append(card(row.comment, row.state));
+        }
+      }
+
+      function railCard(id) {
+        return rail?.querySelector(`[data-comment-card][data-comment-id="${id}"]`) || null;
+      }
+
+      function applyState() {
+        if (!rail) return;
+        for (const el of rail.querySelectorAll("[data-comment-card]")) {
+          const id = el.dataset.commentId;
+          if (id === pinned) el.dataset.pinned = "";
+          else delete el.dataset.pinned;
+          if (id === hovered) el.dataset.hover = "";
+          else delete el.dataset.hover;
+        }
+        if (popover && !popover.hidden) {
+          for (const el of popover.querySelectorAll("[data-comment-card]")) {
+            if (el.dataset.commentId === pinned) el.dataset.pinned = "";
+          }
+        }
+        for (const el of layer?.querySelectorAll("[data-comment-id]") || []) {
+          const id = el.dataset.commentId;
+          if (id === pinned) el.dataset.pinned = "";
+          else delete el.dataset.pinned;
+          if (id === hovered) el.dataset.hover = "";
+          else delete el.dataset.hover;
+        }
+      }
+
+      function flash(id) {
+        if (!layer) return;
+        for (const el of layer.querySelectorAll("[data-comment-id]")) {
+          if (el.dataset.commentId !== id) continue;
+          el.dataset.flash = "";
+          clearTimeout(flashTimers.get(el));
+          flashTimers.set(el, setTimeout(() => {
+            delete el.dataset.flash;
+            flashTimers.delete(el);
+          }, 1100));
+        }
+      }
+
+      function hover(id) {
+        if (hovered === id) return;
+        hovered = id;
+        applyState();
+        if (!id) return;
+        const el = railCard(id);
+        /* Do not move the rail on every mouse move; only when the card is out of view. */
+        if (el && rail && (el.offsetTop < rail.scrollTop || el.offsetTop + el.offsetHeight > rail.scrollTop + rail.clientHeight)) {
+          el.scrollIntoView({block: "nearest"});
+        }
+      }
+
+      function pin(id, {scroll = true} = {}) {
+        pinned = id;
+        hovered = null;
+        applyState();
+        if (!id || !scroll) return;
+        const el = railCard(id);
+        el?.scrollIntoView({block: "nearest"});
+      }
+
+      function unpin() {
+        if (!pinned) return;
+        pinned = null;
+        applyState();
+      }
+
+      /** Show the reader where a comment is: pin it, bring its marker into view, flash it. */
+      function navigate(comment) {
+        if (!comment) return null;
+        pin(comment.id, {scroll: true});
+        const hits = layer ? [...layer.querySelectorAll(`[data-comment-id="${comment.id}"]`)] : [];
+        if (hits.length) {
+          hits[0].scrollIntoView({block: "center", behavior: "smooth"});
+        } else {
+          /* A resolved comment has no highlight; its paragraph is still the place to look. */
+          const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
+          const blockId = result.anchor?.blocks?.[0];
+          const block = blockId ? index().list.find((candidate) => candidate.id === blockId) : null;
+          block?.el?.scrollIntoView({block: "center", behavior: "smooth"});
+        }
+        flash(comment.id);
+        return comment;
+      }
+
+      function onCardEvent(event) {
+        const cardEl = event.target.closest?.("[data-comment-card]");
+        if (!cardEl) return;
+        const id = cardEl.dataset.commentId;
+        const comment = store.comments.find((candidate) => candidate.id === id);
+        if (!comment) return;
+
+        if (event.target.closest("[data-resolve-comment]")) {
+          const next = setResolved(id, !comment.resolved);
+          if (next) navigate(next);
+          return;
+        }
+        if (event.target.closest("[data-delete-comment]")) {
+          remove(id);
+          return;
+        }
+        if (event.target.closest("[data-reply-form]")) {
+          if (event.type === "submit") {
+            event.preventDefault();
+            const input = event.target.querySelector("input");
+            const next = reply(id, {body: input?.value, author: writer()});
+            if (next) {
+              input.value = "";
+              navigate(next);
+            }
+          }
+          return;
+        }
+        if (event.type === "click" && (event.target.closest("[data-card-head]") || event.target === cardEl)) {
+          navigate(comment);
+        }
+      }
+
+      /* ------------------------------------------------------------------- threads */
 
       function placePopover(anchorEl) {
         if (!popover) return;
         const box = anchorEl?.getBoundingClientRect?.();
-        const width = 320;
+        const width = 340;
         const margin = 8;
-        const left = box ? Math.min(window.innerWidth - width - margin, Math.max(margin, box.left)) : margin * 4;
-        const top = box ? Math.min(window.innerHeight - 120, Math.max(margin, box.bottom + 6)) : margin * 8;
+        const left = box ? Math.min(globalThis.innerWidth - width - margin, Math.max(margin, box.left)) : margin * 4;
+        const top = box ? Math.min(globalThis.innerHeight - 160, Math.max(margin, box.bottom + 6)) : margin * 8;
         popover.style.left = `${Math.round(left)}px`;
         popover.style.top = `${Math.round(top)}px`;
       }
 
       function focus(comment) {
-        if (!popover || !comment) return null;
-        const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
-        popover.replaceChildren();
-        const panel = document.createElement("div");
-        panel.style.cssText = "padding:10px 12px;font:14px/1.45 system-ui;color:#1b1f24;background:#fff;border:1px solid #dfe1e6;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,0.18);max-width:320px";
-        thread(panel, comment, result);
-        if (writable()) actions(panel, comment, result);
-        popover.append(panel);
-        popover.hidden = false;
+        if (!comment) return null;
         focused = comment.id;
+        if (railMode) return navigate(comment);
+        if (!popover) return null;
+        const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
+        popover.replaceChildren(card(comment, result.how));
+        popover.hidden = false;
         const el = layer?.querySelector(`[data-comment-id="${comment.id}"]`);
         placePopover(el);
         return comment;
@@ -8359,6 +8895,19 @@
         if (popover) popover.hidden = true;
         focused = null;
       }
+
+      function toggleList() {
+        if (!railMode) return {rail: false, open: false};
+        railOpen = !railOpen;
+        layoutRail();
+        if (railOpen) {
+          railDirty = true;
+          renderRail();
+        }
+        return {rail: true, open: railOpen};
+      }
+
+      const railActive = () => railMode;
 
       /* ---------------------------------------------------------------- authoring */
 
@@ -8400,20 +8949,21 @@
         store.comments.push(comment);
         save();
         draw();
+        focus(comment);
         return comment;
       }
 
       function reply(id, {body, author} = {}) {
         if (!writable() || !body || !String(body).trim()) return null;
-        const indexOfComment = store.comments.findIndex((comment) => comment.id === id);
-        if (indexOfComment < 0) return null;
-        store.comments[indexOfComment] = replyTo(store.comments[indexOfComment], {
+        const at = store.comments.findIndex((comment) => comment.id === id);
+        if (at < 0) return null;
+        store.comments[at] = replyTo(store.comments[at], {
           body,
-          author: author || store.comments[indexOfComment].author,
+          author: author || store.comments[at].author,
         });
         save();
         draw();
-        return store.comments[indexOfComment];
+        return store.comments[at];
       }
 
       function setResolved(id, resolved = true) {
@@ -8422,6 +8972,7 @@
         if (!comment) return null;
         comment.resolved = Boolean(resolved);
         comment.updatedAt = new Date().toISOString();
+        if (comment.resolved && pinned === id) pinned = null;
         save();
         draw();
         return comment;
@@ -8432,6 +8983,8 @@
         const before = store.comments.length;
         store.comments = store.comments.filter((comment) => comment.id !== id);
         if (store.comments.length === before) return false;
+        if (pinned === id) pinned = null;
+        if (focused === id) blur();
         save();
         draw();
         return true;
@@ -8439,7 +8992,8 @@
 
       const list = () => {
         const idx = index();
-        return store.comments.map((comment) => ({...comment, state: resolveAnchor(comment.anchor, idx).how}));
+        resolveAll(idx);
+        return store.comments.map((comment) => ({...comment, state: stateOf(comment)}));
       };
 
       /** How the bar labels itself: unresolved first, because that is the work left. */
@@ -8454,12 +9008,12 @@
         return {total: store.comments.length, unresolved, orphans};
       }
 
-      /** The thread list, unresolved first, for the bar's panel and the Comments tab. */
+      /** The list in the settings panel: the same rows, without the rail's room. */
       function panel(container) {
         container.replaceChildren();
         const idx = index();
         const rows = [...store.comments].sort(
-          (a, b) => Number(Boolean(a.resolved)) - Number(Boolean(b.resolved)) || String(a.createdAt).localeCompare(String(b.createdAt)),
+          (a, b) => Number(Boolean(a.resolved)) - Number(Boolean(b.resolved)) || (a.anchor.from ?? 0) - (b.anchor.from ?? 0),
         );
         if (!rows.length) {
           const empty = document.createElement("p");
@@ -8480,7 +9034,7 @@
           body.textContent = comment.body.length > 96 ? `${comment.body.slice(0, 96)}…` : comment.body;
           const meta = document.createElement("span");
           meta.className = "doc-comment-meta";
-          const flags = [comment.author.name, state === "orphan" ? "unattached" : state === "block" ? "on the paragraph" : null];
+          const flags = [comment.author.name, comment.resolved ? "resolved" : null, state === "orphan" ? "unattached" : state === "block" ? "on the paragraph" : null];
           if (comment.replies?.length) flags.push(`${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`);
           meta.textContent = flags.filter(Boolean).join(" · ");
           button.append(body, meta);
@@ -8609,14 +9163,11 @@
         return {ok: true};
       }
 
-      /**
-       * Replace the whole store: what an import does once a human has accepted the list.
-       * Records that are not addressable are dropped (`validComment`), because a store that
-       * cannot be merged is worse than a smaller one.
-       */
+      /** Replace the whole store: what an import does once a human has accepted the list. */
       function replace(next) {
         const comments = Array.isArray(next?.comments) ? next.comments.filter(validComment) : [];
         store = {schema: 1, comments};
+        pinned = null;
         save();
         draw();
         return store.comments.length;
@@ -8648,6 +9199,28 @@
           layer.style.cssText = "position:absolute;inset:0;z-index:2;pointer-events:none;contain:layout style";
           stage.append(layer);
         }
+        if (!rail) {
+          rail = document.createElement("aside");
+          rail.id = "comment-rail";
+          rail.dataset.pluginUi = "";
+          rail.setAttribute("aria-label", "Comments");
+          document.body.append(rail);
+        }
+        if (!railTab) {
+          railTab = document.createElement("button");
+          railTab.type = "button";
+          railTab.id = "comment-rail-tab";
+          railTab.dataset.pluginUi = "";
+          railTab.textContent = "Comments";
+          railTab.hidden = true;
+          railTab.addEventListener("click", () => {
+            railOpen = true;
+            layoutRail();
+            railDirty = true;
+            renderRail();
+          });
+          document.body.append(railTab);
+        }
         if (!popover) {
           popover = document.createElement("div");
           popover.id = "comment-popover";
@@ -8678,37 +9251,64 @@
         signals.on("mutation", schedule);
         signals.on("resize", schedule);
         document.fonts?.ready.then(schedule).catch(() => {});
-        document.addEventListener("click", (event) => {
-          if (composer && !composer.hidden && !composer.contains(event.target) && !event.target.closest?.("#comment-layer")) {
-            closeComposer();
-          }
-          if (popover?.hidden) return;
-          if (popover.contains(event.target)) return;
-          if (event.target.closest?.("#comment-layer")) return;
-          /* The bar is chrome that opens threads, not a click "outside" them. */
-          if (event.target.closest?.("#doc-bar")) return;
-          blur();
+
+        /* Hover previews, click pins, and a click anywhere else lets go. The rail and the
+           page are one surface: hovering either side lights the other. */
+        layer?.addEventListener("pointerover", (event) => {
+          const hit = event.target.closest?.("[data-comment-id]");
+          if (hit) hover(hit.dataset.commentId);
         });
-        document.addEventListener("keydown", (event) => {
-          if (event.key !== "Escape") return;
-          if (composer && !composer.hidden) closeComposer();
-          else if (popover && !popover.hidden) blur();
+        layer?.addEventListener("pointerout", (event) => {
+          if (!event.relatedTarget?.closest?.("#comment-layer")) hover(null);
         });
         layer?.addEventListener("click", (event) => {
           const pill = event.target.closest("#comment-orphans");
           if (pill) {
-            const orphan = store.comments.find((comment) => (cache.get(comment.id) || {how: "orphan"}).how === "orphan");
-            if (orphan) {
-              const result = focus(orphan);
-              placePopover(null);
-              return result;
-            }
+            const orphan = store.comments.find((comment) => stateOf(comment) === "orphan");
+            if (orphan) return focus(orphan);
             return;
           }
           const hit = event.target.closest("[data-comment-id]");
           if (!hit) return;
           const comment = store.comments.find((candidate) => candidate.id === hit.dataset.commentId);
           if (comment) focus(comment);
+        });
+        rail?.addEventListener("pointerover", (event) => {
+          const hit = event.target.closest?.("[data-comment-card]");
+          if (hit) hover(hit.dataset.commentId);
+        });
+        rail?.addEventListener("pointerleave", () => hover(null));
+        rail?.addEventListener("click", onCardEvent);
+        rail?.addEventListener("submit", onCardEvent);
+        popover?.addEventListener("click", onCardEvent);
+        popover?.addEventListener("submit", onCardEvent);
+        railTab?.addEventListener("pointerenter", () => hover(null));
+
+        document.addEventListener("click", (event) => {
+          const inChrome = event.target.closest?.("#comment-rail, #comment-layer, #comment-popover, #comment-composer, #doc-bar, #app-toolbar, #doc-settings-dialog, #import-dialog");
+          if (composer && !composer.hidden && !composer.contains(event.target) && !inChrome) closeComposer();
+          if (popover && !popover.hidden && !popover.contains(event.target) && !inChrome) blur();
+          if (pinned && !inChrome) unpin();
+        });
+        document.addEventListener("keydown", (event) => {
+          /* Cmd/Ctrl+Alt+M starts a comment from the selection, in every mode: the editor
+             has the ribbon's action, a review copy has this one. */
+          if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.key.toLowerCase() === "m") {
+            if (!writable()) return;
+            event.preventDefault();
+            begin();
+            return;
+          }
+          if (event.key !== "Escape") return;
+          if (composer && !composer.hidden) closeComposer();
+          else if (pinned) unpin();
+          else if (popover && !popover.hidden) blur();
+        });
+        const query = globalThis.matchMedia?.(RAIL_QUERY);
+        query?.addEventListener?.("change", () => {
+          layoutRail();
+          railDirty = true;
+          renderRail();
         });
         schedule();
         return {comments: store.comments.length};
@@ -8725,9 +9325,9 @@
       }
 
       const api = {
-        init, mount, list, add, reply, resolve: setResolved, remove, focus, blur, render: draw,
-        begin, counts, panel, onChange, canWrite: writable, authorName, setAuthorName, merge: mergeInto, replace, load,
-        newCommentId,
+        init, mount, list, add, reply, resolve: setResolved, remove, focus, navigate, blur, render: draw,
+        begin, counts, panel, onChange, toggleList, railActive, canWrite: writable, authorName, setAuthorName,
+        merge: mergeInto, replace, load, newCommentId,
       };
       /* Offered to plugins, which must never own the store: a plugin may present comments,
          and may not become the thing that writes them (invariant 11). */
@@ -11504,7 +12104,9 @@
           const comment = comments()?.list().find((candidate) => candidate.id === row.dataset.commentId);
           if (!comment) return;
           closeDocSettings();
-          comments()?.focus?.(comment);
+          /* The click that closed the dialog is still propagating: focus on the next frame,
+             or the outside-click handler closes the thread it just opened. */
+          requestAnimationFrame(() => comments()?.focus?.(comment));
         });
         dialog.querySelector("[data-dd-copy]").addEventListener("click", async (event) => {
           const button = event.currentTarget;
@@ -12165,7 +12767,8 @@
         if (result.replies) parts.push(`${result.replies} ${result.replies === 1 ? "reply" : "replies"} merged`);
         if (result.orphans) parts.push(`${result.orphans} unattached`);
         if (result.conflicts.length) parts.push(`${result.conflicts.length} ${result.conflicts.length === 1 ? "conflict" : "conflicts"}`);
-        summary.textContent = parts.length ? parts.join(" · ") : "Nothing new.";
+        summary.textContent = parts.length ? parts.join(" · ") : "";
+        summary.hidden = empty;
         nothing.hidden = !empty;
         help.hidden = !result.conflicts.length;
         apply.disabled = empty;
@@ -12340,6 +12943,9 @@
         {keys: "Mod+Shift+8", label: "Bulleted list", group: "Blocks", cmd: "insertUnorderedList"},
         {keys: "Mod+Shift+7", label: "Numbered list", group: "Blocks", cmd: "insertOrderedList"},
         {keys: "Mod+K", label: "Insert link", group: "Insert", run: () => editor.openLink()},
+        /* The key itself is owned by `comments.js` (a review copy has no toolbar); this entry
+           is the one the shortcuts sheet reads. */
+        {keys: "Mod+Alt+M", label: "Comment on selection", group: "Insert"},
         {keys: "Mod+Shift+K", label: "Remove link", group: "Insert", cmd: "unlink"},
         {keys: "Mod+Z", label: "Undo", group: "History", cmd: "undo"},
         {keys: "Mod+Shift+Z", label: "Redo", group: "History", cmd: "redo"},

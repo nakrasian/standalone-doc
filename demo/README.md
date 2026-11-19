@@ -12,10 +12,13 @@ npm run dev                # in another shell
 
 Open <http://127.0.0.1:8080/.test-tmp/comments-demo.html>.
 
-The page seeds three comments at load (one crosses a heading on purpose) and
-shows a panel with the four steps: open a thread, make a review copy, open the
-copy, import its comments back. The panel's two buttons call the same
-`toolbar.copy()` and `toolbar.exportCommentsOnly()` the menus call.
+The page seeds five comments at load: one on the title, one across a heading, one
+across the page break inside the long paragraph, one on a body paragraph, and one
+already resolved. They appear in the rail beside the page — hover a highlight to
+preview its card, click to pin it, ⌘⌥M to comment on a selection. The collapsed
+"Demo steps" panel lists the review round-trip: make a review copy, open it, add a
+comment, import it back. Its two buttons call the same `toolbar.copy()` and
+`toolbar.exportCommentsOnly()` the menus call.
 
 Served over `http://`, the page re-points its own asset manifest at this
 origin's `dist/cdn`, so **Edit a copy…** in the downloaded review copy fetches

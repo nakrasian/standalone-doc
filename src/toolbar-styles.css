@@ -833,6 +833,26 @@ dialog#shortcuts-dialog::backdrop {
 }
 
 /* ---- document settings sheet ---- */
+#copy-dialog,
+#import-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(84dvh, 720px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+#copy-dialog::backdrop,
+#import-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+#copy-dialog:focus,
+#copy-dialog:focus-visible,
+#import-dialog:focus,
+#import-dialog:focus-visible { outline: none; }
+
 #doc-settings-dialog {
   width: min(600px, calc(100vw - 32px));
   max-height: min(86dvh, 780px);
@@ -913,7 +933,7 @@ dialog#shortcuts-dialog::backdrop {
    the same frame the other sheets use — a dialog that is not in `dialog#<id>` gets the UA
    default, which is how this one shipped unstyled the first time. */
 #publish-dialog,
-#viewer-dialog {
+#copy-dialog {
   width: min(520px, calc(100vw - 32px));
   padding: 0;
   border: 1px solid var(--line);
@@ -925,25 +945,30 @@ dialog#shortcuts-dialog::backdrop {
 }
 
 #publish-dialog::backdrop,
-#viewer-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+#copy-dialog::backdrop { background: rgba(16, 22, 30, .34); }
 #publish-dialog:focus,
 #publish-dialog:focus-visible,
-#viewer-dialog:focus,
-#viewer-dialog:focus-visible { outline: none; }
+#copy-dialog:focus,
+#copy-dialog:focus-visible { outline: none; }
 
 #publish-dialog form,
-#viewer-dialog form { padding: 18px 20px 16px; }
+#copy-dialog form,
+#import-dialog form { padding: 18px 20px 16px; }
 #publish-dialog h2,
-#viewer-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+#copy-dialog h2,
+#import-dialog h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
 #publish-dialog .sp-sub,
-#viewer-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
-#publish-dialog .sp-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+#copy-dialog .sp-sub,
+#import-dialog .sp-sub { margin: 3px 0 14px; color: var(--muted); }
+#publish-dialog .sp-note,
+#copy-dialog .sp-note,
+#import-dialog .sp-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 
 /* The two rows are `.sp-row`, whose rules are shared with the save-policy sheet: the
    label wraps, the control does not. */
-#viewer-dialog .sp-row { border-top: 0; padding: 6px 0; }
-#viewer-dialog .sp-text .sp-why { display: block; }
-#viewer-dialog .sp-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; }
+#copy-dialog .sp-row { border-top: 0; padding: 6px 0; }
+#copy-dialog .sp-text .sp-why { display: block; }
+#copy-dialog .sp-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; }
 
 #publish-dialog input {
   width: 100%;
@@ -963,20 +988,33 @@ dialog#shortcuts-dialog::backdrop {
 }
 
 #publish-dialog .dialog-actions,
-#viewer-dialog .dialog-actions {
+#copy-dialog .dialog-actions,
+#import-dialog .dialog-actions {
   gap: 8px;
   align-items: center;
   margin-top: 16px;
 }
 
 #publish-dialog .dialog-actions button,
-#viewer-dialog .dialog-actions button {
+#copy-dialog .dialog-actions button,
+#import-dialog .dialog-actions button {
   height: 30px; padding: 0 14px; font: inherit;
   border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer;
 }
 #publish-dialog .dialog-actions button.primary,
-#viewer-dialog .dialog-actions button.primary {
+#copy-dialog .dialog-actions button.primary,
+#import-dialog .dialog-actions button.primary {
   border-color: var(--accent); background: var(--accent); color: #fff;
+}
+
+/* `button:disabled` clears every background with !important; a disabled primary would
+   then be white text on white. Grey it, and keep the label legible. */
+#import-dialog .dialog-actions button.primary:disabled,
+#copy-dialog .dialog-actions button.primary:disabled {
+  background: #eef0f4 !important;
+  border-color: var(--line);
+  color: var(--muted);
+  opacity: 1;
 }
 
 #doc-settings-dialog .ds-chips { display: flex; gap: 6px; }
@@ -1254,4 +1292,39 @@ dialog.plugin-trust .pt-foot button.pt-go {
   background: #eff4ff;
   color: #1d4ed8;
   font-weight: 600;
+}
+
+/* The copy dialog's kind picker: three radios on one line, because they are one choice. */
+#copy-dialog .sp-kinds {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+#copy-dialog .sp-kinds label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+#copy-dialog .sp-row input[type="checkbox"],
+#copy-dialog .sp-kinds input[type="radio"] {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+
+/* The import list is the same row shape the settings panel uses, with room to breathe. */
+#import-dialog .dd-comments {
+  max-height: 46dvh;
+  overflow: auto;
+  margin: 4px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+#import-dialog .import-conflict {
+  padding: 10px 2px;
 }

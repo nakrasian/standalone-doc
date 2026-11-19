@@ -730,7 +730,9 @@ export function createToolbar(deps = {}) {
       const comment = comments()?.list().find((candidate) => candidate.id === row.dataset.commentId);
       if (!comment) return;
       closeDocSettings();
-      comments()?.focus?.(comment);
+      /* The click that closed the dialog is still propagating: focus on the next frame,
+         or the outside-click handler closes the thread it just opened. */
+      requestAnimationFrame(() => comments()?.focus?.(comment));
     });
     dialog.querySelector("[data-dd-copy]").addEventListener("click", async (event) => {
       const button = event.currentTarget;
@@ -1391,7 +1393,8 @@ export function createToolbar(deps = {}) {
     if (result.replies) parts.push(`${result.replies} ${result.replies === 1 ? "reply" : "replies"} merged`);
     if (result.orphans) parts.push(`${result.orphans} unattached`);
     if (result.conflicts.length) parts.push(`${result.conflicts.length} ${result.conflicts.length === 1 ? "conflict" : "conflicts"}`);
-    summary.textContent = parts.length ? parts.join(" · ") : "Nothing new.";
+    summary.textContent = parts.length ? parts.join(" · ") : "";
+    summary.hidden = empty;
     nothing.hidden = !empty;
     help.hidden = !result.conflicts.length;
     apply.disabled = empty;
@@ -1566,6 +1569,9 @@ export function createToolbar(deps = {}) {
     {keys: "Mod+Shift+8", label: "Bulleted list", group: "Blocks", cmd: "insertUnorderedList"},
     {keys: "Mod+Shift+7", label: "Numbered list", group: "Blocks", cmd: "insertOrderedList"},
     {keys: "Mod+K", label: "Insert link", group: "Insert", run: () => editor.openLink()},
+    /* The key itself is owned by `comments.js` (a review copy has no toolbar); this entry
+       is the one the shortcuts sheet reads. */
+    {keys: "Mod+Alt+M", label: "Comment on selection", group: "Insert"},
     {keys: "Mod+Shift+K", label: "Remove link", group: "Insert", cmd: "unlink"},
     {keys: "Mod+Z", label: "Undo", group: "History", cmd: "undo"},
     {keys: "Mod+Shift+Z", label: "Redo", group: "History", cmd: "redo"},

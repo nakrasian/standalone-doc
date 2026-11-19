@@ -101,6 +101,7 @@ const REGIONS = [
   { id: "dialogs", kind: "html", order: 14, label: "Dialogs", requiredBy: ["edit"], tag: "div"  },
   { id: "doc-bar-markup", kind: "html", order: 15, label: "Document bar", requiredBy: ["view", "comment"], tag: "header"  },
   { id: "doc-bar-styles", kind: "css", order: 21, label: "Document bar styles", requiredBy: ["view", "comment"]  },
+  { id: "comment-styles", kind: "css", order: 26, label: "Comment styles", requiredBy: ["*"], capability: "comments"  },
   { id: "signals", kind: "js", order: 30, label: "Signals", requiredBy: ["*"]  },
   { id: "zoom", kind: "js", order: 40, label: "Zoom", requiredBy: ["*"]  },
   { id: "selection", kind: "js", order: 44, label: "Selection", requiredBy: ["*"]  },

@@ -341,7 +341,8 @@ export function replyTo(comment, {body, author, now = new Date().toISOString(), 
 /* --------------------------------------------------------------- the session */
 
 /**
- * The DOM half: block ids, the marker overlay, the thread popover.
+ * The DOM half: block ids, the marker overlay, the rail (or a popover when there is no
+ * room for it) and the composer.
  *
  * Markers are **not** wrapped around text. Wrapping mutates `#content`, which is the
  * caret, the undo stack, `figures.prepareClone()` and pagination's own measurement —
@@ -353,6 +354,11 @@ export function replyTo(comment, {body, author, now = new Date().toISOString(), 
  * measured: `range.getClientRects()` across a page break returns the gap as one **948 px**
  * rect in all three engines, and clipping alone still paints a page-height lie because
  * the rect exists at all. A text-node rect cannot span the gap.
+ *
+ * The rail is the list a reader lives in: cards beside the page, in document order, with
+ * the resolved ones kept below them. Hovering a highlight previews its card; clicking
+ * pins it until the reader clicks away. A comment that has been resolved paints **no**
+ * highlight — the record is still there, in the list, to reopen or delete.
  */
 export function createComments(deps = {}) {
   const {signals, pagination, layout, selection, settings, env} = deps;
@@ -368,16 +374,22 @@ export function createComments(deps = {}) {
   const live = () => env.StandaloneDoc?.settings?.() || settings;
   const writable = () => live().capabilities?.comments === "write" && live().mode !== "view";
 
-  /* Both are optional in the sense that matters: a document with no `#content` has no
-     document to annotate, and the module still has to return its API. */
   let layer = null;
+  let rail = null;
+  let railTab = null;
   let popover = null;
+  let composer = null;
   let store = {schema: 1, comments: []};
   let cache = new Map();
   let frame = 0;
   let focused = null;
-  let composer = null;
   let pending = null;
+  let railMode = false;
+  let railOpen = true;
+  let pinned = null;
+  let hovered = null;
+  let railDirty = true;
+  const flashTimers = new Map();
   const listeners = new Set();
 
   /* Who is writing. The author's name is the document's (it is what a reviewer replies
@@ -418,8 +430,9 @@ export function createComments(deps = {}) {
       : {name: name || authorName() || "Reader", kind: "reviewer"};
   }
 
-  /** Every mutation ends here, so the bar can update a count without polling. */
+  /** Every mutation ends here, so the chrome can update without polling. */
   function changed() {
+    railDirty = true;
     for (const fn of listeners) {
       try {
         fn();
@@ -504,7 +517,7 @@ export function createComments(deps = {}) {
 
   /* ----------------------------------------------------------------- geometry */
 
-  /** The page content bands, in layout px, from the pass that just run. */
+  /** The page content bands, in layout px, from the pass that just ran. */
   function pageBands() {
     const plan = pagination.plan();
     if (!plan || !plan.pageTops?.length) return null;
@@ -565,7 +578,7 @@ export function createComments(deps = {}) {
     return rects;
   }
 
-  /** Where a block-level (or orphan) marker goes: the block's first line, or the page. */
+  /** Where a block-level (or orphan) marker goes: the block's first line. */
   function blockRect(blockEl) {
     const rect = layout.rect(blockEl);
     return [{left: Math.max(0, rect.right - 10), top: rect.top + 2, width: 8, height: 8}];
@@ -581,6 +594,8 @@ export function createComments(deps = {}) {
     cache = next;
     return next;
   }
+
+  const stateOf = (comment) => (cache.get(comment.id) || {how: "orphan"}).how;
 
   function clearLayer() {
     if (!layer) return;
@@ -610,6 +625,8 @@ export function createComments(deps = {}) {
         `width:${Math.max(2, rect.width)}px`,
         `height:${Math.max(2, rect.height)}px`,
       ].join(";");
+      if (comment.id === hovered) el.dataset.hover = "";
+      if (comment.id === pinned) el.dataset.pinned = "";
       layer.append(el);
     }
   }
@@ -623,6 +640,9 @@ export function createComments(deps = {}) {
     for (const comment of store.comments) {
       const result = resolved.get(comment.id);
       if (!result) continue;
+      /* Resolved means done: no highlight in the text. The record stays in the list, to
+         reopen or delete. */
+      if (comment.resolved) continue;
       if (result.how === "orphan") continue;
       if (result.how === "block") {
         const blockId = result.anchor.blocks?.[0];
@@ -641,13 +661,20 @@ export function createComments(deps = {}) {
           marker(blockRect(block.el), comment, {block: true});
           continue;
         }
-        /* Culling is deliberately absent: the plan's threshold is ~200 comments, and it
-           should be measured before it is optimised. */
         marker(rects, comment);
       }
     }
     const orphans = [...resolved.values()].filter((result) => result.how === "orphan").length;
     if (orphans) drawOrphanPill(orphans);
+    /* The layout decides whether a rail exists at all, so it must be known before the
+       cards are built: the first draw runs before any `layout` signal has been seen. */
+    layoutRail();
+    if (railDirty) {
+      renderRail();
+      railDirty = false;
+    } else {
+      applyState();
+    }
   }
 
   function drawOrphanPill(count) {
@@ -661,43 +688,103 @@ export function createComments(deps = {}) {
     layer.append(el);
   }
 
-  /* ------------------------------------------------------------------- threads */
+  /* --------------------------------------------------------------------- rail */
 
-  function thread(parent, comment, result) {
-    const header = document.createElement("div");
-    header.style.cssText = "display:flex;gap:8px;align-items:baseline;margin:0 0 6px";
-    const who = document.createElement("strong");
-    who.textContent = comment.author.name;
+  const RAIL_QUERY = "(min-width: 1180px)";
+  const byPosition = (a, b) => (a.comment.anchor.from ?? 0) - (b.comment.anchor.from ?? 0);
+
+  function rows() {
+    const idx = index();
+    resolveAll(idx);
+    const items = store.comments.map((comment) => ({comment, state: stateOf(comment)}));
+    return {
+      open: items.filter((item) => !item.comment.resolved).sort(byPosition),
+      done: items.filter((item) => item.comment.resolved).sort(byPosition),
+    };
+  }
+
+  function layoutRail() {
+    if (!rail) return;
+    const wide = globalThis.matchMedia?.(RAIL_QUERY).matches ?? false;
+    railMode = wide;
+    const viewport = document.getElementById("viewport");
+    const box = viewport?.getBoundingClientRect?.();
+    const has = store.comments.length > 0;
+    const shown = wide && railOpen && has;
+    document.documentElement.dataset.commentsRail = shown ? "on" : "off";
+    rail.hidden = !shown;
+    if (railTab) railTab.hidden = !(wide && !railOpen && has);
+    if (!shown) {
+      rail.replaceChildren();
+      return;
+    }
+    rail.style.top = `${Math.round((box?.top ?? 0) + 6)}px`;
+    rail.style.maxHeight = `${Math.max(180, Math.round((box?.height ?? 600) - 12))}px`;
+  }
+
+  function quoteOf(comment) {
+    return comment.anchor.quote || "";
+  }
+
+  function card(comment, state) {
+    const el = document.createElement("article");
+    el.className = "comment-card";
+    el.dataset.commentCard = "";
+    el.dataset.commentId = comment.id;
+    if (comment.resolved) el.dataset.resolved = "";
+    if (state === "orphan") el.dataset.orphan = "";
+    if (comment.id === pinned) el.dataset.pinned = "";
+    if (comment.id === hovered) el.dataset.hover = "";
+
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "comment-card-head";
+    head.dataset.cardHead = "";
+    const author = document.createElement("span");
+    author.className = "comment-card-author";
+    author.textContent = comment.author.name;
     const meta = document.createElement("span");
-    meta.style.cssText = "color:#6b7280;font:12px system-ui";
+    meta.className = "comment-card-meta";
     meta.textContent = [comment.author.kind === "author" ? "author" : "reviewer", comment.createdAt?.slice(0, 10)].filter(Boolean).join(" · ");
-    header.append(who, meta);
+    head.append(author, meta);
     if (comment.resolved) {
       const badge = document.createElement("span");
+      badge.className = "comment-card-badge";
       badge.textContent = "resolved";
-      badge.style.cssText = "margin-left:auto;font:12px system-ui;color:#047857";
-      header.append(badge);
+      head.append(badge);
+    }
+    el.append(head);
+
+    const quote = quoteOf(comment);
+    if (quote) {
+      const p = document.createElement("p");
+      p.className = "comment-quote";
+      p.textContent = `“${quote}”`;
+      el.append(p);
     }
 
     const body = document.createElement("p");
-    body.style.cssText = "margin:0 0 6px;white-space:pre-wrap";
+    body.className = "comment-body";
     body.textContent = comment.body;
+    el.append(body);
 
-    parent.append(header, body);
-
-    if (result?.anchor?.quote && result.how !== "exact") {
+    if (state === "orphan") {
       const note = document.createElement("p");
-      note.style.cssText = "margin:0 0 6px;font:12px system-ui;color:#92400e";
-      note.textContent = result.how === "shifted" ? "Re-attached by its quotation." : "The text this was about is gone; the comment is on the paragraph.";
-      parent.append(note);
+      note.className = "comment-note";
+      note.textContent = "Its paragraph is gone. The comment is kept here.";
+      el.append(note);
+    } else if (state === "block") {
+      const note = document.createElement("p");
+      note.className = "comment-note";
+      note.textContent = "The words moved; this is on the paragraph now.";
+      el.append(note);
     }
 
     if (comment.replies?.length) {
       const list = document.createElement("ol");
-      list.style.cssText = "margin:6px 0 0;padding-left:18px";
+      list.className = "comment-replies";
       for (const reply of comment.replies) {
         const item = document.createElement("li");
-        item.style.cssText = "margin:0 0 4px";
         const name = document.createElement("strong");
         name.textContent = reply.author?.name || "Reviewer";
         const text = document.createElement("span");
@@ -705,101 +792,200 @@ export function createComments(deps = {}) {
         item.append(name, text);
         list.append(item);
       }
-      parent.append(list);
+      el.append(list);
     }
-  }
 
-  /**
-   * A writable thread's verbs. Deliberately three: reply, resolve, and the parent's
-   * delete. Editing a comment is a reply — a review history that can be rewritten is
-   * not a history (invariant 29).
-   */
-  function actions(parent, comment, result) {
-    const footer = document.createElement("div");
-    footer.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eef0f4;display:flex;gap:6px;flex-wrap:wrap";
+    if (writable()) {
+      const actions = document.createElement("div");
+      actions.className = "comment-actions";
 
-    const resolve = document.createElement("button");
-    resolve.type = "button";
-    resolve.textContent = comment.resolved ? "Reopen" : "Resolve";
-    resolve.style.cssText = "font:12px system-ui;padding:3px 8px;border:1px solid #dfe1e6;border-radius:6px;background:#fff;cursor:pointer";
-    resolve.addEventListener("click", () => {
-      const next = setResolved(comment.id, !comment.resolved);
-      if (next) focus(next);
-    });
+      const resolve = document.createElement("button");
+      resolve.type = "button";
+      resolve.dataset.resolveComment = "";
+      resolve.textContent = comment.resolved ? "Reopen" : "Resolve";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.dataset.deleteComment = "";
+      remove.dataset.danger = "";
+      remove.textContent = "Delete";
+      actions.append(resolve, remove);
+      el.append(actions);
 
-    const replyButton = document.createElement("button");
-    replyButton.type = "button";
-    replyButton.textContent = "Reply";
-    replyButton.style.cssText = resolve.style.cssText;
-    replyButton.addEventListener("click", () => {
-      const box = document.createElement("textarea");
-      box.rows = 2;
-      box.placeholder = "Reply…";
-      box.setAttribute("aria-label", "Reply");
-      box.style.cssText = "flex:1 1 100%;margin-top:6px;font:13px system-ui;padding:6px;border:1px solid #dfe1e6;border-radius:6px";
+      const reply = document.createElement("form");
+      reply.className = "comment-reply";
+      reply.dataset.replyForm = "";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = `Reply as ${live().mode === "edit" ? live().author || "the author" : authorName() || "a reviewer"}…`;
+      input.setAttribute("aria-label", "Reply");
       const send = document.createElement("button");
-      send.type = "button";
+      send.type = "submit";
       send.textContent = "Send";
-      send.style.cssText = resolve.style.cssText;
-      const post = () => {
-        const next = reply(comment.id, {body: box.value, author: writer()});
-        if (next) focus(next);
-      };
-      send.addEventListener("click", post);
-      box.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) post();
-      });
-      replyButton.replaceWith(box);
-      footer.append(send);
-      box.focus();
-    });
-
-    footer.append(resolve, replyButton);
-
-    if (live().mode === "edit") {
-      const removeButton = document.createElement("button");
-      removeButton.type = "button";
-      removeButton.textContent = "Delete";
-      removeButton.style.cssText = resolve.style.cssText;
-      removeButton.addEventListener("click", () => {
-        remove(comment.id);
-        blur();
-      });
-      footer.append(removeButton);
+      reply.append(input, send);
+      el.append(reply);
     }
 
-    if (result?.how === "orphan") {
-      const note = document.createElement("span");
-      note.style.cssText = "font:11px system-ui;color:#92400e";
-      note.textContent = "Its paragraph is gone.";
-      footer.append(note);
-    }
-
-    parent.append(footer);
+    return el;
   }
+
+  function renderRail() {
+    if (!rail || !railMode) return;
+    rail.replaceChildren();
+    const {open, done} = rows();
+    const addGroup = (label) => {
+      const el = document.createElement("p");
+      el.className = "comment-group";
+      el.textContent = label;
+      rail.append(el);
+    };
+    if (open.length || !done.length) {
+      for (const row of open) rail.append(card(row.comment, row.state));
+    }
+    if (done.length) {
+      if (open.length) addGroup("Resolved");
+      for (const row of done) rail.append(card(row.comment, row.state));
+    }
+  }
+
+  function railCard(id) {
+    return rail?.querySelector(`[data-comment-card][data-comment-id="${id}"]`) || null;
+  }
+
+  function applyState() {
+    if (!rail) return;
+    for (const el of rail.querySelectorAll("[data-comment-card]")) {
+      const id = el.dataset.commentId;
+      if (id === pinned) el.dataset.pinned = "";
+      else delete el.dataset.pinned;
+      if (id === hovered) el.dataset.hover = "";
+      else delete el.dataset.hover;
+    }
+    if (popover && !popover.hidden) {
+      for (const el of popover.querySelectorAll("[data-comment-card]")) {
+        if (el.dataset.commentId === pinned) el.dataset.pinned = "";
+      }
+    }
+    for (const el of layer?.querySelectorAll("[data-comment-id]") || []) {
+      const id = el.dataset.commentId;
+      if (id === pinned) el.dataset.pinned = "";
+      else delete el.dataset.pinned;
+      if (id === hovered) el.dataset.hover = "";
+      else delete el.dataset.hover;
+    }
+  }
+
+  function flash(id) {
+    if (!layer) return;
+    for (const el of layer.querySelectorAll("[data-comment-id]")) {
+      if (el.dataset.commentId !== id) continue;
+      el.dataset.flash = "";
+      clearTimeout(flashTimers.get(el));
+      flashTimers.set(el, setTimeout(() => {
+        delete el.dataset.flash;
+        flashTimers.delete(el);
+      }, 1100));
+    }
+  }
+
+  function hover(id) {
+    if (hovered === id) return;
+    hovered = id;
+    applyState();
+    if (!id) return;
+    const el = railCard(id);
+    /* Do not move the rail on every mouse move; only when the card is out of view. */
+    if (el && rail && (el.offsetTop < rail.scrollTop || el.offsetTop + el.offsetHeight > rail.scrollTop + rail.clientHeight)) {
+      el.scrollIntoView({block: "nearest"});
+    }
+  }
+
+  function pin(id, {scroll = true} = {}) {
+    pinned = id;
+    hovered = null;
+    applyState();
+    if (!id || !scroll) return;
+    const el = railCard(id);
+    el?.scrollIntoView({block: "nearest"});
+  }
+
+  function unpin() {
+    if (!pinned) return;
+    pinned = null;
+    applyState();
+  }
+
+  /** Show the reader where a comment is: pin it, bring its marker into view, flash it. */
+  function navigate(comment) {
+    if (!comment) return null;
+    pin(comment.id, {scroll: true});
+    const hits = layer ? [...layer.querySelectorAll(`[data-comment-id="${comment.id}"]`)] : [];
+    if (hits.length) {
+      hits[0].scrollIntoView({block: "center", behavior: "smooth"});
+    } else {
+      /* A resolved comment has no highlight; its paragraph is still the place to look. */
+      const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
+      const blockId = result.anchor?.blocks?.[0];
+      const block = blockId ? index().list.find((candidate) => candidate.id === blockId) : null;
+      block?.el?.scrollIntoView({block: "center", behavior: "smooth"});
+    }
+    flash(comment.id);
+    return comment;
+  }
+
+  function onCardEvent(event) {
+    const cardEl = event.target.closest?.("[data-comment-card]");
+    if (!cardEl) return;
+    const id = cardEl.dataset.commentId;
+    const comment = store.comments.find((candidate) => candidate.id === id);
+    if (!comment) return;
+
+    if (event.target.closest("[data-resolve-comment]")) {
+      const next = setResolved(id, !comment.resolved);
+      if (next) navigate(next);
+      return;
+    }
+    if (event.target.closest("[data-delete-comment]")) {
+      remove(id);
+      return;
+    }
+    if (event.target.closest("[data-reply-form]")) {
+      if (event.type === "submit") {
+        event.preventDefault();
+        const input = event.target.querySelector("input");
+        const next = reply(id, {body: input?.value, author: writer()});
+        if (next) {
+          input.value = "";
+          navigate(next);
+        }
+      }
+      return;
+    }
+    if (event.type === "click" && (event.target.closest("[data-card-head]") || event.target === cardEl)) {
+      navigate(comment);
+    }
+  }
+
+  /* ------------------------------------------------------------------- threads */
 
   function placePopover(anchorEl) {
     if (!popover) return;
     const box = anchorEl?.getBoundingClientRect?.();
-    const width = 320;
+    const width = 340;
     const margin = 8;
-    const left = box ? Math.min(window.innerWidth - width - margin, Math.max(margin, box.left)) : margin * 4;
-    const top = box ? Math.min(window.innerHeight - 120, Math.max(margin, box.bottom + 6)) : margin * 8;
+    const left = box ? Math.min(globalThis.innerWidth - width - margin, Math.max(margin, box.left)) : margin * 4;
+    const top = box ? Math.min(globalThis.innerHeight - 160, Math.max(margin, box.bottom + 6)) : margin * 8;
     popover.style.left = `${Math.round(left)}px`;
     popover.style.top = `${Math.round(top)}px`;
   }
 
   function focus(comment) {
-    if (!popover || !comment) return null;
-    const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
-    popover.replaceChildren();
-    const panel = document.createElement("div");
-    panel.style.cssText = "padding:10px 12px;font:14px/1.45 system-ui;color:#1b1f24;background:#fff;border:1px solid #dfe1e6;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,0.18);max-width:320px";
-    thread(panel, comment, result);
-    if (writable()) actions(panel, comment, result);
-    popover.append(panel);
-    popover.hidden = false;
+    if (!comment) return null;
     focused = comment.id;
+    if (railMode) return navigate(comment);
+    if (!popover) return null;
+    const result = cache.get(comment.id) || resolveAnchor(comment.anchor, index());
+    popover.replaceChildren(card(comment, result.how));
+    popover.hidden = false;
     const el = layer?.querySelector(`[data-comment-id="${comment.id}"]`);
     placePopover(el);
     return comment;
@@ -809,6 +995,19 @@ export function createComments(deps = {}) {
     if (popover) popover.hidden = true;
     focused = null;
   }
+
+  function toggleList() {
+    if (!railMode) return {rail: false, open: false};
+    railOpen = !railOpen;
+    layoutRail();
+    if (railOpen) {
+      railDirty = true;
+      renderRail();
+    }
+    return {rail: true, open: railOpen};
+  }
+
+  const railActive = () => railMode;
 
   /* ---------------------------------------------------------------- authoring */
 
@@ -850,20 +1049,21 @@ export function createComments(deps = {}) {
     store.comments.push(comment);
     save();
     draw();
+    focus(comment);
     return comment;
   }
 
   function reply(id, {body, author} = {}) {
     if (!writable() || !body || !String(body).trim()) return null;
-    const indexOfComment = store.comments.findIndex((comment) => comment.id === id);
-    if (indexOfComment < 0) return null;
-    store.comments[indexOfComment] = replyTo(store.comments[indexOfComment], {
+    const at = store.comments.findIndex((comment) => comment.id === id);
+    if (at < 0) return null;
+    store.comments[at] = replyTo(store.comments[at], {
       body,
-      author: author || store.comments[indexOfComment].author,
+      author: author || store.comments[at].author,
     });
     save();
     draw();
-    return store.comments[indexOfComment];
+    return store.comments[at];
   }
 
   function setResolved(id, resolved = true) {
@@ -872,6 +1072,7 @@ export function createComments(deps = {}) {
     if (!comment) return null;
     comment.resolved = Boolean(resolved);
     comment.updatedAt = new Date().toISOString();
+    if (comment.resolved && pinned === id) pinned = null;
     save();
     draw();
     return comment;
@@ -882,6 +1083,8 @@ export function createComments(deps = {}) {
     const before = store.comments.length;
     store.comments = store.comments.filter((comment) => comment.id !== id);
     if (store.comments.length === before) return false;
+    if (pinned === id) pinned = null;
+    if (focused === id) blur();
     save();
     draw();
     return true;
@@ -889,7 +1092,8 @@ export function createComments(deps = {}) {
 
   const list = () => {
     const idx = index();
-    return store.comments.map((comment) => ({...comment, state: resolveAnchor(comment.anchor, idx).how}));
+    resolveAll(idx);
+    return store.comments.map((comment) => ({...comment, state: stateOf(comment)}));
   };
 
   /** How the bar labels itself: unresolved first, because that is the work left. */
@@ -904,12 +1108,12 @@ export function createComments(deps = {}) {
     return {total: store.comments.length, unresolved, orphans};
   }
 
-  /** The thread list, unresolved first, for the bar's panel and the Comments tab. */
+  /** The list in the settings panel: the same rows, without the rail's room. */
   function panel(container) {
     container.replaceChildren();
     const idx = index();
     const rows = [...store.comments].sort(
-      (a, b) => Number(Boolean(a.resolved)) - Number(Boolean(b.resolved)) || String(a.createdAt).localeCompare(String(b.createdAt)),
+      (a, b) => Number(Boolean(a.resolved)) - Number(Boolean(b.resolved)) || (a.anchor.from ?? 0) - (b.anchor.from ?? 0),
     );
     if (!rows.length) {
       const empty = document.createElement("p");
@@ -930,7 +1134,7 @@ export function createComments(deps = {}) {
       body.textContent = comment.body.length > 96 ? `${comment.body.slice(0, 96)}…` : comment.body;
       const meta = document.createElement("span");
       meta.className = "doc-comment-meta";
-      const flags = [comment.author.name, state === "orphan" ? "unattached" : state === "block" ? "on the paragraph" : null];
+      const flags = [comment.author.name, comment.resolved ? "resolved" : null, state === "orphan" ? "unattached" : state === "block" ? "on the paragraph" : null];
       if (comment.replies?.length) flags.push(`${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`);
       meta.textContent = flags.filter(Boolean).join(" · ");
       button.append(body, meta);
@@ -1059,14 +1263,11 @@ export function createComments(deps = {}) {
     return {ok: true};
   }
 
-  /**
-   * Replace the whole store: what an import does once a human has accepted the list.
-   * Records that are not addressable are dropped (`validComment`), because a store that
-   * cannot be merged is worse than a smaller one.
-   */
+  /** Replace the whole store: what an import does once a human has accepted the list. */
   function replace(next) {
     const comments = Array.isArray(next?.comments) ? next.comments.filter(validComment) : [];
     store = {schema: 1, comments};
+    pinned = null;
     save();
     draw();
     return store.comments.length;
@@ -1098,6 +1299,28 @@ export function createComments(deps = {}) {
       layer.style.cssText = "position:absolute;inset:0;z-index:2;pointer-events:none;contain:layout style";
       stage.append(layer);
     }
+    if (!rail) {
+      rail = document.createElement("aside");
+      rail.id = "comment-rail";
+      rail.dataset.pluginUi = "";
+      rail.setAttribute("aria-label", "Comments");
+      document.body.append(rail);
+    }
+    if (!railTab) {
+      railTab = document.createElement("button");
+      railTab.type = "button";
+      railTab.id = "comment-rail-tab";
+      railTab.dataset.pluginUi = "";
+      railTab.textContent = "Comments";
+      railTab.hidden = true;
+      railTab.addEventListener("click", () => {
+        railOpen = true;
+        layoutRail();
+        railDirty = true;
+        renderRail();
+      });
+      document.body.append(railTab);
+    }
     if (!popover) {
       popover = document.createElement("div");
       popover.id = "comment-popover";
@@ -1128,37 +1351,64 @@ export function createComments(deps = {}) {
     signals.on("mutation", schedule);
     signals.on("resize", schedule);
     document.fonts?.ready.then(schedule).catch(() => {});
-    document.addEventListener("click", (event) => {
-      if (composer && !composer.hidden && !composer.contains(event.target) && !event.target.closest?.("#comment-layer")) {
-        closeComposer();
-      }
-      if (popover?.hidden) return;
-      if (popover.contains(event.target)) return;
-      if (event.target.closest?.("#comment-layer")) return;
-      /* The bar is chrome that opens threads, not a click "outside" them. */
-      if (event.target.closest?.("#doc-bar")) return;
-      blur();
+
+    /* Hover previews, click pins, and a click anywhere else lets go. The rail and the
+       page are one surface: hovering either side lights the other. */
+    layer?.addEventListener("pointerover", (event) => {
+      const hit = event.target.closest?.("[data-comment-id]");
+      if (hit) hover(hit.dataset.commentId);
     });
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      if (composer && !composer.hidden) closeComposer();
-      else if (popover && !popover.hidden) blur();
+    layer?.addEventListener("pointerout", (event) => {
+      if (!event.relatedTarget?.closest?.("#comment-layer")) hover(null);
     });
     layer?.addEventListener("click", (event) => {
       const pill = event.target.closest("#comment-orphans");
       if (pill) {
-        const orphan = store.comments.find((comment) => (cache.get(comment.id) || {how: "orphan"}).how === "orphan");
-        if (orphan) {
-          const result = focus(orphan);
-          placePopover(null);
-          return result;
-        }
+        const orphan = store.comments.find((comment) => stateOf(comment) === "orphan");
+        if (orphan) return focus(orphan);
         return;
       }
       const hit = event.target.closest("[data-comment-id]");
       if (!hit) return;
       const comment = store.comments.find((candidate) => candidate.id === hit.dataset.commentId);
       if (comment) focus(comment);
+    });
+    rail?.addEventListener("pointerover", (event) => {
+      const hit = event.target.closest?.("[data-comment-card]");
+      if (hit) hover(hit.dataset.commentId);
+    });
+    rail?.addEventListener("pointerleave", () => hover(null));
+    rail?.addEventListener("click", onCardEvent);
+    rail?.addEventListener("submit", onCardEvent);
+    popover?.addEventListener("click", onCardEvent);
+    popover?.addEventListener("submit", onCardEvent);
+    railTab?.addEventListener("pointerenter", () => hover(null));
+
+    document.addEventListener("click", (event) => {
+      const inChrome = event.target.closest?.("#comment-rail, #comment-layer, #comment-popover, #comment-composer, #doc-bar, #app-toolbar, #doc-settings-dialog, #import-dialog");
+      if (composer && !composer.hidden && !composer.contains(event.target) && !inChrome) closeComposer();
+      if (popover && !popover.hidden && !popover.contains(event.target) && !inChrome) blur();
+      if (pinned && !inChrome) unpin();
+    });
+    document.addEventListener("keydown", (event) => {
+      /* Cmd/Ctrl+Alt+M starts a comment from the selection, in every mode: the editor
+         has the ribbon's action, a review copy has this one. */
+      if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.key.toLowerCase() === "m") {
+        if (!writable()) return;
+        event.preventDefault();
+        begin();
+        return;
+      }
+      if (event.key !== "Escape") return;
+      if (composer && !composer.hidden) closeComposer();
+      else if (pinned) unpin();
+      else if (popover && !popover.hidden) blur();
+    });
+    const query = globalThis.matchMedia?.(RAIL_QUERY);
+    query?.addEventListener?.("change", () => {
+      layoutRail();
+      railDirty = true;
+      renderRail();
     });
     schedule();
     return {comments: store.comments.length};
@@ -1175,9 +1425,9 @@ export function createComments(deps = {}) {
   }
 
   const api = {
-    init, mount, list, add, reply, resolve: setResolved, remove, focus, blur, render: draw,
-    begin, counts, panel, onChange, canWrite: writable, authorName, setAuthorName, merge: mergeInto, replace, load,
-    newCommentId,
+    init, mount, list, add, reply, resolve: setResolved, remove, focus, navigate, blur, render: draw,
+    begin, counts, panel, onChange, toggleList, railActive, canWrite: writable, authorName, setAuthorName,
+    merge: mergeInto, replace, load, newCommentId,
   };
   /* Offered to plugins, which must never own the store: a plugin may present comments,
      and may not become the thing that writes them (invariant 11). */

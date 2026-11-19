@@ -94,7 +94,15 @@ test.describe("comments on the file channel", () => {
     expect(carried.comments.map((comment) => comment.id)).toEqual([id]);
 
     const dialog = await importFile(page, `comments-same-${process.pid}.html`, exported.html);
-    await expect(dialog.locator("[data-import-summary]")).toHaveText("Nothing new.");
+    /* Styled like the other document dialogs: this is a dialog, not a `<div>`. */
+    const box = await dialog.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return {radius: style.borderRadius, width: style.width, form: getComputedStyle(el.querySelector("form")).padding};
+    });
+    expect(box.radius).toBe("12px");
+    expect(box.width).toBe("560px");
+    expect(box.form).toBe("18px 20px 16px");
+    await expect(dialog.locator("[data-import-summary]")).toBeHidden();
     await expect(dialog.locator("[data-import-nothing]")).toBeVisible();
     await expect(dialog.locator("[data-import-apply]")).toBeDisabled();
     await dialog.locator("button[value='cancel']").click();

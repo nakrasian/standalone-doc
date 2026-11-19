@@ -286,8 +286,8 @@ test.describe("boot dialog", () => {
     const seen = await dialog(page);
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
-    /* One row per non-infra asset in the plan: the comments bundle included. */
-    expect(seen.rows).toBe(22);
+    /* One row per non-infra asset in the plan: the comments bundle and its sheet. */
+    expect(seen.rows).toBe(23);
     expect(seen.barNow).toBe("100");
   });
 

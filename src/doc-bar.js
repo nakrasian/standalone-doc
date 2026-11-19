@@ -85,8 +85,15 @@ export function createDocBar(deps = {}) {
     if (commentsButton) {
       commentsButton.hidden = !(count.total > 0 || canComment());
       commentsButton.setAttribute("aria-label", `${count.total} comment${count.total === 1 ? "" : "s"}`);
+      /* In a wide layout the rail *is* the list; the button toggles it rather than a
+         second copy of the same rows. */
+      if (comments()?.railActive?.()) commentsButton.setAttribute("aria-expanded", "false");
+      else commentsButton.setAttribute("aria-expanded", String(Boolean(commentsPanel && !commentsPanel.hidden)));
     }
-    if (commentsPanel && !commentsPanel.hidden) comments()?.panel?.(commentsPanel);
+    if (commentsPanel) {
+      if (comments()?.railActive?.()) commentsPanel.hidden = true;
+      else if (!commentsPanel.hidden) comments()?.panel?.(commentsPanel);
+    }
     pagination.syncFolio();
   }
 
@@ -145,6 +152,17 @@ export function createDocBar(deps = {}) {
     if (open) openPanel(false);
   }
 
+  /** The list is the rail when there is room for one, and the panel when there is not. */
+  function toggleComments() {
+    if (comments()?.railActive?.()) {
+      const state = comments()?.toggleList?.();
+      commentsButton?.setAttribute("aria-expanded", String(Boolean(state?.open)));
+      openPanel(false);
+      return;
+    }
+    openComments(commentsPanel ? commentsPanel.hidden : false);
+  }
+
   bar.addEventListener("click", (event) => {
     if (event.target.closest("[data-save]")) {
       save();
@@ -166,7 +184,7 @@ export function createDocBar(deps = {}) {
       return;
     }
     if (event.target.closest("[data-comments-toggle]")) {
-      openComments(commentsPanel ? commentsPanel.hidden : false);
+      toggleComments();
       return;
     }
     if (event.target.closest("[data-doc-adopt]")) {

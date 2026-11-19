@@ -75,7 +75,7 @@ test("boots entirely from the CDN", async ({ page }) => {
   expect(info.signals).toBe("object");
   expect(info.figures).toBe("object");
   expect(info.inlineBlocks).toBe(0);
-  expect(info.injectedStyles).toEqual(["page-styles", "toolbar-styles"]);
+  expect(info.injectedStyles).toEqual(["page-styles", "toolbar-styles", "comment-styles"]);
   expect(info.stats).toMatch(/\d+ words?/);
   expect(info.toolbar).toBe(true);
 });
@@ -131,7 +131,7 @@ test("a view-mode document never asks the CDN for editor assets", async ({ page 
   /* progress is authoring-only, so a viewer never fetches it. The bar is the opposite:
      view-only, so a view-mode document is the one flavour that does fetch it. */
   expect(fetched).toEqual([
-    "apply-settings.js", "comments.js", "doc-bar-markup.html", "doc-bar-styles.css", "doc-bar.js", "figures.js",
+    "apply-settings.js", "comment-styles.css", "comments.js", "doc-bar-markup.html", "doc-bar-styles.css", "doc-bar.js", "figures.js",
     "layout.js", "page-styles.css", "pagination.js", "selection.js", "session.js", "signals.js", "zoom.js",
   ]);
 });

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 663236
+    "bytes": 682121
   },
   "assets": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 39351
+      "bytes": 41464
     },
     {
       "id": "boot-ui-styles",
@@ -42,7 +42,12 @@
     {
       "id": "doc-bar",
       "kind": "js",
-      "bytes": 10652
+      "bytes": 11504
+    },
+    {
+      "id": "comment-styles",
+      "kind": "css",
+      "bytes": 6206
     },
     {
       "id": "figure-tools",
@@ -112,7 +117,7 @@
     {
       "id": "comments",
       "kind": "js",
-      "bytes": 51834
+      "bytes": 60641
     },
     {
       "id": "figures",
@@ -127,7 +132,7 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 89642
+      "bytes": 90087
     },
     {
       "id": "plugins",
@@ -151,9 +156,9 @@
     }
   ],
   "flavors": {
-    "index.html": 663236,
-    "asset-bodies": 645484,
-    "markup-and-runtime": 17752,
-    "dist/slim.html": 96030
+    "index.html": 682121,
+    "asset-bodies": 663907,
+    "markup-and-runtime": 18214,
+    "dist/slim.html": 96375
   }
 }

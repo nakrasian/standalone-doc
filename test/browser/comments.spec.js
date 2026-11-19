@@ -154,6 +154,7 @@ test.describe("comments: the store and the anchor", () => {
       return {
         layer: Boolean(doc.querySelector("#comment-layer")),
         popover: Boolean(doc.querySelector("#comment-popover")),
+        rail: Boolean(doc.querySelector("#comment-rail, #comment-rail-tab")),
         ephemeral: Boolean(doc.querySelector("[data-runtime='ephemeral']")),
         comments: doc.querySelectorAll("#comment-store").length,
         records: JSON.parse(doc.querySelector("#comment-store")?.textContent || "{}").comments?.length || 0,
@@ -165,6 +166,7 @@ test.describe("comments: the store and the anchor", () => {
     });
     expect(saved.layer).toBe(false);
     expect(saved.popover).toBe(false);
+    expect(saved.rail).toBe(false);
     expect(saved.ephemeral).toBe(false);
     expect(saved.contentLayer).toBe(false);
     expect(saved.comments).toBe(1);
@@ -248,6 +250,159 @@ test.describe("comments: the author in edit mode", () => {
 
     await rows.first().click();
     await expect(page.locator("#doc-settings-dialog")).not.toHaveAttribute("open", "");
-    await expect(page.locator("#comment-popover")).toContainText("Open thread.");
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toContainText("Open thread.");
+  });
+});
+
+
+/* --------------------------------------------------------- the rail and the page */
+
+/* The rail is the list a reader lives in: cards beside the page, unresolved in document
+   order, resolved kept below. Hover previews, click pins until a click lands elsewhere,
+   and a resolved comment keeps its record but loses its highlight. */
+test.describe("comments: the rail", () => {
+  test("hover previews, click pins, and a click elsewhere lets go", async ({ page }) => {
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    await page.evaluate(() => {
+      globalThis.StandaloneDoc.modules.comments.add({body: "Rail me.", author: {name: "Nadia", kind: "author"}});
+    });
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+
+    await page.locator("#comment-layer .comment-mark").first().hover();
+    await expect(page.locator("#comment-rail .comment-card[data-hover]")).toHaveCount(1);
+    await expect(page.locator("#comment-layer .comment-mark[data-hover]")).not.toHaveCount(0);
+
+    await page.locator("#comment-layer .comment-mark").first().click();
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toHaveCount(1);
+    /* The flash is what makes a navigation legible; it is removed after the animation. */
+    await expect(page.locator("#comment-layer .comment-mark[data-flash]")).not.toHaveCount(0);
+
+    await page.mouse.click(120, 500);
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toHaveCount(0);
+  });
+
+  test("resolving removes the highlight, keeps the record, and reopening restores it", async ({ page }) => {
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    const id = await page.evaluate(() => {
+      const comment = globalThis.StandaloneDoc.modules.comments.add({body: "Done soon.", author: {name: "Nadia", kind: "author"}});
+      globalThis.StandaloneDoc.modules.comments.resolve(comment.id, true);
+      return comment.id;
+    });
+    expect(id).toBeTruthy();
+
+    let state = await page.evaluate((id) => ({
+      marks: document.querySelectorAll(`#comment-layer .comment-mark[data-comment-id="${id}"]`).length,
+      inList: globalThis.StandaloneDoc.modules.comments.list().some((comment) => comment.id === id && comment.resolved),
+      resolvedCard: document.querySelectorAll("#comment-rail .comment-card[data-resolved]").length,
+      reopen: [...document.querySelectorAll("#comment-rail .comment-card[data-resolved] .comment-actions button")].map((b) => b.textContent),
+    }), id);
+    expect(state.marks).toBe(0);
+    expect(state.inList).toBe(true);
+    expect(state.resolvedCard).toBe(1);
+    expect(state.reopen).toEqual(["Reopen", "Delete"]);
+
+    await page.locator("#comment-rail .comment-card[data-resolved]").getByRole("button", {name: "Reopen"}).click();
+    state = await page.evaluate((id) => ({
+      marks: document.querySelectorAll(`#comment-layer .comment-mark[data-comment-id="${id}"]`).length,
+      resolvedCard: document.querySelectorAll("#comment-rail .comment-card[data-resolved]").length,
+    }), id);
+    expect(state.marks).toBeGreaterThan(0);
+    expect(state.resolvedCard).toBe(0);
+  });
+
+  test("a comment across a page break anchors once and paints on every page it touches", async ({ page }) => {
+    await load(page);
+    const prepared = await page.evaluate(() => {
+      const content = document.getElementById("content");
+      const block = content.children[1];
+      block.textContent = Array.from({length: 40}, (_, i) => `Line ${i + 1}: a paragraph long enough to cross a page boundary, written so that the comment below can name a range on two pages of one block.`).join(" ");
+      globalThis.StandaloneDoc.modules.pagination.refresh();
+      const plan = globalThis.StandaloneDoc.modules.pagination.plan();
+      const items = plan.pages.flatMap((page, index) => page.items.map((item) => ({...item, page: index}))).filter((item) => item.block === 1);
+      return {blocks: items.length, from: items[0].from + 20, to: items.at(-1).to ?? block.textContent.length};
+    });
+    expect(prepared.blocks).toBeGreaterThan(1);
+
+    const result = await page.evaluate(({from, to}) => {
+      const content = document.getElementById("content");
+      const block = content.children[1];
+      const point = (offset) => {
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        let node = walker.nextNode();
+        let remaining = offset;
+        let last = null;
+        while (node) {
+          last = node;
+          if (remaining <= node.nodeValue.length) return {node, offset: remaining};
+          remaining -= node.nodeValue.length;
+          node = walker.nextNode();
+        }
+        return last ? {node: last, offset: last.nodeValue.length} : null;
+      };
+      const start = point(from);
+      const end = point(to);
+      globalThis.getSelection().setBaseAndExtent(start.node, start.offset, end.node, end.offset);
+      const comment = globalThis.StandaloneDoc.modules.comments.add({body: "Across the break.", author: {name: "Nadia", kind: "author"}});
+      const plan = globalThis.StandaloneDoc.modules.pagination.plan();
+      const marks = [...document.querySelectorAll("#comment-layer .comment-mark")].map((mark) => Number.parseFloat(mark.style.top));
+      return {
+        state: globalThis.StandaloneDoc.modules.comments.list()[0]?.state,
+        blocks: comment.anchor.blocks.length,
+        marks: marks.length,
+        pages: new Set(marks.map((top) => plan.pageTops.findLastIndex((pageTop) => top >= pageTop))).size,
+        pageTops: plan.pageTops.length,
+      };
+    }, {from: prepared.from, to: prepared.to});
+
+    expect(result.state).toBe("exact");
+    expect(result.blocks).toBe(1, "one block, cut by pagination — not two anchors");
+    expect(result.marks).toBeGreaterThan(1, "one mark per page the range touches");
+    expect(result.pages).toBeGreaterThan(1, "and they are on different pages");
+  });
+
+  test("the keyboard opens the composer (Mod+Alt+M)", async ({ page }) => {
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    await page.keyboard.press("Meta+Alt+m");
+    await expect(page.locator("#comment-composer")).toBeVisible();
+    await expect(page.locator("#comment-composer")).toContainText("Comment as the author");
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#comment-composer")).toBeHidden();
+  });
+
+  test("a settings row closes the dialog, pins the card and flashes the highlight", async ({ page }) => {
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    await page.evaluate(() => {
+      globalThis.StandaloneDoc.modules.comments.add({body: "Find me.", author: {name: "Nadia", kind: "author"}});
+    });
+    await page.click(GEAR);
+    await page.click("#app-toolbar [data-settings-open]");
+    await page.click('[data-dd-tab="comments"]');
+    await expect(page.locator("#dd-comments .doc-comment")).toHaveCount(1);
+    await page.locator("#dd-comments .doc-comment").first().click();
+    await expect(page.locator("#doc-settings-dialog")).not.toHaveAttribute("open", "");
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toHaveCount(1);
+    await expect(page.locator("#comment-layer .comment-mark[data-flash]")).not.toHaveCount(0);
+  });
+
+  test("a narrow layout has no room for the rail, and falls back to a popover", async ({ page }) => {
+    await page.setViewportSize({width: 900, height: 800});
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    await page.evaluate(() => {
+      globalThis.StandaloneDoc.modules.comments.add({body: "Narrow.", author: {name: "Nadia", kind: "author"}});
+    });
+    const layout = await page.evaluate(() => ({
+      railHidden: document.getElementById("comment-rail").hidden,
+      padding: getComputedStyle(document.getElementById("viewport")).paddingRight,
+    }));
+    expect(layout).toEqual({railHidden: true, padding: "0px"});
+
+    await page.locator("#comment-layer .comment-mark").first().click();
+    await expect(page.locator("#comment-popover")).toBeVisible();
+    await expect(page.locator("#comment-popover")).toContainText("Narrow.");
   });
 });

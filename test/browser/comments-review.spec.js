@@ -182,9 +182,9 @@ test.describe("the review copy", () => {
     /* The marker is the comment, and the thread opens on it. */
     await expect(page.locator("#comment-layer .comment-mark")).not.toHaveCount(0);
     await page.locator("#comment-layer .comment-mark").first().click();
-    await expect(page.locator("#comment-popover")).toBeVisible();
-    await expect(page.locator("#comment-popover")).toContainText("Reader One");
-    await expect(page.locator("#comment-popover")).toContainText("The title claims more");
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toBeVisible();
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toContainText("Reader One");
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toContainText("The title claims more");
   });
 
   test("remembers the reviewer's name when the copy is reopened", async ({ page }) => {
@@ -305,9 +305,41 @@ test.describe("the review copy", () => {
     /* A comment crossing two blocks paints a mark per segment; what matters here is that
        a reader sees one. */
     expect(state.marks).toBe(true);
-    /* The marker opens what it says, read-only. */
+    /* The marker opens what it says, read-only, in the rail beside the page. */
     await page.locator("#comment-layer .comment-mark").first().click();
-    await expect(page.locator("#comment-popover")).toContainText("For the reader.");
-    await expect(page.locator("#comment-popover button")).toHaveCount(0);
+    await expect(page.locator("#comment-rail .comment-card[data-pinned]")).toContainText("For the reader.");
+    /* The head is a button (it is how a card is focused); a read-only card has no verbs. */
+    await expect(page.locator("#comment-rail .comment-card[data-pinned] .comment-actions")).toHaveCount(0);
+    await expect(page.locator("#comment-rail .comment-card[data-pinned] .comment-reply")).toHaveCount(0);
+  });
+});
+
+
+test.describe("the review copy's rail", () => {
+  test("the bar's Comments button toggles the rail, and the tab brings it back", async ({ page }) => {
+    const {file} = await openReviewWithComment(page, `review-rail-${process.pid}.html`);
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+
+    await page.locator("[data-comments-toggle]").click();
+    await expect(page.locator("#comment-rail")).toBeHidden();
+    await expect(page.locator("#comment-rail-tab")).toBeVisible();
+    await expect(page.locator("#viewport")).toHaveCSS("padding-right", "0px");
+
+    await page.locator("#comment-rail-tab").click();
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+    await expect(page.locator("#viewport")).toHaveCSS("padding-right", "340px");
+  });
+
+  test("the keyboard starts a comment in a copy that has no toolbar", async ({ page }) => {
+    const {file} = await openReviewWithComment(page, `review-key-${process.pid}.html`);
+    await selectText(page, [0, 1], [0, 6]);
+    await page.keyboard.press("Meta+Alt+m");
+    const composer = page.locator("#comment-composer");
+    await expect(composer).toBeVisible();
+    await expect(composer).toContainText("Comment as a reviewer");
+    await composer.locator("textarea").fill("From the keyboard.");
+    await composer.locator('input[type="text"]').fill("Reader Keys");
+    await composer.locator('button[type="submit"]').click();
+    await expect.poll(async () => (await store(page)).comments.length).toBe(2);
   });
 });

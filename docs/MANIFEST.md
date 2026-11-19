@@ -170,6 +170,11 @@ which would be a change to the file for nothing.
   **orphan** — kept, listed, never dropped (invariant 29).
 - **A comment is immutable except `resolved` and `replies`.** A reply is append-only and an
   "edit" is a reply that says so. That is what makes a file merge possible without a CRDT.
+  `resolved` is presentation as well as state: a resolved comment paints no highlight in the
+  document and keeps its record in the rail, to be reopened or deleted.
+- The rail, its cards, the popover and the composer are **session chrome**
+  (`data-plugin-ui` / `data-runtime="ephemeral"`), so `session.strip()` removes them from a
+  saved copy; nothing about how a reader was looking at a comment reaches the file.
 - The block's id is `comment-store`, not `comments`: an asset's block carries
   `id="<assetId>"`, so `#comments` would be shadowed by the module's own `<script>` — the same
   collision `doc-bar`'s predecessor already paid for.

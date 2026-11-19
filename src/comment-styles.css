@@ -1,0 +1,254 @@
+/* Comments: the rail, the cards, and the highlight.
+ *
+ * This sheet loads only in a document that declares the comments capability, which is why
+ * it is not part of `page-styles.css`: a reader who never sees a comment pays nothing for
+ * these rules. The rail is the list Google Docs has — a column beside the page, not a
+ * popover over it — and it is the same list in the editor, a review copy and a viewer.
+ *
+ * The width decision lives here, not in the module: below 1180px there is no honest room
+ * for a 324px column beside an 8.5in sheet, so the module falls back to a popover and this
+ * sheet's rail rules simply never match a visible element.
+ */
+
+/* The page gets narrower instead of the rail covering text: `#viewport` is the scroll
+   container, and the stage centres itself in what is left. `clip` rather than `hidden` so
+   the sticky chrome above is unaffected. */
+html[data-comments-rail="on"] #viewport {
+  padding-right: 340px;
+}
+
+@media print {
+  html[data-comments-rail="on"] #viewport {
+    padding-right: 0;
+  }
+}
+
+#comment-rail {
+  position: fixed;
+  right: 8px;
+  width: 324px;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 2px 24px;
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  color: #1b1f24;
+  user-select: none;
+}
+
+#comment-rail[hidden] {
+  display: none;
+}
+
+.comment-card {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border: 1px solid #dfe1e6;
+  border-left: 3px solid #f59e0b;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+  transition: border-color .15s, box-shadow .15s, background .15s;
+  user-select: text;
+}
+
+/* Hover is a preview; pinned is a decision. Both are visible on the page and in the rail,
+   so the reader can tell which comment a highlight belongs to without clicking. */
+.comment-card[data-hover] {
+  border-color: #f59e0b;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, .18);
+}
+
+.comment-card[data-pinned] {
+  border-color: #d97706;
+  border-left-width: 5px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, .12);
+  background: #fffdf7;
+}
+
+.comment-card[data-resolved] {
+  border-left-color: #9ca3af;
+  background: #fbfbfc;
+}
+
+.comment-card-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.comment-card-author {
+  font-weight: 700;
+}
+
+.comment-card-meta {
+  font-size: 11.5px;
+  color: #6b7280;
+}
+
+.comment-card-badge {
+  margin-left: auto;
+  font-size: 11px;
+  color: #047857;
+}
+
+.comment-quote {
+  margin: 6px 0 4px;
+  padding-left: 8px;
+  border-left: 2px solid #f3d19e;
+  color: #6b7280;
+  font-size: 12px;
+  font-style: italic;
+  max-height: 3.4em;
+  overflow: hidden;
+}
+
+.comment-body {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+}
+
+.comment-replies {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+}
+
+.comment-replies li {
+  margin-bottom: 3px;
+}
+
+.comment-note {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: #92400e;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eef0f4;
+}
+
+.comment-actions button,
+.comment-reply button {
+  border: 1px solid #dfe1e6;
+  border-radius: 6px;
+  background: #fff;
+  padding: 3px 8px;
+  font: 12px system-ui;
+  color: #1b1f24;
+  cursor: pointer;
+}
+
+.comment-actions button:hover,
+.comment-reply button:hover {
+  background: #eef0f4;
+}
+
+.comment-actions button[data-danger] {
+  color: #b91c1c;
+}
+
+.comment-reply {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.comment-reply input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid #dfe1e6;
+  border-radius: 6px;
+  font: 12.5px system-ui;
+}
+
+.comment-reply input:focus {
+  outline: 2px solid #93b4ff;
+  outline-offset: 1px;
+}
+
+.comment-group {
+  margin: 8px 2px 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #9aa1ab;
+}
+
+/* Reopening the rail after it was closed: a tab at the edge, never a dead end. */
+#comment-rail-tab {
+  position: fixed;
+  right: 0;
+  top: 96px;
+  z-index: 45;
+  padding: 10px 6px;
+  border: 1px solid #dfe1e6;
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background: #fff;
+  font: 600 11px/1.1 system-ui;
+  color: #6b7280;
+  writing-mode: vertical-rl;
+  cursor: pointer;
+}
+
+#comment-rail-tab[hidden] {
+  display: none;
+}
+
+/* A marker is a highlight, not a UI: it takes no pointer focus ring, and it must never
+   look like text selection. */
+#comment-layer .comment-mark {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+#comment-layer .comment-mark[data-hover] {
+  background: rgba(245, 158, 11, .42);
+}
+
+#comment-layer .comment-mark[data-flash] {
+  animation: comment-flash 1.1s ease-out;
+}
+
+@keyframes comment-flash {
+  0% { background: rgba(245, 158, 11, .85); }
+  100% { background: rgba(245, 158, 11, .28); }
+}
+
+#comment-layer .comment-mark[data-resolved] {
+  display: none;
+}
+
+/* The thread popover stays for narrow layouts (the rail cannot fit); it is the same card,
+   with its own box. */
+#comment-popover .comment-card {
+  width: 320px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .18);
+}
+
+@media print {
+  #comment-rail,
+  #comment-rail-tab {
+    display: none;
+  }
+}
