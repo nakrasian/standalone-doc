@@ -268,7 +268,8 @@ test("activate() receives a host scoped to its own bundle", async ({ page }) => 
     await StandaloneDoc.require("whiteboard");
     return globalThis.__host;
   });
-  expect(host.api).toBe(1);
+  /* The host API the plugin is written against, which a plugin can branch on. */
+  expect(host.api).toBe(2);
   expect(host.id).toBe("whiteboard");
   /* The label and island profile come from the manifest — that is where the document's
      own description of the plugin lives. */
@@ -342,7 +343,7 @@ test("a deactivate() that throws is recorded, and the host still cleans up", asy
 });
 
 test("a plugin that needs a newer host API is refused before activate", async ({ page }) => {
-  await load(page, makeDoc({ source: HOST_JS, factory: "createHarness", api: 2 }));
+  await load(page, makeDoc({ source: HOST_JS, factory: "createHarness", api: 3 }));
   const result = await page.evaluate(async () => {
     globalThis.__host = null;
     try {
@@ -362,7 +363,8 @@ test("a plugin that needs a newer host API is refused before activate", async ({
   });
   expect(result.threw).toBe(true);
   expect(result.kind).toBe("api");
-  expect(result.message).toContain("host API 2");
+  expect(result.message).toContain("host API 3");
+  expect(result.message).toContain("provides 2");
   expect(result.activated).toBe(false);
   expect(result.module).toBe(false);
   expect(result.styles).toBe(false);

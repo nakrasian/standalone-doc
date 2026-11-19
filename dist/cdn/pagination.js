@@ -31,7 +31,43 @@
  * when its children are inline. A plugin can override an entry with `defineBlock()`; the
  * planner asks `strategy(el)` rather than carrying a Set. `keepWithNext` is a property now,
  * not a policy: nothing enforces it yet, and a heading may be the last block on a page.
+ *
+ * **An inline element may declare itself unbreakable** with `data-atomic`. A cut is a
+ * character offset, so element boundaries are invisible to it — a cut that lands inside one
+ * clones it (`extractContents`) and the page carries two half-marks. `data-atomic` is the
+ * inline counterpart of a block's strategy: generic, addressable by an author or a plugin,
+ * and it says nothing about what the element means. `anchoredAt()` below is the older,
+ * narrower guard it does not replace: an element with an `id` still moves its block whole.
  */
+
+/* -------------------------------------------------------- pure: the unbreakable mark */
+
+/** The one attribute that means "not cut". No class, no tag, no second list. */
+export const ATOMIC_SELECTOR = "[data-atomic]";
+
+/**
+ * Move `offset` out of any unbreakable range it falls strictly inside, or return null.
+ *
+ * Strictly inside: `offset === range.start` is a legal cut (the mark starts the tail, all
+ * of it on the next page) and so is `range.end`. Ranges are walked backwards so two
+ * adjacent marks cannot leave the offset inside the first after being snapped out of the
+ * second.
+ *
+ * `null` means "this line cannot be cut" — the block moves whole, which is the same answer
+ * the planner gives a block that does not fit. Returning `floor` instead would cut inside a
+ * mark, which is the bug this exists to prevent.
+ */
+export function snapOutOfAtomics(offset, ranges, {floor = 0} = {}) {
+  let at = offset;
+  for (let i = ranges.length - 1; i >= 0; i--) {
+    const range = ranges[i];
+    if (at > range.start && at < range.end) {
+      at = range.start;
+      if (at <= floor) return null;
+    }
+  }
+  return at;
+}
 
 /* ------------------------------------------------------------------ pure: the cut */
 
@@ -82,7 +118,7 @@ export function lineForRoom(lines, blockTop, room, minLines = 2) {
  * height would under-count the tail and place the following blocks too high. That was a
  * live bug in the lab version, invisible until a page had a word straddling its edge.
  */
-export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt, minLines = 2, start = 0}) {
+export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt, minLines = 2, start = 0, atomic = []}) {
   const last = lineForRoom(lines, blockTop, room, minLines);
   if (last < 0) return null;
 
@@ -106,14 +142,24 @@ export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt,
     offset -= 1;
   }
 
+  /* An unbreakable mark decides where the page ends, not the geometric cut. This runs
+     after the back-off and before the guards, so the guards judge the cut that will
+     actually be applied — the same order the comment above `headBottom` describes. */
+  const snapped = snapOutOfAtomics(offset, atomic, {floor: start + 1});
+  if (snapped === null) return null;
+  offset = snapped;
+
   if (offset <= start || offset >= text.length) return null;
 
   const headBottom = lineBottomAt(offset);
   if (!Number.isFinite(headBottom)) return null;
   /* A cut that would leave the head taller than the room is not a cut. */
   if (headBottom - blockTop > room + 1) return null;
-  /* Back-off must not shrink the head below the widow guard. */
-  if (headBottom < lines[minLines - 1].bottom - 1) return null;
+  /* Back-off must not shrink the head below the widow guard — except when a mark moved the
+     cut: then the mark's own line is the head, and one line beats moving a tall block
+     whole. Measured in lab/017: the alternative is an oversize block. */
+  const widow = offset !== geometric ? 1 : minLines;
+  if (headBottom < lines[widow - 1].bottom - 1) return null;
 
   return {
     offset,
@@ -122,6 +168,7 @@ export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt,
     headBottom,
     cutLine: last + 1,
     lines: lines.length,
+    snapped: offset !== geometric,
     /* The head's first line box, kept so a reused cut can measure slack in lines
        without walking the whole block on every pass (typing hits this path per key). */
     lineHeight: lines.length ? Math.max(1, lines[0].bottom - lines[0].top) : 18,
@@ -473,9 +520,47 @@ export function createPagination(deps = {}) {
     return bottom;
   }
 
+  /**
+   * The unbreakable ranges in a block, as `{start, end}` character offsets.
+   *
+   * A mark's text is contiguous in the stream by construction (it is inline), so its start
+   * plus its `textContent.length` is its end. An empty mark has a zero-width range and is
+   * skipped: nothing can be cut inside it.
+   *
+   * Only blocks that contain one pay for this — the common paragraph returns `[]` after a
+   * single `querySelector`, and `planSplit` is called once per fragmented block per pass.
+   */
+  function atomicRanges(block) {
+    if (!block.querySelector(ATOMIC_SELECTOR)) return [];
+    const ranges = [];
+    for (const el of block.querySelectorAll(ATOMIC_SELECTOR)) {
+      const start = offsetBefore(block, el);
+      const end = start + el.textContent.length;
+      if (end > start) ranges.push({start, end});
+    }
+    return ranges.sort((a, b) => a.start - b.start);
+  }
+
+  /** Character offset of an element's first character in a block's text stream. The
+      element branch of `pointAt` is the other direction; this is the one a range needs. */
+  function offsetBefore(block, el) {
+    let total = 0;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let text = walker.nextNode();
+    while (text) {
+      if (el.contains(text)) return total;
+      /* Passed it: the next text node belongs to a later sibling (or the mark is empty). */
+      if (el.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING) return total;
+      total += text.nodeValue.length;
+      text = walker.nextNode();
+    }
+    return total;
+  }
+
   /** True when the cut point sits inside an element an author may have linked to. Splitting
       there would clone the element and duplicate its `id` (Range.extractContents), so the
-      block moves whole instead. */
+      block moves whole instead. An unbreakable mark carries no `id` — it links *to* the
+      bibliography, nothing links to it — so this guard and `data-atomic` never overlap. */
   function anchoredAt(block, offset) {
     const point = pointAt(block, offset);
     let node = point.node;
@@ -510,6 +595,7 @@ export function createPagination(deps = {}) {
       lineBottomAt: (offset) => lineBottomAt(block, offset),
       minLines,
       start,
+      atomic: atomicRanges(block),
     });
     if (!cut) return null;
     if (anchoredAt(block, cut.offset)) return null;
@@ -1291,6 +1377,15 @@ export function createPagination(deps = {}) {
     if (!folioFrame) folioFrame = requestAnimationFrame(syncFolio);
   }, {passive: true});
   signals.on("layout", syncFolio);
+
+  /* A plugin's seam for *blocks*: `defineBlock()` is how a plugin says "this element is
+     lines, not whole" without a new asset or a rebuild — the first caller is a bibliography
+     longer than a page (lab/017), which must fragment like a paragraph. Only the strategy
+     table is exposed; the plan is not writable. */
+  const registry = env && env.StandaloneDoc;
+  if (registry && typeof registry.provide === "function") {
+    registry.provide("pagination", {defineBlock, strategy});
+  }
 
   // Render once immediately, then again after fonts settle.
   refresh();

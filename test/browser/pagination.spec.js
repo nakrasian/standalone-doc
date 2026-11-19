@@ -134,6 +134,126 @@ async function loadDoc(page, blocks, {fragment = false} = {}) {
   }, {blocks, fragment});
 }
 
+/* The unbreakable inline mark (lab/017). Two properties, one deterministic and one an
+   invariant, because the *placement* of a cut in a normal paragraph depends on font metrics
+   and CI's font is not macOS's.
+
+   `data-atomic` is a planner rule, not a CSS one: the mark's text is still ordinary text in
+   the text stream, so before this landed a cut inside `[7]` cloned the element and the page
+   carried two half-marks (or one mark and one empty clone, which Safari did). */
+
+const MARK = (text, {atomic = true, keys = "k1"} = {}) =>
+  `<a class="cite"${atomic ? " data-atomic" : ""} contenteditable="false"`
+  + ` data-keys="${keys}" href="#bib-${keys}">${text}</a>`;
+
+test("a mark taller than a page is not cut, and the same text without the attribute is", async ({page}) => {
+  await boot(page);
+  /* A stress fixture, not a realistic label: 3000 characters with no whitespace anywhere,
+     so `wordBoundary` cannot rescue anything and the *only* thing that can keep it whole is
+     the rule. This makes the contrast deterministic instead of a bet on font metrics —
+     the control run must split, or the test is vacuous. */
+  const label = "M".repeat(3000);
+  const blocks = (atomic) => [
+    {tag: "p", text: "Top."},
+    {tag: "p", html: MARK(label, {atomic, keys: "tall"})},
+    {tag: "p", text: "Bottom."},
+  ];
+  const count = () => page.evaluate(() => {
+    const marks = [...document.querySelectorAll("#content a.cite")];
+    const content = document.getElementById("content");
+    const block = [...content.children].find((el) => el.querySelector?.("a.cite"));
+    let start = 0;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.parentElement?.closest("a.cite")) break;
+      start += node.nodeValue.length;
+    }
+    return {
+      elements: marks.length,
+      total: marks.reduce((sum, el) => sum + el.textContent.length, 0),
+      range: {start, end: start + marks.reduce((sum, el) => sum + el.textContent.length, 0)},
+      cuts: globalThis.StandaloneDoc.modules.pagination.diagnostics().splits.map((split) => split.offset),
+    };
+  });
+
+  /* The control run is measured, never asserted: Firefox does not fragment a single
+     3000-character word at all (measured), so a "the control must split" assertion would be
+     a bet on the engine. In Chromium the same fixture splits into two pieces without the
+     attribute, which is what makes the one-element result below meaningful there. The
+     engine-independent proof is the pure `chooseCut` test in pagination-math.test.js. */
+  await loadDoc(page, blocks(false), {fragment: true});
+  const plain = await count();
+  expect(plain.total, "the control conserved its text").toBeGreaterThanOrEqual(3000);
+
+  await loadDoc(page, blocks(true), {fragment: true});
+  const atomic = await count();
+  expect(atomic.elements, "an unbreakable mark is one element after the pass").toBe(1);
+  expect(atomic.total, "and carries its whole label").toBe(3000);
+  for (const cut of atomic.cuts) {
+    expect(
+      cut > atomic.range.start && cut < atomic.range.end,
+      `cut ${cut} is inside the mark ${atomic.range.start}..${atomic.range.end}`,
+    ).toBe(false);
+  }
+});
+
+test("no cut lands inside a mark, in a paragraph full of them", async ({page}) => {
+  await boot(page);
+  /* A paragraph long enough to fragment on any font, with a mark every few words. The
+     assertion is the invariant, not a count: every cut must be outside every mark's range,
+     and every mark must be one element with its whole label. */
+  const words = [];
+  for (let i = 0; i < 200; i++) {
+    words.push(i % 6 === 5 ? MARK(`[${i}]`, {keys: `k${i}`}) : `word${i}`);
+  }
+  const blocks = [
+    {tag: "p", text: "Top."},
+    {tag: "p", html: words.join(" ")},
+    {tag: "p", text: "Bottom."},
+  ];
+  const state = await loadDoc(page, blocks, {fragment: true});
+  const report = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const marks = [...content.querySelectorAll("a.cite")];
+    /* The text-stream range of each mark, computed the way the planner does. */
+    const streamOffset = (block, el) => {
+      let total = 0;
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (el.contains(node)) return total;
+        if (el.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) return total;
+        total += node.nodeValue.length;
+      }
+      return total;
+    };
+    const block = content.querySelectorAll(":scope > *")[1];
+    return {
+      marks: marks.length,
+      labels: marks.map((el) => el.textContent),
+      duplicates: [...new Set(marks.map((el) => el.dataset.keys))].length,
+      ranges: marks.map((el) => {
+        const start = streamOffset(block, el);
+        return {start, end: start + el.textContent.length, keys: el.dataset.keys};
+      }),
+      cuts: globalThis.StandaloneDoc.modules.pagination.diagnostics().splits
+        .filter((split) => split.block === 1)
+        .map((split) => split.offset),
+    };
+  });
+  expect(report.marks, "every mark survived as exactly one element").toBe(33);
+  expect(report.duplicates, "no mark was cloned").toBe(33);
+  expect(report.labels.filter((label) => !/^\[\d+\]$/.test(label)), "no empty or half label").toEqual([]);
+  for (const cut of report.cuts) {
+    for (const range of report.ranges) {
+      expect(
+        cut > range.start && cut < range.end,
+        `cut ${cut} is inside ${range.keys} ${range.start}..${range.end}`,
+      ).toBe(false);
+    }
+  }
+  expect(state.check.failures, "the pass's own post-conditions agree").toEqual([]);
+});
+
 test("the page gap is a margin on the block, not a spacer node", async ({page}) => {
   await boot(page);
   const state = await loadDoc(page, FIXTURE);

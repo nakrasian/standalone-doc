@@ -22,8 +22,12 @@ export function createPlugins(deps = {}) {
   /* Contribution kinds that render into chrome. A plugin offering one of these has to be
      built at boot, or its menu would stay empty until something else loaded it. There is
      no "toolbar" kind: the formatting row is a fixed set of document commands, and a kind
-     that forced a boot build to render nothing was a trap (HANDOFF 6d). */
-  const UI_KINDS = ["insert", "export", "panel", "command"];
+     that forced a boot build to render nothing was a trap (HANDOFF 6d).
+     `inline` sits in the Insert menu beside `insert` and differs in exactly one way: `insert`
+     adds a *block* (a figure, through the store), `inline` inserts at the caret inside a
+     paragraph and owns no store. A citation is the case that made the difference visible —
+     it belongs where the author is typing, not in a modal. */
+  const UI_KINDS = ["insert", "inline", "export", "panel", "command"];
 
   const wiring = new Map(); /* plugin id -> disposals for the DOM we rendered */
   const dialogs = new Map(); /* "<plugin>:<panel>" -> the open dialog, if any */
@@ -68,7 +72,11 @@ export function createPlugins(deps = {}) {
     const disposals = [];
 
     const groups = [
+      /* Insertions, both kinds, in the Insert menu: one adds a block, the other lands in the
+         text at the caret. Two attributes on purpose — the click handler must be able to tell
+         them apart without asking the manifest. */
       { selector: "[data-plugin-inserts]", kind: "insert", attribute: "pluginInsert" },
+      { selector: "[data-plugin-inserts]", kind: "inline", attribute: "pluginInline" },
       { selector: "[data-plugin-exports]", kind: "export", attribute: "pluginExport" },
       /* Panels and commands live in the settings menu: they are "do something to the
          document" entries, not insertions. */
@@ -143,6 +151,29 @@ export function createPlugins(deps = {}) {
       });
     } catch (error) {
       refuse(id, `insert "${itemId}" failed: ${(error && error.message) || error}`);
+    }
+  }
+
+  /**
+   * Run an `inline` contribution: the plugin inserts at the caret, through the editor.
+   *
+   * The host calls and the plugin acts, which is the same division as `insert()` but for the
+   * other end of the document. What the host does *not* do is insert: an inline insertion is
+   * caret arithmetic (`editor.insertInline`), and a host that guessed where the caret was
+   * would be a second opinion about the selection.
+   */
+  async function runInline(id, itemId) {
+    const instance = registry.instance(id);
+    const handler = instance && instance.inline && instance.inline[itemId];
+    const entry = pluginEntries()[id];
+    if (!entry || !handler) return refuse(id, `does not implement inline "${itemId}"`);
+    try {
+      /* The menu is closed before the handler runs, so a picker it opens is not competing
+         with an open panel for the pointer and the focus. */
+      document.querySelectorAll("[data-menu-panel]:not([hidden])").forEach((menu) => {menu.hidden = true;});
+      await handler({contribution: contribution(entry, "inline", itemId) || {}, pin: pinFor(id, entry)});
+    } catch (error) {
+      refuse(id, `inline "${itemId}" failed: ${(error && error.message) || error}`);
     }
   }
 
@@ -1115,6 +1146,12 @@ export function createPlugins(deps = {}) {
   /* ------------------------------------------------------------------- wiring */
 
   document.addEventListener("click", (event) => {
+    const inlineButton = event.target.closest("[data-plugin-inline]");
+    if (inlineButton) {
+      const [id, itemId] = inlineButton.dataset.pluginInline.split(":");
+      runInline(id, itemId);
+      return;
+    }
     const insertButton = event.target.closest("[data-plugin-insert]");
     if (insertButton) {
       const [id, itemId] = insertButton.dataset.pluginInsert.split(":");

@@ -259,7 +259,8 @@
         "history",
         "blockAt",
         "blockAtCaret",
-        "insertBlock"
+        "insertBlock",
+        "insertInline"
       ]
     },
     {

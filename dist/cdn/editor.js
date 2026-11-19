@@ -275,7 +275,7 @@ export function createEditor(deps = {}) {
       if (sel) stack[index].sel = sel;
     }
 
-    function restore(snap) {
+    function restore(snap, cause = "undo") {
       figures().unmountAll();
       signals.mute(() => {content.innerHTML = snap.html;});
       applySelection(snap.sel);
@@ -284,19 +284,25 @@ export function createEditor(deps = {}) {
       status.refresh();
       pagination.schedule();
       figures().scan();
+      /* The DOM was replaced under a muted observer, so nothing that renders *from* the
+         document — a plugin's derived labels, a reference list — has heard about it. This is
+         the event it listens for (`host.on("restore")`), and it is emitted after the restore
+         is complete rather than during it: a listener that writes is a content change, and it
+         must land on the restored document, not inside the muted block. */
+      env?.StandaloneDoc?.emit?.("restore", {cause});
     }
 
     function undo() {
       if (index <= 0) return false;
       index--;
-      restore(stack[index]);
+      restore(stack[index], "undo");
       return true;
     }
 
     function redo() {
       if (index >= stack.length - 1) return false;
       index++;
-      restore(stack[index]);
+      restore(stack[index], "redo");
       return true;
     }
 
@@ -392,6 +398,61 @@ export function createEditor(deps = {}) {
     syncToolbar();
     status.markDirty();
     if (select && node.nodeType === Node.ELEMENT_NODE) selectNode(node);
+    pagination.schedule();
+    return node;
+  }
+
+  /**
+   * Insert an inline atomic at the caret, optionally consuming the text that opened it.
+   *
+   * The inline twin of `insertBlock`, and the reason it exists: a plugin that inserts a
+   * citation mark (lab/017) must not do its own DOM surgery, because the three duties a
+   * content change owes this document are the editor's — **one history entry**, the dirty
+   * flag, and a repagination. A plugin that remembers two of the three is a bug report.
+   *
+   * `removeBefore` is how a typed trigger is spent: the picker that opened on `@@` passes
+   * `2`, and the trigger never reaches the file. The caret lands in a text node *after* the
+   * node, because a `contenteditable` region cannot hold a caret inside an atomic inline
+   * element — the same rule `insertBlock` follows at block level, and the rule that makes
+   * `ensureTextAfter` necessary above.
+   *
+   * Returns the inserted node, or null when the caret is not in the content.
+   */
+  function insertInline(node, {removeBefore = 0} = {}) {
+    if (!node) return null;
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    if (!inside(range.startContainer) || !range.collapsed) return null;
+
+    /* The trigger is deleted first, so its characters are not part of the inserted node's
+       neighbourhood and the mark lands exactly where the last keystroke was. */
+    if (removeBefore > 0 && range.startContainer.nodeType === Node.TEXT_NODE) {
+      const start = Math.max(0, range.startOffset - removeBefore);
+      range.setStart(range.startContainer, start);
+      range.deleteContents();
+      range.collapse(true);
+    }
+
+    range.insertNode(node);
+
+    /* A fresh text node rather than reusing the split half: when the caret was at the end
+       of a text node there is no right half, and typing has to have somewhere to go. */
+    let tail = node.nextSibling;
+    if (!tail || tail.nodeType !== Node.TEXT_NODE) {
+      tail = document.createTextNode("");
+      node.after(tail);
+    }
+    const at = document.createRange();
+    at.setStart(tail, 0);
+    at.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(at);
+
+    flushTyping();
+    history.record();
+    syncToolbar();
+    status.markDirty();
     pagination.schedule();
     return node;
   }
@@ -706,13 +767,13 @@ export function createEditor(deps = {}) {
     history.reset();
   }
 
-  const api = {init, exec, setBlock, setList, syncToolbar, setFontSize, openLink, remember, restore, history, blockAt, blockAtCaret, insertBlock};
+  const api = {init, exec, setBlock, setList, syncToolbar, setFontSize, openLink, remember, restore, history, blockAt, blockAtCaret, insertBlock, insertInline};
 
   /* What a plugin may use as `host.use("editor")`. Editing is the editor's: a plugin
      asks it to insert, not to write into #content itself. */
   const registry = env && env.StandaloneDoc;
   if (registry && typeof registry.provide === "function") {
-    registry.provide("editor", {insertBlock, exec, setBlock, blockAt});
+    registry.provide("editor", {insertBlock, insertInline, exec, setBlock, blockAt});
   }
 
   /* Construction-time, exactly where the trailing Editor.init() ran. */

@@ -9,8 +9,11 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   /* In-flight lazy builds, so two figures asking for one plugin share a fetch. */
   const pending = new Map();
   /* The contract a plugin is written against. Bumped only when it breaks; a plugin
-     declares the version it needs and the registry refuses a mismatch. */
-  const HOST_API = 1;
+     declares the version it needs and the registry refuses a mismatch.
+     2 (v0.11.0): `editor.insertInline()`, `pagination.defineBlock()`, `data-atomic`, and the
+     rule that a plugin's `data-plugin-style` CSS travels in the file. A plugin that inserts
+     inline content cannot work on a host without them, and must be refused before activate. */
+  const HOST_API = 2;
   /* Capabilities other modules offer to plugins. A module puts itself in this table
      when it is built, so a plugin can only use what this document really has: a
      viewer has no editor, and a file with the toolbar absent has no menus. */
@@ -1138,6 +1141,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
   return {
     register,
     on,
+    /* A module raises an event a plugin can hear with `host.on()`. Only the host's own
+       modules call this (the editor's `restore`, today); it is not a general-purpose bus and
+       a plugin cannot emit. */
+    emit,
     late,
     settings,
     optional,

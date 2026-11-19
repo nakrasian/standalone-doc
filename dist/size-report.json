@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 687694
+    "bytes": 698608
   },
   "assets": [
     {
@@ -57,7 +57,7 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 53990
+      "bytes": 54522
     },
     {
       "id": "boot-ui",
@@ -97,7 +97,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 60722
+      "bytes": 65703
     },
     {
       "id": "progress",
@@ -112,7 +112,7 @@
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 29921
+      "bytes": 33061
     },
     {
       "id": "comments",
@@ -137,7 +137,7 @@
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 55957
+      "bytes": 58218
     },
     {
       "id": "export",
@@ -156,9 +156,9 @@
     }
   ],
   "flavors": {
-    "index.html": 687694,
-    "asset-bodies": 669453,
+    "index.html": 698608,
+    "asset-bodies": 680367,
     "markup-and-runtime": 18241,
-    "dist/slim.html": 96402
+    "dist/slim.html": 96934
   }
 }

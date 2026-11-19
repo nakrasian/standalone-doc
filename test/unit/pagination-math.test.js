@@ -12,6 +12,7 @@ import {
   checkPass,
   chooseCut,
   lineForRoom,
+  snapOutOfAtomics,
   strategyForTag,
   wordBoundary,
 } from "../../src/pagination.js";
@@ -318,6 +319,120 @@ function fakePass({fragTop = 100, margin = "0px", text = "ab", textBefore = "ab"
     rectOf: () => ({top: fragTop}),
   });
 }
+
+/* ------------------------------------------------------- the unbreakable inline mark */
+
+/* `data-atomic` (lab/017). A cut is a character offset, so an element boundary is invisible
+   to it: a cut inside `<a contenteditable="false">[7]</a>` clones the element and the page
+   carries two half-marks. These three tests are the property, the compatibility promise,
+   and the guard that had to give. */
+
+/** A block whose line boxes are `charsPerLine` characters wide. */
+function gridBlock({text, charsPerLine = 24, lineHeight = 18, blockTop = 100, lineCount = 0}) {
+  const count = lineCount || Math.max(2, Math.ceil(text.length / charsPerLine));
+  const lines = [];
+  for (let i = 0; i < count; i++) {
+    lines.push({top: blockTop + i * lineHeight, bottom: blockTop + (i + 1) * lineHeight});
+  }
+  const index = (offset) => Math.max(0, Math.ceil(Math.max(0, offset) / charsPerLine) - 1);
+  return {
+    text,
+    lines,
+    blockTop,
+    lineHeight,
+    lineTopAt: (offset) => blockTop + Math.min(index(offset), count - 1) * lineHeight,
+    lineBottomAt: (offset) => blockTop + (Math.min(index(offset), count - 1) + 1) * lineHeight,
+  };
+}
+
+test("with no marks, chooseCut answers exactly as it did before data-atomic existed", () => {
+  /* The compatibility promise, as a test: `atomic` defaults to empty, and 4000 seeded
+     documents must produce identical plans. If this ever fails, the patch changed
+     pagination for documents that have no marks. */
+  let seed = 1701;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  const words = ["alpha", "beta", "gamma", "delta", "a", "the", "of", "page", "break"];
+  let cuts = 0;
+  for (let i = 0; i < 4000; i++) {
+    const text = Array.from({length: 20 + Math.floor(rnd() * 120)}, () => words[Math.floor(rnd() * words.length)]).join(" ");
+    const block = gridBlock({text, charsPerLine: 12 + Math.floor(rnd() * 40)});
+    const room = block.lineHeight * (2 + Math.floor(rnd() * block.lines.length));
+    const params = {...block, room, minLines: 2};
+    const plain = chooseCut(params);
+    const withEmpty = chooseCut({...params, atomic: []});
+    assert.deepEqual(
+      {offset: withEmpty?.offset, cutLine: withEmpty?.cutLine, headBottom: withEmpty?.headBottom},
+      {offset: plain?.offset, cutLine: plain?.cutLine, headBottom: plain?.headBottom},
+      `case ${i}`,
+    );
+    if (plain) cuts += 1;
+  }
+  assert.ok(cuts > 1000, `only ${cuts} cases produced a cut, so this proves little`);
+});
+
+test("no cut lands strictly inside an unbreakable mark", () => {
+  let seed = 4242;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  const words = ["alpha", "beta", "gamma", "delta", "a", "the", "of", "page", "break"];
+  let snapped = 0;
+  for (let i = 0; i < 4000; i++) {
+    const text = Array.from({length: 20 + Math.floor(rnd() * 120)}, () => words[Math.floor(rnd() * words.length)]).join(" ");
+    const block = gridBlock({text, charsPerLine: 12 + Math.floor(rnd() * 40)});
+    const room = block.lineHeight * (2 + Math.floor(rnd() * block.lines.length));
+    const atomic = [];
+    let cursor = rnd() < 0.3 ? 0 : Math.floor(rnd() * text.length);
+    while (cursor < text.length && atomic.length < 8) {
+      const width = 1 + Math.floor(rnd() * 8);
+      atomic.push({start: cursor, end: Math.min(cursor + width, text.length)});
+      cursor += width + (rnd() < 0.25 ? 0 : 1 + Math.floor(rnd() * 20));
+    }
+    const cut = chooseCut({...block, room, minLines: 2, start: 0, atomic});
+    if (!cut) continue;
+    if (cut.snapped) snapped += 1;
+    for (const range of atomic) {
+      assert.ok(
+        !(cut.offset > range.start && cut.offset < range.end),
+        `case ${i}: cut ${cut.offset} is inside ${range.start}..${range.end} of ${JSON.stringify(text)}`,
+      );
+    }
+    assert.ok(cut.headBottom <= block.blockTop + room + 1, "a snapped cut still fits the room");
+  }
+  assert.ok(snapped > 100, `only ${snapped} cuts needed the snap, so this proves little`);
+});
+
+test("a mark on the head's first line costs the widow guard, not the whole block", () => {
+  /* The one case where the snap changes a guard: the mark straddles the geometric cut and
+     begins on line 0, so the only legal cut leaves a one-line head. Refusing it would move
+     a tall paragraph whole — an oversize block, worse than the split being prevented. */
+  const text = "aaaaaaaaaa bbbbbbbbbb cccccccccc dddddddddd eeeeeeeeee ffffffffff";
+  const block = gridBlock({text, charsPerLine: 10, lineCount: 6});
+  const atomic = [{start: 2, end: 25}];
+  const split = chooseCut({...block, room: 4 * 18, minLines: 2});
+  assert.ok(split && split.offset > 2 && split.offset < 25, "the unpatched cut lands inside the mark");
+  const patched = chooseCut({...block, room: 4 * 18, minLines: 2, atomic});
+  assert.ok(patched, "the patched planner must not move the block whole");
+  assert.equal(patched.offset, 2, "the cut is at the mark's start");
+  assert.ok(patched.headBottom < block.lines[1].bottom, "the head really is one line");
+  assert.equal(patched.snapped, true);
+});
+
+test("snapOutOfAtomics moves a cut to a range edge, or refuses", () => {
+  const ranges = [{start: 4, end: 9}];
+  assert.equal(snapOutOfAtomics(6, ranges), 4, "inside → the range's start");
+  assert.equal(snapOutOfAtomics(4, ranges), 4, "a range's start is a legal cut");
+  assert.equal(snapOutOfAtomics(9, ranges), 9, "a range's end is a legal cut");
+  assert.equal(snapOutOfAtomics(6, ranges, {floor: 4}), null, "a mark that starts the tail cannot be cut");
+  assert.equal(snapOutOfAtomics(12, ranges), 12, "outside → untouched");
+  /* Adjacent marks: the boundary between them is legal. Overlapping ones cascade. */
+  assert.equal(snapOutOfAtomics(14, [{start: 10, end: 13}, {start: 13, end: 16}]), 13);
+  assert.equal(snapOutOfAtomics(12, [{start: 10, end: 16}, {start: 11, end: 13}]), 10);
+});
 
 test("checkPass accepts a pass that landed on the page top", () => {
   const check = fakePass();
