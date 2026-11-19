@@ -1,5 +1,107 @@
 # Changelog
 
+## v0.10.0 — 2026-11-19
+
+Comments, and the three copies a document can make of itself.
+
+A comment is **content**: `#comment-store` and the `data-bid` block ids travel in every file
+and every export, the way `#figure-store` already did. The mode decides only which chrome
+exists and who may write. The record is immutable except `resolved` and an append-only
+`replies`, which is what lets two files merge without a CRDT — and what makes "edit" honest:
+it is a reply that says so.
+
+### Added
+
+- **An anchor is one range over the document's text stream**, with per-block segments
+  *derived* for rendering. `quote` (40 characters) is a repair hint: exact, then a unique
+  quote inside the named blocks, then a block-level marker, then **unattached** — kept,
+  listed, never dropped. The class of bug this avoids is measured: endpoint pairs report
+  success while pointing at different words in four of eight edits (lab/016).
+- **`data-bid`** on a top-level child of `#content`, `b_` + 8 base36, assigned **only when a
+  comment first needs it** — never on load, never on save. A document with no comments is
+  byte-identical to one from v0.9.3, and a v0.9.3 file opens in v0.10 with nothing to migrate.
+- **`#comment-store`** — the fourth JSON block. Absent means no comments; an empty array is a
+  change to the file for nothing. `check` validates its schema, ids, ranges, quotes, block
+  ids, and refuses `capabilities.comments: "off"` beside it, or a block id that is not a `b_`
+  id or appears twice.
+- **Capabilities**, authored only by an export (or by the module that wrote the first
+  comment): `{"comments": "off" | "read" | "write", "edit": "copy" | "off"}`. A capability the
+  document does not declare is **absent** — in `policy.target()`, in `registry.planned()`/
+  `boot()`, and in the build — so a document that never uses comments does not carry the
+  bundle. `"off"` is a declared no, not a truthy string.
+- **`mode: "comment"`** — a review copy. The text is locked by `apply-settings` and still
+  selectable; the editor, ribbon and dialogs are absent from the file rather than hidden; a
+  review copy cannot edit its words and cannot become an editor unless it was exported with
+  the address to fetch one.
+- **One `doc-bar`**, required by `view` and `comment` (the `viewer-bar` renamed). It carries
+  the folio, title, save, zoom, and — in a review copy — *Add comment*, the thread list, a
+  review sentence, and *Edit a copy…* when the copy may take one.
+- **The rail**: comments in a column beside the page, in the editor, a review copy and a
+  viewer alike. Unresolved first, resolved kept below; hovering a highlight lights its card
+  and hovering a card lights the highlight; clicking either goes to the other (a card click
+  pins it, scrolls only if the words are out of view, and flashes them). The rail hides from
+  the × in its header and returns from the edge tab that states the open count. The page
+  stays centred: in the margin the rail is only as wide as the margin; when there is no
+  margin — a zoom, a narrower window — it overlays the page instead of disappearing. The
+  rail is only its cards: no panel, background, border or blur.
+- **Resolving is not deleting**: a resolved comment paints no highlight and keeps its record
+  in the rail, to reopen or delete.
+- **Commenting**: *Add comment* in a review bar; *Insert › Comment on selection…* in the
+  editor; **⌘⌥M / Ctrl+Alt+M** in every mode. The composer asks for a name at most once — the
+  document's `author` (written to `#doc-settings`) in edit mode, a reviewer's name in
+  `localStorage` keyed by the document otherwise, never in the file's `author`.
+- **Copies**: *File › Save as… › HTML › Save a copy for someone…* offers **Editor / Review /
+  Viewer**, whether comments travel, whether the copy may take an editable copy, chrome and
+  storage, with the asset cost in the footer. *May take an editable copy* keeps the other
+  mode's declarations (`online` + `url` + `integrity`) without its code — pins, a few KB — and
+  `registry.adopt("edit")` fetches, verifies and builds them on request, then writes `mode`
+  and `capabilities.edit: "off"` so a copy of the copy is not an editor. Without it the copy
+  is **sealed**: the addresses are deleted. `inline` + *editable copy* says the download size
+  rather than refusing the combination.
+- **The file channel**: *File › Save as… › HTML › Comments only…* writes ~the store in a
+  minimal document; *File › Import comments…* accepts that or a full copy, parsed with
+  `DOMParser` never searched. What is unambiguous is applied (new comments, appended
+  replies); every disagreement about `resolved` is **listed** with *Keep mine*, *Take
+  imported* and *Keep both*, and nothing is applied until it is accepted.
+- The dialog's sixth panel, **Comments**: signed-as, unresolved count, and the same thread
+  list; a row closes the dialog and navigates to the comment.
+
+### Fixed
+
+- **`author` never round-tripped**: `registry.settings()` did not read it and `docSettings()`
+  dropped it on every combine. It now survives, and the composer can sign a comment with it.
+- **`selection.js` carries `{block, id, textOffset}`**: the id is preferred when resolving, so
+  a saved anchor does not depend on document order, and points captured without one still
+  resolve by index.
+- **A non-edit mode is declared read-only**: `settingsFragment()` writes `editable: false`
+  for `comment`/`view`, instead of leaving a claim the runtime had to clamp.
+- **`apply-settings` repaints from the live block**, not its boot snapshot — which is what
+  makes adopting the editor visible at all.
+- **`session.strip()` removes every `[data-runtime="ephemeral"]` node**, the general form of
+  "this node is the session's", and `problems()` names a leaked comment layer.
+- **The copy and import dialogs were unstyled** after the `viewer-dialog` rename (their
+  selectors moved, the rules did not), and a disabled primary button was white text on a
+  transparent background; both fixed.
+- **No style key is invented by a no-op save**: `capabilities` is written only when it differs,
+  and `policy.apply()` no longer writes `inline` for an asset whose block it removed — the
+  third shape ("carried" with nothing carried) is gone.
+
+### Tests and size
+
+151 unit tests and 753 browser tests (251 per engine, plus the Chromium-only clipboard and
+PDF cases) pass on all three engines. New relationships asserted, not appearances: one
+comment over a page break paints on each page from one anchor; resolving removes the highlight
+and reopening restores it; adding, replying and resolving never move the page while opening
+does; the rail yields to the page's margin and overlays it when there is none; a settings row
+navigates; zoom cannot strand the rail; the copy taxonomy (sealed, pinned, adopter) and the
+conflict list.
+
+Measured against `v0.9.3`: `index.html` **+119.6 KB (21.7 %)**, `dist/editor.html`
+**+20.3 %**, `dist/viewer.html` **+7.7 %**, `dist/slim.html` **+8.6 %**. The comments bundle is
+59.4 KB of module plus a 6.2 KB stylesheet; it is capability-gated, but the editor declares
+`write` because that is where the first comment is authored, so every editor document pays it.
+That is the number to trim before a size promise.
+
 ## v0.9.3 — 2026-11-18
 
 Fixes for the first release with fragments on by default. The browser suite failed on
