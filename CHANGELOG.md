@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.12.0 — 2026-11-19
+
+Plugin versions and runtime versions stop moving together, and a failure now says what would
+fix it.
+
+### Added
+
+- **Plugin tags.** A plugin version publishes at its own `plugin-<id>-v<version>` tag, and a
+  folder under `plugins/<id>/` (`plugin.json`) is the authored description. `publishBase:
+  "runtime"` keeps the two versions that shipped inside a runtime release at their old
+  addresses until they next bump; everything new defaults to its own tag.
+- **`dist/plugins/index.json`**, generated from the plugin tags like the runtime index is from
+  the release tags. It carries every published version, its manifest url + sha384, and
+  `minRuntime` — the oldest release whose `hostApi` satisfies it. `manifest.json`'s
+  `pluginIndex` names it; a document written before the field falls back to the legacy
+  `<cdnBase>/../registry.json`.
+- **`hostApi` per release** in `dist/runtime.json` and `dist/runtime/<tag>.json`, read from
+  that tag's own loader, so "which runtime would satisfy this plugin?" has an answer.
+- **Remedies on failures** (`retry`, `update-runtime`, `update-plugin`, `refresh-catalog`,
+  `reopen`, `open-editor-copy`, `none`). The boot card, a figure's notice and `diagnostics()`
+  render the same answer; a plugin row that needs a newer host offers the release that
+  provides it, and says so when no published release does.
+- **A soft lane, one asset wide.** `plugins` is `critical: false`: if it cannot load, the
+  document opens anyway, shows `Ready — with limitations` with the issue and its remedy, and
+  the Plugins sheet is simply absent. `fragments` declares the DOM a module needs (`plugins →
+  dialogs`, `toolbar → toolbar-markup/sprite/figure-tools/dialogs`, `doc-bar →
+  doc-bar-markup/doc-bar-styles`), so a consumer is skipped rather than built against a hole.
+  Everything else remains fail-closed.
+
+### Changed
+
+- The Plugins sheet reads `pluginIndex` rather than the runtime tag's catalog, so a plugin
+  published after the document's runtime tag is visible and installable without moving the
+  runtime. A bundle's manifest is absolute when its bytes ride a plugin tag; a legacy relative
+  manifest still resolves against the index's directory.
+- A plugin snapshot (`#plugin-catalog`) records `revision` (a hash of the index it was taken
+  from) and `index` (the address), so staleness is about the index, not the runtime tag.
+- `verify-cdn` checks every plugin version the index names, and every asset this repository
+  serves inside its manifest; `purge --main` includes the index.
+
 ## v0.11.1 — 2026-11-19
 
 A patch release with no format, runtime-contract or plugin-byte change: the two refusals that

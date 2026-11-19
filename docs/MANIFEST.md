@@ -26,6 +26,7 @@ block). The loader reads it before anything else and will not boot without it.
   "schema": 1,
   "cdnBase": "https://cdn.jsdelivr.net/gh/<owner>/<repo>@v0.5.1/dist/cdn",
   "catalog": "https://cdn.jsdelivr.net/gh/<owner>/<repo>@main/dist/runtime.json",
+  "pluginIndex": "https://cdn.jsdelivr.net/gh/<owner>/<repo>@main/dist/plugins/index.json",
   "plugins": { },
   "assets": [ { "id": "editor", "…": "see below" } ]
 }
@@ -36,6 +37,7 @@ block). The loader reads it before anything else and will not boot without it.
 | `schema` | build | `1`. A loader refuses a schema it does not know. |
 | `cdnBase` | **author** (`manifest.json`), build (derived into documents) | The tag this document pins, with `/dist/cdn` on the end. Every derived `url` is `cdnBase/<id>.<ext>`. Not a licence to fetch: a hash that does not match is a failed boot, not a warning. |
 | `catalog` | **author** (optional) | Where to hear about newer releases. Absent, the loader derives the moving sibling of `cdnBase` (`@main/dist/runtime.json`); a dev base has no sibling, so no offer is made. A recovery address, never a dependency: a document that cannot reach it still opens. |
+| `pluginIndex` | **author** (optional) | Where to hear about plugin versions. It is **not** the runtime catalog, and it is not at the runtime tag: plugin versions are tagged independently, so the index is one moving file (`@main`) and every version it names is immutable. Absent, the loader falls back to the tag sibling `<cdnBase>/../registry.json` — the path every document written before this field takes. Advisory like `catalog`. |
 | `plugins` | `plugins.install()` | Present only when the file has plugins. See [§4](#4-plugins-in-the-manifest). |
 | `assets` | build, save policy | One entry per asset, sorted by `order`. See below. |
 
@@ -55,6 +57,8 @@ block). The loader reads it before anything else and will not boot without it.
 | `late`, `optional` | for `js` | `deps.late("export")` is a getter that throws if used before that asset exists; `optional` names may be absent. |
 | `factory` | for converted `js` | The exported function the loader calls with `deps`. Absent means the module's namespace is the asset. |
 | `label` | optional | Human name, used by the sheet's ledger and the boot dialog's rows. |
+| `critical` | optional | `false` means a failure of this asset *degrades* the document instead of stopping boot: the issue is recorded with a remedy and the rest of the file still opens. Absent means critical, and infrastructure may never be soft. Today only `plugins` is soft. |
+| `fragments` | optional | Non-JS assets this module reads from the DOM (`["dialogs"]`). Boot skips a consumer whose fragment did not load, rather than constructing it against a hole; `check` requires each id to exist, be non-JS, and be ordered earlier. |
 | `open` | `kind: "html"` | The element the fragment is wrapped in (`<header id="toolbar" …>`), so a fetched fragment can be injected without the file knowing its chrome. |
 | `insert` | `kind: "html"` | Where a fetched fragment lands: `before:<selector>` or `append:<selector>`. Default `before:#viewport`. |
 | `category`, `plugin` | plugins only | `category: "plugin"` plus the plugin's id, which groups the asset under that plugin's switch. |
@@ -102,14 +106,13 @@ a reader who saves it as an editor cannot PUT over the document it came from.
 ## 3. `#plugin-catalog` — optional
 
 ```html
-<script id="plugin-catalog" type="application/json">{"schema":1,"tag":"v0.8.2","assets":{},"bundles":{}}</script>
+<script id="plugin-catalog" type="application/json">{"schema":1,"revision":"sha384-…","index":"https://…/plugins/index.json","tag":"v0.8.2","assets":{},"bundles":{}}</script>
 ```
 
-An in-file copy of the plugin catalog (the same shape `dist/registry.json` publishes, plus a
-`tag`), so an offline document can offer plugins with zero requests: a `file://` page cannot
-fetch a relative url (`lab/007`), which is exactly where a document is most useful. The
-Plugins panel prefers the block when present and falls back to the catalog at `cdnBase`'s
-sibling.
+An in-file copy of the plugin index, so an offline document can offer plugins with zero
+requests: a `file://` page cannot fetch a relative url (`lab/007`), which is exactly where a
+document is most useful. The Plugins panel prefers the block when present and falls back to
+the configured `pluginIndex`, then to the legacy `<cdnBase>/../registry.json`.
 
 **It is an option, and it is generated.** `manifest.json`'s `"pluginCatalog": true` makes every
 flavour carry it (`build.mjs#pluginCatalogBlock`); the block is never hand-written, `check`
@@ -121,12 +124,15 @@ the one field.
 
 Two rules that make the snapshot honest rather than merely present:
 
-- **`tag` is the tag the snapshot was taken at**, and it is what makes staleness a fact. A
-  bundle's `manifest` is *relative* (`plugins/<id>.json`) and `installBundle()` resolves it
-  against this document's own `cdnBase` — so snapshot and manifest agree by construction, and
-  a re-pin is what breaks that agreement. The panel says so ("taken at v0.8.2; this file pins
-  v0.9.0") and offers **Refresh**, which re-reads `<cdnBase>/../registry.json` and rewrites the
-  block (a document change: it marks the file dirty).
+- **`revision` is the snapshot's identity, not `tag`.** It is the sha384 of the index body it
+  was taken from, so a refresh is a fact ("this is revision …") rather than a guess. `tag`
+  stays, but only as provenance: a plugin version is tagged independently, so the runtime tag
+  is no longer what makes the snapshot true. A bundle's `manifest` is **absolute** — it names
+  the `plugin-<id>-v<version>` tag that carries the bytes — so an install from a snapshot does
+  not have to resolve anything against the document's runtime tag. A legacy relative manifest
+  still resolves against the index's directory. The panel compares `index` with the configured
+  `pluginIndex` and offers **Refresh**, which re-reads the index and rewrites the block (a
+  document change: it marks the file dirty).
 - **A parseable block with no tables is not a catalog.** The panel falls through to the network
   rather than showing an empty "Available" list, which reads exactly like "nothing is
   published".
@@ -273,6 +279,11 @@ branch or a local address, because only a tag is both immutable and public), and
 rewrites the manifest and never re-fetches to "check".
 
 ### The one caveat worth knowing
+
+Each `runtime.json` release entry also carries `hostApi` — the plugin contract that
+*release's* loader enforced, read from `git show <tag>:src/registry.js` (1 for tags older
+than the contract). It is the answer to "which runtime would satisfy this plugin?", and it
+belongs in the index because a document's own loader cannot know what it does not have.
 
 A `catalog` entry names a tag's **tree** — and `git show` of a tag is not the same thing as
 the bytes that tag publishes if the tree was ever rebuilt after tagging. `check` therefore

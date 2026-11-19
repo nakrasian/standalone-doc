@@ -224,6 +224,7 @@ npm run report      # size table, per asset
 npm run export -- doc.html --to=docx,typ,md    # tools/export.mjs — pandoc.wasm by default,
                                                # --engine=native for a pandoc on PATH
 npm run reference                             # derive tools/reference.docx from the engine
+npm run demo:resilience                       # soft lanes + remedies, generated into .test-tmp
 ```
 
 ## Repository layout
@@ -242,7 +243,9 @@ test/unit/          node:test suites
 test/browser/       playwright suites (chromium, webkit, firefox)
 docs/PLUGINS.md     the plugin contract: host API, contributions, islands, pinning
 docs/MANIFEST.md    the three JSON blocks in a document: every field, authored vs derived
-plugins.json        curated plugin catalog, published as dist/registry.json
+plugins.json        curated single-module catalog, published as dist/registry.json
+plugins/<id>/       one folder per bundle plugin: plugin.json + its source
+dist/plugins/index.json  plugin versions by tag; what a document's pluginIndex names
 ```
 
 `archive/` (private, gitignored) holds docs, samples, experiments and the probe lab.
@@ -315,13 +318,19 @@ the published manifest and that manifest's own `sha384`, the sheet fetches it, c
 bytes, then pins every asset it declares. One click, N assets, no JSON copied by hand — and a
 manifest the catalog did not hash is refused before anything is written.
 
+A plugin version is published at its **own tag** (`plugin-<id>-v<version>`), so a plugin does
+not wait for a runtime release to become installable: the sheet reads one moving index
+(`manifest.json`'s `pluginIndex`, normally `@main`) while every version it names is immutable.
+A plugin folder under `plugins/` is the authored description; the tag is the address; the index
+is discovery.
+
 A plugin declares the **host API** it is written against (`plugins[id].api`), and the registry
-refuses a newer one *before* `activate()` rather than halfway through an insertion. The
-practical consequence is worth knowing: the sheet reads the catalog at **the tag the document
-itself pins**, so a document that has not updated its runtime does not see a plugin published
-after that tag at all. Updating the runtime — *Document settings → Runtime → Check for
-updates…* — is what unlocks it, on the **next** open: the pin moves for the file, while the
-session keeps the runtime it booted with.
+refuses a newer one *before* `activate()` rather than halfway through an insertion. A runtime
+records the API it provides (`hostApi` in `dist/runtime.json`), so the refusal is actionable:
+the plugin's row offers **Update runtime to vX**, the oldest release that provides it, and says
+so on the next open. When no published release provides that API yet, the row says that
+instead of offering a dead button. What a plugin never needs is a runtime update just to be
+*listed*.
 
 Read `docs/PLUGINS.md` before writing one. The three island profiles it describes are
 enforced, not advisory: `sealed` has no network, `sandboxed` is today's figure sandbox, and

@@ -27,7 +27,8 @@
     "reference": "node tools/reference.mjs",
     "shim": "node tools/shim.mjs",
     "demo": "node tools/demo.mjs",
-    "demo:comments": "node tools/demo-comments.mjs"
+    "demo:comments": "node tools/demo-comments.mjs",
+    "demo:resilience": "node tools/demo-resilience.mjs"
   },
   "devDependencies": {
     "@bjorn3/browser_wasi_shim": "^0.4.2",

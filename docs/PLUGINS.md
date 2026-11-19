@@ -77,8 +77,9 @@ export async function createWhiteboard(deps = {}) {
 
 Capabilities today: `figures` (`insertHTML`, `scan`, `usage`), `editor` (`insertBlock`,
 `insertInline`, `exec`, `setBlock`, `blockAt`), `pagination` (`defineBlock`, `strategy`),
-`status` (`refresh`, `markDirty`). A capability exists only when the module providing it was
-built — a view-mode document has no `editor`.
+`status` (`refresh`, `markDirty`), and `settings` (`open({tab})` — the host's own Document
+settings sheet, which is where a runtime update lives). A capability exists only when the
+module providing it was built — a view-mode document has no `editor` and no `settings`.
 
 `insertBlock()` leaves a text block below the atomic block it inserted (a contenteditable
 region cannot hold a caret inside `contenteditable="false"` content), reusing the block
@@ -220,7 +221,9 @@ three engines; the sheet refuses one before fetching it.
 ## 6. Publishing a catalog entry
 
 `plugins.json` at the repository root is curated; `node build.mjs combine` publishes it as
-`dist/registry.json`, and `check` validates it.
+`dist/registry.json`, and the build folds the same rows into `dist/plugins/index.json` (the
+file the sheet actually reads when a document names a `pluginIndex`) together with the
+published bundle versions. `check` validates both.
 
 ```json
 { "id": "nanoid", "label": "Nano ID", "island": "sandboxed",
@@ -239,32 +242,68 @@ A catalog is **advisory**. A document embeds the `url` + `sha384` it installed; 
 only proposes. A document may also carry its catalog inline (`#plugin-catalog`) so the list
 works offline.
 
-### Bundles
+### Bundles are folders, published at their own tags
 
 A plugin that is a *bundle* — one plugin, many assets — has no entry in `assets`: that table is
-one self-contained module per proposal, and a bundle's pins live in a manifest it publishes
-beside itself. The catalog carries a pointer instead, generated into `dist/registry.json` from
-the same bytes `published()` emits:
+one self-contained module per proposal. A bundle is a **folder** under `plugins/`, and its
+`plugin.json` is the authored description of the version:
 
 ```json
-"bundles": {
-  "pandoc-export": {
-    "label": "Pandoc export", "version": "0.1.1", "api": 1, "island": "sealed",
-    "entry": "pandoc-export",
-    "manifest": "plugins/pandoc-export.json",
-    "bytes": 4435, "sha384": "sha384-…",
-    "assets": 8, "assetBytes": 87198155,
-    "about": "Word, typeset PDF, …"
-  }
+{
+  "schema": 1, "id": "pandoc-export", "label": "Pandoc export",
+  "version": "0.1.1", "api": 1, "island": "sealed", "entry": "pandoc-export",
+  "publishBase": "runtime",
+  "orderBase": 300, "pinBase": 400,
+  "copies": [ { "id": "sd-export-lua", "kind": "bin", "file": "tools/sd-export.lua", "as": "sd-export.lua" } ],
+  "pins":   [ { "id": "pandoc", "kind": "bin", "bytes": 58580800, "url": "https://…", "integrity": "sha384-…" } ],
+  "contributes": { "export": [ { "id": "docx", "label": "Word (.docx)…" } ] }
+}
+```
+
+`publishBase` decides the address its bytes ride:
+
+- `"tag"` (the default) — its own git tag, `plugin-<id>-v<version>`. **This is the point of the
+  scheme:** a plugin version does not wait for a runtime release, and publishing one is a change
+  to that folder plus a tag.
+- `"runtime"` — the runtime tag this tree publishes. It exists only as the migration state for
+  the versions that shipped inside a runtime release before plugin tags existed
+  (`pandoc-export 0.1.1`, `citations 0.1.2`). Remove it when that plugin next bumps.
+
+Tags are **flat** (`plugin-citations-v0.3.0`, not `plugin/citations/v0.3.0`): jsDelivr parses
+`gh/user/repo@ref/path`, and a ref containing `/` — or a second `@` — is ambiguous with the
+path. A plugin tag is immutable and is never deleted; it is an address a document may pin
+forever.
+
+**Discovery is the plugin index**, `dist/plugins/index.json`, generated from those tags by
+`node build.mjs catalog` (the same rule as the runtime index: an entry may only claim bytes a
+tag shipped). Its `bundles` section keeps the shape the sheet already reads, plus `versions`:
+
+```json
+"pandoc-export": {
+  "label": "Pandoc export", "version": "0.1.1", "api": 1, "island": "sealed",
+  "entry": "pandoc-export",
+  "manifest": "https://cdn.jsdelivr.net/gh/<owner>/<repo>@plugin-pandoc-export-v0.1.1/dist/plugins/pandoc-export.json",
+  "bytes": 4440, "sha384": "sha384-…",
+  "assets": 8, "assetBytes": 87198155,
+  "about": "Word, typeset PDF, …",
+  "minRuntime": "v0.1.0",
+  "versions": [ { "version": "0.1.1", "…": "the same row" } ]
 }
 ```
 
 | field | meaning |
 |---|---|
-| `manifest` | Path **relative to the catalog's own directory** (`<cdnBase>/../`), so an install rides the tag the *document* pins — not whichever sibling the catalog was read from. |
-| `sha384`, `bytes` | Of that manifest file. The runtime fetches the manifest with `prefetch`, refuses it if the hash disagrees, and only then trusts the pins inside. A catalog can propose pins; it cannot rewrite them. |
-| `assets`, `assetBytes` | What the sheet shows in the row. It never reads the manifest to draw a list. |
-| `entry`, `api`, `island` | The plugin half, for the same preview and the same refusal an `assets` entry gets. |
+| `manifest` | Absolute when the bytes ride the plugin's tag, relative when they still ride the runtime (migration, and a dev build). Absolute is what makes an install independent of the runtime tag a document pins. |
+| `sha384`, `bytes` | Of that manifest file. The runtime fetches the manifest with `prefetch`, refuses it if the hash disagrees, and only then trusts the pins inside. An index can propose pins; it cannot rewrite them. |
+| `versions` | Every published version, newest first. The top-level fields are the newest row, so an older reader that only knows one version keeps working. |
+| `minRuntime` | The oldest runtime whose `hostApi` satisfies this version. `null` when no published release does — the sheet says so instead of offering a dead button. |
+| `assets`, `assetBytes`, `entry`, `api`, `island`, `about` | What the row can show without reading the manifest. |
+
+The index is addressed by `manifest.json`'s **`pluginIndex`**, not by `<cdnBase>/../`: plugin
+versions are tagged independently, so the index is one moving file (`@main`) and every version
+it names is immutable. A document written before the field existed falls back to the legacy
+`<cdnBase>/../registry.json`, which is also still generated (and still names the migration
+plugins) for the documents that pin an older tag.
 
 **An extension is part of the address.** jsDelivr refuses a published list of extensions with
 `403` and serves nothing extensionless (`404`), so a pin at, say, `reference.docx` is a url no
@@ -274,28 +313,49 @@ extension at all; the measured-good set is `.bin`, `.dat`, `.zip`, `.txt`, `.b64
 Publish an awkward binary under a boring name and let the plugin rename it in memory.
 
 `bundles` is **generated, never authored**: `tools/publish-plugin.mjs` owns the manifest, `check`
-fails when the catalog and the manifest disagree, and fails again when a manifest exists in
-`dist/plugins/` that the catalog does not name — a published plugin nobody can discover is the
-failure that is easiest to ship and hardest to notice.
+fails when the index and the tag disagree (including a tag whose name does not match the
+manifest it points at), and `verify-cdn` fetches the index, every manifest it names, and every
+asset this repository serves. A published plugin nobody can discover is the failure that is
+easiest to ship and hardest to notice.
 
 Installing one writes N asset entries and one `plugins` entry, carrying `api` with it (absent
 means `1`). The assets are **not** fetched at install time: a 58 MB engine is a first-export
 cost, and the loader verifies each pin when it is used.
 
+### Publishing a plugin version
+
+```
+1. bump plugins/<id>/plugin.json's version (and drop publishBase: "runtime" if it is there)
+2. node build.mjs build                  # manifests, dist/plugins/index.json
+3. node build.mjs check                  # tags, index and bytes agree
+4. git tag -a plugin-<id>-v<version> -m "…"
+5. git push origin main && git push origin plugin-<id>-v<version>
+6. node build.mjs purge --main          # only the index is mutable
+7. node build.mjs verify-cdn             # fetches the index and the version it names
+```
+
+The build is deterministic and the manifest already names the tag it is about to get, so the
+bytes at the tag are the bytes the index advertises; there is no second build after tagging.
+A tag is never moved or deleted.
+
 **Testing one before its release.** `node build.mjs build --base=<url> --out=<dir>` writes a
-whole publication, not just documents: the cdn bytes, `registry.json`, and each bundle's
-manifest, every url re-pointed at the base. Because the sheet derives the catalog url from the
-document's `cdnBase`, the base's parent directory has to be where `<dir>` is served —
-`--base=http://127.0.0.1:8080/.test-tmp/build/cdn` with the default `--out` does exactly that.
-Point `--base` somewhere else and the sheet reads *that* address's catalog, which is usually
-the last release: correct behaviour, and the reason a dev build used to offer nothing.
+whole publication, not just documents: the cdn bytes, `registry.json`, `plugins/index.json`, and
+each bundle's manifest, every url re-pointed at the base. Because the built documents carry
+`pluginIndex` = `<base>/../plugins/index.json`, the base's parent directory has to be where
+`<dir>` is served — `--base=http://127.0.0.1:8080/.test-tmp/build/cdn` with the default `--out`
+does exactly that. Point `--base` somewhere else and the sheet reads *that* address's index,
+which is usually the last release: correct behaviour, and the reason a dev build used to offer
+nothing.
 
 ### Updating an installed plugin
 
-The Plugins panel compares each installed plugin's `version` with the catalog's: a *module*
-against `assets[id].versions[0]`, a *bundle* against `bundles[id].version`. A newer version puts
-**Update to x.y.z** on that plugin's row, and only there — the Runtime panel notices a count on
-the tab, it never moves a plugin pin as a side effect of a runtime update.
+The Plugins panel compares each installed plugin's `version` with the index's newest row: a
+*module* against `assets[id].versions[0]`, a *bundle* against `bundles[id].versions[0]`. A newer
+version puts **Update to x.y.z** on that plugin's row, and only there. But a version whose `api`
+this file cannot provide is **blocked** before that comparison: the row offers **Update runtime
+to `<minRuntime>`** instead, because no plugin update can fix a host that lacks the contract.
+The Runtime panel notices a count on the tab; it never moves a plugin pin as a side effect of a
+runtime update.
 
 The pin *is* the install, so an upgrade is an install that may overwrite: the entry is
 rewritten, the assets the new version no longer names are dropped, and `enabled` survives (an
@@ -321,19 +381,31 @@ change; a plugin that wants to survive that should declare the version it was wr
 A plugin that inserts inline content must declare `2`: on an older host it would activate and
 then fail halfway through an insertion, which is precisely what the field prevents.
 
-**What a reader of an older document sees.** The sheet reads the catalog at *the tag the
-document itself pins* (`<cdnBase>/../registry.json`), so a plugin published after that tag is
-not in the list at all — there is nothing to refuse. The route is the runtime, not the sheet:
-**Document settings → Runtime → Check for updates…** re-pins the file, and the *next* open
-reads the new tag's catalog with the new `HOST_API`, at which point the install succeeds. The
-pin moves for the file and the session keeps the runtime it booted with, which is why the
-plugin appears after a reopen rather than immediately.
+**What a reader of an older document sees.** Plugin discovery is no longer the runtime tag's
+business: the sheet reads `pluginIndex`, so a plugin published after the document's runtime tag
+is visible, and installing it does not require moving the runtime. What can still refuse is the
+**API**: a plugin version may need a `HOST_API` the file's loader does not provide.
+
+That refusal has a route, and it names a release rather than a direction. The index records
+`hostApi` per runtime release; a plugin row whose `api` is too new becomes **Update runtime to
+v0.13.0** (the oldest release that provides it), which opens Document settings → Runtime. The
+pin moves for the file, the session keeps the runtime it booted with, and the new `HOST_API`
+arrives on reopen — at which point the install succeeds. When no published release provides the
+API yet, the row says exactly that and disables the action; a dead button is not a remedy.
 
 Two refusals exist for the cases that can still happen, and both name the remedy. The sheet
 refuses an install whose manifest asks for a newer host than this runtime provides, and
 `require()` refuses an *already pinned* plugin the same way — before `activate()`, with
 `kind: "api"`, so a document that pins a runtime older than its plugin stays readable and
 says why.
+
+**Every release records the API it provides.** `dist/runtime/<tag>.json` carries `hostApi`,
+read from that tag's own `src/registry.js` (a release older than the contract reports 1), and
+`dist/runtime.json` repeats it per release. That is what lets a surface answer "which runtime
+would make this plugin work?" instead of only "this runtime is too old": the refusal's
+`need` is the plugin's `api`, the index's `hostApi` is each release's answer, and the smallest
+satisfying release is the target. The loader never guesses from its current constant — an
+index entry is a claim about the past and has to come from the past.
 
 ## 8. Failure
 
@@ -346,3 +418,20 @@ this document lacks), `forbidden` (asked for another plugin's bytes).
 
 There is no automatic retry. A failing plugin must not refetch on every scroll; a click is
 deliberate.
+
+**The soft lane is one asset wide.** Plugin *assets* have always been non-fatal — they are
+built by `require()`, never by `boot()`. The only runtime module that may now fail without
+stopping the document is `plugins` (`critical: false` in the manifest): the editor opens, the
+content and saving work, and a **Ready — with limitations** card names the missing feature and
+its remedy. Everything else is still fail-closed on purpose; a document that claims to be
+ready with a broken editor or paginator is a worse lie than a failure card. A soft module's
+`fragments` are declared so boot can skip it rather than construct it against missing DOM.
+
+**Every failure carries a remedy.** `failure()` attaches `{action, target?, need?, why?}` to
+the record, and every surface renders the same answer: the boot card, the figure notice, the
+Plugins row, and `diagnostics()` (`next: retry — nothing in the file has changed`). The
+actions are `retry`, `update-runtime`, `update-plugin`, `refresh-catalog`, `reopen`,
+`open-editor-copy`, and `none`. `none` is a real answer, not an empty button: it carries the
+reason, because "this file cannot fix it" is what stops a reader clicking forever. A figure's
+notice only says "click to retry" when retrying could work; an `api` refusal names the
+runtime update instead, because a retry would loop.

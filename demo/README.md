@@ -1,5 +1,33 @@
 # Demo pages
 
+## Resilience demo (soft lanes and remedies)
+
+Three generated documents that show what a failure costs, and what a document says about it:
+
+```sh
+npm run demo:resilience    # writes .test-tmp/resilience-demo/
+npm run dev                # in another shell
+```
+
+Open <http://127.0.0.1:8080/.test-tmp/resilience-demo/index.html> for the landing page (it
+links all three), or open one directly:
+
+| file | what it shows |
+|---|---|
+| `soft-module.html` | the `plugins` module cannot load (`critical: false`). The editor opens, the boot card says **Ready — with limitations** with the 404 and its remedy, and Continue leaves a working editor without a Plugins sheet. |
+| `soft-plugin.html` | a pinned plugin's bytes are missing. The document is ready; the figure that needs it shows *Needs Demo broken plugin — HTTP 404. Click to retry.* and the paragraph below stays editable. |
+| `blocked-plugin.html` | a local plugin index offers versions that need host API 3 while this file provides 2. The installed row and the Available row both say **Update runtime to v0.13.0** — the oldest release that would satisfy them — and the installed row's button opens Document settings → Runtime. |
+
+They are mutated copies of `dist/editor.html`, generated rather than committed, so they never
+describe an editor that no longer exists. The fixtures (`index.json`, `empty-index.json`) are
+written beside them. Serve the repository root: 1 and 3 fetch, so `file://` is not enough.
+
+What to look for is also in each page and in the boot card's diagnostics
+(`StandaloneDoc.diagnostics()`), including the `next: …` line the loader attaches to every
+failure.
+
+---
+
 ## Comments demo
 
 A real editor with a real document and three comments, for clicking the review
