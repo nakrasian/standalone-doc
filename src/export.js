@@ -149,9 +149,12 @@ export function createExport(deps = {}) {
        folios and any `[data-runtime="ephemeral"]` node that happened to live inside
        `#content`. The rule is `session.strip()`'s — one list, three callers (a save, a print,
        this export) — which is why the selectors are the same ones, attribute for attribute.
-       Two deliberate exceptions: `.page-spacer` stays, because the print stylesheet turns it
-       into a page break (`.page-spacer + *`), and it is page geometry rather than chrome;
-       `<script>` is already gone, so `#comments` cannot print. */
+       Two deliberate exceptions: `.page-spacer` stays, because an older live document (or a
+       hand-edited file) can still carry one and the print stylesheet turns it into a page
+       break (`.page-spacer + *`); `<script>` is already gone, so `#comments` cannot print.
+       TODO(v0.9.2): the margin model no longer creates a spacer, so this exception, the
+       `.page-spacer + *` print rule and the Lua filter's spacer branch can go once no
+       pre-margin document is in circulation. */
     clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
     clone.querySelectorAll("#sheets > *, [data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
 

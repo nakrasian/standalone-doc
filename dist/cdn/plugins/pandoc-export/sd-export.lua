@@ -20,6 +20,13 @@
 
      Runs unchanged under the CLI and under pandoc.wasm: it touches the AST, never
      the filesystem, the network, or another process.
+
+     TODO(after the pagination cycle, v0.9.2): the page-spacer branches here — Div and
+     the Pandoc walk — exist for documents and live sessions from before the margin
+     model. The materializer no longer creates a spacer; an empty `.page-break` Div is
+     the only page-break spelling an export needs. Once no pre-margin file is in
+     circulation, delete the spacer handling, the `PAGE_BREAK.html` div spellings it
+     shares, and the `.page-spacer` exception in buildStatic().
 --]]
 
 local FILTER_VERSION = "0.1"

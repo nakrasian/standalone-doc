@@ -152,3 +152,19 @@ cannot drift apart.
     npm run shim          # writes plugins/pandoc-export/wasi-shim.js from the devDependency
 
 The artifact is committed: a plugin must be a self-contained file at a pinned URL.
+
+### Deprecations after the margin model
+
+`sd-export.lua` still accepts a `.page-spacer` Div, and `buildStatic()` deliberately keeps
+one in the static clone for a document or live session from before the margin model. The
+materializer now writes the break as an empty `.page-break` Div (for pandoc) and
+`[data-page-start]` (for print), so the spacer spelling is only a compatibility path.
+
+Once no pre-margin document is in circulation, remove, in one commit:
+
+- the `.page-spacer` branch in `Div` and the second `Div` walk in `Pandoc()`;
+- the `.page-spacer + *` print rules in `src/export.js` and `src/toolbar-styles.css`;
+- the `.page-spacer` exception in `buildStatic()`'s removal list;
+- `buildStatic()`'s spacer retention in the static clone.
+
+The `.page-break` Div and the `page-start` attribute fallback stay: they are the model.
