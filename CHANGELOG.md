@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.9.3 — 2026-11-18
+
+Fixes for the first release with fragments on by default. The browser suite failed on
+the Linux runner for four reasons; two were the code.
+
+### Fixed
+
+- **Fragment pushes are on the 1/64 px layout grid, not whole pixels.** Page gaps had
+  already moved off `Math.round`, but the pushes that place each tail on its page top
+  had not. Five cuts in one paragraph put the block after it 3 px above its page content
+  top, which `checkPass` reported (`block 2: starts at 4411, above page 5's top 4414`).
+- **A resize pass no longer runs inside the ResizeObserver callback.** The pass changes
+  margins and heights, which is itself a resize; with fragments on by default WebKit
+  answered with `ResizeObserver loop completed with undelivered notifications` (a console
+  error in an unrelated export test). The `resize` signal now schedules one frame later;
+  the mutation path stays synchronous, because the pre-paint timing is what stops the
+  un-cut paragraph flashing in the page gap.
+- **The whole-block page check allows a line box of slack.** The remaining 3.39 px on the
+  Linux line metrics was the difference between a merged paragraph's semantic height and
+  the sum of its split block boxes, not accumulated rounding. The tail's own top stays at
+  1.5 px; the downstream rule now allows 4 px, which is sub-line leading and still catches
+  the page-scale error it was added for.
+
+### Tests
+
+- The shared fixture no longer depends on a font metric: its long block sat exactly on
+  the page boundary, producing a cut on macOS and none on the Linux runner, so thirteen
+  tests read an undefined `splits[0]`. `loadDoc` grows the longest block until a cut
+  exists on the platform.
+- A new fixture resizes a fragmented document and asserts WebKit's resize-observer warning
+  is absent and the plan settles.
+- Head deletion accepts a re-cut that also frees a page; the drop-page fixture truncates
+  the block so it is under a page on any font; the undo test inserts text through the
+  editor instead of three keystrokes typed right after a programmatic focus (the Linux
+  Firefox/WebKit runs dropped one); the IME fixture is tall enough to cut anywhere.
+
+132 unit tests and 639 browser tests (212 per engine, plus the three Chromium-only
+clipboard cases) pass on all three engines. CI is green in all six jobs.
+
 ## v0.9.2 — 2026-11-18
 
 The pagination cycle: a paragraph can cross a page boundary without becoming two
