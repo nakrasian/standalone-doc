@@ -328,8 +328,13 @@
         "zoom"
       ],
       "provides": [
-        "x",
-        "y"
+        "origin",
+        "rect",
+        "measureH",
+        "viewportY",
+        "scale",
+        "pageContentTop",
+        "pageContentBottom"
       ],
       "env": true
     },
@@ -339,8 +344,8 @@
       "order": 50,
       "tag": "script",
       "file": "src/pagination.js",
-      "bytes": 49560,
-      "sha384": "sha384-nchXrOynhmeZnfQF1783BHyytbtFBZj5es6q3nsp/R1I1q9M+Jc6tGT3hsbzlPEd",
+      "bytes": 53604,
+      "sha384": "sha384-QC8yoVwdlaTzriR22DuA3d9ma+5U5iHvtXR16pWgHBqZm7jsVgeHGrUuyK5wfciL",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -354,12 +359,17 @@
         "selection"
       ],
       "provides": [
-        "offset",
-        "geometric",
-        "headHeight",
-        "headBottom",
-        "cutLine",
-        "lines"
+        "schedule",
+        "pageCount",
+        "pageAt",
+        "syncFolio",
+        "refresh",
+        "setFragmenting",
+        "diagnostics",
+        "strategy",
+        "defineBlock",
+        "planSplit",
+        "plan"
       ],
       "env": true
     },
@@ -419,8 +429,8 @@
       "order": 70,
       "tag": "script",
       "file": "src/editor.js",
-      "bytes": 21389,
-      "sha384": "sha384-8+FgypfC4GbEaj3lZla0ZMz/Jq08xCipKdkLUPhrHih7Cj5W1Q85QW12HEiHuTQA",
+      "bytes": 27142,
+      "sha384": "sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH",
       "mode": "inline",
       "requiredBy": [
         "edit"

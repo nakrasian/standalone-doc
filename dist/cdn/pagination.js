@@ -121,6 +121,9 @@ export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt,
     headBottom,
     cutLine: last + 1,
     lines: lines.length,
+    /* The head's first line box, kept so a reused cut can measure slack in lines
+       without walking the whole block on every pass (typing hits this path per key). */
+    lineHeight: lines.length ? Math.max(1, lines[0].bottom - lines[0].top) : 18,
   };
 }
 
@@ -352,6 +355,13 @@ export function createPagination(deps = {}) {
      both paths without a build. The default is off until the caret/history deltas land. */
   let fragmenting = deps.fragment === true;
 
+  /* What each fragmented block measured when the last pass planned it. A block that has
+     *shrunk* since then needs a fresh cut in the same pre-paint pass: the head has a hole
+     that the tail can fill, and leaving it until the idle reconcile leaves white space at
+     the bottom of the page while the reader deletes. Growth (typing) keeps the cut until
+     the head no longer fits, which is the no-churn path. */
+  const planned = new Map();
+
   function geometry() {
     const px = (el) => el.getBoundingClientRect().height;
 
@@ -504,6 +514,29 @@ export function createPagination(deps = {}) {
     frag.append(range.extractContents());
     block.append(frag);
     return frag;
+  }
+
+  /** Remember the semantic shape each fragmented block was planned against. Called after
+      the fragments are applied, so a later pass can tell a shrink (delete) from a no-op. */
+  function recordPlanned(p = null) {
+    for (const el of [...planned.keys()]) {
+      if (!el.isConnected || !el.querySelector("[data-frag]")) planned.delete(el);
+    }
+    if (!fragmenting) return;
+    /* A fresh cut measured the block's line height; a reused cut keeps the previous one
+       (re-measuring it per pass is the expensive half of the no-churn path). */
+    const fresh = new Map();
+    for (const split of p?.splits || []) {
+      if (split.plan && !split.plan.reused && split.plan.lineHeight) fresh.set(split.block, split.plan.lineHeight);
+    }
+    for (const el of content.children) {
+      if (!el.querySelector("[data-frag]")) continue;
+      planned.set(el, {
+        height: semanticH(el),
+        text: el.textContent.length,
+        lineHeight: fresh.get(el) ?? planned.get(el)?.lineHeight ?? 18,
+      });
+    }
   }
 
   /** Undo every split: measurement must always see the semantic document. */
@@ -671,6 +704,14 @@ export function createPagination(deps = {}) {
           if (state) {
             /* An empty segment is never a valid cut; merging is the only repair. */
             if (state.frags.some((frag) => frag.textContent.length === 0)) return {needsMerge: true};
+            /* A deletion re-cuts now instead of leaving the page short until an idle
+               reconcile: the next lines of the tail belong on this page. Total height and
+               text length are compared, so deleting a `<br>` or an inline element counts
+               too. Both are stable across a no-op pass (see `recordPlanned`). */
+            const before = planned.get(el);
+            if (before && (h < before.height - 0.5 || el.textContent.length < before.text)) {
+              return {needsMerge: true, rebalance: el};
+            }
             /* Reuse every cut when the existing segments still fit their pages: one cut or
                N, this is the no-churn path while typing after the last one. */
             const room = page.top + page.avail - cursor;
@@ -683,11 +724,7 @@ export function createPagination(deps = {}) {
               /* Slack is measured in lines: a cut that leaves more than a line and a half
                  at the bottom of its page could move the next lines back into it. The last
                  segment is exempt — the block ends there. */
-              const lines = lineBoxes(el);
-              const lineHeight = lines.length
-                ? Math.max(1, lines[0].bottom - lines[0].top)
-                : 18;
-              const slack = lineHeight * 1.5;
+              const slack = (before?.lineHeight ?? 18) * 1.5;
               if (room - state.headHeight > slack) stale = true;
               for (let k = 0; k < state.heights.length - 1; k++) {
                 if (g.contentH - state.heights[k] > slack) stale = true;
@@ -758,6 +795,7 @@ export function createPagination(deps = {}) {
                 headHeight: Math.round(cut.headHeight),
                 cursor: Math.round(cursorHere),
                 nextTop: Math.round(nextTop),
+                lineHeight: cut.lineHeight,
               },
             });
             from = cut.offset;
@@ -846,7 +884,10 @@ export function createPagination(deps = {}) {
        path writes carries one; this is the one-way migration for a live DOM. */
     for (const sp of [...content.querySelectorAll(".page-spacer")]) sp.remove();
 
-    const wanted = new Map(p.spacers.map((s) => [s.before, Math.round(s.height)]));
+    /* Not rounded: a rounded gap is off by up to half a pixel, and every page after it
+       inherits the error through the flow (measured: 3 px by page 36). The fractional
+       value is what the plan named, and it is stable across passes for the same layout. */
+    const wanted = new Map(p.spacers.map((s) => [s.before, s.height]));
 
     // Anything that no longer starts a page loses its margin, in this pass, not later.
     for (const el of [...content.querySelectorAll("[data-page-start]")]) {
@@ -1027,6 +1068,26 @@ export function createPagination(deps = {}) {
     }
   }
 
+  /* The two rAF corrections below belong to the pass that scheduled them. A later pass
+     (or an edit that moved the reader) must cancel them: a stale correction was measured
+     resetting a scrollTop the reader had just set, because it restored an anchor captured
+     before the reader moved. */
+  let anchorGeneration = 0;
+  let anchorFrames = [];
+
+  function clearScrollCorrections() {
+    for (const frame of anchorFrames) cancelAnimationFrame(frame);
+    anchorFrames = [];
+  }
+
+  function correctScroll(anchor, generation, remaining) {
+    if (generation !== anchorGeneration) return;
+    restoreScroll(anchor);
+    if (remaining > 0) {
+      anchorFrames.push(requestAnimationFrame(() => correctScroll(anchor, generation, remaining - 1)));
+    }
+  }
+
   let reconcileTimer = null;
 
   /* One full merge/re-plan after a pause, only when the last plan reused a cut with room
@@ -1055,6 +1116,14 @@ export function createPagination(deps = {}) {
     }
 
     applying = true;
+    clearScrollCorrections();
+    anchorGeneration += 1;
+    const generation = anchorGeneration;
+    /* A late correction is only needed when the pass itself put the selection back: that
+       is the one write the engines can follow with a second scroll-into-view. A pass that
+       left the selection alone must not touch the viewport a frame later — measured
+       resetting a reader's scrollTop to the anchor the pass captured before they moved. */
+    let selectionRestored = false;
     let merged = 0;
     let applied = [];
     let check = null;
@@ -1069,14 +1138,19 @@ export function createPagination(deps = {}) {
         const textBefore = (fragmenting || merge) ? content.textContent : null;
         if (merge) merged = mergeFragments();
         let p = plan();
-        if (fragmenting && p.needsMerge) {
-          /* One cut changed (text grew/shrunk at or before it, or the block now fits):
-             merge the document and plan again. A no-op pass never takes this branch. */
-          merged += mergeFragments();
+        /* One retry per block that must be re-cut. A deletion names its own block
+           (`rebalance`), so only that block is merged: the other fragments are unchanged
+           and would be re-measured for nothing. A structural repair (an empty segment, a
+           block that now fits) still merges the document. */
+        for (let attempt = 0; fragmenting && p.needsMerge; attempt++) {
+          if (p.rebalance && attempt < 3) merged += mergeBlock(p.rebalance);
+          else merged += mergeFragments();
           p = plan();
+          if (!fragmenting) break;
         }
         applyGaps(p);
         if (fragmenting) applied = applyFragments(p.splits);
+        recordPlanned(p);
         const model = buildModel(p);
         renderSheets(p, model);
         if (fragmenting) {
@@ -1106,6 +1180,7 @@ export function createPagination(deps = {}) {
         if (fragmenting && p.stale) scheduleReconcile();
       }));
       selectionKept = outcome.kept;
+      selectionRestored = Boolean(outcome.before && !outcome.kept);
       lastPlan.selectionKept = selectionKept;
     } catch (err) {
       /* Transactional: a broken pass must never leave a half-fragmented document on
@@ -1121,11 +1196,8 @@ export function createPagination(deps = {}) {
          call handles a same-frame scroll; WebKit and Firefox can reveal the caret on a
          later frame, so the correction runs again just before the next paints. */
       restoreScroll(anchor);
-      if (anchor) {
-        requestAnimationFrame(() => {
-          restoreScroll(anchor);
-          requestAnimationFrame(() => restoreScroll(anchor));
-        });
+      if (anchor && selectionRestored) {
+        anchorFrames.push(requestAnimationFrame(() => correctScroll(anchor, generation, 1)));
       }
     }
     signals.emit("layout", {pages: pageCount(), check});

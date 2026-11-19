@@ -216,3 +216,155 @@ test("hyphenation does not break the fragment contract", async ({page}) => {
   expect(state.fragments).toBeGreaterThan(0);
   expectTailOnPage(state);
 });
+
+test("a cut inside nested inline markup preserves the text and the markup", async ({page}) => {
+  await page.goto(fileUrl());
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, {timeout: 15_000});
+  const state = await page.evaluate((LONG) => {
+    const content = document.getElementById("content");
+    const make = (tag, text, html) => {
+      const el = document.createElement(tag);
+      if (html != null) el.innerHTML = html;
+      else el.textContent = text;
+      return el;
+    };
+    /* The cut lands inside an `<a>` inside an `<em>`; the anchor has no id, so a split is
+       allowed, and `Range.extractContents` is what has to carry both wrappers across. */
+    content.replaceChildren(
+      make("p", "A lead paragraph."),
+      make("p", null, `<em><a href="#note">${LONG}</a></em>`),
+      make("p", "A closing paragraph."),
+    );
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.setFragmenting(false);
+    pag.refresh();
+    pag.setFragmenting(true);
+    pag.refresh();
+    const d = pag.diagnostics();
+    const block = content.children[1];
+    const tail = block.querySelector("[data-frag]");
+    return {
+      authored: content.textContent,
+      text: content.textContent,
+      fragments: d.fragments,
+      splits: d.splits,
+      check: d.check,
+      tailLinks: tail ? tail.querySelectorAll("a[href='#note']").length : 0,
+      tailEmphasis: tail ? tail.querySelectorAll("em").length : 0,
+    };
+  }, LONG);
+  expect(state.fragments).toBeGreaterThan(0);
+  expect(state.tailLinks, "the tail lost the link it was cut inside").toBe(1);
+  expect(state.tailEmphasis, "the tail lost the emphasis it was cut inside").toBe(1);
+  expectTailOnPage(state);
+});
+
+test("an RTL selection across a cut keeps its endpoints", async ({page}) => {
+  await page.goto(fileUrl());
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, {timeout: 15_000});
+  const rtl = "זהו משפט ארוך בעברית שממשיך וממשיך, כי שבירת עמוד חייבת ליפול איפשהו בתוך פסקה. ".repeat(110);
+  const state = await page.evaluate((rtl) => {
+    const content = document.getElementById("content");
+    const make = (tag, text) => {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      return el;
+    };
+    content.replaceChildren(make("p", "פתיחה."), make("p", rtl), make("p", "סוף."));
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.setFragmenting(false);
+    pag.refresh();
+    pag.setFragmenting(true);
+    pag.refresh();
+    const cut = pag.diagnostics().splits[0].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const point = (at) => {
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let remaining = at;
+      let node = walker.nextNode();
+      while (node && remaining > node.nodeValue.length) { remaining -= node.nodeValue.length; node = walker.nextNode(); }
+      return {node, offset: remaining};
+    };
+    const a = point(cut - 30);
+    const b = point(cut + 30);
+    const range = document.createRange();
+    range.setStart(a.node, a.offset);
+    range.setEnd(b.node, b.offset);
+    globalThis.StandaloneDoc.modules.selection.restore(content, {
+      start: {block: 1, offset: cut - 30},
+      end: {block: 1, offset: cut + 30},
+      collapsed: false,
+    });
+    const before = globalThis.StandaloneDoc.modules.selection.capture(content);
+    pag.refresh();
+    const after = globalThis.StandaloneDoc.modules.selection.capture(content);
+    const d = pag.diagnostics();
+    return {before, after, kept: d.selectionKept, check: d.check, fragments: d.fragments, text: content.textContent};
+  }, rtl);
+  expect(state.fragments).toBeGreaterThan(0);
+  expect(state.before, "the RTL selection was not capturable").not.toBeNull();
+  expect(state.after.start).toEqual(state.before.start);
+  expect(state.after.end).toEqual(state.before.end);
+  expect(state.kept, "a pass lost the RTL selection").toBe(true);
+  expect(state.check.ok, JSON.stringify(state.check?.failures)).toBe(true);
+});
+
+test("a data-runtime child of #content is a block, not a fragment", async ({page}) => {
+  await page.goto(fileUrl());
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, {timeout: 15_000});
+  const state = await page.evaluate((LONG) => {
+    const content = document.getElementById("content");
+    const make = (tag, text) => {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      return el;
+    };
+    const runtime = document.createElement("div");
+    runtime.setAttribute("data-runtime", "ephemeral");
+    runtime.textContent = "a live runtime block";
+    content.replaceChildren(make("p", "A lead paragraph."), make("p", LONG), runtime, make("p", "A closing paragraph."));
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.setFragmenting(false);
+    pag.refresh();
+    pag.setFragmenting(true);
+    pag.refresh();
+    const d = pag.diagnostics();
+    return {
+      authored: content.textContent,
+      text: content.textContent,
+      fragments: d.fragments,
+      splits: d.splits,
+      check: d.check,
+      kind: pag.strategy(runtime).kind,
+      runtimeFragments: runtime.querySelectorAll("[data-frag]").length,
+    };
+  }, LONG);
+  expect(state.kind, "a runtime block must not be offered to the splitter").toBe("atomic");
+  expect(state.runtimeFragments).toBe(0);
+  expect(state.fragments).toBeGreaterThan(0);
+  expectTailOnPage(state);
+});
+
+test("Thai prose with no spaces fragments without joining or losing characters", async ({page}) => {
+  await page.goto(fileUrl());
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, {timeout: 15_000});
+  const thai = "นี่คือข้อความภาษาไทยที่ไม่มีช่องว่างระหว่างคำ การแบ่งหน้าต้องไม่ทำให้ตัวอักษรหายหรือติดกัน ".repeat(90);
+  const state = await page.evaluate((thai) => {
+    const content = document.getElementById("content");
+    const make = (tag, text) => {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      return el;
+    };
+    content.replaceChildren(make("p", "ย่อหน้าแรก"), make("p", thai), make("p", "ย่อหน้าสุดท้าย"));
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    pag.setFragmenting(false);
+    pag.refresh();
+    pag.setFragmenting(true);
+    pag.refresh();
+    const d = pag.diagnostics();
+    return {authored: content.textContent, text: content.textContent, fragments: d.fragments, splits: d.splits, check: d.check};
+  }, thai);
+  expect(state.fragments).toBeGreaterThan(0);
+  expectTailOnPage(state);
+});

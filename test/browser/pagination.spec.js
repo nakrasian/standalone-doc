@@ -601,10 +601,10 @@ test("a no-op pass on an N-cut paragraph writes nothing", async ({page}) => {
   expect(result.splits.every((split) => split.reused), "an unchanged N-cut was re-split").toBe(true);
 });
 
-test("a head deletion re-balances the cut after the idle pause", async ({page}) => {
+test("a head deletion refills the page in the same pass", async ({page}) => {
   await boot(page);
   /* A block long enough to need more than one page after the deletion: the single-page
-     fixture fits as soon as the head shrinks, which is a merge, not a re-balance. */
+     fixture fits as soon as the head shrinks, which is a merge, not a re-cut. */
   await loadDoc(page, [
     {tag: "p", text: "A lead paragraph."},
     {tag: "p", text: LONG.repeat(2)},
@@ -613,31 +613,54 @@ test("a head deletion re-balances the cut after the idle pause", async ({page}) 
   const before = await page.evaluate(async () => {
     const content = document.getElementById("content");
     const pag = globalThis.StandaloneDoc.modules.pagination;
+    const layout = globalThis.StandaloneDoc.modules.layout;
     const viewport = document.getElementById("viewport");
     const block = content.querySelector("[data-frag]").parentElement;
     const first = block.firstChild;
     if (first.nodeType !== Node.TEXT_NODE) throw new Error("the head is not a text node");
+    const headBottom = () => {
+      const frag = content.querySelector("[data-frag]");
+      return layout.rect(frag).top - parseFloat(frag.style.marginBlockStart || "0");
+    };
     viewport.scrollTop = 200;
     const cut = pag.diagnostics().splits[0].offset;
     const pages = pag.pageCount();
     const text = content.textContent.length;
-    /* Delete 600 characters from the head: the cut still fits, so the sync pass reuses it
-       and page 1 keeps the space. */
+    const head = headBottom();
+    /* Delete 600 characters from the head. The deleted space is on page 1: the same
+       pre-paint pass must re-cut and pull the tail up, not leave the page short until an
+       idle reconcile (which the next keystroke used to cancel). */
     first.deleteData(0, 600);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const immediate = {
       cut: pag.diagnostics().splits[0].offset,
       pages: pag.pageCount(),
       stale: pag.diagnostics().stale,
+      reused: pag.diagnostics().splits.map((split) => split.reused),
       text: content.textContent.length,
+      headTop: headBottom(),
+      pageBottom: pag.diagnostics().pageBottoms[0],
+      check: pag.diagnostics().check,
     };
-    return {cut, pages, text, scrollTop: viewport.scrollTop, immediate};
+    return {cut, pages, text, head, scrollTop: viewport.scrollTop, immediate};
   });
 
-  expect(before.immediate.cut, "the sync pass should reuse the cut and shift it by the deletion").toBe(before.cut - 600);
-  expect(before.immediate.pages).toBe(before.pages);
-  expect(before.immediate.stale, "a loose cut must be marked stale").toBe(true);
   expect(before.immediate.text).toBe(before.text - 600);
+  expect(before.immediate.pages).toBe(before.pages);
+  expect(before.immediate.stale, "the re-cut happened in the pass, not after the idle pause").toBe(false);
+  expect(
+    before.immediate.cut,
+    `the sync pass reused the short head (cut ${before.cut} → ${before.immediate.cut})`,
+  ).toBeGreaterThan(before.cut - 600);
+  expect(before.immediate.check.ok, JSON.stringify(before.immediate.check?.failures)).toBe(true);
+  expect(
+    before.immediate.pageBottom - before.immediate.headTop,
+    "the head still stops short of the page bottom",
+  ).toBeLessThanOrEqual(30);
+  expect(
+    Math.abs(before.immediate.headTop - before.head),
+    "the head is not the same height it was before the deletion",
+  ).toBeLessThanOrEqual(30);
 
   await page.waitForTimeout(600);
   const after = await page.evaluate(() => {
@@ -652,17 +675,231 @@ test("a head deletion re-balances the cut after the idle pause", async ({page}) 
       scrollTop: document.getElementById("viewport").scrollTop,
     };
   });
-  expect(after.stale, "the idle pass did not re-plan the loose cut").toBe(false);
+  /* The idle reconcile is the fallback for shape changes, not a second pass after every
+     delete: an immediate re-cut leaves it nothing to do. */
+  expect(after.stale).toBe(false);
   expect(after.text).toBe(before.immediate.text);
+  expect(after.cut).toBe(before.immediate.cut);
+  expect(after.pages).toBe(before.immediate.pages);
   expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
   expect(
-    after.cut > before.immediate.cut || after.pages < before.immediate.pages,
-    `cut ${before.immediate.cut} → ${after.cut}, pages ${before.immediate.pages} → ${after.pages}`,
-  ).toBe(true);
-  expect(
     Math.abs(after.scrollTop - before.scrollTop),
-    `the idle re-balance moved the viewport ${Math.round(after.scrollTop - before.scrollTop)}px`,
+    `the idle pass moved the viewport ${Math.round(after.scrollTop - before.scrollTop)}px`,
   ).toBeLessThanOrEqual(24);
+});
+
+test("one deleted character at the seam keeps the page full", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, [
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "p", text: LONG.repeat(2)},
+    {tag: "p", text: "A closing paragraph."},
+  ], {fragment: true});
+  const measure = () => page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const layout = globalThis.StandaloneDoc.modules.layout;
+    const d = pag.diagnostics();
+    const frag = content.querySelector("[data-frag]");
+    return {
+      cut: d.splits[0]?.offset,
+      pages: d.pages,
+      text: content.textContent.length,
+      headTop: layout.rect(frag).top - parseFloat(frag.style.marginBlockStart || "0"),
+      pageBottom: d.pageBottoms[0],
+      reused: d.splits.map((split) => split.reused),
+      stale: d.stale,
+      check: d.check,
+    };
+  });
+  const before = await measure();
+  await caretAtCut(page);
+  await page.keyboard.press("Backspace");
+  const after = await measure();
+
+  expect(after.text, "one Backspace at the seam removed one character").toBe(before.text - 1);
+  expect(after.pages).toBe(before.pages);
+  /* The deleted character is the last of the head: the same pass re-cuts and pulls the
+     next word up from the tail, so the head still ends where it did. */
+  expect(after.reused.some(Boolean), "the cut was reused; the short head was not refilled").toBe(false);
+  expect(after.stale).toBe(false);
+  expect(
+    Math.abs(after.headTop - before.headTop),
+    `the head moved ${Math.round(after.headTop - before.headTop)}px instead of staying full`,
+  ).toBeLessThanOrEqual(1.5);
+  expect(
+    before.pageBottom - after.headTop,
+    "the head no longer reaches the page bottom",
+  ).toBeLessThanOrEqual(30);
+  expect(after.check.ok, JSON.stringify(after.check?.failures)).toBe(true);
+});
+
+test("deleting at a middle seam refills every page of an N-cut paragraph", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, [
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "p", text: LONG.repeat(5)},
+    {tag: "p", text: "A closing paragraph."},
+  ], {fragment: true});
+  const holes = () => page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const layout = globalThis.StandaloneDoc.modules.layout;
+    const d = pag.diagnostics();
+    const block = content.querySelector("[data-frag]").parentElement;
+    const frags = [...block.querySelectorAll(":scope > [data-frag]")];
+    return frags.map((frag) => {
+      const box = layout.rect(frag);
+      const naturalTop = box.top - parseFloat(frag.style.marginBlockStart || "0");
+      const page = d.pageTops.findIndex((top) => Math.abs(top - box.top) <= 1.5);
+      return page > 0 ? Math.round(d.pageBottoms[page - 1] - naturalTop) : null;
+    });
+  });
+  const before = await holes();
+  expect(before.length, "the paragraph must need several cuts").toBeGreaterThan(2);
+  expect(before.every((hole) => hole != null && hole <= 33), `pages were not full to begin with: ${before}`).toBe(true);
+
+  /* Delete at the second seam: the middle page is now short, and every later segment has
+     to move up to keep each page full. */
+  const cut = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const target = pag.diagnostics().splits[1].offset;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let remaining = target;
+    let node = walker.nextNode();
+    while (node && remaining > node.nodeValue.length) { remaining -= node.nodeValue.length; node = walker.nextNode(); }
+    const range = document.createRange();
+    range.setStart(node, remaining);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    content.focus();
+    return {offset: target, text: content.textContent.length};
+  });
+  await page.keyboard.press("Backspace");
+  const after = await holes();
+  const text = await page.evaluate(() => document.getElementById("content").textContent.length);
+  expect(text).toBe(cut.text - 1);
+  expect(after.length).toBe(before.length);
+  expect(
+    after.every((hole) => hole != null && hole <= 33),
+    `a page was left short after the delete: before ${before}, after ${after}`,
+  ).toBe(true);
+  const check = await page.evaluate(() => globalThis.StandaloneDoc.modules.pagination.diagnostics().check);
+  expect(check.ok, JSON.stringify(check?.failures)).toBe(true);
+});
+
+test("deleting at the seam stays cheap on a long document", async ({page}) => {
+  await boot(page);
+  const measured = await page.evaluate((LONG) => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const make = (tag, text) => { const el = document.createElement(tag); el.textContent = text; return el; };
+    const blocks = [];
+    for (let i = 0; i < 500; i++) blocks.push(make("p", `Paragraph ${i}, a line of ordinary prose in a long document.`));
+    blocks.push(make("p", LONG));
+    for (let i = 0; i < 500; i++) blocks.push(make("p", `Paragraph ${i + 500}, a line of ordinary prose in a long document.`));
+    content.replaceChildren(...blocks);
+    pag.setFragmenting(false);
+    pag.refresh();
+    pag.setFragmenting(true);
+    pag.refresh();
+
+    const placeAtSeam = () => {
+      const block = content.querySelector("[data-frag]").parentElement;
+      const cut = pag.diagnostics().splits[0].offset;
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let remaining = cut;
+      let node = walker.nextNode();
+      while (node && remaining > node.nodeValue.length) { remaining -= node.nodeValue.length; node = walker.nextNode(); }
+      const range = document.createRange();
+      range.setStart(node, remaining);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      content.focus();
+    };
+    const times = [];
+    const textBefore = content.textContent.length;
+    /* Measure the synchronous pass a delete starts, not the driver's latency. */
+    for (let i = 0; i < 8; i++) {
+      placeAtSeam();
+      const t0 = performance.now();
+      content.dispatchEvent(new KeyboardEvent("keydown", {key: "Backspace", bubbles: true, cancelable: true}));
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    const noop = [];
+    for (let i = 0; i < 8; i++) {
+      const t0 = performance.now();
+      pag.refresh();
+      noop.push(performance.now() - t0);
+    }
+    noop.sort((a, b) => a - b);
+    return {
+      blocks: content.children.length,
+      pages: pag.pageCount(),
+      median: times[4],
+      max: times[times.length - 1],
+      noop: noop[4],
+      removed: textBefore - content.textContent.length,
+      check: pag.diagnostics().check,
+    };
+  }, LONG);
+  expect(measured.blocks).toBe(1001);
+  expect(measured.removed, "the measured deletes did not happen").toBe(8);
+  expect(measured.check.ok, JSON.stringify(measured.check?.failures)).toBe(true);
+  /* A delete merges one block, re-plans and re-splits it. Measured at ~3ms on a three-block
+     document and ~12ms here on CI-class hardware; the budget is generous enough to catch a
+     pass that re-walks the document per keystroke, not a slow machine. */
+  expect(measured.median, `median ${measured.median.toFixed(1)}ms (no-op ${measured.noop.toFixed(1)}ms)`).toBeLessThan(150);
+});
+
+test("a deletion that makes the paragraph fit drops the page in the same pass", async ({page}) => {
+  await boot(page);
+  await loadDoc(page, [
+    {tag: "p", text: "A lead paragraph."},
+    {tag: "p", text: LONG.repeat(2)},
+    {tag: "p", text: "A closing paragraph."},
+  ], {fragment: true});
+  const before = await page.evaluate(async () => {
+    const content = document.getElementById("content");
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    const block = content.querySelector("[data-frag]").parentElement;
+    const pages = pag.pageCount();
+    const text = content.textContent.length;
+    /* Enough of the head to make the whole paragraph fit one page. A head text node can be
+       shorter than the cut: deleting past its end is clamped, so the test names what it
+       actually removed. */
+    const remove = Math.min(4300, block.firstChild.length);
+    block.firstChild.deleteData(0, remove);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const d = pag.diagnostics();
+    return {
+      pages, text, remove,
+      immediate: {pages: d.pages, fragments: d.fragments, splits: d.splits.length, stale: d.stale, text: content.textContent.length, check: d.check},
+    };
+  });
+  expect(before.immediate.text).toBe(before.text - before.remove);
+  expect(before.pages, "the fixture must start on more than one page").toBeGreaterThan(1);
+  expect(before.immediate.pages, "the page the deleted text freed is still there").toBe(before.pages - 1);
+  expect(before.immediate.fragments, "a block that fits must be merged, not cut").toBe(0);
+  expect(before.immediate.splits).toBe(0);
+  expect(before.immediate.stale).toBe(false);
+  expect(before.immediate.check.ok, JSON.stringify(before.immediate.check?.failures)).toBe(true);
+
+  await page.waitForTimeout(600);
+  const after = await page.evaluate(() => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    return {pages: pag.pageCount(), stale: pag.diagnostics().stale, text: document.getElementById("content").textContent.length};
+  });
+  expect(after.pages).toBe(before.immediate.pages);
+  expect(after.text).toBe(before.immediate.text);
+  expect(after.stale, "the idle reconcile ran again after an immediate re-cut").toBe(false);
 });
 
 test("typing at the cut keeps the caret across a pass", async ({page}) => {
@@ -1073,6 +1310,87 @@ test("Backspace at the seam keeps the document and the fragments valid", async (
   expect(after.kept, "the caret was not restored across the delete").toBe(true);
 });
 
+test("every deletion gesture that touches the seam removes exactly its range", async ({page}) => {
+  /* The engines treat the fragment's block-box start as a paragraph boundary. Measured in
+     all three: Backspace one character before the seam deletes two, Chromium and WebKit
+     delete two for Delete at or just before it, and a selection whose range reaches the
+     seam loses an extra character. The editor owns those ranges now; this table is the
+     contract, with unique tokens so a wrong character cannot hide in repeated prose. */
+  const cases = [
+    {key: "Backspace", caret: -1, from: -2, to: -1},
+    {key: "Backspace", caret: 0, from: -1, to: 0},
+    {key: "Delete", caret: -2, from: -2, to: -1},
+    {key: "Delete", caret: -1, from: -1, to: 0},
+    {key: "Delete", caret: 0, from: 0, to: 1},
+    {key: "Backspace", sel: [-1, 0], from: -1, to: 0},
+    {key: "Backspace", sel: [0, 1], from: 0, to: 1},
+    {key: "Backspace", sel: [-1, 1], from: -1, to: 1},
+    {key: "Delete", sel: [-1, 1], from: -1, to: 1},
+    {key: "Backspace", sel: [-2, 2], from: -2, to: 2},
+  ];
+  const tokens = (n) => Array.from({length: n}, (_, i) => `w${String(i).padStart(4, "0")}`).join(" ");
+
+  for (const item of cases) {
+    await boot(page);
+    const before = await loadDoc(page, [
+      {tag: "p", text: "Lead."},
+      {tag: "p", text: tokens(2200)},
+      {tag: "p", text: "Tail block."},
+    ], {fragment: true});
+    const placed = await page.evaluate(({caret, sel}) => {
+      const content = document.getElementById("content");
+      const pag = globalThis.StandaloneDoc.modules.pagination;
+      const block = content.querySelector("[data-frag]").parentElement;
+      const cut = pag.diagnostics().splits[0].offset;
+      const point = (at) => {
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        let remaining = at;
+        let node = walker.nextNode();
+        while (node && remaining > node.nodeValue.length) { remaining -= node.nodeValue.length; node = walker.nextNode(); }
+        return {node, offset: remaining};
+      };
+      const [a, b] = sel ? sel : [caret, caret];
+      const start = point(cut + a);
+      const end = point(cut + b);
+      const range = document.createRange();
+      range.setStart(start.node, start.offset);
+      range.setEnd(end.node, end.offset);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      content.focus();
+      return {cut, text: block.textContent};
+    }, item);
+
+    await page.keyboard.press(item.key);
+    const after = await page.evaluate(() => {
+      const content = document.getElementById("content");
+      const pag = globalThis.StandaloneDoc.modules.pagination;
+      const block = content.children[1];
+      return {
+        text: block.textContent,
+        total: content.textContent.length,
+        fragments: pag.diagnostics().fragments,
+        check: pag.diagnostics().check,
+        caret: globalThis.StandaloneDoc.modules.selection.capture(content),
+      };
+    });
+
+    const expected = placed.text.slice(0, placed.cut + item.from) + placed.text.slice(placed.cut + item.to);
+    const label = `${item.key} ${JSON.stringify(item)}`;
+    expect(after.text, `${label}: deleted the wrong text`).toBe(expected);
+    expect(before.fragments, `${label}: the fixture was not fragmented`).toBeGreaterThan(0);
+    expect(after.total, `${label}: the wrong number of characters left the document`)
+      .toBe(before.text.length - (item.to - item.from));
+    /* The paragraph is still fragmented and the document still conserves its text. */
+    expect(after.fragments, `${label}: the paragraph lost its fragments`).toBeGreaterThan(0);
+    expect(after.check.ok, `${label}: ${JSON.stringify(after.check?.failures)}`).toBe(true);
+    expect(after.caret, `${label}: no caret after the delete`).not.toBeNull();
+    expect(after.caret.start.block, `${label}: the caret left the paragraph`).toBe(1);
+    expect(after.caret.start.offset, `${label}: the caret is not at the deletion point`).toBe(placed.cut + item.from);
+  }
+});
+
 test("Enter at the seam leaves a document the planner can re-paginate", async ({page}) => {
   await boot(page);
   await loadDoc(page, FIXTURE, {fragment: true});
@@ -1184,9 +1502,18 @@ test("a triple-click selects the paragraph across a cut", async ({page}) => {
   });
   await page.waitForTimeout(80);
   const box = await page.evaluate((index) => {
-    const block = document.getElementById("content").children[index];
-    const rect = block.getBoundingClientRect();
-    return {x: rect.left + 30, y: rect.top + 8};
+    const content = document.getElementById("content");
+    const block = content.children[index];
+    const viewport = document.getElementById("viewport");
+    const frame = viewport.getBoundingClientRect();
+    /* A line that is actually visible below the overlay toolbar: the block spans a page
+       boundary, and its first line can sit under the toolbar after scrolling. */
+    const range = document.createRange();
+    range.selectNodeContents(block);
+    const line = [...range.getClientRects()]
+      .find((rect) => rect.height > 0 && rect.top > frame.top + 140 && rect.bottom < frame.bottom - 100);
+    if (!line) throw new Error("no visible line in the paragraph");
+    return {x: line.left + 30, y: line.top + 8};
   }, target.block);
   await page.mouse.click(box.x, box.y, {clickCount: 3});
   const selection = await page.evaluate(() => globalThis.StandaloneDoc.modules.selection.capture(

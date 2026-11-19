@@ -449,45 +449,168 @@ export function createEditor(deps = {}) {
     syncToolbar();
   }
 
-  /* Backspace at the start of a fragment. The tail is a block-level span inside the same
-     paragraph, and Chromium treats that boundary as a block join: one Backspace there
-     deletes two characters. The visible document has no boundary, so delete exactly the
-     character before the caret and let the planner re-cut on the next frame. */
-  function fragmentStartsAt(block, offset) {
-    for (const frag of block.querySelectorAll(":scope > [data-frag]")) {
-      if (selection.offsetIn(block, frag, 0) === offset) return true;
-    }
-    return false;
+  /* Deletion at the start of a fragment. The tail is a block-level span inside the same
+     paragraph, and the engines treat that box boundary as a block join: measured in all
+     three, Backspace one character *before* the seam deletes two characters, and Chromium
+     and WebKit also delete two for Delete at or just before it. A selection whose range
+     touches the seam loses one extra character the same way. The visible document has no
+     boundary, so the editor deletes exactly the range the gesture names and lets the
+     planner re-cut (a deleted head re-cuts in the same pre-paint pass). */
+  function fragmentStarts(block) {
+    return [...block.querySelectorAll(":scope > [data-frag]")]
+      .map((frag) => selection.offsetIn(block, frag, 0));
   }
 
-  function backspaceAtSeam(event) {
-    if (event.key !== "Backspace" || event.altKey || event.metaKey || event.ctrlKey) return;
-    const caret = selection.capture(content);
-    if (!caret || !caret.collapsed) return;
-    const block = content.children[caret.start.block];
-    if (!block || caret.start.offset <= 0) return;
-    if (!fragmentStartsAt(block, caret.start.offset)) return;
+  function fragmentStartsAt(block, offset) {
+    return fragmentStarts(block).includes(offset);
+  }
 
-    const from = selection.pointAt(block, caret.start.offset - 1);
-    const to = selection.pointAt(block, caret.start.offset);
-    if (!from || !to) return;
+  /* The engines' error reaches one character past the deleted range on either side, so
+     the range is widened by one before it is compared with a seam. A cross-block range
+     contains every seam between its endpoints. */
+  function nearFragmentStart(from, to) {
+    const first = content.children[from.block];
+    const last = content.children[to.block];
+    if (!first || !last) return false;
+    if (first === last) {
+      return fragmentStarts(first).some((seam) => seam >= from.offset - 1 && seam <= to.offset + 1);
+    }
+    for (let i = from.block + 1; i < to.block; i++) {
+      const middle = content.children[i];
+      if (middle && fragmentStarts(middle).length) return true;
+    }
+    return fragmentStarts(first).some((seam) => seam >= from.offset - 1)
+      || fragmentStarts(last).some((seam) => seam <= to.offset + 1);
+  }
+
+  function seamDelete(event) {
+    if (event.key !== "Backspace" && event.key !== "Delete") return;
+    if (event.altKey || event.metaKey || event.ctrlKey || event.isComposing) return;
+    const caret = selection.capture(content);
+    if (!caret) return;
+    const block = content.children[caret.start.block];
+    if (!block) return;
+
+    const back = event.key === "Backspace";
+    let from = caret.start;
+    let to = caret.end;
+    if (caret.collapsed) {
+      const offset = caret.start.offset;
+      if (back ? offset <= 0 : offset >= block.textContent.length) return;
+      from = {block: caret.start.block, offset: back ? offset - 1 : offset};
+      to = {block: caret.start.block, offset: back ? offset : offset + 1};
+    }
+    if (!nearFragmentStart(from, to)) return;
+
     event.preventDefault();
-    const range = document.createRange();
-    range.setStart(from.node, from.offset);
-    range.setEnd(to.node, to.offset);
+    /* A selection is deleted from the live range so nested inline markup and a cross-block
+       span behave as the browser would have (with the right character count). A collapsed
+       deletion is one character, built from the offset coordinate. */
+    const sel = window.getSelection();
+    let range = null;
+    if (!caret.collapsed && sel && sel.rangeCount) {
+      range = sel.getRangeAt(0);
+    } else {
+      const a = selection.pointAt(block, from.offset);
+      const b = selection.pointAt(block, to.offset);
+      if (!a || !b) return;
+      range = document.createRange();
+      range.setStart(a.node, a.offset);
+      range.setEnd(b.node, b.offset);
+    }
+    deleteRange(caret, from, to, range);
+  }
+
+  /* Delete exactly `range`, leave the caret at `from`, and record one undo step. Shared by
+     the seam guard and a cut that crosses a seam. */
+  function deleteRange(caret, from, to, range) {
     range.deleteContents();
-    block.normalize();
-    selection.restore(content, {
-      start: {block: caret.start.block, offset: caret.start.offset - 1},
-      end: {block: caret.start.block, offset: caret.start.offset - 1},
-      collapsed: true,
-    });
+    const low = Math.min(caret.start.block, caret.end.block);
+    const high = Math.max(caret.start.block, caret.end.block);
+    for (let i = low; i <= high; i++) content.children[i]?.normalize();
+    selection.restore(content, {start: from, end: from, collapsed: true});
     remember();
     flushTyping();
     history.record();
     status.markDirty();
     pagination.schedule();
     syncToolbar();
+  }
+
+  /* A copy that crosses a fragment boundary carries page furniture if the browser is left
+     to serialise it: text/plain gets a line break where the block-level span starts, and
+     text/html gets a `data-frag` element with the page push as an inline margin. Pasting
+     that into the same document inserted a paragraph break and a 216 px gap that the
+     reader never saw (lab/016 §15). The payload is rebuilt from the text coordinate with
+     the fragments unwrapped. */
+  function spansFragment(caret) {
+    const first = content.children[caret.start.block];
+    const last = content.children[caret.end.block];
+    if (!first || !last) return false;
+    if (first === last) {
+      return fragmentStarts(first).some((seam) => seam >= caret.start.offset && seam <= caret.end.offset);
+    }
+    if (fragmentStarts(first).some((seam) => seam >= caret.start.offset)) return true;
+    if (fragmentStarts(last).some((seam) => seam <= caret.end.offset)) return true;
+    for (let i = caret.start.block + 1; i < caret.end.block; i++) {
+      if (fragmentStarts(content.children[i]).length) return true;
+    }
+    return false;
+  }
+
+  function clipboardOf(caret) {
+    const sel = window.getSelection();
+    const host = document.createElement("div");
+    if (sel && sel.rangeCount) host.append(sel.getRangeAt(0).cloneContents());
+    for (const frag of [...host.querySelectorAll("[data-frag]")]) {
+      while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
+      frag.remove();
+    }
+    for (const el of [...host.querySelectorAll("[data-page-start]")]) {
+      el.removeAttribute("data-page-start");
+      el.style.marginBlockStart = "";
+      if (!el.getAttribute("style")) el.removeAttribute("style");
+    }
+    host.normalize();
+
+    /* Paragraphs meet with a blank line in the engines' own clipboard text; inside one
+       paragraph the slice must not invent a break at the seam. */
+    const first = content.children[caret.start.block];
+    const last = content.children[caret.end.block];
+    let text = "";
+    if (first && last) {
+      if (first === last) text = first.textContent.slice(caret.start.offset, caret.end.offset);
+      else {
+        const parts = [first.textContent.slice(caret.start.offset)];
+        for (let i = caret.start.block + 1; i < caret.end.block; i++) parts.push(content.children[i]?.textContent ?? "");
+        parts.push(last.textContent.slice(0, caret.end.offset));
+        text = parts.join("\n\n");
+      }
+    }
+    return {text, html: host.innerHTML};
+  }
+
+  function copyAcrossSeam(event) {
+    if (!event.clipboardData) return;
+    const caret = selection.capture(content);
+    if (!caret || caret.collapsed || !spansFragment(caret)) return;
+    event.preventDefault();
+    const payload = clipboardOf(caret);
+    event.clipboardData.setData("text/plain", payload.text);
+    event.clipboardData.setData("text/html", payload.html);
+  }
+
+  function cutAcrossSeam(event) {
+    if (!event.clipboardData) return;
+    const caret = selection.capture(content);
+    if (!caret || caret.collapsed || !spansFragment(caret)) return;
+    event.preventDefault();
+    const payload = clipboardOf(caret);
+    event.clipboardData.setData("text/plain", payload.text);
+    event.clipboardData.setData("text/html", payload.html);
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    deleteRange(caret, caret.start, caret.end, sel.getRangeAt(0));
   }
 
   /* Enter at the start of a fragment. Firefox deletes a character at the block-box
@@ -554,7 +677,9 @@ export function createEditor(deps = {}) {
 
   function init() {
     try {document.execCommand("defaultParagraphSeparator", false, "p");} catch { }
-    content.addEventListener("keydown", backspaceAtSeam);
+    content.addEventListener("keydown", seamDelete);
+    content.addEventListener("copy", copyAcrossSeam);
+    content.addEventListener("cut", cutAcrossSeam);
     content.addEventListener("keydown", enterAtSeam);
     content.addEventListener("click", tripleClick);
     /* Print preview can lay the document out at the preview's size; when the dialog
