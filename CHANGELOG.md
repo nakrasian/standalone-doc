@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.11.1 — 2026-11-19
+
+A patch release with no format, runtime-contract or plugin-byte change: the two refusals that
+can happen to a plugin now say what to do about them, and the README caught up with v0.11.0.
+
+It exists because `plugins.js` is an *asset*: the wording lives in code a document pins, so the
+fix cannot reach anyone without a release, and the tree was one asset ahead of its tag. A
+document still pinned to `v0.11.0` keeps the old sentences until it moves.
+
+### Fixed
+
+- **A host-API refusal reads like advice.** The registry said `needs host API 2; this document
+  provides 1`; it now says *needs a newer editor: host API 2, this one provides 1 — update
+  this document's runtime (Document settings → Runtime), then reopen*. The sheet's install
+  refusal says the same and adds that nothing was added. The failure **kind** is unchanged —
+  `api` is the contract, the sentence is the advice.
+- **A 404 on a bundle's manifest explains itself.** That is the usual way an older document
+  meets a newer plugin: the sheet reads the catalog at *the tag the document pins*, so the
+  plugin is not in the list at all — and if a row is reached anyway, the message now says this
+  document pins `v0.10.0`, and a plugin published after that tag is not in it.
+
+### Changed
+
+- **README**: the Status section opens at v0.11.0 (it had been two releases back), the layout
+  lists both plugin directories, and the Plugins section says what a bundle is now, what a
+  host-api declaration means, and that updating the runtime is what makes a newer plugin
+  appear — on the next open, because the pin moves for the file while the session keeps the
+  runtime it booted with.
+- **`docs/PLUGINS.md` §Versioning** gained the same paragraph from the contract's side: what a
+  reader of an older document sees, and why the two refusals exist for the cases that remain.
+
 ## v0.11.0 — 2026-11-19
 
 Citations, as a plugin — and the two generic primitives that made a plugin possible at all.
