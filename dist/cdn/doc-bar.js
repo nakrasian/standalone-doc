@@ -13,6 +13,7 @@ export function createDocBar(deps = {}) {
   const commentsButton = bar.querySelector("[data-comments-toggle]");
   const commentsCount = bar.querySelector("[data-comments-count]");
   const addButton = bar.querySelector("[data-comment-add]");
+  const adoptButton = bar.querySelector("[data-doc-adopt]");
   const kindChip = bar.querySelector("[data-doc-kind]");
   const kindNote = bar.querySelector("[data-doc-kind-note]");
   const modeText = bar.querySelector("[data-doc-mode]");
@@ -76,6 +77,9 @@ export function createDocBar(deps = {}) {
       addButton.hidden = !canComment();
       addButton.disabled = addButton.hidden || !hasSelection();
     }
+    /* "May take an editable copy" is the copy's own promise (`capabilities.edit`); the
+       button exists only where the copy carries the editor's address. */
+    if (adoptButton) adoptButton.hidden = !(caps.edit === "copy" && settings.mode !== "edit");
     const count = comments()?.counts?.() || {total: 0, unresolved: 0};
     if (commentsCount) commentsCount.textContent = String(count.unresolved || count.total);
     if (commentsButton) {
@@ -165,6 +169,10 @@ export function createDocBar(deps = {}) {
       openComments(commentsPanel ? commentsPanel.hidden : false);
       return;
     }
+    if (event.target.closest("[data-doc-adopt]")) {
+      adopt();
+      return;
+    }
     if (event.target.closest("[data-comment-add]")) {
       const result = comments()?.begin?.();
       if (result && !result.ok && addButton) addButton.title = result.reason;
@@ -193,6 +201,29 @@ export function createDocBar(deps = {}) {
     if (panel && !panel.hidden) openPanel(false);
     else if (commentsPanel && !commentsPanel.hidden) openComments(false);
   });
+
+  /* Build the other mode into this copy. It is a download, not a save: the file the
+     reader received is untouched, and the result is a new file with no library. */
+  async function adopt() {
+    const registry = env.StandaloneDoc;
+    if (!adoptButton || adoptButton.disabled || !registry?.adopt) return null;
+    adoptButton.disabled = true;
+    const label = adoptButton.textContent;
+    adoptButton.textContent = "Building the editor…";
+    try {
+      const result = await registry.adopt("edit");
+      adoptButton.textContent = label;
+      return result;
+    } catch (error) {
+      /* Fail closed for the mode, open for the document: the copy still reads, and the
+         button says why it stays a copy. */
+      adoptButton.textContent = label;
+      adoptButton.title = error && error.message ? error.message : "The editor could not be built from this copy.";
+      return null;
+    } finally {
+      adoptButton.disabled = false;
+    }
+  }
 
   /* A button click moves the caret out of the document, which takes the selection with
      it — and the selection is the whole input to "Add comment". Cancel the mousedown so

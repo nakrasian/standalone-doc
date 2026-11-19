@@ -99,7 +99,7 @@ async function openViewer(page) {
      whitespace — an anchored regex would match nothing and hang on visibility. */
   await page.locator("#ui-ribbon [data-submenu-trigger]", { hasText: "Save as" }).hover();
   await page.locator("#ui-ribbon [data-submenu-trigger]", { hasText: "HTML" }).hover();
-  await page.locator("#ui-ribbon [data-viewer]").click();
+  await page.locator("#ui-ribbon [data-copy]").click();
 }
 
 async function load(page, url) {
@@ -153,9 +153,9 @@ test("the viewer is an export in the File menu, and a document without a library
   /* It sits with the exports, and it is offered whether or not this document belongs to a
      library — making a copy needs no library. Only the *destination* does. */
   await openViewer(page);
-  await expect(page.locator("#viewer-dialog")).toBeVisible();
-  await expect(page.locator("[data-viewer-publish]")).toBeHidden();
-  await page.locator("#viewer-dialog button[value='cancel']").click();
+  await expect(page.locator("#copy-dialog")).toBeVisible();
+  await expect(page.locator("[data-copy-publish]")).toBeHidden();
+  await page.locator("#copy-dialog button[value='cancel']").click();
 
   const download = page.waitForEvent("download", { timeout: 20_000 });
   await page.locator("[data-save]:visible").first().click();
@@ -211,8 +211,8 @@ test("publish posts a view-mode copy that carries no write target", async ({ pag
   });
 
   await openViewer(page);
-  await expect(page.locator("[data-viewer-publish]")).toBeVisible();
-  await page.locator("[data-viewer-publish]").click();
+  await expect(page.locator("[data-copy-publish]")).toBeVisible();
+  await page.locator("[data-copy-publish]").click();
 
   await expect(page.locator("#publish-dialog")).toBeVisible();
   expect(await page.inputValue("[data-publish-url]")).toBe("http://127.0.0.1:8080/s/9f8e");
@@ -266,9 +266,9 @@ test("a copy re-opened from disk is a file, whatever its block says", async ({ p
   expect(state).toEqual({ protocol: "file:", cloud: null, announced: "off" });
 
   await openViewer(page);
-  await expect(page.locator("#viewer-dialog")).toBeVisible();
-  await expect(page.locator("[data-viewer-publish]")).toBeHidden();
-  await page.locator("#viewer-dialog button[value='cancel']").click();
+  await expect(page.locator("#copy-dialog")).toBeVisible();
+  await expect(page.locator("[data-copy-publish]")).toBeHidden();
+  await page.locator("#copy-dialog button[value='cancel']").click();
 
   const download = page.waitForEvent("download", { timeout: 20_000 });
   await page.locator("[data-save]:visible").first().click();

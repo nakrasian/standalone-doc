@@ -579,6 +579,7 @@
       <span class="folio" data-folio>—</span>
       <span class="doc-kind" data-doc-kind hidden>Review copy</span>
       <button type="button" class="doc-add" data-comment-add hidden disabled title="Select some text to comment on">Add comment</button>
+      <button type="button" class="doc-adopt" data-doc-adopt hidden title="Build the editor into this copy">Edit a copy…</button>
       <span class="grow"></span>
       <span class="doc-title" data-doc-title></span>
       <span class="grow"></span>
@@ -855,6 +856,18 @@
       background: var(--doc-hover);
     }
 
+    /* "Edit a copy…" is the copy's promise, not its default action: quieter than Add comment,
+       and it says what happened while it works. */
+    header#doc-bar .doc-adopt {
+      border-color: transparent;
+      background: transparent;
+      color: var(--doc-muted);
+    }
+
+    header#doc-bar .doc-adopt:hover {
+      color: var(--doc-ink);
+    }
+
     header#doc-bar .doc-kind {
       padding: 2px 7px;
       border-radius: 999px;
@@ -943,6 +956,7 @@
       const commentsButton = bar.querySelector("[data-comments-toggle]");
       const commentsCount = bar.querySelector("[data-comments-count]");
       const addButton = bar.querySelector("[data-comment-add]");
+      const adoptButton = bar.querySelector("[data-doc-adopt]");
       const kindChip = bar.querySelector("[data-doc-kind]");
       const kindNote = bar.querySelector("[data-doc-kind-note]");
       const modeText = bar.querySelector("[data-doc-mode]");
@@ -1006,6 +1020,9 @@
           addButton.hidden = !canComment();
           addButton.disabled = addButton.hidden || !hasSelection();
         }
+        /* "May take an editable copy" is the copy's own promise (`capabilities.edit`); the
+           button exists only where the copy carries the editor's address. */
+        if (adoptButton) adoptButton.hidden = !(caps.edit === "copy" && settings.mode !== "edit");
         const count = comments()?.counts?.() || {total: 0, unresolved: 0};
         if (commentsCount) commentsCount.textContent = String(count.unresolved || count.total);
         if (commentsButton) {
@@ -1095,6 +1112,10 @@
           openComments(commentsPanel ? commentsPanel.hidden : false);
           return;
         }
+        if (event.target.closest("[data-doc-adopt]")) {
+          adopt();
+          return;
+        }
         if (event.target.closest("[data-comment-add]")) {
           const result = comments()?.begin?.();
           if (result && !result.ok && addButton) addButton.title = result.reason;
@@ -1123,6 +1144,29 @@
         if (panel && !panel.hidden) openPanel(false);
         else if (commentsPanel && !commentsPanel.hidden) openComments(false);
       });
+
+      /* Build the other mode into this copy. It is a download, not a save: the file the
+         reader received is untouched, and the result is a new file with no library. */
+      async function adopt() {
+        const registry = env.StandaloneDoc;
+        if (!adoptButton || adoptButton.disabled || !registry?.adopt) return null;
+        adoptButton.disabled = true;
+        const label = adoptButton.textContent;
+        adoptButton.textContent = "Building the editor…";
+        try {
+          const result = await registry.adopt("edit");
+          adoptButton.textContent = label;
+          return result;
+        } catch (error) {
+          /* Fail closed for the mode, open for the document: the copy still reads, and the
+             button says why it stays a copy. */
+          adoptButton.textContent = label;
+          adoptButton.title = error && error.message ? error.message : "The editor could not be built from this copy.";
+          return null;
+        } finally {
+          adoptButton.disabled = false;
+        }
+      }
 
       /* A button click moves the caret out of the document, which takes the selection with
          it — and the selection is the whole input to "Add comment". Cancel the mousedown so
@@ -1205,7 +1249,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"view","ui":"ribbon","editable":false,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"off","edit":"off"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"absent","requiredBy":["edit"],"bytes":34068,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-hoZ2yOa9Ab8Bnwh7LDlDbNdWyH6gd1l/BCyxwq2Nb1PLjxipX6NPW8OgsYxUdO8l"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"absent","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"absent","requiredBy":["edit"],"bytes":16263,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-XSQegPIatrJ6f+JU3sTHTNvwuBR/cCNGVeNemKR92MUGn2kCPRsm3xbKcLAQ30rs"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"inline","requiredBy":["view","comment"],"bytes":2099,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-JLaIFL0l4BW2D95sk81W+nPD1QcUw3nTgpKhbnQMrcf5lBAtAGwdD821p2whuWh+"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"inline","requiredBy":["view","comment"],"bytes":7178,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-cCXiRCuTixnghuxnux4FNmYNadWksJ35aM2k/0o0lJJt9J0GuqFTAq2D4fHzFz1v"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"inline","requiredBy":["view","comment"],"bytes":8258,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-Cpd/OG4KT923a02qcynlmttumeAPw71KAXvdWMS0DfoC7vow+ig8acTwsICbDr5E"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"absent","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":45358,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2874,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Zu0QyksLXlJsrwCVNr+IeeIO897dLpvWB7sRvroohq+WE4xGL4xJxFMh2DxQdRVV"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"absent","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"absent","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"absent","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"absent","requiredBy":["*"],"bytes":46697,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-Kt43DHF6cD9sOl2FJFe5uQraE47txxZS5W0S+mnnbi2uwA9xiQwkn3rMJ0VuXVP7"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"absent","requiredBy":["edit"],"bytes":21439,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-ld/WFkZBBwfLS5bobfN12cydj2i2ScN7q6nq3hqoT6eABgikDoqWZW3TTOv4DK8T"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"absent","requiredBy":["edit"],"bytes":68357,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-XCLO10nRSTprOiPhL3LP1YmfkeMDrMZoG3JyZWfWXJFvov2BKgOZ8sSJrZiOJDZR"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"absent","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"absent","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"absent","requiredBy":["edit"],"bytes":10779,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-Z9yYy39npgE9V85vm6D04VQ8ZT9wpmYKwZKB8FtCrGDpVR0CDhZQuh5ZhDzGJeDZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"absent","requiredBy":["edit"],"bytes":34068,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-hoZ2yOa9Ab8Bnwh7LDlDbNdWyH6gd1l/BCyxwq2Nb1PLjxipX6NPW8OgsYxUdO8l"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"absent","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"absent","requiredBy":["edit"],"bytes":16266,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-vcam0YK2mi4akWKfCEB0/Jzr9afYgKSPp446DGivuNyQMeDAi1AtwZZRB3g2CKft"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"inline","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"inline","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"inline","requiredBy":["view","comment"],"bytes":9623,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-37JRLb5viykpQVw1jnTK6gfUE+aAhBYnv/rWSawK1cRiPC1gdudrTfGw6Yajncmy"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"absent","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":49631,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18618,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3182,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"absent","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"absent","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"absent","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"absent","requiredBy":["*"],"bytes":46697,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-Kt43DHF6cD9sOl2FJFe5uQraE47txxZS5W0S+mnnbi2uwA9xiQwkn3rMJ0VuXVP7"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"absent","requiredBy":["edit"],"bytes":22500,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"absent","requiredBy":["edit"],"bytes":74284,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-Jelrdr3lHrzsAZJKy69GLlmaK0h+8O1ya284nEY8rr4sIDcW0ATKNhGTuhlLi1J7"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"absent","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"absent","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"absent","requiredBy":["edit"],"bytes":12019,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-r2HuKRnikf6Znh3cbG5CU14yNpa2eYuSduu0hNtM+puBolVO+Q8q4ONA6J21LnrK"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -2231,6 +2275,104 @@
         return true;
       }
 
+      /**
+       * Build another mode into this copy, on request.
+       *
+       * Not a save: the received file is never written, and the result is a *new* file with
+       * no library (`cloud` is the export's business). The copy carries the other mode's
+       * *declarations* — `mode: "online"` with `url` + `integrity`, a few kilobytes of JSON
+       * and no code — and this is where the code is fetched, verified and built (invariant
+       * 34's other half: a sealed copy, whose addresses were deleted, fails here).
+       *
+       * The upgrade is a document change: `mode` and `capabilities.edit = "off"` land in
+       * `#doc-settings`, so the file is dirty before the first keystroke, and a copy of the
+       * copy is not an editor (no recursion).
+       */
+      async function adopt(mode) {
+        if (!["edit", "view", "comment"].includes(mode)) {
+          throw failure("unavailable", mode, "is not a mode this document can adopt");
+        }
+        if (state !== "ready") throw failure("construct", mode, "can only adopt from a ready document");
+        /* What actually needs work: a module that is not built, or a fetched stylesheet or
+           fragment. An inline stylesheet/fragment is already applied — it was parsed with the
+           document — so it is not a job for this loop and must not be mistaken for one. */
+        const required = manifest().assets
+          .filter((asset) => asset.role !== "infra" && !isPlugin(asset) && asset.kind !== "bin")
+          .filter((asset) => inMode(asset, mode) && allows(asset, settings().capabilities));
+        const wanted = required
+          .filter((asset) => (asset.kind === "js" ? !(asset.id in modules) : asset.mode === "online"))
+          .sort((a, b) => a.order - b.order);
+
+        /* An `inline` declaration with no block is the one thing this cannot fix: the bytes
+           are neither here nor addressable. Say that, rather than booting half an editor. */
+        const stranded = wanted.find((asset) => asset.mode !== "online");
+        if (stranded) {
+          throw failure(
+            "missing",
+            stranded.id,
+            `${stranded.id}: is declared "${stranded.mode}" but this copy does not carry it — only a copy with an editable address can adopt "${mode}"`,
+          );
+        }
+
+        setState("booting");
+        emit("start", {
+          order: wanted.filter((asset) => asset.kind === "js").map((asset) => asset.id),
+          assets: wanted.map((asset) => asset.id),
+          total: wanted.filter((asset) => asset.kind === "js").length,
+          fetched: wanted.length,
+          /* The rows are the *adopted* plan, not the current mode's: the dialog would
+             otherwise list what this copy already runs. */
+          plan: wanted,
+        });
+
+        const loaded = new Map();
+        try {
+          await Promise.all(wanted.map(async (asset) => {
+            loaded.set(asset.id, await fetchAsset(asset));
+          }));
+        } catch (error) {
+          setState("ready");
+          emit("ready", {count: Object.keys(modules).length});
+          throw error;
+        }
+
+        let index = 0;
+        try {
+          for (const asset of wanted) {
+            const isModule = asset.kind === "js" && asset.role !== "infra";
+            await constructOne(asset, {loaded, index: isModule ? index : 0, total: wanted.length});
+            if (isModule) index += 1;
+          }
+        } catch (error) {
+          /* Fail closed for the mode, open for the document: what was built is withdrawn,
+             and the copy the reader already had stays readable. */
+          unbuild(wanted);
+          setState("ready");
+          emit("ready", {count: Object.keys(modules).length});
+          throw error;
+        }
+
+        const block = document.getElementById("doc-settings");
+        if (block) {
+          try {
+            const stored = JSON.parse(block.textContent || "{}");
+            stored.mode = mode;
+            stored.editable = mode === "edit";
+            stored.capabilities = {...(stored.capabilities || {}), edit: "off"};
+            block.textContent = JSON.stringify(stored);
+          } catch {
+            /* A corrupt block: the caller's mode change already happened in memory, and
+               the next save is the place to fix the file. */
+          }
+        }
+        modules["apply-settings"]?.apply?.();
+        modules.pagination?.schedule?.();
+        modules.status?.markDirty?.();
+        setState("ready");
+        emit("ready", {count: Object.keys(modules).length});
+        return {mode, adopted: wanted.map((asset) => asset.id)};
+      }
+
       /* Tear the graph down and build it again. Registered factories survive, so a
          failure that was environmental can be retried without reloading the file. */
       async function retry() {
@@ -2267,6 +2409,7 @@
         hostApi: HOST_API,
         plugins,
         boot,
+        adopt,
         retry,
         order,
         planned,
@@ -2391,13 +2534,15 @@
          slim document fetches 19 files — the three slowest are a stylesheet, a fragment and the
          sprite (lab/013). Rows come from the registry's plan, so the list cannot disagree with
          what boot actually does. */
-      function renderPlan() {
+      function renderPlan(assets) {
         const el = ensure();
         if (!el) return;
         el.rows.replaceChildren();
         rows.clear();
         plan = {byId: new Map(), byUrl: new Map(), fetched: 0, fetchedDone: 0, modules: 0, built: 0};
-        for (const asset of registry.planned ? registry.planned() : []) {
+        /* `adopt` builds a mode this copy is not in yet, so it names its own plan; boot
+           names none and gets the document's. */
+        for (const asset of assets || (registry.planned ? registry.planned() : [])) {
           /* Infrastructure is already running: it is not something to wait for. */
           if (asset.role === "infra") continue;
           plan.byId.set(asset.id, asset);
@@ -2712,7 +2857,7 @@
       registry.on("start", (detail) => {
         lastStart = detail;
         reset();
-        renderPlan();
+        renderPlan(detail.plan);
         const el = ensure();
         if (el) {
           const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
@@ -2768,39 +2913,43 @@
          from the markup: a copy whose markup was edited by hand must not be able to
          claim it is editable when the file says otherwise. */
       function apply() {
+        /* The block, not the boot snapshot: `registry.adopt()` rewrites the mode after the
+           document is already running, and repainting from the snapshot would leave the
+           text locked and the ribbon hidden in a document that now says `edit`. */
+        const current = env.StandaloneDoc?.settings?.() || settings;
         const root = document.documentElement;
-        root.dataset.mode = settings.mode;
+        root.dataset.mode = current.mode;
         /* Which chrome the file was saved in. Presentation, applied before anything
            paints, so a minimal file never flashes its ribbon. */
-        if (settings.ui) document.body.dataset.ui = settings.ui;
+        if (current.ui) document.body.dataset.ui = current.ui;
         /* Chrome visibility is a setting of its own, not a consequence of the mode: a
            read-only copy may still want the toolbar for print or zoom. */
-        root.dataset.toolbar = settings.toolbar ? "on" : "off";
+        root.dataset.toolbar = current.toolbar ? "on" : "off";
         /* Where this file saves, announced for the same reason: chrome reads it, and no menu
            item should have to re-parse the settings block to decide whether to exist. A file
            says `off` before the first paint, so the File menu never offers a library it does
            not have. */
-        root.dataset.cloud = settings.cloud ? "on" : "off";
+        root.dataset.cloud = current.cloud ? "on" : "off";
         /* Which comment affordances this file has. `off` is the default for every document
            that never declared a capability, and it is what CSS reads to hide a marker layer
            whose module was not built. Presentation only: the loader decided what exists. */
-        root.dataset.comments = settings.capabilities?.comments || "off";
+        root.dataset.comments = current.capabilities?.comments || "off";
 
         /* A built flavour carries only the chrome its mode builds, but `index.html` is the
            source of all of them and a hand-edited copy can carry a block it never runs. Paint
            the chrome this mode owns, and only that — one bar serves a viewer and a reviewer. */
         const bar = document.getElementById("doc-bar");
-        if (bar) bar.hidden = settings.mode !== "view" && settings.mode !== "comment";
+        if (bar) bar.hidden = current.mode !== "view" && current.mode !== "comment";
         /* The same rule the other way round, and it is not symmetry for its own sake: a
            document saved with its editor inline and then switched to view mode carries the
            ribbon's markup without the module that drives it. Dead furniture is worse than
            absent furniture, and a view-mode file has a bar of its own to paint. */
         const ribbon = document.getElementById("app-toolbar");
-        if (ribbon) ribbon.hidden = settings.mode !== "edit";
+        if (ribbon) ribbon.hidden = current.mode !== "edit";
 
         const content = document.getElementById("content");
         if (!content) return;
-        if (settings.editable) content.setAttribute("contenteditable", "true");
+        if (current.editable) content.setAttribute("contenteditable", "true");
         else content.setAttribute("contenteditable", "false");
       }
 

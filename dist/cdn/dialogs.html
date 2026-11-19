@@ -169,29 +169,51 @@
   </div>
 </dialog>
 
-<dialog id="viewer-dialog" aria-labelledby="viewer-title">
+<dialog id="copy-dialog" aria-labelledby="copy-title">
   <form method="dialog">
-    <h2 id="viewer-title">Viewer (read-only)</h2>
-    <p class="sp-sub">A copy in view mode. This file is not changed: the copy carries no
-      editor, so there is nothing in it to edit and nothing that can write back.</p>
+    <h2 id="copy-title">Save a copy</h2>
+    <p class="sp-sub">A new file. This document is not changed, and the copy never writes back to
+      it. A reviewer's name and the comment timestamps travel with the file.</p>
     <div class="sp-row">
-      <span class="sp-text"><span class="sp-label">Show chrome</span>
-        <span class="sp-why">the reader’s bar: folio, title, Save a copy</span></span>
-      <input type="checkbox" data-viewer-toolbar aria-label="Show chrome">
+      <span class="sp-text"><span class="sp-label">Kind</span>
+        <span class="sp-why" data-copy-kind-note>Read only. Comments show; nobody may add one.</span></span>
+      <span class="sp-kinds" role="radiogroup" aria-label="Kind of copy">
+        <label><input type="radio" name="copy-kind" value="editor"> Editor</label>
+        <label><input type="radio" name="copy-kind" value="review"> Review</label>
+        <label><input type="radio" name="copy-kind" value="view" checked> Viewer</label>
+      </span>
     </div>
     <div class="sp-row">
-      <label class="sp-text" for="viewer-policy"><span class="sp-label">Loading</span>
+      <label class="sp-text"><span class="sp-label">Carry comments</span>
+        <span class="sp-why" data-copy-comments-why>The store and its block ids travel with the copy.</span>
+      </label>
+      <input type="checkbox" data-copy-comments checked aria-label="Carry comments">
+    </div>
+    <div class="sp-row" data-copy-edit-row>
+      <label class="sp-text"><span class="sp-label">May take an editable copy</span>
+        <span class="sp-why" data-copy-edit-why>Nothing is carried; the editor is downloaded when they choose to edit.</span>
+      </label>
+      <input type="checkbox" data-copy-edit aria-label="May take an editable copy">
+    </div>
+    <div class="sp-row">
+      <label class="sp-text"><span class="sp-label">Show chrome</span>
+        <span class="sp-why">the copy's one bar</span></label>
+      <input type="checkbox" data-copy-chrome checked aria-label="Show chrome">
+    </div>
+    <div class="sp-row">
+      <label class="sp-text" for="copy-policy"><span class="sp-label">Storage</span>
         <span class="sp-why">inline opens from disk; slim keeps one runtime for every copy</span></label>
-      <select id="viewer-policy" data-viewer-policy aria-label="Loading mode">
+      <select id="copy-policy" data-copy-policy aria-label="Storage">
         <option value="inline">inline — self-contained</option>
         <option value="smart">smart — core inline, the rest fetched</option>
         <option value="slim">slim — runtime by reference</option>
       </select>
     </div>
+    <p class="sp-note" data-copy-size>—</p>
     <div class="dialog-actions">
       <button type="submit" value="cancel">Cancel</button>
       <button type="submit" value="download">Download</button>
-      <button type="submit" class="primary" value="library" data-viewer-publish hidden>Copy to library</button>
+      <button type="submit" class="primary" value="library" data-copy-publish hidden>Copy to library</button>
     </div>
   </form>
 </dialog>

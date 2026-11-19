@@ -199,6 +199,11 @@ export function createToolbar(deps = {}) {
     // Runtime frames out, and the store pruned to the figures still present.
     figures.prepareClone(clone);
 
+    /* Comments are content, so they travel unless the caller says not to. A copy that
+       nobody may read comments in strips the store, and with it the only reason to carry
+       the annotator. */
+    if (options.comments === "strip") clone.querySelector("#comment-store")?.remove();
+
     const size = document.querySelector("[data-fontsize]")?.value || "11pt";
     const theme = clone.querySelector("#user-theme");
     if (theme) theme.textContent = `:root{--doc-size:${size}}`;
@@ -1084,28 +1089,127 @@ export function createToolbar(deps = {}) {
     });
   }
 
-  /* ------------------------------------------------------------ the viewer
+  /* -------------------------------------------------------------- the copy
    *
-   * A viewer is an *export*, not a mode of the file you are editing. That is a safety
-   * property, not a preference: `policy.js` marks the editing assets `absent` in a
-   * view-mode save, so a file rewritten that way can never be edited again — only
-   * replaced by an older copy. So the viewer is built as a copy, and the two choices
-   * that used to be settings *of the file* travel with the copy instead: whether it shows
-   * chrome, and whether it carries its assets (mailable, opens from disk) or fetches them
-   * (small, one shared runtime).
+   * A copy is an export, not a mode of the file you are editing: `policy.js` marks what
+   * the copy's mode does not need `absent`, so a file rewritten that way can never be
+   * edited again — only replaced by an older copy. Three kinds, one dialog:
+   *
+   *   editor  edit,    comments write/off, no editor it could hand to anyone else
+   *   review  comment, comments write,     text locked, may fetch an editor on request
+   *   view    view,    comments read/off,  nothing may write
+   *
+   * "May take an editable copy" is the pins decision: the copy keeps the editor's
+   * address (`url` + `integrity`, a few KB of JSON) and fetches the code when the reader
+   * asks. Without it the copy is *sealed* — the addresses are deleted, so nothing can
+   * turn it into an editor. Both are exports; neither writes the file it came from.
    */
 
-  const VIEWER_POLICIES = policy.PRESETS;
+  const COPY_POLICIES = policy.PRESETS;
+  const copyMode = (kind) => (kind === "review" ? "comment" : kind === "editor" ? "edit" : "view");
+  const kindDefaultPolicy = {editor: "inline", review: "inline", view: "slim"};
 
-  /** Ask for the copy's two options. `null` when the author closes the dialog. */
-  function askViewer() {
-    const dialog = document.getElementById("viewer-dialog");
+  /* The build's and the loader's filter, for this file's arithmetic. */
+  const inMode = (asset, mode) => {
+    const requiredBy = asset.requiredBy || ["*"];
+    return requiredBy.includes("*") || requiredBy.includes(mode);
+  };
+
+  function copyCapabilities({kind, comments, editCopy}) {
+    return {
+      /* A view copy may read comments or not; the other two kinds are the ones that
+         allow writing, and a review copy that may not annotate would be a viewer. */
+      comments: comments ? (kind === "view" ? "read" : "write") : "off",
+      edit: kind !== "editor" && editCopy ? "copy" : "off",
+    };
+  }
+
+  /** Ask what the copy is for. `null` when the author closes the dialog. */
+  function askCopy() {
+    const dialog = document.getElementById("copy-dialog");
     if (!dialog) return Promise.resolve(null);
-    /* Publishing needs somewhere to publish; downloading never does. */
-    const publish = dialog.querySelector("[data-viewer-publish]");
-    if (publish) publish.hidden = !library();
-    dialog.querySelector("[data-viewer-toolbar]").checked = true;
-    dialog.querySelector("[data-viewer-policy]").value = "slim";
+    const kindInputs = [...dialog.querySelectorAll('input[name="copy-kind"]')];
+    const commentsBox = dialog.querySelector("[data-copy-comments]");
+    const editBox = dialog.querySelector("[data-copy-edit]");
+    const editRow = dialog.querySelector("[data-copy-edit-row]");
+    const chromeBox = dialog.querySelector("[data-copy-chrome]");
+    const policySelect = dialog.querySelector("[data-copy-policy]");
+    const publish = dialog.querySelector("[data-copy-publish]");
+    const size = dialog.querySelector("[data-copy-size]");
+    const kindNote = dialog.querySelector("[data-copy-kind-note]");
+    const commentsWhy = dialog.querySelector("[data-copy-comments-why]");
+    const editWhy = dialog.querySelector("[data-copy-edit-why]");
+
+    const kind = () => kindInputs.find((input) => input.checked)?.value || "view";
+    const target = library();
+
+    function paint() {
+      const chosen = kind();
+      const mode = copyMode(chosen);
+      const comments = commentsBox.checked;
+      const editCopy = editBox.checked;
+      const capabilities = copyCapabilities({kind: chosen, comments, editCopy});
+      const manifest = globalThis.StandaloneDoc.manifest();
+
+      /* A review copy exists to annotate, so its ownership of comments is not a choice;
+         a viewer that carries them may only read them. */
+      commentsBox.disabled = chosen === "review";
+      if (chosen === "review") commentsBox.checked = true;
+      editRow.hidden = chosen === "editor";
+      editBox.disabled = chosen === "editor";
+      publish.hidden = chosen !== "view" || !target;
+
+      kindNote.textContent = {
+        editor: "Fully editable here and after they download it.",
+        review: "The text is locked; they can add comments and save a copy.",
+        view: "Read only. Comments show; nobody may add one.",
+      }[chosen];
+
+      const editorBytes = manifest.assets
+        .filter((asset) => asset.role !== "infra" && asset.kind === "js" && inMode(asset, "edit") && !inMode(asset, mode))
+        .reduce((sum, asset) => sum + (asset.bytes || 0), 0);
+      const kb = Math.round(editorBytes / 1024);
+      if (chosen === "editor") {
+        editWhy.textContent = "This copy is the editor: it carries the editing modules itself.";
+      } else if (editCopy) {
+        editWhy.textContent = `They may download the editor (~${kb} KB) whenever they choose to edit.`;
+      } else {
+        editWhy.textContent = "Sealed: no address for the editor, so it can never become one.";
+      }
+      commentsWhy.textContent = !comments
+        ? "Not carried. A copy with no comments is the smallest file."
+        : chosen === "view"
+          ? "Markers and read-only threads travel; nobody may annotate."
+          : "The store, the markers and the annotator travel.";
+
+      const planned = policy.plan(manifest, {policy: policySelect.value, mode, capabilities});
+      const warning = policySelect.value === "inline" && editCopy
+        ? ` Inline: the editor still downloads ~${kb} KB on first edit.`
+        : "";
+      size.textContent = `Assets in the copy: ~${Math.max(0, Math.round(planned.inlineBytes / 1024))} KB.${warning}`;
+    }
+
+    /* The kind decides what the copy is; its storage default follows, because a review
+       copy that fetches its own bar cannot be opened from disk. */
+    for (const input of kindInputs) {
+      input.checked = input.value === "view";
+      input.addEventListener("change", () => {
+        policySelect.value = kindDefaultPolicy[kind()];
+        editBox.checked = kind() !== "editor" && editBox.checked;
+        paint();
+      });
+    }
+    commentsBox.checked = true;
+    editBox.checked = false;
+    chromeBox.checked = true;
+    policySelect.value = kindDefaultPolicy.view;
+    for (const control of [commentsBox, editBox, chromeBox, policySelect]) {
+      control.addEventListener("change", paint);
+    }
+    dialog.addEventListener("input", paint);
+    if (publish) publish.hidden = !target;
+    paint();
+
     return new Promise((resolve) => {
       dialog.addEventListener(
         "close",
@@ -1114,45 +1218,55 @@ export function createToolbar(deps = {}) {
           if (destination !== "download" && destination !== "library") return resolve(null);
           resolve({
             destination,
-            toolbar: dialog.querySelector("[data-viewer-toolbar]").checked,
-            policy: dialog.querySelector("[data-viewer-policy]").value,
+            kind: kind(),
+            comments: commentsBox.checked,
+            editCopy: editBox.checked,
+            toolbar: chromeBox.checked,
+            policy: policySelect.value,
           });
         },
-        { once: true },
+        {once: true},
       );
       dialog.showModal();
     });
   }
 
   /**
-   * Build a read-only copy and send it somewhere: a download, or the library this document
-   * belongs to. Never this file — a failed export leaves the document exactly as it was,
-   * down to the dirty dot, which is the whole reason it is not a setting.
+   * Build a copy and send it somewhere: a download, or the library this document belongs
+   * to. Never this file — a failed export leaves the document exactly as it was, down to
+   * the dirty dot, which is why it is not a setting.
    */
-  async function viewer({toolbar = true, policy: preset = "slim", destination = "download"} = {}) {
-    let copy;
+  async function copy({destination = "download", kind = "view", comments = true, editCopy = false, toolbar = true, policy: preset = null} = {}) {
+    /* A published link is a viewer: the library serves bytes, and a "review" link that
+       cannot save itself is a worse reader than a viewer with read-only comments. */
+    const chosenKind = destination === "library" ? "view" : kind;
+    const mode = copyMode(chosenKind);
+    const capabilities = copyCapabilities({kind: chosenKind, comments, editCopy});
+    /* Pins or seal: the one decision that makes a copy able to become an editor. */
+    const pinned = capabilities.edit === "copy";
+    let built;
     try {
-      copy = await serialize({
-        mode: "view",
+      built = await serialize({
+        mode,
+        capabilities,
         toolbar: Boolean(toolbar),
-        policy: VIEWER_POLICIES.includes(preset) ? preset : "slim",
-        /* A copy is a flavour, not a save: what this mode cannot use is *gone* from the
-           declaration, so nobody can flip the copy back into an editor by editing a field. */
-        absentOutside: true,
+        policy: COPY_POLICIES.includes(preset) ? preset : kindDefaultPolicy[chosenKind],
+        comments: comments ? "include" : "strip",
+        absentOutside: !pinned,
       });
     } catch (error) {
-      console.error("Viewer aborted:", error && error.message ? error.message : error);
+      console.error("Copy aborted:", error && error.message ? error.message : error);
       return;
     }
 
-    const problems = validate(copy.html);
+    const problems = validate(built.html);
     if (problems.length) {
-      console.error("Viewer aborted:", problems);
+      console.error("Copy aborted:", problems);
       return;
     }
 
     /* A copy is not a source: it must not carry the write target. */
-    const html = detach(copy.html);
+    const html = detach(built.html);
     const target = library();
 
     if (destination === "library" && target) {
@@ -1165,7 +1279,8 @@ export function createToolbar(deps = {}) {
       return;
     }
 
-    const name = `${copy.title.replace(/[\\/:*?"<>|]+/g, "-")} (read-only).html`;
+    const suffix = chosenKind === "editor" ? "editable" : chosenKind === "review" ? "review" : "read-only";
+    const name = `${built.title.replace(/[\\/:*?"<>|]+/g, "-")} (${suffix}).html`;
     const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
     const a = document.createElement("a");
     a.href = url;
@@ -1173,6 +1288,16 @@ export function createToolbar(deps = {}) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
+
+  /** The old name and shape: a viewer copy, nothing carried it may write. */
+  const viewer = (options = {}) => copy({
+    destination: options.destination || "download",
+    kind: "view",
+    comments: options.comments !== false,
+    editCopy: options.editCopy === true,
+    toolbar: options.toolbar !== false,
+    policy: options.policy || null,
+  });
 
   async function save(options = {}) {
     /* `to: "file"` is the deliberate way out of the library — a copy you keep. */
@@ -1476,7 +1601,7 @@ export function createToolbar(deps = {}) {
     const figureBtn = e.target.closest("[data-figure-pick]");
     const exportBtn = e.target.closest("[data-export]");
     const saveBtn = e.target.closest("[data-save]");
-    const viewerBtn = e.target.closest("[data-viewer]");
+    const copyBtn = e.target.closest("[data-copy]");
     const shortcutBtn = e.target.closest("[data-shortcuts]");
     const commentBtn = e.target.closest("[data-comment-add-edit]");
     const zoomBtn = e.target.closest("[data-zoom]");
@@ -1493,7 +1618,7 @@ export function createToolbar(deps = {}) {
     if (figureBtn) {figures.pick(figureBtn.dataset.figurePick); return;}
     if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
     if (exportBtn) {exporter().begin(exportBtn.dataset.export); return;}
-    if (viewerBtn) {askViewer().then((choice) => choice && viewer(choice)); return;}
+    if (copyBtn) {askCopy().then((choice) => choice && copy(choice)); return;}
     if (saveBtn) {save(); return;}
     if (shortcutBtn) {showShortcuts(); return;}
     if (commentBtn) {
@@ -1603,5 +1728,5 @@ export function createToolbar(deps = {}) {
   wireDocSettings();
   wirePublish();
   syncChromeButtons(document.body.dataset.ui || "ribbon");
-  return {save, serialize, validate, viewer, settings: openDocSettings};
+  return {save, serialize, validate, copy, viewer, settings: openDocSettings};
 }

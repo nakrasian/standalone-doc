@@ -399,6 +399,7 @@
         "save",
         "serialize",
         "validate",
+        "copy",
         "viewer",
         "settings"
       ]

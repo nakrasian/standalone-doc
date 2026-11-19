@@ -1969,7 +1969,7 @@
                     <!-- A viewer is an export, not a mode of this file: a view-mode save marks
                          the editing assets `absent`, so a file rewritten that way cannot be
                          edited again. The copy is what gets the two choices. -->
-                    <button data-menu-item data-viewer>Viewer (read-only)…</button>
+                    <button data-menu-item data-copy>Save a copy for someone…</button>
                   </div>
                 </div>
 
@@ -2377,7 +2377,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"write"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":34068,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-hoZ2yOa9Ab8Bnwh7LDlDbNdWyH6gd1l/BCyxwq2Nb1PLjxipX6NPW8OgsYxUdO8l"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16263,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-XSQegPIatrJ6f+JU3sTHTNvwuBR/cCNGVeNemKR92MUGn2kCPRsm3xbKcLAQ30rs"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2099,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-JLaIFL0l4BW2D95sk81W+nPD1QcUw3nTgpKhbnQMrcf5lBAtAGwdD821p2whuWh+"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7178,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-cCXiRCuTixnghuxnux4FNmYNadWksJ35aM2k/0o0lJJt9J0GuqFTAq2D4fHzFz1v"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":8258,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-Cpd/OG4KT923a02qcynlmttumeAPw71KAXvdWMS0DfoC7vow+ig8acTwsICbDr5E"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":45358,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18458,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":2874,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Zu0QyksLXlJsrwCVNr+IeeIO897dLpvWB7sRvroohq+WE4xGL4xJxFMh2DxQdRVV"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":46697,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-Kt43DHF6cD9sOl2FJFe5uQraE47txxZS5W0S+mnnbi2uwA9xiQwkn3rMJ0VuXVP7"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":21439,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-ld/WFkZBBwfLS5bobfN12cydj2i2ScN7q6nq3hqoT6eABgikDoqWZW3TTOv4DK8T"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":68357,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-XCLO10nRSTprOiPhL3LP1YmfkeMDrMZoG3JyZWfWXJFvov2BKgOZ8sSJrZiOJDZR"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":10779,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-Z9yYy39npgE9V85vm6D04VQ8ZT9wpmYKwZKB8FtCrGDpVR0CDhZQuh5ZhDzGJeDZ"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":10152,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/page-styles.css","integrity":"sha384-/vF+GoDJTW2+XMOXlKO9D+021TFYKFXbUpYevEXdG1bv7Y7KHanZ6W3sK4pwPd6l"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":34068,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-styles.css","integrity":"sha384-hoZ2yOa9Ab8Bnwh7LDlDbNdWyH6gd1l/BCyxwq2Nb1PLjxipX6NPW8OgsYxUdO8l"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16266,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar-markup.html","integrity":"sha384-vcam0YK2mi4akWKfCEB0/Jzr9afYgKSPp446DGivuNyQMeDAi1AtwZZRB3g2CKft"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":9623,"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/doc-bar.js","integrity":"sha384-37JRLb5viykpQVw1jnTK6gfUE+aAhBYnv/rWSawK1cRiPC1gdudrTfGw6Yajncmy"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":49631,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":18618,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3182,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/apply-settings.js","integrity":"sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5137,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/session.js","integrity":"sha384-9OkavKtFIXQNyUyl+B66ZFfi9v2ZxuOeYUdXQMrJ4+I1vQU8+OKPwKk/3qqYckcu"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":55807,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/pagination.js","integrity":"sha384-Ut79xbRxJ3gD6/ae36PYQdHsth2NhOVf9Z1uD8zA0sgtpK+1NZqAKIlmG2tCsj/a"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4075,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/status.js","integrity":"sha384-Pn8tyUhfTeJS5ZGZ2KfNaD7AQJRHMfiihvg97y9AbZG8m0Q+L5dGud2VTauSCnGS"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":27142,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/editor.js","integrity":"sha384-qL30iLg8WSgGLvOhy7CvhkfLfJcA0QLnDiRxrkGigo9/h7BEhl2+6np7WzClyCZH"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":46697,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/comments.js","integrity":"sha384-Kt43DHF6cD9sOl2FJFe5uQraE47txxZS5W0S+mnnbi2uwA9xiQwkn3rMJ0VuXVP7"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":56400,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/figures.js","integrity":"sha384-H7hlT0jjDFI8PPKwWgQ0hYx4zRTxOjpVxdahdgNanylyorZaBldW6PmqOewg1nJJ"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":22500,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/policy.js","integrity":"sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":74284,"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/toolbar.js","integrity":"sha384-Jelrdr3lHrzsAZJKy69GLlmaK0h+8O1ya284nEY8rr4sIDcW0ATKNhGTuhlLi1J7"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":51663,"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/plugins.js","integrity":"sha384-OtbMuJ/byzDJ7zWVtnSS5JoshbxP0eSBqQLv6dY67YR11dkOjyMawkORkQNRaCxR"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":42992,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/export.js","integrity":"sha384-YpzhpmMKhGivf0NcrHw0iidzoSCb77ds1XsMuchvyg1eWQTFswicqes6uJC8XfTZ"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":12019,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn/dialogs.html","integrity":"sha384-r2HuKRnikf6Znh3cbG5CU14yNpa2eYuSduu0hNtM+puBolVO+Q8q4ONA6J21LnrK"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -3403,6 +3403,104 @@
         return true;
       }
 
+      /**
+       * Build another mode into this copy, on request.
+       *
+       * Not a save: the received file is never written, and the result is a *new* file with
+       * no library (`cloud` is the export's business). The copy carries the other mode's
+       * *declarations* — `mode: "online"` with `url` + `integrity`, a few kilobytes of JSON
+       * and no code — and this is where the code is fetched, verified and built (invariant
+       * 34's other half: a sealed copy, whose addresses were deleted, fails here).
+       *
+       * The upgrade is a document change: `mode` and `capabilities.edit = "off"` land in
+       * `#doc-settings`, so the file is dirty before the first keystroke, and a copy of the
+       * copy is not an editor (no recursion).
+       */
+      async function adopt(mode) {
+        if (!["edit", "view", "comment"].includes(mode)) {
+          throw failure("unavailable", mode, "is not a mode this document can adopt");
+        }
+        if (state !== "ready") throw failure("construct", mode, "can only adopt from a ready document");
+        /* What actually needs work: a module that is not built, or a fetched stylesheet or
+           fragment. An inline stylesheet/fragment is already applied — it was parsed with the
+           document — so it is not a job for this loop and must not be mistaken for one. */
+        const required = manifest().assets
+          .filter((asset) => asset.role !== "infra" && !isPlugin(asset) && asset.kind !== "bin")
+          .filter((asset) => inMode(asset, mode) && allows(asset, settings().capabilities));
+        const wanted = required
+          .filter((asset) => (asset.kind === "js" ? !(asset.id in modules) : asset.mode === "online"))
+          .sort((a, b) => a.order - b.order);
+
+        /* An `inline` declaration with no block is the one thing this cannot fix: the bytes
+           are neither here nor addressable. Say that, rather than booting half an editor. */
+        const stranded = wanted.find((asset) => asset.mode !== "online");
+        if (stranded) {
+          throw failure(
+            "missing",
+            stranded.id,
+            `${stranded.id}: is declared "${stranded.mode}" but this copy does not carry it — only a copy with an editable address can adopt "${mode}"`,
+          );
+        }
+
+        setState("booting");
+        emit("start", {
+          order: wanted.filter((asset) => asset.kind === "js").map((asset) => asset.id),
+          assets: wanted.map((asset) => asset.id),
+          total: wanted.filter((asset) => asset.kind === "js").length,
+          fetched: wanted.length,
+          /* The rows are the *adopted* plan, not the current mode's: the dialog would
+             otherwise list what this copy already runs. */
+          plan: wanted,
+        });
+
+        const loaded = new Map();
+        try {
+          await Promise.all(wanted.map(async (asset) => {
+            loaded.set(asset.id, await fetchAsset(asset));
+          }));
+        } catch (error) {
+          setState("ready");
+          emit("ready", {count: Object.keys(modules).length});
+          throw error;
+        }
+
+        let index = 0;
+        try {
+          for (const asset of wanted) {
+            const isModule = asset.kind === "js" && asset.role !== "infra";
+            await constructOne(asset, {loaded, index: isModule ? index : 0, total: wanted.length});
+            if (isModule) index += 1;
+          }
+        } catch (error) {
+          /* Fail closed for the mode, open for the document: what was built is withdrawn,
+             and the copy the reader already had stays readable. */
+          unbuild(wanted);
+          setState("ready");
+          emit("ready", {count: Object.keys(modules).length});
+          throw error;
+        }
+
+        const block = document.getElementById("doc-settings");
+        if (block) {
+          try {
+            const stored = JSON.parse(block.textContent || "{}");
+            stored.mode = mode;
+            stored.editable = mode === "edit";
+            stored.capabilities = {...(stored.capabilities || {}), edit: "off"};
+            block.textContent = JSON.stringify(stored);
+          } catch {
+            /* A corrupt block: the caller's mode change already happened in memory, and
+               the next save is the place to fix the file. */
+          }
+        }
+        modules["apply-settings"]?.apply?.();
+        modules.pagination?.schedule?.();
+        modules.status?.markDirty?.();
+        setState("ready");
+        emit("ready", {count: Object.keys(modules).length});
+        return {mode, adopted: wanted.map((asset) => asset.id)};
+      }
+
       /* Tear the graph down and build it again. Registered factories survive, so a
          failure that was environmental can be retried without reloading the file. */
       async function retry() {
@@ -3439,6 +3537,7 @@
         hostApi: HOST_API,
         plugins,
         boot,
+        adopt,
         retry,
         order,
         planned,
@@ -3563,13 +3662,15 @@
          slim document fetches 19 files — the three slowest are a stylesheet, a fragment and the
          sprite (lab/013). Rows come from the registry's plan, so the list cannot disagree with
          what boot actually does. */
-      function renderPlan() {
+      function renderPlan(assets) {
         const el = ensure();
         if (!el) return;
         el.rows.replaceChildren();
         rows.clear();
         plan = {byId: new Map(), byUrl: new Map(), fetched: 0, fetchedDone: 0, modules: 0, built: 0};
-        for (const asset of registry.planned ? registry.planned() : []) {
+        /* `adopt` builds a mode this copy is not in yet, so it names its own plan; boot
+           names none and gets the document's. */
+        for (const asset of assets || (registry.planned ? registry.planned() : [])) {
           /* Infrastructure is already running: it is not something to wait for. */
           if (asset.role === "infra") continue;
           plan.byId.set(asset.id, asset);
@@ -3884,7 +3985,7 @@
       registry.on("start", (detail) => {
         lastStart = detail;
         reset();
-        renderPlan();
+        renderPlan(detail.plan);
         const el = ensure();
         if (el) {
           const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
@@ -3940,39 +4041,43 @@
          from the markup: a copy whose markup was edited by hand must not be able to
          claim it is editable when the file says otherwise. */
       function apply() {
+        /* The block, not the boot snapshot: `registry.adopt()` rewrites the mode after the
+           document is already running, and repainting from the snapshot would leave the
+           text locked and the ribbon hidden in a document that now says `edit`. */
+        const current = env.StandaloneDoc?.settings?.() || settings;
         const root = document.documentElement;
-        root.dataset.mode = settings.mode;
+        root.dataset.mode = current.mode;
         /* Which chrome the file was saved in. Presentation, applied before anything
            paints, so a minimal file never flashes its ribbon. */
-        if (settings.ui) document.body.dataset.ui = settings.ui;
+        if (current.ui) document.body.dataset.ui = current.ui;
         /* Chrome visibility is a setting of its own, not a consequence of the mode: a
            read-only copy may still want the toolbar for print or zoom. */
-        root.dataset.toolbar = settings.toolbar ? "on" : "off";
+        root.dataset.toolbar = current.toolbar ? "on" : "off";
         /* Where this file saves, announced for the same reason: chrome reads it, and no menu
            item should have to re-parse the settings block to decide whether to exist. A file
            says `off` before the first paint, so the File menu never offers a library it does
            not have. */
-        root.dataset.cloud = settings.cloud ? "on" : "off";
+        root.dataset.cloud = current.cloud ? "on" : "off";
         /* Which comment affordances this file has. `off` is the default for every document
            that never declared a capability, and it is what CSS reads to hide a marker layer
            whose module was not built. Presentation only: the loader decided what exists. */
-        root.dataset.comments = settings.capabilities?.comments || "off";
+        root.dataset.comments = current.capabilities?.comments || "off";
 
         /* A built flavour carries only the chrome its mode builds, but `index.html` is the
            source of all of them and a hand-edited copy can carry a block it never runs. Paint
            the chrome this mode owns, and only that — one bar serves a viewer and a reviewer. */
         const bar = document.getElementById("doc-bar");
-        if (bar) bar.hidden = settings.mode !== "view" && settings.mode !== "comment";
+        if (bar) bar.hidden = current.mode !== "view" && current.mode !== "comment";
         /* The same rule the other way round, and it is not symmetry for its own sake: a
            document saved with its editor inline and then switched to view mode carries the
            ribbon's markup without the module that drives it. Dead furniture is worse than
            absent furniture, and a view-mode file has a bar of its own to paint. */
         const ribbon = document.getElementById("app-toolbar");
-        if (ribbon) ribbon.hidden = settings.mode !== "edit";
+        if (ribbon) ribbon.hidden = current.mode !== "edit";
 
         const content = document.getElementById("content");
         if (!content) return;
-        if (settings.editable) content.setAttribute("contenteditable", "true");
+        if (current.editable) content.setAttribute("contenteditable", "true");
         else content.setAttribute("contenteditable", "false");
       }
 
@@ -9845,12 +9950,36 @@
              file, but forgetting where its bytes live makes the other mode impossible to
              produce later. That is not hypothetical: an edit-mode save used to mark the
              viewer's assets `absent`, so an edited document could no longer be exported as a
-             viewer at all — there was nothing left to fetch. A *flavour* is the case that
-             wants the declaration gone (a copy that cannot be flipped back into an editor),
-             so it asks for it with `absentOutside`. */
-          const merelyOutside =
-            decision.to === "absent" && !planned.absentOutside && entry && !inMode(entry, planned.mode);
-          if (entry && entry.mode !== decision.to && !merelyOutside) {
+             viewer at all — there was nothing left to fetch.
+
+             Two shapes, and the difference is the whole of "carrying pins":
+
+               online + url      — a copy that may become an editor. The declaration is true
+                                   ("not in this file") and the address still works, so
+                                   `registry.adopt()` can fetch it on request. Four kilobytes
+                                   of JSON, no code.
+               absent, no address — a *sealed* copy. Nothing can fetch it, so nothing can
+                                   turn it into an editor. `absentOutside` asks for this.
+
+             Leaving the entry `inline` with its block removed — what happened before — was a
+             third thing: a lie the loader would act on the day someone adopted it. */
+          const outside = decision.to === "absent" && entry && !inMode(entry, planned.mode);
+          if (outside) {
+            const sealed = planned.absentOutside;
+            if (entry.mode !== "absent") {
+              entry.mode = "absent";
+              manifestChanged = true;
+            }
+            if (sealed && (entry.url || entry.integrity)) {
+              delete entry.url;
+              delete entry.integrity;
+              manifestChanged = true;
+            } else if (!sealed && entry.mode === "absent") {
+              /* Pins: the bytes are not here, but they are addressable. */
+              entry.mode = "online";
+              manifestChanged = true;
+            }
+          } else if (entry && entry.mode !== decision.to) {
             entry.mode = decision.to;
             manifestChanged = true;
           }
@@ -10167,6 +10296,11 @@
 
         // Runtime frames out, and the store pruned to the figures still present.
         figures.prepareClone(clone);
+
+        /* Comments are content, so they travel unless the caller says not to. A copy that
+           nobody may read comments in strips the store, and with it the only reason to carry
+           the annotator. */
+        if (options.comments === "strip") clone.querySelector("#comment-store")?.remove();
 
         const size = document.querySelector("[data-fontsize]")?.value || "11pt";
         const theme = clone.querySelector("#user-theme");
@@ -11053,28 +11187,127 @@
         });
       }
 
-      /* ------------------------------------------------------------ the viewer
+      /* -------------------------------------------------------------- the copy
        *
-       * A viewer is an *export*, not a mode of the file you are editing. That is a safety
-       * property, not a preference: `policy.js` marks the editing assets `absent` in a
-       * view-mode save, so a file rewritten that way can never be edited again — only
-       * replaced by an older copy. So the viewer is built as a copy, and the two choices
-       * that used to be settings *of the file* travel with the copy instead: whether it shows
-       * chrome, and whether it carries its assets (mailable, opens from disk) or fetches them
-       * (small, one shared runtime).
+       * A copy is an export, not a mode of the file you are editing: `policy.js` marks what
+       * the copy's mode does not need `absent`, so a file rewritten that way can never be
+       * edited again — only replaced by an older copy. Three kinds, one dialog:
+       *
+       *   editor  edit,    comments write/off, no editor it could hand to anyone else
+       *   review  comment, comments write,     text locked, may fetch an editor on request
+       *   view    view,    comments read/off,  nothing may write
+       *
+       * "May take an editable copy" is the pins decision: the copy keeps the editor's
+       * address (`url` + `integrity`, a few KB of JSON) and fetches the code when the reader
+       * asks. Without it the copy is *sealed* — the addresses are deleted, so nothing can
+       * turn it into an editor. Both are exports; neither writes the file it came from.
        */
 
-      const VIEWER_POLICIES = policy.PRESETS;
+      const COPY_POLICIES = policy.PRESETS;
+      const copyMode = (kind) => (kind === "review" ? "comment" : kind === "editor" ? "edit" : "view");
+      const kindDefaultPolicy = {editor: "inline", review: "inline", view: "slim"};
 
-      /** Ask for the copy's two options. `null` when the author closes the dialog. */
-      function askViewer() {
-        const dialog = document.getElementById("viewer-dialog");
+      /* The build's and the loader's filter, for this file's arithmetic. */
+      const inMode = (asset, mode) => {
+        const requiredBy = asset.requiredBy || ["*"];
+        return requiredBy.includes("*") || requiredBy.includes(mode);
+      };
+
+      function copyCapabilities({kind, comments, editCopy}) {
+        return {
+          /* A view copy may read comments or not; the other two kinds are the ones that
+             allow writing, and a review copy that may not annotate would be a viewer. */
+          comments: comments ? (kind === "view" ? "read" : "write") : "off",
+          edit: kind !== "editor" && editCopy ? "copy" : "off",
+        };
+      }
+
+      /** Ask what the copy is for. `null` when the author closes the dialog. */
+      function askCopy() {
+        const dialog = document.getElementById("copy-dialog");
         if (!dialog) return Promise.resolve(null);
-        /* Publishing needs somewhere to publish; downloading never does. */
-        const publish = dialog.querySelector("[data-viewer-publish]");
-        if (publish) publish.hidden = !library();
-        dialog.querySelector("[data-viewer-toolbar]").checked = true;
-        dialog.querySelector("[data-viewer-policy]").value = "slim";
+        const kindInputs = [...dialog.querySelectorAll('input[name="copy-kind"]')];
+        const commentsBox = dialog.querySelector("[data-copy-comments]");
+        const editBox = dialog.querySelector("[data-copy-edit]");
+        const editRow = dialog.querySelector("[data-copy-edit-row]");
+        const chromeBox = dialog.querySelector("[data-copy-chrome]");
+        const policySelect = dialog.querySelector("[data-copy-policy]");
+        const publish = dialog.querySelector("[data-copy-publish]");
+        const size = dialog.querySelector("[data-copy-size]");
+        const kindNote = dialog.querySelector("[data-copy-kind-note]");
+        const commentsWhy = dialog.querySelector("[data-copy-comments-why]");
+        const editWhy = dialog.querySelector("[data-copy-edit-why]");
+
+        const kind = () => kindInputs.find((input) => input.checked)?.value || "view";
+        const target = library();
+
+        function paint() {
+          const chosen = kind();
+          const mode = copyMode(chosen);
+          const comments = commentsBox.checked;
+          const editCopy = editBox.checked;
+          const capabilities = copyCapabilities({kind: chosen, comments, editCopy});
+          const manifest = globalThis.StandaloneDoc.manifest();
+
+          /* A review copy exists to annotate, so its ownership of comments is not a choice;
+             a viewer that carries them may only read them. */
+          commentsBox.disabled = chosen === "review";
+          if (chosen === "review") commentsBox.checked = true;
+          editRow.hidden = chosen === "editor";
+          editBox.disabled = chosen === "editor";
+          publish.hidden = chosen !== "view" || !target;
+
+          kindNote.textContent = {
+            editor: "Fully editable here and after they download it.",
+            review: "The text is locked; they can add comments and save a copy.",
+            view: "Read only. Comments show; nobody may add one.",
+          }[chosen];
+
+          const editorBytes = manifest.assets
+            .filter((asset) => asset.role !== "infra" && asset.kind === "js" && inMode(asset, "edit") && !inMode(asset, mode))
+            .reduce((sum, asset) => sum + (asset.bytes || 0), 0);
+          const kb = Math.round(editorBytes / 1024);
+          if (chosen === "editor") {
+            editWhy.textContent = "This copy is the editor: it carries the editing modules itself.";
+          } else if (editCopy) {
+            editWhy.textContent = `They may download the editor (~${kb} KB) whenever they choose to edit.`;
+          } else {
+            editWhy.textContent = "Sealed: no address for the editor, so it can never become one.";
+          }
+          commentsWhy.textContent = !comments
+            ? "Not carried. A copy with no comments is the smallest file."
+            : chosen === "view"
+              ? "Markers and read-only threads travel; nobody may annotate."
+              : "The store, the markers and the annotator travel.";
+
+          const planned = policy.plan(manifest, {policy: policySelect.value, mode, capabilities});
+          const warning = policySelect.value === "inline" && editCopy
+            ? ` Inline: the editor still downloads ~${kb} KB on first edit.`
+            : "";
+          size.textContent = `Assets in the copy: ~${Math.max(0, Math.round(planned.inlineBytes / 1024))} KB.${warning}`;
+        }
+
+        /* The kind decides what the copy is; its storage default follows, because a review
+           copy that fetches its own bar cannot be opened from disk. */
+        for (const input of kindInputs) {
+          input.checked = input.value === "view";
+          input.addEventListener("change", () => {
+            policySelect.value = kindDefaultPolicy[kind()];
+            editBox.checked = kind() !== "editor" && editBox.checked;
+            paint();
+          });
+        }
+        commentsBox.checked = true;
+        editBox.checked = false;
+        chromeBox.checked = true;
+        policySelect.value = kindDefaultPolicy.view;
+        for (const control of [commentsBox, editBox, chromeBox, policySelect]) {
+          control.addEventListener("change", paint);
+        }
+        dialog.addEventListener("input", paint);
+        if (publish) publish.hidden = !target;
+        paint();
+
         return new Promise((resolve) => {
           dialog.addEventListener(
             "close",
@@ -11083,45 +11316,55 @@
               if (destination !== "download" && destination !== "library") return resolve(null);
               resolve({
                 destination,
-                toolbar: dialog.querySelector("[data-viewer-toolbar]").checked,
-                policy: dialog.querySelector("[data-viewer-policy]").value,
+                kind: kind(),
+                comments: commentsBox.checked,
+                editCopy: editBox.checked,
+                toolbar: chromeBox.checked,
+                policy: policySelect.value,
               });
             },
-            { once: true },
+            {once: true},
           );
           dialog.showModal();
         });
       }
 
       /**
-       * Build a read-only copy and send it somewhere: a download, or the library this document
-       * belongs to. Never this file — a failed export leaves the document exactly as it was,
-       * down to the dirty dot, which is the whole reason it is not a setting.
+       * Build a copy and send it somewhere: a download, or the library this document belongs
+       * to. Never this file — a failed export leaves the document exactly as it was, down to
+       * the dirty dot, which is why it is not a setting.
        */
-      async function viewer({toolbar = true, policy: preset = "slim", destination = "download"} = {}) {
-        let copy;
+      async function copy({destination = "download", kind = "view", comments = true, editCopy = false, toolbar = true, policy: preset = null} = {}) {
+        /* A published link is a viewer: the library serves bytes, and a "review" link that
+           cannot save itself is a worse reader than a viewer with read-only comments. */
+        const chosenKind = destination === "library" ? "view" : kind;
+        const mode = copyMode(chosenKind);
+        const capabilities = copyCapabilities({kind: chosenKind, comments, editCopy});
+        /* Pins or seal: the one decision that makes a copy able to become an editor. */
+        const pinned = capabilities.edit === "copy";
+        let built;
         try {
-          copy = await serialize({
-            mode: "view",
+          built = await serialize({
+            mode,
+            capabilities,
             toolbar: Boolean(toolbar),
-            policy: VIEWER_POLICIES.includes(preset) ? preset : "slim",
-            /* A copy is a flavour, not a save: what this mode cannot use is *gone* from the
-               declaration, so nobody can flip the copy back into an editor by editing a field. */
-            absentOutside: true,
+            policy: COPY_POLICIES.includes(preset) ? preset : kindDefaultPolicy[chosenKind],
+            comments: comments ? "include" : "strip",
+            absentOutside: !pinned,
           });
         } catch (error) {
-          console.error("Viewer aborted:", error && error.message ? error.message : error);
+          console.error("Copy aborted:", error && error.message ? error.message : error);
           return;
         }
 
-        const problems = validate(copy.html);
+        const problems = validate(built.html);
         if (problems.length) {
-          console.error("Viewer aborted:", problems);
+          console.error("Copy aborted:", problems);
           return;
         }
 
         /* A copy is not a source: it must not carry the write target. */
-        const html = detach(copy.html);
+        const html = detach(built.html);
         const target = library();
 
         if (destination === "library" && target) {
@@ -11134,7 +11377,8 @@
           return;
         }
 
-        const name = `${copy.title.replace(/[\\/:*?"<>|]+/g, "-")} (read-only).html`;
+        const suffix = chosenKind === "editor" ? "editable" : chosenKind === "review" ? "review" : "read-only";
+        const name = `${built.title.replace(/[\\/:*?"<>|]+/g, "-")} (${suffix}).html`;
         const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
         const a = document.createElement("a");
         a.href = url;
@@ -11142,6 +11386,16 @@
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 0);
       }
+
+      /** The old name and shape: a viewer copy, nothing carried it may write. */
+      const viewer = (options = {}) => copy({
+        destination: options.destination || "download",
+        kind: "view",
+        comments: options.comments !== false,
+        editCopy: options.editCopy === true,
+        toolbar: options.toolbar !== false,
+        policy: options.policy || null,
+      });
 
       async function save(options = {}) {
         /* `to: "file"` is the deliberate way out of the library — a copy you keep. */
@@ -11445,7 +11699,7 @@
         const figureBtn = e.target.closest("[data-figure-pick]");
         const exportBtn = e.target.closest("[data-export]");
         const saveBtn = e.target.closest("[data-save]");
-        const viewerBtn = e.target.closest("[data-viewer]");
+        const copyBtn = e.target.closest("[data-copy]");
         const shortcutBtn = e.target.closest("[data-shortcuts]");
         const commentBtn = e.target.closest("[data-comment-add-edit]");
         const zoomBtn = e.target.closest("[data-zoom]");
@@ -11462,7 +11716,7 @@
         if (figureBtn) {figures.pick(figureBtn.dataset.figurePick); return;}
         if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
         if (exportBtn) {exporter().begin(exportBtn.dataset.export); return;}
-        if (viewerBtn) {askViewer().then((choice) => choice && viewer(choice)); return;}
+        if (copyBtn) {askCopy().then((choice) => choice && copy(choice)); return;}
         if (saveBtn) {save(); return;}
         if (shortcutBtn) {showShortcuts(); return;}
         if (commentBtn) {
@@ -11572,7 +11826,7 @@
       wireDocSettings();
       wirePublish();
       syncChromeButtons(document.body.dataset.ui || "ribbon");
-      return {save, serialize, validate, viewer, settings: openDocSettings};
+      return {save, serialize, validate, copy, viewer, settings: openDocSettings};
     }
     StandaloneDoc.register("toolbar", createToolbar);
   </script>
@@ -13437,29 +13691,51 @@
     </div>
   </dialog>
 
-  <dialog id="viewer-dialog" aria-labelledby="viewer-title">
+  <dialog id="copy-dialog" aria-labelledby="copy-title">
     <form method="dialog">
-      <h2 id="viewer-title">Viewer (read-only)</h2>
-      <p class="sp-sub">A copy in view mode. This file is not changed: the copy carries no
-        editor, so there is nothing in it to edit and nothing that can write back.</p>
+      <h2 id="copy-title">Save a copy</h2>
+      <p class="sp-sub">A new file. This document is not changed, and the copy never writes back to
+        it. A reviewer's name and the comment timestamps travel with the file.</p>
       <div class="sp-row">
-        <span class="sp-text"><span class="sp-label">Show chrome</span>
-          <span class="sp-why">the reader’s bar: folio, title, Save a copy</span></span>
-        <input type="checkbox" data-viewer-toolbar aria-label="Show chrome">
+        <span class="sp-text"><span class="sp-label">Kind</span>
+          <span class="sp-why" data-copy-kind-note>Read only. Comments show; nobody may add one.</span></span>
+        <span class="sp-kinds" role="radiogroup" aria-label="Kind of copy">
+          <label><input type="radio" name="copy-kind" value="editor"> Editor</label>
+          <label><input type="radio" name="copy-kind" value="review"> Review</label>
+          <label><input type="radio" name="copy-kind" value="view" checked> Viewer</label>
+        </span>
       </div>
       <div class="sp-row">
-        <label class="sp-text" for="viewer-policy"><span class="sp-label">Loading</span>
+        <label class="sp-text"><span class="sp-label">Carry comments</span>
+          <span class="sp-why" data-copy-comments-why>The store and its block ids travel with the copy.</span>
+        </label>
+        <input type="checkbox" data-copy-comments checked aria-label="Carry comments">
+      </div>
+      <div class="sp-row" data-copy-edit-row>
+        <label class="sp-text"><span class="sp-label">May take an editable copy</span>
+          <span class="sp-why" data-copy-edit-why>Nothing is carried; the editor is downloaded when they choose to edit.</span>
+        </label>
+        <input type="checkbox" data-copy-edit aria-label="May take an editable copy">
+      </div>
+      <div class="sp-row">
+        <label class="sp-text"><span class="sp-label">Show chrome</span>
+          <span class="sp-why">the copy's one bar</span></label>
+        <input type="checkbox" data-copy-chrome checked aria-label="Show chrome">
+      </div>
+      <div class="sp-row">
+        <label class="sp-text" for="copy-policy"><span class="sp-label">Storage</span>
           <span class="sp-why">inline opens from disk; slim keeps one runtime for every copy</span></label>
-        <select id="viewer-policy" data-viewer-policy aria-label="Loading mode">
+        <select id="copy-policy" data-copy-policy aria-label="Storage">
           <option value="inline">inline — self-contained</option>
           <option value="smart">smart — core inline, the rest fetched</option>
           <option value="slim">slim — runtime by reference</option>
         </select>
       </div>
+      <p class="sp-note" data-copy-size>—</p>
       <div class="dialog-actions">
         <button type="submit" value="cancel">Cancel</button>
         <button type="submit" value="download">Download</button>
-        <button type="submit" class="primary" value="library" data-viewer-publish hidden>Copy to library</button>
+        <button type="submit" class="primary" value="library" data-copy-publish hidden>Copy to library</button>
       </div>
     </form>
   </dialog>

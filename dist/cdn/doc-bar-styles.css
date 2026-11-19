@@ -242,6 +242,18 @@ header#doc-bar .doc-add:not(:disabled):hover {
   background: var(--doc-hover);
 }
 
+/* "Edit a copy…" is the copy's promise, not its default action: quieter than Add comment,
+   and it says what happened while it works. */
+header#doc-bar .doc-adopt {
+  border-color: transparent;
+  background: transparent;
+  color: var(--doc-muted);
+}
+
+header#doc-bar .doc-adopt:hover {
+  color: var(--doc-ink);
+}
+
 header#doc-bar .doc-kind {
   padding: 2px 7px;
   border-radius: 999px;

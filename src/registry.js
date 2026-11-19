@@ -1021,6 +1021,104 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return true;
   }
 
+  /**
+   * Build another mode into this copy, on request.
+   *
+   * Not a save: the received file is never written, and the result is a *new* file with
+   * no library (`cloud` is the export's business). The copy carries the other mode's
+   * *declarations* — `mode: "online"` with `url` + `integrity`, a few kilobytes of JSON
+   * and no code — and this is where the code is fetched, verified and built (invariant
+   * 34's other half: a sealed copy, whose addresses were deleted, fails here).
+   *
+   * The upgrade is a document change: `mode` and `capabilities.edit = "off"` land in
+   * `#doc-settings`, so the file is dirty before the first keystroke, and a copy of the
+   * copy is not an editor (no recursion).
+   */
+  async function adopt(mode) {
+    if (!["edit", "view", "comment"].includes(mode)) {
+      throw failure("unavailable", mode, "is not a mode this document can adopt");
+    }
+    if (state !== "ready") throw failure("construct", mode, "can only adopt from a ready document");
+    /* What actually needs work: a module that is not built, or a fetched stylesheet or
+       fragment. An inline stylesheet/fragment is already applied — it was parsed with the
+       document — so it is not a job for this loop and must not be mistaken for one. */
+    const required = manifest().assets
+      .filter((asset) => asset.role !== "infra" && !isPlugin(asset) && asset.kind !== "bin")
+      .filter((asset) => inMode(asset, mode) && allows(asset, settings().capabilities));
+    const wanted = required
+      .filter((asset) => (asset.kind === "js" ? !(asset.id in modules) : asset.mode === "online"))
+      .sort((a, b) => a.order - b.order);
+
+    /* An `inline` declaration with no block is the one thing this cannot fix: the bytes
+       are neither here nor addressable. Say that, rather than booting half an editor. */
+    const stranded = wanted.find((asset) => asset.mode !== "online");
+    if (stranded) {
+      throw failure(
+        "missing",
+        stranded.id,
+        `${stranded.id}: is declared "${stranded.mode}" but this copy does not carry it — only a copy with an editable address can adopt "${mode}"`,
+      );
+    }
+
+    setState("booting");
+    emit("start", {
+      order: wanted.filter((asset) => asset.kind === "js").map((asset) => asset.id),
+      assets: wanted.map((asset) => asset.id),
+      total: wanted.filter((asset) => asset.kind === "js").length,
+      fetched: wanted.length,
+      /* The rows are the *adopted* plan, not the current mode's: the dialog would
+         otherwise list what this copy already runs. */
+      plan: wanted,
+    });
+
+    const loaded = new Map();
+    try {
+      await Promise.all(wanted.map(async (asset) => {
+        loaded.set(asset.id, await fetchAsset(asset));
+      }));
+    } catch (error) {
+      setState("ready");
+      emit("ready", {count: Object.keys(modules).length});
+      throw error;
+    }
+
+    let index = 0;
+    try {
+      for (const asset of wanted) {
+        const isModule = asset.kind === "js" && asset.role !== "infra";
+        await constructOne(asset, {loaded, index: isModule ? index : 0, total: wanted.length});
+        if (isModule) index += 1;
+      }
+    } catch (error) {
+      /* Fail closed for the mode, open for the document: what was built is withdrawn,
+         and the copy the reader already had stays readable. */
+      unbuild(wanted);
+      setState("ready");
+      emit("ready", {count: Object.keys(modules).length});
+      throw error;
+    }
+
+    const block = document.getElementById("doc-settings");
+    if (block) {
+      try {
+        const stored = JSON.parse(block.textContent || "{}");
+        stored.mode = mode;
+        stored.editable = mode === "edit";
+        stored.capabilities = {...(stored.capabilities || {}), edit: "off"};
+        block.textContent = JSON.stringify(stored);
+      } catch {
+        /* A corrupt block: the caller's mode change already happened in memory, and
+           the next save is the place to fix the file. */
+      }
+    }
+    modules["apply-settings"]?.apply?.();
+    modules.pagination?.schedule?.();
+    modules.status?.markDirty?.();
+    setState("ready");
+    emit("ready", {count: Object.keys(modules).length});
+    return {mode, adopted: wanted.map((asset) => asset.id)};
+  }
+
   /* Tear the graph down and build it again. Registered factories survive, so a
      failure that was environmental can be retried without reloading the file. */
   async function retry() {
@@ -1057,6 +1155,7 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     hostApi: HOST_API,
     plugins,
     boot,
+    adopt,
     retry,
     order,
     planned,

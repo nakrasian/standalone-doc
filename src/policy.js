@@ -384,12 +384,36 @@ export function createPolicy(deps = {}) {
          file, but forgetting where its bytes live makes the other mode impossible to
          produce later. That is not hypothetical: an edit-mode save used to mark the
          viewer's assets `absent`, so an edited document could no longer be exported as a
-         viewer at all — there was nothing left to fetch. A *flavour* is the case that
-         wants the declaration gone (a copy that cannot be flipped back into an editor),
-         so it asks for it with `absentOutside`. */
-      const merelyOutside =
-        decision.to === "absent" && !planned.absentOutside && entry && !inMode(entry, planned.mode);
-      if (entry && entry.mode !== decision.to && !merelyOutside) {
+         viewer at all — there was nothing left to fetch.
+
+         Two shapes, and the difference is the whole of "carrying pins":
+
+           online + url      — a copy that may become an editor. The declaration is true
+                               ("not in this file") and the address still works, so
+                               `registry.adopt()` can fetch it on request. Four kilobytes
+                               of JSON, no code.
+           absent, no address — a *sealed* copy. Nothing can fetch it, so nothing can
+                               turn it into an editor. `absentOutside` asks for this.
+
+         Leaving the entry `inline` with its block removed — what happened before — was a
+         third thing: a lie the loader would act on the day someone adopted it. */
+      const outside = decision.to === "absent" && entry && !inMode(entry, planned.mode);
+      if (outside) {
+        const sealed = planned.absentOutside;
+        if (entry.mode !== "absent") {
+          entry.mode = "absent";
+          manifestChanged = true;
+        }
+        if (sealed && (entry.url || entry.integrity)) {
+          delete entry.url;
+          delete entry.integrity;
+          manifestChanged = true;
+        } else if (!sealed && entry.mode === "absent") {
+          /* Pins: the bytes are not here, but they are addressable. */
+          entry.mode = "online";
+          manifestChanged = true;
+        }
+      } else if (entry && entry.mode !== decision.to) {
         entry.mode = decision.to;
         manifestChanged = true;
       }

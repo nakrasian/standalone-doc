@@ -98,13 +98,15 @@
      slim document fetches 19 files — the three slowest are a stylesheet, a fragment and the
      sprite (lab/013). Rows come from the registry's plan, so the list cannot disagree with
      what boot actually does. */
-  function renderPlan() {
+  function renderPlan(assets) {
     const el = ensure();
     if (!el) return;
     el.rows.replaceChildren();
     rows.clear();
     plan = {byId: new Map(), byUrl: new Map(), fetched: 0, fetchedDone: 0, modules: 0, built: 0};
-    for (const asset of registry.planned ? registry.planned() : []) {
+    /* `adopt` builds a mode this copy is not in yet, so it names its own plan; boot
+       names none and gets the document's. */
+    for (const asset of assets || (registry.planned ? registry.planned() : [])) {
       /* Infrastructure is already running: it is not something to wait for. */
       if (asset.role === "infra") continue;
       plan.byId.set(asset.id, asset);
@@ -419,7 +421,7 @@
   registry.on("start", (detail) => {
     lastStart = detail;
     reset();
-    renderPlan();
+    renderPlan(detail.plan);
     const el = ensure();
     if (el) {
       const version = /@([^/]+)\//.exec(registry.manifest().cdnBase || "")?.[1];
