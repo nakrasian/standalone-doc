@@ -712,7 +712,7 @@ export function createComments(deps = {}) {
     const has = store.comments.length > 0;
     /* The page stays centred, and the rail lives in the margin beside it when there is
        one. When there is not — a zoom, a narrower window — it **overlays** the page instead
-       of disappearing, and that is the only time its blur has text behind it to soften. A
+       of disappearing; `data-overlay` says so, for tests and for any future styling. A
        viewport too narrow for a column at all falls back to the popover. */
     const margin = sheet && box ? Math.round(box.right - sheet.right - 6) : 0;
     const viewportWidth = box?.width ?? 0;

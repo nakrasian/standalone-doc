@@ -10,10 +10,9 @@
  * sheet's rail rules simply never match a visible element.
  */
 
-/* The rail is a column of white cards. In the margin it is not a pane at all; when it
-   **overlays** the page (a zoom or a window too narrow for a margin) it becomes 26% white
-   with a light blur — more transparent than opaque — which is the only time the frost has
-   text behind it. `left`/`width`/`top` come from the measured page box. */
+/* The rail is only the cards: no pane, no background, no blur — in the margin or over the
+   page. `left`/`width`/`top` come from the measured page box; `data-overlay` says the cards
+   are over the text rather than beside it. */
 #comment-rail {
   position: fixed;
   right: 8px;
@@ -35,18 +34,7 @@
   user-select: none;
 }
 
-/* Over the page: the pane appears, and so does the frost. */
-#comment-rail[data-overlay] {
-  background: rgba(255, 255, 255, .26);
-  -webkit-backdrop-filter: blur(10px) saturate(1.2);
-  backdrop-filter: blur(10px) saturate(1.2);
-}
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  #comment-rail[data-overlay] {
-    background: rgba(255, 255, 255, .55);
-  }
-}
 
 /* A label, not a bar: no background, no rule, no stickiness of its own. */
 .comment-rail-head {

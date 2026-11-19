@@ -137,15 +137,14 @@ The one field that matters is **may take an editable copy**:
 
 **Reading comments.** A document with comments shows them in a **rail beside the page** (the
 editor, a review copy and a viewer all use it): cards in document order, unresolved first,
-resolved kept below. The rail's background is **a whisper of blur, not a panel**: 26% white
-with `backdrop-filter: blur(10px)` and no border, radius, gradient or shadow — enough to lift
-the white cards off the page without the column reading as a bar. It is pinned to the right
+resolved kept below. The rail is **only its cards** — no panel, background, border or blur,
+in the margin or over the page. It is pinned to the right
 edge. When the page's margin has room, it sits in it and is only as wide as that room (220px
-at 1280, the full 324 at 1600), so the centred document is never narrowed or covered — and
-the pane is invisible, because there is nothing behind it to soften. When there is no margin
-(a zoom, a narrower window) it **overlays the page instead of disappearing**, and that is
-exactly when the translucent blur appears. Only a viewport too narrow for a column at all
-(< 760px) falls back to the popover next to the marker.
+at 1280, the full 324 at 1600), so the centred document is never narrowed or covered. When
+there is no margin (a zoom, a narrower window) it **overlays the page instead of
+disappearing** — the cards sit over the right side of the text, with nothing behind them but
+the page. Only a viewport too narrow for a column at all (< 760px) falls back to the popover
+next to the marker.
 
 Hover and click work **both ways**: hovering a highlight lights its card and hovering a card
 lights the highlight; clicking either goes to the other — a card click pins it and scrolls only

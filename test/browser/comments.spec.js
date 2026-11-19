@@ -458,7 +458,7 @@ test.describe("comments: the rail", () => {
     await expect(page.locator("#comment-rail .comment-card[data-hover]")).toHaveCount(1);
   });
 
-  test("zooming past the margin turns the rail into an overlay, and the blur follows", async ({ page }) => {
+  test("zooming past the margin turns the rail into an overlay over the page", async ({ page }) => {
     await load(page);
     await selectText(page, [0, 2], [1, 6]);
     await page.evaluate(() => {
@@ -479,20 +479,20 @@ test.describe("comments: the rail", () => {
       };
     });
 
-    /* In the margin: a column, not a pane — no frost when there is nothing behind it. */
+    /* In the margin: cards, no pane. */
     const margin = await pane();
     expect(margin.overlay).toBe(false);
     expect(margin.blur).toBe("none");
     expect(margin.background).toBe("rgba(0, 0, 0, 0)");
     expect(margin.overlapsPage).toBe(false);
 
-    /* 300% leaves no margin: the rail stays, and now it is over the page — blurred. */
+    /* 300% leaves no margin: the rail stays, over the page, and is still only its cards. */
     await page.evaluate(() => globalThis.StandaloneDoc.modules.zoom.set(3));
     await expect.poll(async () => (await pane()).overlay, {timeout: 5_000}).toBe(true);
     const overlay = await pane();
     expect(overlay.cards).toBe(1);
-    expect(overlay.blur).toContain("blur");
-    expect(overlay.background).not.toBe("rgba(0, 0, 0, 0)");
+    expect(overlay.blur).toBe("none");
+    expect(overlay.background).toBe("rgba(0, 0, 0, 0)");
     expect(overlay.overlapsPage).toBe(true);
 
     /* And back: the pane goes away, the column returns, nothing is left empty. */
