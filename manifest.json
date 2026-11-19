@@ -560,8 +560,8 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 38169,
-      "sha384": "sha384-6SQoXEaXO+qrpbKZJiRcjOXmjK/LKRLZYZFZmJWAm14aC+0Fov4WXMw4UMUuxB06",
+      "bytes": 38993,
+      "sha384": "sha384-10WO0+pSQTiJtjnspcFciRsVX2BjkGFYD5fguntFEz1e8e8/+DIT8RuuhrNy8NOJ",
       "mode": "inline",
       "requiredBy": [
         "edit"

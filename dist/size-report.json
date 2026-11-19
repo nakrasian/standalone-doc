@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 483395
+    "bytes": 484255
   },
   "assets": [
     {
@@ -122,7 +122,7 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 39716
+      "bytes": 40576
     },
     {
       "id": "dialogs",
@@ -136,8 +136,8 @@
     }
   ],
   "flavors": {
-    "index.html": 483395,
-    "asset-bodies": 467363,
+    "index.html": 484255,
+    "asset-bodies": 468223,
     "markup-and-runtime": 16032,
     "dist/slim.html": 87875
   }

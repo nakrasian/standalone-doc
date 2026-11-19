@@ -142,8 +142,19 @@ export function createExport(deps = {}) {
     clone.querySelectorAll("script").forEach((n) => n.remove());
     /* Chrome, by id: the ribbon and the viewer bar are both chrome, and a static document
        carries neither. `index.html` holds every mode's chrome at once, which is how a missing
-       entry here shows up as a viewer bar printed into an exported editor. */
-    clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog,[data-emoji-menu],[data-menu-panel]").forEach((n) => n.remove());
+       entry here shows up as a viewer bar printed into an exported editor.
+
+       The second sweep is the part this file got wrong (lab/016): the page furniture and
+       anything the session *built* were never removed, so a `.docx` carried `#sheets`'
+       folios and any `[data-runtime="ephemeral"]` node that happened to live inside
+       `#content`. The rule is `session.strip()`'s — one list, three callers (a save, a print,
+       this export) — which is why the selectors are the same ones, attribute for attribute.
+       Two deliberate exceptions: `.page-spacer` stays, because the print stylesheet turns it
+       into a page break (`.page-spacer + *`), and it is page geometry rather than chrome;
+       `<script>` is already gone, so `#comments` cannot print. */
+    clone.querySelectorAll("#app-toolbar,#viewer-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
+    clone.querySelectorAll("#sheets > *, [data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
+
     clone.querySelector('body > svg[width="0"]')?.remove();
     clone.querySelector("#content")?.removeAttribute("contenteditable");
     clone.querySelector("#content")?.removeAttribute("spellcheck");

@@ -272,3 +272,69 @@ test("a figure-free document exports as .typ", async ({ page }) => {
   expect(typ).toContain("#set page(");
   expect(typ).toContain("Recombinase systems");
 });
+
+test("a .docx carries the document, not the session", async ({ page }) => {
+  test.slow();
+  await load(page, makeDoc({figure: false}));
+  await page.waitForSelector('[data-plugin-export="pandoc:docx"]', {state: "attached", timeout: 30_000});
+
+  /* Injected at runtime, not in the fixture: a sentinel in `#sheets` before boot is a
+     pagination cell, and pagination rewrites cells. These are the four things a session
+     builds that a `.docx` must not inherit. */
+  const live = await page.evaluate(() => {
+    const content = document.getElementById("content");
+    const stage = document.getElementById("stage");
+
+    /* The real page furniture, renamed so the assertion cannot be satisfied by a folio
+       that pagination simply did not draw yet. */
+    const folio = document.querySelector('[data-slot="folio"]');
+    if (folio) folio.textContent = "FOLIO-SENTINEL";
+
+    const layer = document.createElement("div");
+    layer.id = "comment-layer";
+    layer.dataset.runtime = "ephemeral";
+    layer.textContent = "COMMENT-LAYER-SENTINEL";
+    stage.append(layer);
+
+    const runtime = document.createElement("p");
+    runtime.dataset.runtime = "ephemeral";
+    runtime.textContent = "RUNTIME-NODE-SENTINEL";
+    content.append(runtime);
+
+    const meta = document.createElement("script");
+    meta.id = "comments";
+    meta.type = "application/json";
+    meta.textContent = JSON.stringify({schema: 1, comments: [{body: "COMMENTS-JSON-SENTINEL"}]});
+    document.body.append(meta);
+
+    return {
+      folio: Boolean(folio),
+      folioText: folio && folio.textContent,
+      runtime: content.textContent.includes("RUNTIME-NODE-SENTINEL"),
+      layer: Boolean(document.getElementById("comment-layer")),
+      comments: Boolean(document.getElementById("comments")),
+    };
+  });
+  expect(live).toEqual({folio: true, folioText: "FOLIO-SENTINEL", runtime: true, layer: true, comments: true});
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download", {timeout: 180_000}),
+    page.evaluate(() => document.querySelector('[data-plugin-export="pandoc:docx"]').click()),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const docx = Buffer.concat(chunks);
+  const document = entries(docx).find((entry) => entry.name === "word/document.xml").data.toString("utf8");
+
+  /* What the document says… */
+  expect(document).toContain("Recombinase systems");
+  expect(document).toContain("A paragraph, so the document is not only a figure.");
+  /* …and what the session said, which must not travel. A folio is a page number the
+     reader's engine invented; a runtime node and an overlay are the reader's screen; a
+     comment is metadata, and PLAN-comments.md §15.3 decides it is not printed. */
+  expect(document).not.toContain("FOLIO-SENTINEL");
+  expect(document).not.toContain("RUNTIME-NODE-SENTINEL");
+  expect(document).not.toContain("COMMENT-LAYER-SENTINEL");
+  expect(document).not.toContain("COMMENTS-JSON-SENTINEL");
+});
