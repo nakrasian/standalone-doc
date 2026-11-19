@@ -178,12 +178,12 @@ test.describe("adopting the editor", () => {
     await load(page);
     await seed(page);
     const copy = await downloadCopy(page, {kind: "review", comments: true, editCopy: true, policy: "inline"});
-    /* The copy's pins name the release tag; point them at the repo's own bytes, which are
-       what `dist/cdn` holds and what the manifest hashes. */
-    const served = copy.html.replaceAll(
-      "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.9.3/dist/cdn",
-      "http://127.0.0.1:8080/dist/cdn",
-    );
+    /* The copy's pins name whichever release is current; point them at the repo's own
+       bytes, which are what `dist/cdn` holds and what the manifest hashes. The tag is read
+       from the file rather than written here, so a release does not break the fixture. */
+    const pinned = /https:\/\/cdn\.jsdelivr\.net\/gh\/nakrasian\/standalone-doc@v[^/]+\/dist\/cdn/.exec(copy.html);
+    expect(pinned).not.toBeNull();
+    const served = copy.html.replaceAll(pinned[0], "http://127.0.0.1:8080/dist/cdn");
     fs.mkdirSync(TMP, {recursive: true});
     const name = path.join(TMP, `adopt-${process.pid}.html`);
     fs.writeFileSync(name, served);
