@@ -170,20 +170,26 @@ test("a page-start block becomes a page break in the .docx", async ({ page }) =>
   test.slow(); /* 58.6 MB over the loopback and a wasm compile */
   const problems = await load(page, makeDoc({figure: false, long: true}));
   await page.waitForSelector('[data-plugin-export="pandoc:docx"]', {state: "attached", timeout: 30_000});
-  /* The number the .docx must match: the page-start blocks the screen planner made. */
+  /* The number the .docx must match: both spellings of a page boundary on screen. A page
+     that starts with a block carries `data-page-start`; a page that continues a fragmented
+     paragraph starts at a `data-frag` cut, and the export writes each as a break. */
   const live = await page.evaluate(() => ({
     pages: globalThis.StandaloneDoc.modules.pagination.pageCount(),
     starts: document.querySelectorAll("#content > [data-page-start]").length,
+    cuts: document.querySelectorAll("#content [data-frag]").length,
   }));
   const document = await exportDocument(page);
   const breaks = (document.match(/w:type="page"/g) || []).length;
-  expect(breaks, `the .docx has ${breaks} break(s) for ${live.starts} page start(s) on ${live.pages} pages`).toBe(live.starts);
-  expect(live.starts).toBeGreaterThan(0);
+  expect(breaks, `the .docx has ${breaks} break(s) for ${live.starts} page start(s) + ${live.cuts} cut(s) on ${live.pages} pages`)
+    .toBe(live.starts + live.cuts);
+  expect(live.starts + live.cuts).toBeGreaterThan(0);
+  expect(live.cuts, "the fixture must exercise a fragment cut now that the flag is on").toBeGreaterThan(0);
   /* The margin model writes the break as `data-page-start`; the filter turns it into the
      target's native page break. Without this the .docx silently loses every break the
      page-spacer spelling used to produce. */
   expect(document).toContain('w:type="page"');
   expect(document).not.toContain("data-page-start");
+  expect(document).not.toContain("data-frag");
   expect(document).toContain("Recombinase systems");
   expect(problems).toEqual([]);
 });

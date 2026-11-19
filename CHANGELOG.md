@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased — fragmentation (flag off)
+## Unreleased — fragmentation
 
 The pagination cycle: a paragraph can cross a page boundary without becoming two
-paragraphs. The work is on `feat/pagination-split` and the flag is off in the
-shipped document until a mode decides to turn it on.
+paragraphs. Fragments are **on by default** in the shipped document; the switch
+stays session-only, so `pagination.setFragmenting(false)` turns them off for a
+reading or editing session and a saved file never carries a fragment.
 
 ### Added
 
@@ -15,6 +16,9 @@ shipped document until a mode decides to turn it on.
   `margin-block-start`. N cuts are *sibling* spans, never nested, so page
   pushes do not compound. The text stream, the paragraph count and the undo
   snapshot are unchanged.
+- **Fragments are on by default.** A long paragraph is cut at page boundaries
+  instead of being given a page as tall as itself. `setFragmenting(false)` is the
+  session escape hatch; `deps.fragment === false` turns them off at construction.
 - **The planner measures the semantic document.** A fragmented block is taller
   than the text it holds, so a pass merges before it plans and reports its own
   post-conditions (`checkPass`): text conserved, one fragment per planned cut at

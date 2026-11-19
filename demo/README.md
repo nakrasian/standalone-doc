@@ -105,6 +105,6 @@ Open <http://127.0.0.1:8080/demo/fragmentation.html>. It must be served over
   target's native break (`w:br`, `#pagebreak()`, `\newpage`), so a `.docx`
   keeps one paragraph *and* the break. Try *File → Export → Word* on a
   fragmented document.
-- **The feature is off in the shipped app.** `setFragmenting()` is session-only;
-  a saved file carries the semantic paragraph. Enabling it by mode is still the
-  last step in the plan.
+- **The feature is on by default in the shipped app.** `setFragmenting()` is
+  session-only; a saved file carries the semantic paragraph, and the next pass
+  re-fragments it on load. *Toggle fragmentation* is the off switch for a session.

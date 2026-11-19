@@ -1,4 +1,5 @@
-/* Page planning: gaps as margins, and (behind a session flag) fragments inside a block.
+/* Page planning: gaps as margins, and fragments inside a block (on by default,
+ * session-only).
  *
  * The lab's conclusions, in the order they constrain this file:
  *
@@ -350,10 +351,11 @@ export function createPagination(deps = {}) {
     return strategies.get(tag);
   }
 
-  /* Session-only, never persisted: a document never carries a fragment. `setFragmenting()`
-     exists so a mode can decide (PLAN-comments §9's open question) and so tests can drive
-     both paths without a build. The default is off until the caret/history deltas land. */
-  let fragmenting = deps.fragment === true;
+  /* Session-only, never persisted: a document never carries a fragment. On by default
+     now that the caret, history, seam deletes, copy/cut and print paths hold against it;
+     a mode can still turn it off for a session with `setFragmenting(false)`, and
+     `deps.fragment === false` does it at construction (tests use that). */
+  let fragmenting = deps.fragment !== false;
 
   /* What each fragmented block measured when the last pass planned it. A block that has
      *shrunk* since then needs a fresh cut in the same pre-paint pass: the head has a hole

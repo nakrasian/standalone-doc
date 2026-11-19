@@ -713,15 +713,30 @@ test("one deleted character at the seam keeps the page full", async ({page}) => 
     };
   });
   const before = await measure();
+  /* Watch every pass the gesture causes. WebKit delivers a second, no-op pass after the
+     guarded delete (its keydown default is not fully suppressed), so the final pass can
+     legitimately report `reused: true`; the re-cut is the one that merged. */
+  await page.evaluate(() => {
+    const pag = globalThis.StandaloneDoc.modules.pagination;
+    window.__passes = [];
+    globalThis.StandaloneDoc.modules.signals.on("layout", () => {
+      const d = pag.diagnostics();
+      window.__passes.push({merged: d.mergedLastPass, reused: d.splits.map((split) => split.reused)});
+    });
+  });
   await caretAtCut(page);
   await page.keyboard.press("Backspace");
   const after = await measure();
+  const passes = await page.evaluate(() => window.__passes);
 
   expect(after.text, "one Backspace at the seam removed one character").toBe(before.text - 1);
   expect(after.pages).toBe(before.pages);
   /* The deleted character is the last of the head: the same pass re-cuts and pulls the
      next word up from the tail, so the head still ends where it did. */
-  expect(after.reused.some(Boolean), "the cut was reused; the short head was not refilled").toBe(false);
+  expect(
+    passes.some((pass) => pass.merged > 0 || pass.reused.includes(false)),
+    `no pass re-cut the block: ${JSON.stringify(passes)}`,
+  ).toBe(true);
   expect(after.stale).toBe(false);
   expect(
     Math.abs(after.headTop - before.headTop),
