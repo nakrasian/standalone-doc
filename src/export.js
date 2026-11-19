@@ -160,7 +160,12 @@ export function createExport(deps = {}) {
 
     /* A fragment is a page break, not a paragraph. Unwrap it so pandoc, a printer and a
        reader see the one paragraph the author wrote (lab/016 §9: two `<p>`s change the
-       `.docx`; one `<p>` with a block span does not, once the span is gone). */
+       `.docx`; one `<p>` with a block span does not, once the span is gone).
+
+       TODO(fragments): a cut *inside* a paragraph has no page-start block, so unwrapping
+       here loses its break in the static document and the .docx. The margin marker below
+       only covers whole-block page starts. Decide between an inline RawInline break (docx
+       openxml) and keeping the paragraph whole; both need a print/PDF assertion. */
     clone.querySelectorAll("[data-frag]").forEach((frag) => {
       while (frag.firstChild) frag.parentNode.insertBefore(frag.firstChild, frag);
       frag.remove();

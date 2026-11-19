@@ -149,13 +149,12 @@
       "late": [],
       "optional": [],
       "provides": [
-        "schedule",
-        "pageCount",
-        "pageAt",
-        "syncFolio",
-        "refresh",
-        "diagnostics",
-        "plan"
+        "offset",
+        "geometric",
+        "headHeight",
+        "headBottom",
+        "cutLine",
+        "lines"
       ]
     },
     {

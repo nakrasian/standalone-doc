@@ -137,6 +137,15 @@ body {
   pointer-events: none;
 }
 
+/* A continuation fragment is a block container inside its paragraph. `text-indent` is
+   inherited, so a document that indents paragraphs would indent the tail's first line too;
+   a continuation line is not a first line. `::first-letter` is not inherited, so a rule
+   scoped to `#content > *` does not reach the fragment; a theme using a descendant
+   selector must exclude `[data-frag]`. */
+#content [data-frag] {
+  text-indent: 0;
+}
+
 /* ===== Figures (images, standalone HTML, media) =====
    A figure is one block in the flow. Its frame has a deterministic
    height before any bytes decode or any iframe loads, so the pagination

@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 496869
+    "bytes": 521604
   },
   "assets": [
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 11151
+      "bytes": 11622
     },
     {
       "id": "toolbar-styles",
@@ -87,7 +87,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 12139
+      "bytes": 36032
     },
     {
       "id": "progress",
@@ -127,7 +127,7 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 42926
+      "bytes": 43296
     },
     {
       "id": "dialogs",
@@ -141,9 +141,9 @@
     }
   ],
   "flavors": {
-    "index.html": 496869,
-    "asset-bodies": 480280,
-    "markup-and-runtime": 16589,
-    "dist/slim.html": 88316
+    "index.html": 521604,
+    "asset-bodies": 505014,
+    "markup-and-runtime": 16590,
+    "dist/slim.html": 88317
   }
 }

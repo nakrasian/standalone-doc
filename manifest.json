@@ -18,8 +18,8 @@
       "order": 10,
       "tag": "style",
       "file": "src/page-styles.css",
-      "bytes": 9716,
-      "sha384": "sha384-SdD1xvuH4ya9Cq0vUlAViCjHaOMHZGiAYO1u9ePKr3OYT/Blz7h+yua9hT1WxnTK",
+      "bytes": 10155,
+      "sha384": "sha384-UdX4Yd99vNl8ij+pd7ayEo6tRw7iWhg7UmFKoTOBPOXAQvuwS/e3IxdXVvUVRQj/",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -316,8 +316,8 @@
       "order": 50,
       "tag": "script",
       "file": "src/pagination.js",
-      "bytes": 10932,
-      "sha384": "sha384-5iIrlYY+aRCC5+De8VXSxznNX5f+JjkvLKRj/Me19SlQTCwoWSctUzKHVb2OxL8D",
+      "bytes": 32857,
+      "sha384": "sha384-zlstDOK0OnjvNRoR5iMlIrzBP7qdlEf96lYhh9pYAWH7uImRtwe1bTc5r2Vqh2kb",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -330,13 +330,12 @@
         "layout"
       ],
       "provides": [
-        "schedule",
-        "pageCount",
-        "pageAt",
-        "syncFolio",
-        "refresh",
-        "diagnostics",
-        "plan"
+        "offset",
+        "geometric",
+        "headHeight",
+        "headBottom",
+        "cutLine",
+        "lines"
       ],
       "env": true
     },
@@ -586,8 +585,8 @@
       "order": 100,
       "tag": "script",
       "file": "src/export.js",
-      "bytes": 41227,
-      "sha384": "sha384-0tWjeJRoUGBI2EvKyCZgjnoI5u5wPhU30Fl1Bx9PUFxOzEFMex5jZEXAjVobo7sL",
+      "bytes": 41581,
+      "sha384": "sha384-sLIKtewkDQAGVLsEJeuTCkQ7mTdt/Zx7FhlOYOueHJ7Ia27IsWoE0LUyDNmnEEzN",
       "mode": "inline",
       "requiredBy": [
         "edit"
