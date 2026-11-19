@@ -1087,7 +1087,13 @@ export function createPlugins(deps = {}) {
     try {
       fetched = await registry.prefetch(url);
     } catch (error) {
-      return say(`${url} could not be read (${(error && error.message) || error}) — nothing was added.`);
+      const reason = (error && error.message) || error;
+      /* The common way to land here is a document whose runtime is older than the plugin: the
+         catalog it reads is its own tag's, so a 404 on the manifest means "update first". */
+      const hint = /\b404\b/.test(String(reason)) && pinnedTag()
+        ? ` This document pins ${pinnedTag()}, and a plugin published after that tag is not in it.`
+        : "";
+      return say(`${url} could not be read (${reason}) — nothing was added.${hint}`);
     }
     /* The catalog's hash is the only thing standing between a tampered manifest and a
        document that pins whatever it says. */
@@ -1104,7 +1110,11 @@ export function createPlugins(deps = {}) {
     if (fault) return say(`${url} is not installable: ${fault}. Nothing was added.`);
     const api = Number(bundle.api ?? asset.api ?? 1) || 1;
     if (api > registry.hostApi) {
-      return say(`${bundle.label || id} needs host API ${api}; this document provides ${registry.hostApi}. Nothing was added.`);
+      /* A refusal that does not say what to do reads like a broken plugin. The remedy is one
+         panel away, and it is the *document's* runtime that moves, not this session's. */
+      return say(`${bundle.label || id} needs a newer editor (host API ${api}; this one provides `
+        + `${registry.hostApi}) — open Document settings → Runtime, update, then reopen before installing. `
+        + `Nothing was added.`);
     }
     const island = bundle.island || asset.island || "sealed";
     if (wantsTrust(island, bundle.contributes)) {

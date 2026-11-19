@@ -321,6 +321,20 @@ change; a plugin that wants to survive that should declare the version it was wr
 A plugin that inserts inline content must declare `2`: on an older host it would activate and
 then fail halfway through an insertion, which is precisely what the field prevents.
 
+**What a reader of an older document sees.** The sheet reads the catalog at *the tag the
+document itself pins* (`<cdnBase>/../registry.json`), so a plugin published after that tag is
+not in the list at all — there is nothing to refuse. The route is the runtime, not the sheet:
+**Document settings → Runtime → Check for updates…** re-pins the file, and the *next* open
+reads the new tag's catalog with the new `HOST_API`, at which point the install succeeds. The
+pin moves for the file and the session keeps the runtime it booted with, which is why the
+plugin appears after a reopen rather than immediately.
+
+Two refusals exist for the cases that can still happen, and both name the remedy. The sheet
+refuses an install whose manifest asks for a newer host than this runtime provides, and
+`require()` refuses an *already pinned* plugin the same way — before `activate()`, with
+`kind: "api"`, so a document that pins a runtime older than its plugin stays readable and
+says why.
+
 ## 8. Failure
 
 A plugin that fails never takes the document with it: `require()` records the failure, the

@@ -961,7 +961,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     const api = Number(entry.api ?? HOST_API) || HOST_API;
     if (api > HOST_API) {
       unbuild(assets);
-      throw record(failure("api", id, `needs host API ${api}; this document provides ${HOST_API}`));
+      throw record(failure("api", id,
+        `needs a newer editor: host API ${api}, this one provides ${HOST_API}`
+        + ` — update this document's runtime (Document settings → Runtime), then reopen`));
     }
 
     /* Two-phase, like boot: bytes, then side effects. activate() is where a plugin

@@ -234,6 +234,7 @@ manifest.json       asset registry: id, kind, order, file, bytes, sha384, mode, 
 build.mjs           split | combine | verify | check | build | report | catalog | dev  (zero deps)
 tools/              export.mjs + sd-export.lua + the census: the document → engine path
 plugins/            pandoc-export/: Word, PDF (typeset by Typst) and text, in the tab
+                    citations/: inline citations, a bibliography, BibTeX/CSL-JSON/Zotero
 src/                one file per asset, generated from index.html by `split`
 dist/               build output (committed: the CDN serves these at a tag)
 dist/runtime.json   releases a document may re-pin to; one manifest per tag in dist/runtime/
@@ -307,11 +308,20 @@ one dialog with one Done: nothing but the plugin pins is written before it, and 
 sits on that plugin's row, never in a runtime sweep.
 
 **Plugins → Available** lists two shapes. A *module* is one self-contained ES file proposed by
-`plugins.json`. A *bundle* is one plugin with many assets (the pandoc exporter: eight of them,
-including two engines on npm), and there the catalog carries a pointer rather than a copy of
-the pins: it names the published manifest and that manifest's own `sha384`, the sheet fetches
-it, checks the bytes, then pins every asset it declares. One click, N assets, no JSON copied
-by hand — and a manifest the catalog did not hash is refused before anything is written.
+`plugins.json`. A *bundle* is one plugin with **many** assets — the pandoc exporter has eight,
+including two engines on npm; citations has one, and is still a bundle because it publishes its
+own manifest — and there the catalog carries a pointer rather than a copy of the pins: it names
+the published manifest and that manifest's own `sha384`, the sheet fetches it, checks the
+bytes, then pins every asset it declares. One click, N assets, no JSON copied by hand — and a
+manifest the catalog did not hash is refused before anything is written.
+
+A plugin declares the **host API** it is written against (`plugins[id].api`), and the registry
+refuses a newer one *before* `activate()` rather than halfway through an insertion. The
+practical consequence is worth knowing: the sheet reads the catalog at **the tag the document
+itself pins**, so a document that has not updated its runtime does not see a plugin published
+after that tag at all. Updating the runtime — *Document settings → Runtime → Check for
+updates…* — is what unlocks it, on the **next** open: the pin moves for the file, while the
+session keeps the runtime it booted with.
 
 Read `docs/PLUGINS.md` before writing one. The three island profiles it describes are
 enforced, not advisory: `sealed` has no network, `sandboxed` is today's figure sandbox, and
@@ -319,14 +329,19 @@ enforced, not advisory: `sealed` has no network, `sandboxed` is today's figure s
 
 ## Status
 
-`v0.9.0` adds one document dialog, `absent` written by every flavour, a per-asset boot
-progress line, plugin updates on the row, and an optional in-file plugin catalog. `v0.8.0`
-brought: module conversion, the dependency contract and its audit, the
-registry and `boot()` with diagnostics, the CDN loader, save-time materialization with
-policies, the plugin manager, the update flow, a viewer flavour, export, and a library a
-document can name — with the viewer as an export rather than a mode. Next is the host itself
-(R2 behind Cloudflare Access): this repository knows how to talk to a library, not how to be
-one. The file format is not frozen — see `CHANGELOG.md`.
+`v0.11.0` adds **citations as a plugin** — `@@` at the caret, a reference list that is content
+rather than a render, BibTeX and CSL-JSON import, a Zotero reader — and the two generic things
+that made a plugin able to do it: `data-atomic`, an inline element the planner may not cut,
+and `editor.insertInline()`, the inline twin of `insertBlock`. `HOST_API` moved to **2** for
+those, so a plugin may now declare which host it needs. `v0.10.0` was comments:
+`#comment-store`, the range anchor, review copies, the rail. `v0.9.0` added one document
+dialog, `absent` written by every flavour, a per-asset boot progress line, plugin updates on
+the row, and an optional in-file plugin catalog. `v0.8.0` brought: module conversion, the
+dependency contract and its audit, the registry and `boot()` with diagnostics, the CDN loader,
+save-time materialization with policies, the plugin manager, the update flow, a viewer
+flavour, export, and a library a document can name — with the viewer as an export rather than
+a mode. Next is the host itself (R2 behind Cloudflare Access): this repository knows how to
+talk to a library, not how to be one. The file format is not frozen — see `CHANGELOG.md`.
 
 ## License
 
