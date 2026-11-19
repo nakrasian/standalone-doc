@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 563783
+    "bytes": 565162
   },
   "assets": [
     {
@@ -16,7 +16,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 59343
+      "bytes": 60722
     },
     {
       "id": "plugins",
@@ -145,8 +145,8 @@
     }
   ],
   "flavors": {
-    "index.html": 563783,
-    "asset-bodies": 546644,
+    "index.html": 565162,
+    "asset-bodies": 548023,
     "markup-and-runtime": 17139,
     "dist/slim.html": 88744
   }
