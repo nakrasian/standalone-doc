@@ -137,12 +137,13 @@ The one field that matters is **may take an editable copy**:
 
 **Reading comments.** A document with comments shows them in a **rail beside the page** (the
 editor, a review copy and a viewer all use it): cards in document order, unresolved first,
-resolved kept below. The rail itself is a frosted **column** — a translucent pane with
-`backdrop-filter`, so a page fitted or zoomed behind it reads as separate from the text — and
-the cards on it stay plain white. It is pinned to the right edge but only as wide as the
-page's margin (220px at 1280, the full 324 at 1600), so the centred document is never narrowed
-or covered; when the margin is too small for a card it becomes the popover next to the marker
-instead.
+resolved kept below. The rail's background is **a whisper of blur, not a panel**: 26% white
+with `backdrop-filter: blur(10px)` and no border, radius, gradient or shadow — enough to lift
+the white cards off the page without the column reading as a bar. It is pinned to the right
+edge but only as wide as the page's margin (220px at 1280, the full 324 at 1600), so the
+centred document is never narrowed or covered; when the margin is too small for a card it
+becomes the popover next to the marker instead — and zooming back rebuilds the column with its
+cards rather than leaving an empty one behind.
 
 Hover and click work **both ways**: hovering a highlight lights its card and hovering a card
 lights the highlight; clicking either goes to the other — a card click pins it and scrolls only

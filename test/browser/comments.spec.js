@@ -458,6 +458,26 @@ test.describe("comments: the rail", () => {
     await expect(page.locator("#comment-rail .comment-card[data-hover]")).toHaveCount(1);
   });
 
+  test("zooming past the margin hides the rail, and zooming back restores its cards", async ({ page }) => {
+    await load(page);
+    await selectText(page, [0, 2], [1, 6]);
+    await page.evaluate(() => {
+      globalThis.StandaloneDoc.modules.comments.add({body: "Zoom me.", author: {name: "Nadia", kind: "author"}});
+    });
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+
+    /* 300% makes the page wider than the viewport: there is no margin left, so the rail
+       gives way to the popover fallback. */
+    await page.evaluate(() => globalThis.StandaloneDoc.modules.zoom.set(3));
+    await expect.poll(() => page.evaluate(() => document.getElementById("comment-rail").hidden), {timeout: 5_000}).toBe(true);
+
+    /* And back: the column must be rebuilt, not left visible and empty. */
+    await page.evaluate(() => globalThis.StandaloneDoc.modules.zoom.set(1));
+    await expect(page.locator("#comment-rail")).toBeVisible();
+    await expect(page.locator("#comment-rail .comment-card")).toHaveCount(1);
+    await expect(page.locator("#comment-rail .comment-card")).toContainText("Zoom me.");
+  });
+
   test("a narrow layout has no room for the rail, and falls back to a popover", async ({ page }) => {
     await page.setViewportSize({width: 900, height: 800});
     await load(page);

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 687779
+    "bytes": 688010
   },
   "assets": [
     {
@@ -47,7 +47,7 @@
     {
       "id": "comment-styles",
       "kind": "css",
-      "bytes": 8146
+      "bytes": 7599
     },
     {
       "id": "figure-tools",
@@ -117,7 +117,7 @@
     {
       "id": "comments",
       "kind": "js",
-      "bytes": 64268
+      "bytes": 65046
     },
     {
       "id": "figures",
@@ -156,8 +156,8 @@
     }
   ],
   "flavors": {
-    "index.html": 687779,
-    "asset-bodies": 669565,
+    "index.html": 688010,
+    "asset-bodies": 669796,
     "markup-and-runtime": 18214,
     "dist/slim.html": 96375
   }

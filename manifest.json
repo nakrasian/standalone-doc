@@ -167,8 +167,8 @@
       "order": 26,
       "tag": "style",
       "file": "src/comment-styles.css",
-      "bytes": 7059,
-      "sha384": "sha384-P+MqrfyLOZy1k8AqMzmN9RcGWgE/D+MLXWMHlPUZbOlmT8FPCtL2BACOt8qVdhB3",
+      "bytes": 6560,
+      "sha384": "sha384-Ew2uvMNlvdpuBdJr4KgAlS8TcO9Gtgc8BWKida+3iQUEuDOyZuSPM5SGjCR6XQk2",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -496,8 +496,8 @@
       "order": 76,
       "tag": "script",
       "file": "src/comments.js",
-      "bytes": 58551,
-      "sha384": "sha384-uW/2Cix/YW54jXN5ld9hpHtQcKxt9TMIMfZmlGDmHhxkXFyjqXZYOBu9TTDPhTvv",
+      "bytes": 59285,
+      "sha384": "sha384-XCW1IyuVNKi+eqloDj0lwpRhOVQhBirtBgFSepe1a3lpWTBlGrPsq1tH8IvanzGD",
       "mode": "inline",
       "requiredBy": [
         "*"

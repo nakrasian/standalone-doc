@@ -667,9 +667,11 @@ export function createComments(deps = {}) {
     const orphans = [...resolved.values()].filter((result) => result.how === "orphan").length;
     if (orphans) drawOrphanPill(orphans);
     /* The layout decides whether a rail exists at all, so it must be known before the
-       cards are built: the first draw runs before any `layout` signal has been seen. */
-    layoutRail();
-    if (railDirty) {
+       cards are built: the first draw runs before any `layout` signal has been seen. It
+       reports a transition (shown, or shown-but-empty after a zoom) so the cards are
+       rebuilt rather than left in a visible, empty column. */
+    const needsRail = layoutRail();
+    if (railDirty || needsRail) {
       renderRail();
       railDirty = false;
     } else {
@@ -704,7 +706,7 @@ export function createComments(deps = {}) {
   }
 
   function layoutRail() {
-    if (!rail) return;
+    if (!rail) return false;
     const viewport = document.getElementById("viewport");
     const sheet = stage?.getBoundingClientRect?.();
     const box = viewport?.getBoundingClientRect?.();
@@ -713,13 +715,14 @@ export function createComments(deps = {}) {
        as that margin. Below ~220px it becomes a popover rather than covering the text. */
     const margin = sheet && box ? Math.round(box.right - sheet.right - 6) : 0;
     const wide = (globalThis.matchMedia?.(RAIL_QUERY).matches ?? false) && margin >= 214;
+    const wasShown = railMode && railOpen && !rail.hidden && rail.childElementCount > 0;
     railMode = wide;
     const shown = wide && railOpen && has;
     rail.hidden = !shown;
     if (railTab) railTab.hidden = !(wide && !railOpen && has);
     if (!shown) {
       rail.replaceChildren();
-      return;
+      return false;
     }
     /* Pinned to the right edge; its width is the margin's, so it cannot cover the page. */
     const width = Math.min(324, Math.max(200, margin - 8));
@@ -735,6 +738,7 @@ export function createComments(deps = {}) {
       const unresolved = store.comments.filter((comment) => !comment.resolved).length;
       railTab.textContent = `Comments ${unresolved || total}`;
     }
+    return !wasShown;
   }
 
   function quoteOf(comment) {
@@ -1479,6 +1483,14 @@ export function createComments(deps = {}) {
       else if (pinned) unpin();
       else if (popover && !popover.hidden) blur();
     });
+    /* A CSS `zoom` scales the box without changing its reported border box, so neither a
+       ResizeObserver nor a pagination pass is guaranteed. The rail's geometry is in client
+       pixels, so it has to hear about the change itself. */
+    if (stage) {
+      new MutationObserver(() => schedule()).observe(stage, {attributes: true, attributeFilter: ["style"]});
+    }
+    globalThis.addEventListener?.("resize", schedule);
+
     const query = globalThis.matchMedia?.(RAIL_QUERY);
     query?.addEventListener?.("change", () => {
       layoutRail();

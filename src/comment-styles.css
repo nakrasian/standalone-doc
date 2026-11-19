@@ -10,10 +10,10 @@
  * sheet's rail rules simply never match a visible element.
  */
 
-/* The rail is a *column*, not a pile of cards on grey: the pane itself is frosted, so a
-   page fitted or zoomed behind it reads as separate from the text, and the cards stay
-   plain white on top of it. `left`/`width`/`top` are set by the module from the measured
-   page box: it is pinned to the right edge and only as wide as the margin allows, so the
+/* The rail is a column of white cards over a *whisper* of blur: no panel, no border, no
+   gradient — the pane is more transparent than opaque, so it separates the cards from the
+   page behind them without reading as a bar. `left`/`width`/`top` are set by the module
+   from the measured page box: pinned to the right edge, only as wide as the margin, so the
    centred page is never narrowed or covered. */
 #comment-rail {
   position: fixed;
@@ -25,16 +25,12 @@
   gap: 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 6px 24px;
-  border: 1px solid rgba(255, 255, 255, .7);
-  border-right: 0;
-  border-radius: 14px 0 0 14px;
-  background: linear-gradient(180deg, rgba(248, 250, 252, .78), rgba(244, 246, 250, .6));
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  backdrop-filter: blur(20px) saturate(1.5);
-  box-shadow:
-    -14px 0 36px rgba(15, 23, 42, .07),
-    inset 0 1px 0 rgba(255, 255, 255, .9);
+  padding: 10px 8px 24px;
+  border: 0;
+  background: rgba(255, 255, 255, .26);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: none;
   font: 13px/1.45 system-ui, -apple-system, sans-serif;
   color: #1b1f24;
   user-select: none;
@@ -42,26 +38,18 @@
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   #comment-rail {
-    background: #f6f7f9;
+    background: rgba(255, 255, 255, .55);
   }
 }
 
-/* The header stays put while cards scroll under it, with its own thin frost so the two
-   never dissolve into one another. */
+/* A label, not a bar: no background, no rule, no stickiness of its own. */
 .comment-rail-head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 -6px;
-  padding: 8px 10px 7px;
-  background: linear-gradient(180deg, rgba(250, 251, 252, .96), rgba(250, 251, 252, .72));
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(223, 225, 230, .7);
-  border-radius: 14px 0 0 0;
+  margin: 0;
+  padding: 2px 4px 6px;
+  background: transparent;
   font: 600 11px/1 system-ui;
   letter-spacing: .02em;
   color: #6b7280;

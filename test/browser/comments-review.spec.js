@@ -342,6 +342,9 @@ test.describe("the review copy's rail", () => {
         railRightOfPage: rail.left - sheet.right,
         railWidth: Math.round(rail.width),
         paneBlur: style.backdropFilter || style.webkitBackdropFilter,
+        paneAlpha: Number((/rgba?\([^)]*?,\s*([\d.]+)\)/.exec(style.backgroundColor) || [])[1] ?? 1),
+        paneBorder: style.borderTopWidth,
+        paneRadius: style.borderTopLeftRadius,
         cardBackground: cardStyle.backgroundColor,
         cardImage: cardStyle.backgroundImage,
       };
@@ -353,8 +356,12 @@ test.describe("the review copy's rail", () => {
     expect(geometry.edge).toBeLessThanOrEqual(10);
     expect(geometry.railRightOfPage).toBeGreaterThanOrEqual(0);
     expect(geometry.railWidth).toBeGreaterThan(200);
-    /* The *column* is the glass; the cards on it stay plain white. */
+    /* The column is a whisper of blur — no panel, no border, no radius — and the cards
+       on it stay plain white. */
     expect(geometry.paneBlur).toContain("blur");
+    expect(geometry.paneAlpha).toBeLessThan(0.5);
+    expect(geometry.paneBorder).toBe("0px");
+    expect(geometry.paneRadius).toBe("0px");
     expect(geometry.cardBackground).toBe("rgb(255, 255, 255)");
     expect(geometry.cardImage).toBe("none");
   });
