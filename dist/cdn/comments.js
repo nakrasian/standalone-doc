@@ -1059,6 +1059,19 @@ export function createComments(deps = {}) {
     return {ok: true};
   }
 
+  /**
+   * Replace the whole store: what an import does once a human has accepted the list.
+   * Records that are not addressable are dropped (`validComment`), because a store that
+   * cannot be merged is worse than a smaller one.
+   */
+  function replace(next) {
+    const comments = Array.isArray(next?.comments) ? next.comments.filter(validComment) : [];
+    store = {schema: 1, comments};
+    save();
+    draw();
+    return store.comments.length;
+  }
+
   /** Subscribe to "the store changed" — the bar's count, a panel's list. */
   function onChange(fn) {
     listeners.add(fn);
@@ -1156,9 +1169,15 @@ export function createComments(deps = {}) {
 
   init();
 
+  /* A fresh comment id, for "Keep both" during an import: the store owns the namespace. */
+  function newCommentId() {
+    return newId("c");
+  }
+
   const api = {
     init, mount, list, add, reply, resolve: setResolved, remove, focus, blur, render: draw,
-    begin, counts, panel, onChange, canWrite: writable, authorName, setAuthorName, merge: mergeInto, load,
+    begin, counts, panel, onChange, canWrite: writable, authorName, setAuthorName, merge: mergeInto, replace, load,
+    newCommentId,
   };
   /* Offered to plugins, which must never own the store: a plugin may present comments,
      and may not become the thing that writes them (invariant 11). */

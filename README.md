@@ -124,6 +124,24 @@ A copy never writes back to the file it came from (invariant 21): *Save a copy* 
 new file with the same `#comment-store`, and the overlay, composer and popovers are session
 chrome that `session.strip()` removes from it.
 
+**Making a copy.** *File › Save as… › HTML › Save a copy for someone…* offers the three kinds.
+The one field that matters is **may take an editable copy**:
+
+- with it, the copy declares `capabilities.edit: "copy"` and keeps the editor's *address*
+  (`url` + `integrity`, a few kilobytes of JSON, no code). The reader's bar offers **Edit a
+  copy…**; the modules are fetched, verified and built on request, the copy's mode becomes
+  `edit`, and `capabilities.edit` flips to `"off"` so a copy of that copy cannot recurse.
+  Choosing `inline` storage for this warns with the download size rather than refusing it;
+- without it the copy is **sealed**: the editor's blocks are gone *and* their addresses are
+  deleted, so nothing — including its author — can turn it into an editor.
+
+**Comments on their own.** *File › Save as… › HTML › Comments only…* writes the store in a
+minimal document (a few KB), and *File › Import comments…* accepts either that file or a full
+copy, parsed with `DOMParser` rather than searched. The import applies what is unambiguous
+(new comments, appended replies) and lists every disagreement — `resolved` differing between
+the two files — with *Keep mine*, *Take imported* or *Keep both*. Nothing is resolved for you,
+a comment is never dropped, and a comment whose paragraph is gone is listed as *unattached*.
+
 ### A document in a library
 
 `#doc-settings.cloud` is `{id, api}`. With it, Save PUTs the serialized document to that

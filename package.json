@@ -26,7 +26,8 @@
     "export": "node tools/export.mjs",
     "reference": "node tools/reference.mjs",
     "shim": "node tools/shim.mjs",
-    "demo": "node tools/demo.mjs"
+    "demo": "node tools/demo.mjs",
+    "demo:comments": "node tools/demo-comments.mjs"
   },
   "devDependencies": {
     "@bjorn3/browser_wasi_shim": "^0.4.2",

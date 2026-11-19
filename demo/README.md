@@ -1,4 +1,31 @@
-# Fragmentation workbench
+# Demo pages
+
+## Comments demo
+
+A real editor with a real document and three comments, for clicking the review
+round-trip by hand. Generated, not committed:
+
+```sh
+npm run demo:comments      # writes .test-tmp/comments-demo.html
+npm run dev                # in another shell
+```
+
+Open <http://127.0.0.1:8080/.test-tmp/comments-demo.html>.
+
+The page seeds three comments at load (one crosses a heading on purpose) and
+shows a panel with the four steps: open a thread, make a review copy, open the
+copy, import its comments back. The panel's two buttons call the same
+`toolbar.copy()` and `toolbar.exportCommentsOnly()` the menus call.
+
+Served over `http://`, the page re-points its own asset manifest at this
+origin's `dist/cdn`, so **Edit a copy…** in the downloaded review copy fetches
+*this working tree's* editor rather than the last release's. That is why the demo
+must be served: from `file://` the pins would name the published tag, and an
+unreleased `doc-bar` would not be there to fetch.
+
+---
+
+## Fragmentation workbench
 
 A page that drives the **real** editor in an iframe through
 `StandaloneDoc.modules`, so the pagination and fragment code can be exercised by

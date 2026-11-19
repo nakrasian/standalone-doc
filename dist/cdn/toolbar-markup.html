@@ -19,6 +19,7 @@
         <button data-menu-item data-save><svg class="i sm">
             <use href="#i-save" />
           </svg>Save</button>
+        <button data-menu-item data-comment-import-open>Import comments…</button>
 
         <div class="menu-sub" data-submenu>
           <button type="button" data-menu-item data-submenu-trigger
@@ -42,6 +43,7 @@
                      the editing assets `absent`, so a file rewritten that way cannot be
                      edited again. The copy is what gets the two choices. -->
                 <button data-menu-item data-copy>Save a copy for someone…</button>
+                <button data-menu-item data-comment-export>Comments only…</button>
               </div>
             </div>
 
@@ -363,3 +365,4 @@
 </header>
 
 <input type="file" data-figure-input hidden multiple>
+<input type="file" data-comment-import hidden accept=".html,.json,application/json,text/html">

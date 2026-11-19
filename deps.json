@@ -298,7 +298,9 @@
         "authorName",
         "setAuthorName",
         "merge",
-        "load"
+        "replace",
+        "load",
+        "newCommentId"
       ]
     },
     {
@@ -401,6 +403,7 @@
         "validate",
         "copy",
         "viewer",
+        "exportCommentsOnly",
         "settings"
       ]
     },

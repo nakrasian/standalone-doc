@@ -1299,6 +1299,185 @@ export function createToolbar(deps = {}) {
     policy: options.policy || null,
   });
 
+  /* ------------------------------------------------- comments: the file channel
+   *
+   * One pure function does the work (`comments.merge`), and these two are its transports.
+   * A comments-only file is the store in a recognisable document, which is why import
+   * has one parser for both: it looks for the same block. Nothing here resolves a
+   * disagreement — the list is for a human, and "keep both" is the escape hatch that
+   * never loses text.
+   */
+
+  const commentStoreText = () => {
+    const block = document.getElementById("comment-store");
+    return block ? block.textContent : null;
+  };
+
+  /** Write the store alone: a review round-trip without the document around it. */
+  function exportCommentsOnly() {
+    const text = commentStoreText();
+    if (!text) return false;
+    let json;
+    try {
+      /* A `<` inside a comment body is escaped, so the store cannot end the block it is
+         in when the next reader parses this file. */
+      json = JSON.stringify(JSON.parse(text)).replace(/</g, "\\u003c");
+    } catch {
+      return false;
+    }
+    const title = (document.querySelector("[data-title]")?.value || document.title || "document").trim();
+    const slug = title.toLowerCase().replace(/[^\w.-]+/g, "-") || "document";
+    /* Built as a document rather than as a string: the module's own block must not carry
+       a literal tag, and a serialiser cannot mis-escape one. */
+    const file = document.implementation.createHTMLDocument(`${title} — comments`);
+    const meta = file.createElement("meta");
+    meta.name = "generator";
+    meta.content = "standalone-doc: comments only";
+    const block = file.createElement("script");
+    block.id = "comment-store";
+    block.type = "application/json";
+    block.textContent = json;
+    file.head.append(meta);
+    file.body.append(block);
+    const html = "<!doctype html>\n" + file.documentElement.outerHTML;
+    const url = URL.createObjectURL(new Blob([html], {type: "text/html"}));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug} (comments).html`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    return true;
+  }
+
+  /**
+   * A full document *or* a comments-only file. Parsed, never searched: a comment body
+   * may contain anything, including the markup a search would match.
+   */
+  function readCommentStore(text) {
+    const source = String(text || "").trim();
+    if (!source) return null;
+    if (source.startsWith("{")) {
+      try {
+        const data = JSON.parse(source);
+        return Array.isArray(data?.comments) ? {schema: 1, comments: data.comments} : null;
+      } catch {
+        return null;
+      }
+    }
+    const doc = new DOMParser().parseFromString(source, "text/html");
+    const block = doc.getElementById("comment-store");
+    if (!block) return null;
+    try {
+      const data = JSON.parse(block.textContent);
+      return Array.isArray(data?.comments) ? {schema: 1, comments: data.comments} : null;
+    } catch {
+      return null;
+    }
+  }
+
+  let pendingImport = null;
+
+  function showImport(result) {
+    const dialog = document.getElementById("import-dialog");
+    if (!dialog) return;
+    const summary = dialog.querySelector("[data-import-summary]");
+    const nothing = dialog.querySelector("[data-import-nothing]");
+    const help = dialog.querySelector("[data-import-help]");
+    const list = dialog.querySelector("[data-import-conflicts]");
+    const apply = dialog.querySelector("[data-import-apply]");
+    const empty = !result.added && !result.replies && !result.orphans && !result.conflicts.length;
+    const parts = [];
+    if (result.added) parts.push(`${result.added} new`);
+    if (result.replies) parts.push(`${result.replies} ${result.replies === 1 ? "reply" : "replies"} merged`);
+    if (result.orphans) parts.push(`${result.orphans} unattached`);
+    if (result.conflicts.length) parts.push(`${result.conflicts.length} ${result.conflicts.length === 1 ? "conflict" : "conflicts"}`);
+    summary.textContent = parts.length ? parts.join(" · ") : "Nothing new.";
+    nothing.hidden = !empty;
+    help.hidden = !result.conflicts.length;
+    apply.disabled = empty;
+    apply.textContent = result.conflicts.length ? "Import with these choices" : "Import";
+
+    const choices = new Map();
+    list.replaceChildren();
+    for (const conflict of result.conflicts) {
+      choices.set(conflict.id, "mine");
+      const card = document.createElement("div");
+      card.className = "import-conflict";
+      card.dataset.importConflict = "";
+      card.dataset.commentId = conflict.id;
+
+      const body = document.createElement("p");
+      body.className = "import-body";
+      body.textContent = conflict.body;
+      const facts = document.createElement("p");
+      facts.className = "import-facts";
+      facts.textContent = `this file: resolved = ${conflict.local.resolved} · imported: resolved = ${conflict.incoming.resolved}`;
+      const row = document.createElement("div");
+      row.className = "import-choices";
+      for (const [value, label] of [["mine", "Keep mine"], ["theirs", "Take imported"], ["both", "Keep both"]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.importChoice = value;
+        button.setAttribute("aria-pressed", String(value === "mine"));
+        button.textContent = label;
+        row.append(button);
+      }
+      card.append(body, facts, row);
+      list.append(card);
+    }
+
+    pendingImport = {result, choices};
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function wireImport() {
+    const dialog = document.getElementById("import-dialog");
+    if (!dialog) return;
+    dialog.querySelector("[data-import-conflicts]").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-import-choice]");
+      const card = button?.closest("[data-import-conflict]");
+      if (!button || !card || !pendingImport) return;
+      pendingImport.choices.set(card.dataset.commentId, button.dataset.importChoice);
+      for (const other of card.querySelectorAll("[data-import-choice]")) {
+        other.setAttribute("aria-pressed", String(other === button));
+      }
+    });
+    dialog.addEventListener("close", () => {
+      const pending = pendingImport;
+      pendingImport = null;
+      if (!pending || dialog.returnValue !== "apply") return;
+      const next = pending.result.next;
+      for (const conflict of pending.result.conflicts) {
+        const choice = pending.choices.get(conflict.id) || "mine";
+        if (choice === "mine") continue;
+        const comment = next.comments.find((candidate) => candidate.id === conflict.id);
+        if (!comment) continue;
+        if (choice === "theirs") {
+          comment.resolved = conflict.incoming.resolved;
+          comment.updatedAt = conflict.incoming.updatedAt || comment.updatedAt;
+        } else if (choice === "both") {
+          next.comments.push({
+            ...comment,
+            id: comments().newCommentId(),
+            resolved: conflict.incoming.resolved,
+            updatedAt: conflict.incoming.updatedAt || comment.updatedAt,
+            replies: [],
+          });
+        }
+      }
+      comments().replace(next);
+    });
+  }
+
+  async function importCommentsFile(file) {
+    if (!file || !comments()) return false;
+    const incoming = readCommentStore(await file.text());
+    if (!incoming) return false;
+    const result = comments().merge(comments().load(), incoming);
+    showImport(result);
+    return true;
+  }
+
   async function save(options = {}) {
     /* `to: "file"` is the deliberate way out of the library — a copy you keep. */
     const target = options.to === "file" ? null : library();
@@ -1602,6 +1781,8 @@ export function createToolbar(deps = {}) {
     const exportBtn = e.target.closest("[data-export]");
     const saveBtn = e.target.closest("[data-save]");
     const copyBtn = e.target.closest("[data-copy]");
+    const exportCommentsBtn = e.target.closest("[data-comment-export]");
+    const importCommentsBtn = e.target.closest("[data-comment-import-open]");
     const shortcutBtn = e.target.closest("[data-shortcuts]");
     const commentBtn = e.target.closest("[data-comment-add-edit]");
     const zoomBtn = e.target.closest("[data-zoom]");
@@ -1619,6 +1800,8 @@ export function createToolbar(deps = {}) {
     if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
     if (exportBtn) {exporter().begin(exportBtn.dataset.export); return;}
     if (copyBtn) {askCopy().then((choice) => choice && copy(choice)); return;}
+    if (exportCommentsBtn) {closeAllMenus(); exportCommentsOnly(); return;}
+    if (importCommentsBtn) {closeAllMenus(); document.querySelector("[data-comment-import]")?.click(); return;}
     if (saveBtn) {save(); return;}
     if (shortcutBtn) {showShortcuts(); return;}
     if (commentBtn) {
@@ -1636,6 +1819,13 @@ export function createToolbar(deps = {}) {
   });
 
   document.addEventListener("change", (e) => {
+    if (e.target.matches("[data-comment-import]")) {
+      const file = e.target.files && e.target.files[0];
+      /* Clear first: choosing the same file twice must fire `change` twice. */
+      e.target.value = "";
+      if (file) importCommentsFile(file);
+      return;
+    }
     if (e.target.matches("[data-block]")) editor.setBlock(e.target.value);
     if (e.target.matches("[data-fontsize]")) editor.setFontSize(e.target.value);
   });
@@ -1727,6 +1917,7 @@ export function createToolbar(deps = {}) {
 
   wireDocSettings();
   wirePublish();
+  wireImport();
   syncChromeButtons(document.body.dataset.ui || "ribbon");
-  return {save, serialize, validate, copy, viewer, settings: openDocSettings};
+  return {save, serialize, validate, copy, viewer, exportCommentsOnly, settings: openDocSettings};
 }

@@ -175,6 +175,15 @@ which would be a change to the file for nothing.
   collision `doc-bar`'s predecessor already paid for.
 - `check` validates the schema, unique ids, integral ranges, 40-character quotes, `b_` ids, and
   refuses `capabilities.comments === "off"` in a file that carries this block.
+- **A copy may be sealed.** When an export declares `capabilities.edit: "off"`, the assets the
+  copy's mode does not need are written `absent` *and* their `url`/`integrity` are deleted:
+  the file says it dropped them and gives nobody an address to fetch them from. A copy with
+  `capabilities.edit: "copy"` instead writes those entries `online` with their address kept —
+  pins, not code — which is what `registry.adopt()` follows. An entry that is `inline` with no
+  block is never written; it was a declaration the loader would act on.
+- **A comments-only file** is the same block in a minimal document (`<!doctype html>`, a title,
+  a generator meta and the store). Import accepts either that or a full document, because it
+  looks for this block in both — one parser, one shape.
 
 ## 5. Plugins in the manifest
 

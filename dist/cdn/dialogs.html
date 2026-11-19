@@ -218,6 +218,21 @@
   </form>
 </dialog>
 
+<dialog id="import-dialog" aria-labelledby="import-title">
+  <form method="dialog">
+    <h2 id="import-title">Import comments</h2>
+    <p class="sp-sub" data-import-summary>—</p>
+    <p class="sp-note" data-import-nothing hidden>Nothing new: this file's comments are already here.</p>
+    <p class="sp-note" data-import-help hidden>A disagreement is not resolved for you. Pick what this
+      file should say; <b>Keep both</b> duplicates the comment rather than losing either version.</p>
+    <div class="dd-comments" data-import-conflicts></div>
+    <div class="dialog-actions">
+      <button type="submit" value="cancel">Cancel</button>
+      <button type="submit" class="primary" value="apply" data-import-apply>Import</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="publish-dialog" aria-labelledby="publish-title">
   <form method="dialog">
     <h2 id="publish-title">Read-only link</h2>
