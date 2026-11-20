@@ -189,7 +189,7 @@
     },
     {
       "tag": "v0.13.0",
-      "date": null,
+      "date": "2026-11-20",
       "base": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.0/dist/cdn",
       "hostApi": 3,
       "assets": 26,
