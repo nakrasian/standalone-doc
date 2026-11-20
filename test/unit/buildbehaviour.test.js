@@ -221,7 +221,7 @@ test("a catalog proposal must be absolute, hashed, and an identifier factory", (
     assert.match(output, /sha384 must be/);
     assert.match(output, /bytes must be a positive integer/);
     assert.match(output, /factory must be an identifier/);
-    assert.match(output, /island must be sealed, sandboxed or trusted/);
+    assert.match(output, /island must be one of sealed, compute, sandboxed, trusted/);
 
     /* And the published copy must match what the authored file would emit. */
     fs.writeFileSync(file, JSON.stringify(catalog));

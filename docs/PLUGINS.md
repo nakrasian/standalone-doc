@@ -131,7 +131,7 @@ plugin cannot add a menu item that is not in its declaration.
 
 | kind | implementation | the host does |
 |---|---|---|
-| `insert` | `insert[id](ctx) → {html, caption?, island?}` | inserts a figure, writes the pin into the store |
+| `insert` | `insert[id](ctx) → {html, caption?, island?, assets?, exports?, width?, height?}` | inserts a figure, writes the pin into the store |
 | `inline` | `inline[id](ctx) → void` | closes the menu and calls you; **you** insert with `editor.insertInline()` |
 | `export` | `export[id]() → {name, mime, text \| bytes}` | builds the Blob and the download |
 | `panel` | `panel[id](body)` | creates a modal dialog and hands you an empty body |
@@ -169,13 +169,25 @@ A figure's content mounts into an `iframe srcdoc` with a profile:
 
 | profile | what the content can do | default for |
 |---|---|---|
-| `sealed` | no network, no storage, no parent. WebAssembly still compiles | a plugin's own content |
+| `sealed` | no network, no storage, no parent, no dynamic code generation. WebAssembly still compiles | a plugin's own content |
+| `compute` | as `sealed`, plus `'unsafe-eval'` — it may compile expressions at run time | a pinned charting engine (GenomeSpy, and every Vega derivative, builds filters with `new Function`) |
 | `sandboxed` | may fetch; no storage, no parent | user-supplied HTML |
 | `trusted` | `allow-same-origin`: can read and modify this document | nothing — it is a decision |
 
 `sealed` is enforced with a Content-Security-Policy in the island
 (`connect-src 'none'`, `frame-src 'none'`, `'wasm-unsafe-eval'`). The profile is stored **on
 the figure**, decided at insert time, so a later plugin version cannot widen it.
+
+`compute` exists because "no eval" and "no network" are different promises, and a
+document that can say only both-or-neither either lies about a chart or refuses to draw it.
+It is `sealed` plus one CSP source, `'unsafe-eval'`: the engine still cannot fetch, store or
+reach the document, and the code it compiles is the code this file pinned and verified — a
+compiler, not an address. It is measured, not assumed: in all three engines a GenomeSpy
+bundle imported from a `blob:` in a `compute` island renders, and the same bundle in a
+`sealed` island dies in `createExpression` (`Evaluating a string as JavaScript violates …
+'unsafe-eval'`). An island profile that denies eval is also why a capture of it is mounted
+with the serializer **inlined as code** instead of handed over as a string: the host does not
+ask content for a capability its profile says it has not got.
 
 `trusted` asks the author once, when the plugin is added or turned back on. There is no
 separate "allowed" flag: the plugin entry in the file is the record. A reader is never asked
@@ -199,6 +211,37 @@ relabel in this handler.
 ```
 
 Downloads, links, the clipboard and file pickers are **host-mediated**, not sandbox flags.
+
+### A figure may draw its own export
+
+Rasterizing an island is the fallback, not the contract. A contribution whose content holds
+a vector source (a chart engine's `imageExport.svg()`, a canvas whose real output is SVG)
+declares what it can produce, and the export asks it first:
+
+```js
+// the insert contribution
+return { html, caption: "Locus", island: "compute", assets: ["genomespy", "genome-view"],
+         exports: ["svg"], width: 1, height: 0.26 };
+```
+
+The island then exposes one function, and `figure-export` is the only message it answers:
+
+```js
+window.__figureExport = async ({format}) => ({
+  format,                                  // "svg"
+  text: await chart.api.imageExport.svg({background: "white"}),
+});
+```
+
+`text` (an SVG document) or `dataUrl` is accepted; the host turns the first into
+`data:image/svg+xml`. `exports` and `width`/`height` are stored **on the figure**, beside
+`island` and `assets`: the file says which engine drew it, at what aspect, and what it can
+still produce. A declared exporter that throws or times out is logged and the rasterizer
+takes over, so the worst case is quality, never a missing figure.
+
+What the *target* asks for is its own decision, and the reason the formats are a list: the
+static-HTML and print paths ask for `["svg"]` first, while `materialize()` asks for nothing
+unless its caller opts in — a `.docx` image path is not a browser.
 
 ## 5. Pinning and storage
 
@@ -386,6 +429,7 @@ change; a plugin that wants to survive that should declare the version it was wr
 |---|---|
 | 1 | the table above minus the last two rows: `figures`, `editor.insertBlock`, `status` |
 | 2 | `editor.insertInline`, `pagination.defineBlock`, the `inline` contribution kind, `host.on("restore")`, `data-atomic`, and the `data-plugin-style` rule |
+| 3 | an `insert` contribution states its own `width`/`height` and its `exports`; the `compute` island profile; `figure-export` (a figure draws its own vector export) |
 
 A plugin that inserts inline content must declare `2`: on an older host it would activate and
 then fail halfway through an insertion, which is precisely what the field prevents.

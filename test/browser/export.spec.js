@@ -123,3 +123,117 @@ test("a figure with no capture is reported, not silently shipped", async ({ page
   expect(state.problems).toContain("figure 1 has no captured source");
   expect(state.files).toEqual([]);
 });
+
+/* ---- a figure that is its own export ------------------------------------
+ *
+ * Two things here are host promises, not figure behaviour:
+ *
+ *   1. **A sealed island can be captured.** The rasterizer is code, so a profile that
+ *      denies eval is mounted with the serializer inlined into its srcdoc (`captureAll`).
+ *      Before that, every sealed HTML figure exported as a placeholder, because the only
+ *      way in was `(0, eval)(lib)` inside the island.
+ *   2. **A figure may draw its own vector output.** `exports` is stored on the store
+ *      entry; the host asks the island through `window.__figureExport` and only falls back
+ *      to a raster. The caller decides which formats it will accept, because an `.svg` is
+ *      right for a page and a print job and not obviously right for every writer.
+ */
+
+/** A figure inserted through the host's own path, so the store entry is real. */
+async function loadIsland(page, { html, island, exports = null, width = null, height = null }) {
+  await page.goto(fileUrl("dist/editor.html"));
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, { timeout: 20_000 });
+  await page.evaluate((options) => {
+    globalThis.StandaloneDoc.modules.figures.insertHTML(options.html, {
+      caption: "Locus",
+      island: options.island,
+      exports: options.exports,
+      width: options.width,
+      height: options.height,
+    });
+  }, { html, island, exports, width, height });
+}
+
+test("a sealed island is captured, which is only possible with the serializer inlined", async ({ page }) => {
+  await loadIsland(page, {
+    island: "sealed",
+    html: '<body style="margin:0"><div style="width:120px;height:60px;background:#0b64c8"></div></body>',
+  });
+
+  const state = await page.evaluate(async () => {
+    const ex = globalThis.StandaloneDoc.modules.export;
+    const out = await ex.materialize({ format: "png", media: "files" });
+    return { problems: out.problems, files: out.files };
+  });
+
+  /* Success *is* the assertion: a sealed island cannot eval, so an island that eval'd its
+     serializer would fail here rather than produce a png. The capture mounts its own copy
+     with the code inlined, which is the only reason this comes back with a file. */
+  expect(state.problems).toEqual([]);
+  expect(state.files).toHaveLength(1);
+  expect(state.files[0].name).toBe("fig-01.png");
+  expect(state.files[0].dataUrl.startsWith("data:image/png")).toBe(true);
+});
+
+test("a declared svg export is asked before the rasterizer, and names a .svg file", async ({ page }) => {
+  const html = `<body style="margin:0">
+<script>
+window.__figureExport = async ({format}) => ({
+  format,
+  text: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50">'
+    + '<rect width="200" height="50" fill="#eee"/><text x="10" y="30">RecT</text></svg>',
+});
+</scr` + `ipt></body>`;
+
+  await loadIsland(page, { html, island: "compute", exports: ["svg"], width: 1, height: 0.26 });
+  await page.waitForSelector("figure.figure iframe");
+
+  const state = await page.evaluate(async () => {
+    const figures = globalThis.StandaloneDoc.modules.figures;
+    const ex = globalThis.StandaloneDoc.modules.export;
+    const figure = document.querySelector("figure.figure");
+    const captured = await figures.snapshot(figure, { formats: ["svg"] });
+    const html = ex.buildStatic([captured], { media: "data-uri" });
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const img = doc.querySelector("#content figure.figure .figure-frame img");
+    return {
+      engine: captured.engine,
+      dataUrl: captured.dataUrl || "",
+      file: ex.figureFiles([captured])[0],
+      stored: figure.dataset.w + "x" + figure.dataset.h,
+      width: img.getAttribute("width"),
+      src: img.getAttribute("src") || "",
+      problems: ex.validateStatic(html),
+    };
+  });
+
+  expect(state.engine).toBe("figure-export:svg");
+  expect(state.dataUrl.startsWith("data:image/svg+xml;charset=utf-8,")).toBe(true);
+  expect(state.file.name).toBe("fig-01.svg");
+  expect(state.file.mime).toBe("image/svg+xml");
+  /* The authored geometry travelled: 1 x 0.26, and `width="100%"` in the static copy. */
+  expect(state.stored).toBe("1x0.26");
+  expect(state.width).toBe("100%");
+  expect(state.src.startsWith("data:image/svg+xml;charset=utf-8,")).toBe(true);
+  expect(state.problems).toEqual([]);
+});
+
+test("a declared exporter that fails costs quality, not the figure", async ({ page }) => {
+  const html = `<body style="margin:0"><div style="width:80px;height:40px;background:#333"></div>
+<script>
+window.__figureExport = async () => { throw new Error("no vector today"); };
+</scr` + `ipt></body>`;
+
+  await loadIsland(page, { html, island: "compute", exports: ["svg"] });
+  await page.waitForSelector("figure.figure iframe");
+
+  const state = await page.evaluate(async () => {
+    const ex = globalThis.StandaloneDoc.modules.export;
+    /* The real export path, so the rasterizer gets the serializer it needs. */
+    const out = await ex.materialize({ format: "png", media: "files", formats: ["svg"] });
+    return { problems: out.problems, file: out.files[0] };
+  });
+
+  /* The rasterizer is the fallback, so the figure still ships. */
+  expect(state.problems).toEqual([]);
+  expect(state.file.name).toBe("fig-01.png");
+});

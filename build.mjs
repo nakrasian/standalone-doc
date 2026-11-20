@@ -44,6 +44,7 @@ import {
   pluginConfigs,
   pluginConfigProblems,
   pluginBaseFor,
+  ISLAND_PROFILES,
 } from "./tools/publish-plugin.mjs";
 import {
   compileBody,
@@ -730,8 +731,8 @@ function catalogProblems(catalog) {
       continue;
     }
     if (!asset.label) problems.push(`catalog "${id}": label is required`);
-    if (asset.island != null && !["sealed", "sandboxed", "trusted"].includes(asset.island)) {
-      problems.push(`catalog "${id}": island must be sealed, sandboxed or trusted`);
+    if (asset.island != null && !ISLAND_PROFILES.includes(asset.island)) {
+      problems.push(`catalog "${id}": island must be one of ${ISLAND_PROFILES.join(", ")}`);
     }
     const versions = Array.isArray(asset.versions) ? asset.versions : [];
     if (!versions.length) problems.push(`catalog "${id}": versions must be a non-empty array`);
@@ -751,8 +752,8 @@ function catalogProblems(catalog) {
           if (!item || !item.id) problems.push(`${where}: every ${kind} contribution needs an id`);
         }
       }
-      if (version?.island != null && !["sealed", "sandboxed", "trusted"].includes(version.island)) {
-        problems.push(`${where}: island must be sealed, sandboxed or trusted`);
+      if (version?.island != null && !ISLAND_PROFILES.includes(version.island)) {
+        problems.push(`${where}: island must be one of ${ISLAND_PROFILES.join(", ")}`);
       }
     }
   }

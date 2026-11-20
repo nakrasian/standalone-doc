@@ -266,22 +266,24 @@ test("activate() receives a host scoped to its own bundle", async ({ page }) => 
   const host = await page.evaluate(async () => {
     StandaloneDoc.provide("demo", { value: 42 });
     await StandaloneDoc.require("whiteboard");
-    return globalThis.__host;
+    return {host: globalThis.__host, runtime: StandaloneDoc.hostApi};
   });
-  /* The host API the plugin is written against, which a plugin can branch on. */
-  expect(host.api).toBe(2);
-  expect(host.id).toBe("whiteboard");
+  /* The host API the plugin is written against, which a plugin can branch on. Asserted
+     against the runtime's own number rather than a literal: every bump would otherwise
+     edit a test that is not about the bump. */
+  expect(host.host.api).toBe(host.runtime);
+  expect(host.host.id).toBe("whiteboard");
   /* The label and island profile come from the manifest — that is where the document's
      own description of the plugin lives. */
-  expect(host.label).toBe("Whiteboard");
-  expect(host.island).toBe("sealed");
+  expect(host.host.label).toBe("Whiteboard");
+  expect(host.host.island).toBe("sealed");
   /* It can read its own bytes… */
-  expect(host.own).toBe(true);
+  expect(host.host.own).toBe(true);
   /* …cannot read another plugin's, and cannot reach a capability this document has
      no module for. Both refuse with a kind, not a stack trace. */
-  expect(host.borrowed).toBe("forbidden");
-  expect(host.demo).toBe(42);
-  expect(host.missing).toBe("unavailable");
+  expect(host.host.borrowed).toBe("forbidden");
+  expect(host.host.demo).toBe(42);
+  expect(host.host.missing).toBe("unavailable");
   expect(problems).toEqual([]);
 });
 
@@ -343,7 +345,9 @@ test("a deactivate() that throws is recorded, and the host still cleans up", asy
 });
 
 test("a plugin that needs a newer host API is refused before activate", async ({ page }) => {
-  await load(page, makeDoc({ source: HOST_JS, factory: "createHarness", api: 3 }));
+  /* A number no plausible release provides, so the test is about the refusal and not about
+     which API this runtime happens to be. */
+  await load(page, makeDoc({ source: HOST_JS, factory: "createHarness", api: 99 }));
   const result = await page.evaluate(async () => {
     globalThis.__host = null;
     try {
@@ -354,6 +358,7 @@ test("a plugin that needs a newer host API is refused before activate", async ({
         threw: true,
         kind: error?.kind,
         message: error?.message,
+        runtime: StandaloneDoc.hostApi,
         activated: Boolean(globalThis.__host),
         module: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
         styles: Boolean(document.querySelector('style[data-asset="whiteboard-styles"]')),
@@ -363,8 +368,8 @@ test("a plugin that needs a newer host API is refused before activate", async ({
   });
   expect(result.threw).toBe(true);
   expect(result.kind).toBe("api");
-  expect(result.message).toContain("host API 3");
-  expect(result.message).toContain("provides 2");
+  expect(result.message).toContain("host API 99");
+  expect(result.message).toContain(`provides ${result.runtime}`);
   expect(result.activated).toBe(false);
   expect(result.module).toBe(false);
   expect(result.styles).toBe(false);
@@ -385,6 +390,7 @@ test("an unload during a build cannot be undone by that build", async ({ page })
       return {
         threw: true,
         kind: error?.kind,
+        runtime: StandaloneDoc.hostApi,
         activated: Boolean(globalThis.__host),
         module: Object.keys(StandaloneDoc.modules).includes("whiteboard"),
       };

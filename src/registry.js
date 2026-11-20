@@ -12,8 +12,13 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
      declares the version it needs and the registry refuses a mismatch.
      2 (v0.11.0): `editor.insertInline()`, `pagination.defineBlock()`, `data-atomic`, and the
      rule that a plugin's `data-plugin-style` CSS travels in the file. A plugin that inserts
-     inline content cannot work on a host without them, and must be refused before activate. */
-  const HOST_API = 2;
+     inline content cannot work on a host without them, and must be refused before activate.
+     3: an `insert` contribution may state its own geometry (`width`/`height`), declare the
+     island profile `compute` (a pinned engine that compiles expressions), and declare
+     `exports` — the formats its island can hand back to an export itself. A host without
+     them would insert the figure at the wrong aspect, widen its island to `sandboxed`, and
+     silently rasterize what the plugin can draw as vector. */
+  const HOST_API = 3;
   /* Capabilities other modules offer to plugins. A module puts itself in this table
      when it is built, so a plugin can only use what this document really has: a
      viewer has no editor, and a file with the toolbar absent has no menus. */

@@ -33,39 +33,54 @@ export function createFigures(deps = {}) {
 
   /* The island profiles. What is sandboxed is the *content* a figure mounts — never the
      plugin or the editor, which are document-level code by definition.
-     
-       sealed     no network, no storage, no parent. The default for a plugin's own content.
+
+       sealed     no network, no storage, no parent, and no dynamic code generation.
+                  The default for a plugin's own content.
+       compute    sealed, plus `'unsafe-eval'`. For a pinned charting engine that compiles
+                  expressions at run time — GenomeSpy, and every Vega derivative, builds
+                  its filters and encodings with `new Function`. The island still has no
+                  network, no storage and no parent, and the code it runs is still code
+                  this file pinned and verified: the capability it gains is a compiler,
+                  not an address.
        sandboxed  today's figure sandbox: it may fetch (a user's own HTML may need to, and
                   the RecT samples call NCBI), still no storage and no parent.
        trusted    + allow-same-origin: the content can reach this document. Measured in
                   lab/005 — that is a real capability, not a label.
-     
+
+     `eval` is not a synonym for "no CSP": it is the one capability the *export* path
+     reads. A profile that denies it gets the serializer inlined into its island as code
+     (`captureAll`), because handing a sealed island a string to eval is a policy it
+     declares it does not have.
+
      `trusted: true` on an older figure means the same thing, so a file saved before the
      profile existed behaves identically. */
+  const sealedCsp = (evalAllowed) => [
+    "default-src 'none'",
+    /* 'wasm-unsafe-eval' is not optional: without it a sealed island cannot compile
+       WebAssembly at all (measured, lab/005). */
+    `script-src 'unsafe-inline' blob: 'wasm-unsafe-eval'${evalAllowed ? " 'unsafe-eval'" : ""}`,
+    "worker-src blob:",
+    "style-src 'unsafe-inline'",
+    "img-src data: blob:",
+    "media-src data: blob:",
+    "font-src data:",
+    "connect-src 'none'",
+    "frame-src 'none'",
+  ].join("; ");
+
   const PROFILES = {
-    sealed: {
-      sandbox: "allow-scripts",
-      csp: [
-        "default-src 'none'",
-        /* 'wasm-unsafe-eval' is not optional: without it a sealed island cannot compile
-           WebAssembly at all (measured, lab/005). */
-        "script-src 'unsafe-inline' blob: 'wasm-unsafe-eval'",
-        "worker-src blob:",
-        "style-src 'unsafe-inline'",
-        "img-src data: blob:",
-        "media-src data: blob:",
-        "font-src data:",
-        "connect-src 'none'",
-        "frame-src 'none'",
-      ].join("; "),
-    },
-    sandboxed: {sandbox: SANDBOX, csp: null},
-    trusted: {sandbox: `${SANDBOX} allow-same-origin`, csp: null},
+    sealed: {sandbox: "allow-scripts", csp: sealedCsp(false), eval: false},
+    compute: {sandbox: "allow-scripts", csp: sealedCsp(true), eval: true},
+    sandboxed: {sandbox: SANDBOX, csp: null, eval: true},
+    trusted: {sandbox: `${SANDBOX} allow-same-origin`, csp: null, eval: true},
   };
 
   /** The profile a figure's content mounts into, with the legacy flag mapped onto it. */
   function profileOf(stored) {
     const name = (stored && stored.island) || (stored && stored.trusted ? "trusted" : "sandboxed");
+    /* An unknown name is a figure written by a newer runtime: fall back to the profile
+       every user figure has always mounted into, and say so rather than guess silently. */
+    if (!PROFILES[name]) console.warn(`unknown island profile "${name}"; using sandboxed`);
     return PROFILES[name] || PROFILES.sandboxed;
   }
 
@@ -118,7 +133,29 @@ export function createFigures(deps = {}) {
     var d = e.data || {};
     if (!d.id || !d.type || d.type.indexOf("figure-") !== 0) return;
     if (d.type === "figure-ping") {
-      reply(d.id, {ok:true, pong:true, width:innerWidth, height:innerHeight});
+      /* 'serializer' is the other end of the export decision: an island mounted with the
+         serializer inlined says so, and one that was not says it can still be handed one
+         because its profile allows eval. */
+      reply(d.id, {ok:true, pong:true, width:innerWidth, height:innerHeight,
+        serializer: !!window.htmlToImage});
+      return;
+    }
+    /* A figure that declares an exporter owns its own vector output: it answers with an
+       SVG (or a data URL) and the host never rasterizes it. Declared on the store entry,
+       so the file says which engines can produce the figure. */
+    if (d.type === "figure-export") {
+      try {
+        if (typeof window.__figureExport !== "function") throw new Error("this island declares no exporter");
+        var out = await window.__figureExport({format: d.format});
+        if (!out) throw new Error("the island's exporter returned nothing");
+        var svg = typeof out === "string" ? out : out.text;
+        var dataUrl = (out && out.dataUrl)
+          || (svg ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg) : "");
+        if (!dataUrl) throw new Error("the island's exporter returned no image");
+        reply(d.id, {ok:true, dataUrl:dataUrl});
+      } catch (error) {
+        reply(d.id, {ok:false, error:String(error && error.message || error)});
+      }
       return;
     }
     if (d.type !== "figure-snapshot") return;
@@ -131,9 +168,11 @@ export function createFigures(deps = {}) {
     var realToDataURL = HTMLCanvasElement.prototype.toDataURL;
     try {
       note("start");
+      /* A profile that denies eval is mounted with the serializer already inlined
+         ('captureAll'), so this branch is the fallback for profiles that allow it. */
       if (!window.htmlToImage && d.lib) (0, eval)(d.lib);
       var lib = window.htmlToImage;
-      if (!lib) throw new Error("html-to-image did not install");
+      if (!lib) throw new Error("this island has no serializer and its profile forbids eval");
       note("lib");
       if (document.readyState !== "complete") {
         await Promise.race([
@@ -219,6 +258,14 @@ export function createFigures(deps = {}) {
   });
 })();`;
   const SNAPSHOT_TAG = "<script>" + SNAPSHOT_SHIM + "</" + "script><script>" + SNAPSHOT_BRIDGE + "</" + "script>";
+
+  /* The serializer as *code*, for a profile that denies eval. Same bytes the bridge would
+     otherwise evaluate, delivered as a script element in the island the host is about to
+     capture. Only `captureAll` passes one, and only for a profile that cannot eval. */
+  function serializerTag(source) {
+    if (!source) return "";
+    return "<script data-figure-serializer>" + source.replace(/<\/script/gi, "<\\/script") + "</" + "script>";
+  }
 
   let store = {version: VERSION, figures: {}};
   let observer = null;
@@ -649,7 +696,7 @@ export function createFigures(deps = {}) {
     }
   }
 
-  function htmlDocument(src, csp = null) {
+  function htmlDocument(src, csp = null, serializer = "") {
     const policy = csp
       ? `<meta http-equiv="Content-Security-Policy" content="${csp.replace(/"/g, "&quot;")}">`
       : "";
@@ -673,8 +720,10 @@ export function createFigures(deps = {}) {
         })()
       : html;
     const html2 = withPolicy;
+    /* A source that already carries the bridge is mounted content, not a store entry, and
+       is returned untouched: re-wrapping it would double the listeners. */
     if (html2.includes("data-figure-bridge")) return html2;
-    const tag = SNAPSHOT_TAG.replace("<script>", "<script data-figure-bridge>", 1);
+    const tag = (SNAPSHOT_TAG.replace("<script>", "<script data-figure-bridge>", 1)) + serializerTag(serializer);
     const head = html2.match(/<head[^>]*>/i);
     if (head) {
       const at = head.index + head[0].length;
@@ -747,7 +796,7 @@ export function createFigures(deps = {}) {
     frame.replaceChildren(notice);
   }
 
-  async function mountWithPlugin(figure, plugin) {
+  async function mountWithPlugin(figure, plugin, options) {
     const registry = env && env.StandaloneDoc;
     if (!registry || typeof registry.require !== "function") {
       figure.dataset.pluginState = "failed";
@@ -763,7 +812,7 @@ export function createFigures(deps = {}) {
       figure.dataset.pluginState = "ready";
       const frame = figure.querySelector(".figure-frame");
       if (frame) frame.replaceChildren();
-      mount(figure);
+      mount(figure, options);
     } catch (error) {
       if (!figure.isConnected) return;
       figure.dataset.pluginState = "failed";
@@ -771,7 +820,7 @@ export function createFigures(deps = {}) {
     }
   }
 
-  function mount(figure) {
+  function mount(figure, options = null) {
     if (!figure || !figure.isConnected) return;
     const stored = store.figures[figure.dataset.figureId];
     const entry = resolveEntry(stored);
@@ -786,7 +835,7 @@ export function createFigures(deps = {}) {
     const plugin = pluginOf(stored);
     if (plugin && figure.dataset.pluginState !== "ready") {
       if (figure.dataset.pluginState === "loading" || figure.dataset.pluginState === "failed") return;
-      return mountWithPlugin(figure, plugin);
+      return mountWithPlugin(figure, plugin, options);
     }
 
     figure.removeAttribute("data-missing");
@@ -816,7 +865,7 @@ export function createFigures(deps = {}) {
       if (Array.isArray(stored && stored.permissions) && stored.permissions.length) {
         iframe.setAttribute("allow", stored.permissions.join("; "));
       }
-      iframe.srcdoc = htmlDocument(entry.src, profile.csp);
+      iframe.srcdoc = htmlDocument(entry.src, profile.csp, (options && options.serializer) || "");
       frame.append(iframe);
       mounted.set(figure, {el: iframe});
     } else if (entry.kind === "media") {
@@ -981,6 +1030,23 @@ export function createFigures(deps = {}) {
     if (!iframe) return {ok: false, error: "island is not mounted"};
     const ping = await waitForBridge(iframe.contentWindow);
     if (!ping.ok) return {ok: false, error: ping.error || "island did not answer"};
+
+    /* A figure that declares its own export answers first: it holds the vector source, and
+       a raster of a canvas is a worse answer than the SVG the engine can draw. The fallback
+       is the rasterizer, so a declared exporter that fails costs quality, never the figure. */
+    const declared = Array.isArray(stored && stored.exports) ? stored.exports : [];
+    const wanted = Array.isArray(options.formats) ? options.formats : [];
+    const format = wanted.find((name) => declared.includes(name));
+    if (format) {
+      const res = await requestSnapshot(iframe.contentWindow, {type: "figure-export", format},
+        options.timeout || 30000, options.onProgress);
+      if (res && res.ok && res.dataUrl) {
+        return {ok: true, dataUrl: res.dataUrl, width: res.width, height: res.height,
+          engine: `figure-export:${format}`};
+      }
+      console.warn(`figure export (${format}) failed; rasterizing instead:`, res && (res.error || res.timeout));
+    }
+
     return requestSnapshot(iframe.contentWindow, {
       type: "figure-snapshot",
       lib: options.lib || "",
@@ -1023,10 +1089,19 @@ export function createFigures(deps = {}) {
         if (progress) progress({phase: "mount", index: i + 1, total: figures.length, figure});
 
         const wasMounted = !!figure.querySelector(".figure-frame iframe, .figure-frame video");
-        if ((kind === "html" || kind === "media") && !wasMounted) {
+        const stored = store.figures[figure.dataset.figureId];
+        const profile = profileOf(stored && stored.island ? stored : resolveEntry(stored));
+        /* A profile that denies eval cannot install the serializer from a string, so the
+           capture mounts its own copy of the island with the code inlined. Every other
+           profile is left exactly as the reader has it — no re-render, no scroll jump. */
+        const inline = kind === "html" && Boolean(options.serializer) && !profile.eval;
+        if (inline) unmount(figure);
+        const needsMount = (kind === "html" || kind === "media")
+          && !figure.querySelector(".figure-frame iframe, .figure-frame video");
+        if (needsMount) {
           /* Awaited: a plugin-backed figure may have to be built before it can be
              captured, and this loop must not race ahead. */
-          await mount(figure);
+          await mount(figure, {serializer: inline ? options.serializer : ""});
           mountedForExport.add(figure);
         }
 
@@ -1040,6 +1115,7 @@ export function createFigures(deps = {}) {
         try {
           capture = await snapshot(figure, {
             lib: options.lib,
+            formats: options.formats,
             pixelRatio: options.pixelRatio,
             format: options.format,
             quality: options.quality,
@@ -1058,6 +1134,9 @@ export function createFigures(deps = {}) {
         if (mountedForExport.has(figure)) {
           unmount(figure);
           mountedForExport.delete(figure);
+          /* A capture must not leave a figure the reader could see blank: put back what
+             the page had, mounted the ordinary way. */
+          if (wasMounted) await mount(figure);
         }
       }
     } finally {
@@ -1218,7 +1297,16 @@ export function createFigures(deps = {}) {
    * content mounts into, so the figure can be reopened without the plugin and can say
    * so — and a later plugin version cannot widen the island.
    */
-  function insertHTML(html, {caption = "", pin = null, island = null, assets = null} = {}) {
+  /* A figure's authored geometry, as a fraction of the text column. A locus map is 4:1 and
+     a document figure is 1:0.72, so the content is the only thing that knows; a plugin
+     states it at insert time and the author's own resize still wins afterwards. */
+  const dimensionOf = (value, fallback) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.round(n * 100) / 100)) : fallback;
+  };
+
+  function insertHTML(html, {caption = "", pin = null, island = null, assets = null,
+    exports = null, width = null, height = null} = {}) {
     if (!html) return null;
     const entry = {
       id: uid(),
@@ -1236,6 +1324,10 @@ export function createFigures(deps = {}) {
     /* The asset ids this content may ask the host for (__figureBytes). Stored on the figure,
        so a later plugin version cannot widen it. */
     if (Array.isArray(assets) && assets.length) entry.assets = assets;
+    /* The formats this content can hand an export itself (see `snapshot`). Stored, like
+       `assets`, so the file says what the figure can produce rather than the plugin saying
+       it for every figure it ever made. */
+    if (Array.isArray(exports) && exports.length) entry.exports = exports;
     /* Same bytes, same entry: two insertions of one contribution cost one copy. */
     const shared = findSource(entry);
     if (shared) {
@@ -1246,6 +1338,17 @@ export function createFigures(deps = {}) {
     store.figures[entry.id] = entry;
     syncStore();
     const figure = createFigure(entry);
+    /* Before the insertion, so the first history entry already holds the final geometry. */
+    if (width != null || height != null) {
+      const w = dimensionOf(width, DEFAULT_SIZE.html.w);
+      const h = dimensionOf(height, DEFAULT_SIZE.html.h);
+      figure.dataset.w = String(w);
+      figure.dataset.scale = String(w);
+      figure.dataset.h = String(h);
+      figure.style.setProperty("--figure-w", String(w));
+      figure.style.setProperty("--figure-scale", String(w));
+      figure.style.setProperty("--figure-h", String(h));
+    }
     editor()?.insertBlock(figure);
     scan();
     pagination.schedule();

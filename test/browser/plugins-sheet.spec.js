@@ -644,7 +644,7 @@ test("the same version with different bytes is a substitution, not an update", a
    a plugin that asks for an API this file does not provide has exactly one remedy, and the
    index names the first release that supplies it. */
 test("a plugin that outruns the runtime names the release that would fix it", async ({ page }) => {
-  await openSheet(page, makeDoc({bundle: true, bundleApi: 3, bundleMinRuntime: "v0.13.0", catalogIsland: "sealed"}));
+  await openSheet(page, makeDoc({bundle: true, bundleApi: 99, bundleMinRuntime: "v0.13.0", catalogIsland: "sealed"}));
   const row = await page.evaluate(() => {
     const line = document.querySelector('[data-ps-list="available"] .ps-row');
     const button = line.querySelector("[data-install]");
@@ -652,12 +652,12 @@ test("a plugin that outruns the runtime names the release that would fix it", as
   });
   expect(row.label).toBe("Update runtime to v0.13.0");
   expect(row.disabled).toBe(true);
-  expect(row.text).toContain("host API 3");
+  expect(row.text).toContain("host API 99");
   expect(row.text).toContain("Update this file's runtime to v0.13.0 or later");
 });
 
 test("no published runtime provides it: the row says so instead of offering a dead update", async ({ page }) => {
-  await openSheet(page, makeDoc({bundle: true, bundleApi: 4, catalogIsland: "sealed"}));
+  await openSheet(page, makeDoc({bundle: true, bundleApi: 100, catalogIsland: "sealed"}));
   const row = await page.evaluate(() => {
     const line = document.querySelector('[data-ps-list="available"] .ps-row');
     const button = line.querySelector("[data-install]");
@@ -665,11 +665,11 @@ test("no published runtime provides it: the row says so instead of offering a de
   });
   expect(row.label).toBe("Needs newer runtime");
   expect(row.disabled).toBe(true);
-  expect(row.text).toContain("no published runtime provides 4 yet");
+  expect(row.text).toContain("no published runtime provides 100 yet");
 });
 
 test("an installed plugin that outruns the runtime sends the author to Runtime, not to a plugin update", async ({ page }) => {
-  await openSheet(page, makeDoc({pinned: true, bundle: true, bundleApi: 3, bundleMinRuntime: "v0.13.0", catalogIsland: "sealed"}));
+  await openSheet(page, makeDoc({pinned: true, bundle: true, bundleApi: 99, bundleMinRuntime: "v0.13.0", catalogIsland: "sealed"}));
   await page.waitForFunction(() => /runtime/.test(document.querySelector('[data-ps-list="installed"] .ps-row')?.textContent || ""));
   const offered = await page.evaluate(() => {
     const row = document.querySelector('[data-ps-list="installed"] .ps-row');
@@ -683,7 +683,7 @@ test("an installed plugin that outruns the runtime sends the author to Runtime, 
     [...row.querySelectorAll("button")].find((candidate) => /runtime/.test(candidate.textContent)).click();
   });
   await page.waitForFunction(() => !document.querySelector('[data-dd-panel="runtime"]')?.hidden);
-  expect(await page.evaluate(() => document.querySelector("[data-ps-foot]").textContent)).toContain("host API 3");
+  expect(await page.evaluate(() => document.querySelector("[data-ps-foot]").textContent)).toContain("host API 99");
 });
 
 /* A snapshot is true only at the tag it was taken at, because a bundle's manifest resolves

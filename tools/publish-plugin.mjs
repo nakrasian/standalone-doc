@@ -51,6 +51,13 @@ const rel = (file) => path.relative(ROOT, file).split(path.sep).join("/");
  *   "runtime" the runtime tag this tree publishes — the migration state for a plugin that
  *             shipped inside a runtime release before plugin tags existed
  */
+/**
+ * The island profiles a plugin's *content* may mount into. `compute` is `sealed` plus
+ * `'unsafe-eval'` — a pinned engine that compiles expressions (GenomeSpy, any Vega
+ * derivative) — and it is not a trust level: no network, no storage, no parent.
+ */
+export const ISLAND_PROFILES = ["sealed", "compute", "sandboxed", "trusted"];
+
 export function pluginConfigs() {
   const dir = path.join(ROOT, "plugins");
   if (!fs.existsSync(dir)) return [];
@@ -72,7 +79,7 @@ export function pluginConfigProblems(config) {
   if (!config.label) say("label is required");
   if (!/^\d+\.\d+\.\d+$/.test(String(config.version || ""))) say(`version must be x.y.z, not ${JSON.stringify(config.version)}`);
   if (!Number.isInteger(config.api) || config.api < 1) say("api must be a positive integer");
-  if (!["sealed", "sandboxed", "trusted"].includes(config.island)) say("island must be sealed, sandboxed or trusted");
+  if (!ISLAND_PROFILES.includes(config.island)) say(`island must be one of ${ISLAND_PROFILES.join(", ")}`);
   if (!config.entry) say("entry is required (the asset whose factory is the plugin)");
   if (!["runtime", "tag"].includes(config.publishBase ?? "tag")) say(`publishBase must be "runtime" or "tag"`);
   if (!Number.isInteger(config.orderBase)) say("orderBase must be an integer");
@@ -270,7 +277,7 @@ export function bundleProblems(manifest, { cdnBase = authoredCdnBase() } = {}) {
   if (!manifest.label) say("label is required");
   if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ""))) say(`version must be x.y.z, not ${JSON.stringify(manifest.version)}`);
   if (!Number.isInteger(manifest.api) || manifest.api < 1) say("api must be a positive integer");
-  if (!["sealed", "sandboxed", "trusted"].includes(manifest.island)) say("island must be sealed, sandboxed or trusted");
+  if (!ISLAND_PROFILES.includes(manifest.island)) say(`island must be one of ${ISLAND_PROFILES.join(", ")}`);
   if (!manifest.entry) say("entry is required (the asset whose factory is the plugin)");
 
   const assets = Array.isArray(manifest.assets) ? manifest.assets : [];

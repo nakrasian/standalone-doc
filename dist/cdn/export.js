@@ -339,8 +339,11 @@ export function createExport(deps = {}) {
     progress.update((p.index - 1 + stepFrac) / p.total, progressLabel(p.step, p.ms));
   }
 
-  /* The target decides the format: WebP for the HTML export, never for Word 2013. */
-  async function capture({format = "webp"} = {}) {
+  /* The target decides the format: WebP for the HTML export, never for Word 2013. And the
+     target decides whether a figure's **own** vector output may stand in for a raster: an
+     HTML page and a print job carry SVG, so they ask for it first; a `.docx` writer's image
+     path may not, so `materialize()` asks for nothing unless its caller says so. */
+  async function capture({format = "webp", formats = ["svg"]} = {}) {
     const controller = new AbortController();
     window.__exportAbort = false;
     const total = content.querySelectorAll("figure.figure").length;
@@ -348,6 +351,10 @@ export function createExport(deps = {}) {
     try {
       const captures = await figures.captureAll({
         lib: SNAPSHOT_LIB,
+        /* The same bytes, delivered as code rather than a string: a sealed island cannot
+           eval, and the serializer is ours to ship either way. */
+        serializer: SNAPSHOT_LIB,
+        formats,
         pixelRatio: 2,
         format,
         quality: 0.9,
@@ -379,11 +386,11 @@ export function createExport(deps = {}) {
      throwing — whether a placeholder is fatal belongs to the caller's contract
      (`onMissing: fail`), not to the materializer. One capability, one function: a plugin
      may be an exporter; it may not become the export menu. */
-  async function materialize({format = "png", media = "files"} = {}) {
+  async function materialize({format = "png", media = "files", formats = []} = {}) {
     if (busy) throw new Error("an export is already running");
     busy = true;
     try {
-      const {captures, aborted} = await capture({format});
+      const {captures, aborted} = await capture({format, formats});
       if (aborted) return null;
       const html = buildStatic(captures, {media});
       return {

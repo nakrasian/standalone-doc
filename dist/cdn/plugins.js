@@ -145,9 +145,14 @@ export function createPlugins(deps = {}) {
         caption: content.caption || declared.label || entry.label || "",
         pin: pinFor(id, entry),
         island: content.island || island,
-        /* What the content may ask the host for at run time (__figureBytes). Declared by the
-           contribution, stored on the figure. */
+        /* What the content may ask the host for at run time (__figureBytes), and what it
+           can hand back at export time. Both declared by the contribution, stored on the
+           figure. */
         assets: content.assets || declared.assets || null,
+        exports: content.exports || declared.exports || null,
+        /* Its own geometry: a figure knows its aspect, the host does not. */
+        width: content.width != null ? content.width : declared.width,
+        height: content.height != null ? content.height : declared.height,
       });
     } catch (error) {
       refuse(id, `insert "${itemId}" failed: ${(error && error.message) || error}`);

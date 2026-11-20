@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.13.0 — 2026-11-19
+
+Two capabilities arrived together because the same figure needed both: an island that may
+compile expressions, and a figure that draws its own export.
+
+A genome map is the case. GenomeSpy's grammar builds its filters and encodings with
+`new Function`, so a `sealed` island cannot draw one at all — measured in all three engines,
+the bundle imports from a `blob:` in 31–86 ms and then dies in `createExpression` with
+`Evaluating a string as JavaScript violates … 'unsafe-eval'`. The only profile that could run
+it was `sandboxed`, which also hands the content the network: a chart was being paid for with a
+capability it never asked for. And the same eval was hiding a second bug — the export path
+installed its serializer *inside* the island with `(0, eval)(lib)`, so **every sealed HTML
+figure exported as a placeholder**, and nobody had noticed because the figures that worked were
+the sandboxed ones.
+
+### Added
+
+- **`compute`**, a fourth island profile: `sealed` plus `'unsafe-eval'`. No network, no
+  storage, no parent; the code it compiles is the code the file pinned. Measured with the same
+  bundle at 1.42 MB in a `compute` island: renders in Chromium (160 ms embed), WebKit (174 ms)
+  and Firefox (231 ms). The profile is stored on the figure, so a later plugin version cannot
+  widen it — and `data-trusted` still means only one thing, *unsandboxed*.
+- **A figure may draw its own export.** An `insert` contribution declares `exports: ["svg"]`,
+  the island exposes `window.__figureExport({format})`, and the host asks it before it
+  rasterizes. `exports` and the figure's `width`/`height` are stored beside `island` and
+  `assets`: the file says which engine drew the figure, at what aspect, and what it can still
+  produce. What the *caller* will accept is a separate list — the static-HTML and print paths
+  ask for `["svg"]`, and `materialize()` asks for nothing unless its plugin opts in, because a
+  `.docx` image path is not a browser. A declared exporter that throws costs quality, not the
+  figure: the rasterizer takes over and the failure is logged.
+- **`insertHTML()` takes `width`/`height`.** A locus map is 4:1 and the html default is
+  1:0.72; the content knows its own shape and the host does not. Set before the insertion, so
+  the first history entry already holds the final geometry.
+
+### Fixed
+
+- **A sealed island can be captured.** The serializer is code, so a capturing copy of a
+  profile that denies eval is mounted with it **inlined as a `<script>`** instead of handed
+  over as a string to eval. The island the reader has is untouched: only sealed profiles are
+  re-mounted, and a figure that was on screen is put back afterwards.
+- **`islands.spec.js` suspended the observer.** Four figure-sized islands on a paginated sheet
+  meant an offscreen figure was unmounted mid-measurement; three of them passed by luck of
+  ordering, and the fourth only made the race reliable. The spec was about profiles, not about
+  `IntersectionObserver`.
+
+### Changed
+
+- **Host API 3.** `width`/`height`, `exports`, `compute` and `figure-export` all arrived
+  together. A plugin declaring 3 is refused before `activate()` on a 2 host, which is the
+  point: without it the figure would insert at the wrong aspect, its island would fall back to
+  `sandboxed`, and its vector export would silently become a raster.
+- `plugins.spec.js` and `plugins-sheet.spec.js` no longer hardcode the runtime's API number:
+  they assert against `StandaloneDoc.hostApi` (or a number no release provides), so the next
+  bump does not edit tests that are not about bumps.
+
 ## v0.12.1 — 2026-11-19
 
 The Word export was failing for everyone, and the cause was one host's file-size cap.
