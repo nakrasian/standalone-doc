@@ -55,7 +55,7 @@ const specText = fs.readFileSync(FIXTURE, "utf8");
 const {spec, bounds, caption} = readSpec(specText, {name: "locus.spec.json"});
 const FIGURE = "genome-1";
 const source = figureHTML(spec, {clamp: bounds.clamp === 1});
-const geometry = {w: 1, h: 0.32};
+const geometry = {w: 1, h: 0.38};
 
 const store = {
   version: 1,

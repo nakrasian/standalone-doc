@@ -44,7 +44,7 @@ Written into the figure at insert time, not into the plugin, so a later version 
 | `island` | `compute` | `sealed` plus `'unsafe-eval'`. GenomeSpy compiles filters with `new Function`; the island still has no network, no storage and no parent, and the code it compiles is code the file pinned. |
 | `assets` | `["genome-view", "genomespy"]` | the only two ids the island may ask the host for |
 | `exports` | `["svg"]` | the island exposes `window.__figureExport`, and the export asks it before it rasterizes — so a static page and a printed PDF get vector text instead of a 2× canvas |
-| `width`/`height` | `1 × 0.32` | a locus map is wide and short; the html default (1:0.72) would be mostly empty |
+| `width`/`height` | `1 × 0.38` | a locus map is wide and short; the html default (1:0.72) would be mostly empty |
 
 The export hook is the engine's own:
 

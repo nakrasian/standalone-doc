@@ -28,8 +28,12 @@
  * Insert menu produces in a document.
  */
 
-/** The figure's share of the text column's height. A locus map is wide and short. */
-const DEFAULT_HEIGHT = 0.32;
+/**
+ * The figure's share of the text column's height. A locus map is wide and short, but the label
+ * lanes are computed at render width and grow with long products and narrow columns, so the
+ * default leaves room for the arrows *and* the lanes above them. The author can resize.
+ */
+const DEFAULT_HEIGHT = 0.38;
 
 /** Assets the island will ask the host for, in the order it asks. */
 const ISLAND_ASSETS = ["genome-view", "genomespy"];

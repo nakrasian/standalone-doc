@@ -56,9 +56,9 @@
       "entry": "genome",
       "manifest": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/plugins/genome.json",
       "bytes": 1880,
-      "sha384": "sha384-T2UR0qZzJHtVizxE4AXBug7wZJkJOjpVWOdtzHXmbcrxZy1OO16oAy3rTRO+3AnN",
+      "sha384": "sha384-ry8gnD9aVJpFdDKaQyg57rgh02Mvq7yDwn1PmFbwnrd+3iOGHW/3cT+pcoG4Qgxb",
       "assets": 3,
-      "assetBytes": 1455396,
+      "assetBytes": 1455865,
       "about": "A GenomeSpy map as a figure: pick a .spec.json, hover a gene, clamp the window to the locus, and export the engine's own SVG on print and PDF.",
       "minRuntime": null,
       "versions": [
@@ -70,9 +70,9 @@
           "entry": "genome",
           "manifest": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/plugins/genome.json",
           "bytes": 1880,
-          "sha384": "sha384-T2UR0qZzJHtVizxE4AXBug7wZJkJOjpVWOdtzHXmbcrxZy1OO16oAy3rTRO+3AnN",
+          "sha384": "sha384-ry8gnD9aVJpFdDKaQyg57rgh02Mvq7yDwn1PmFbwnrd+3iOGHW/3cT+pcoG4Qgxb",
           "assets": 3,
-          "assetBytes": 1455396,
+          "assetBytes": 1455865,
           "about": "A GenomeSpy map as a figure: pick a .spec.json, hover a gene, clamp the window to the locus, and export the engine's own SVG on print and PDF.",
           "minRuntime": null
         }
@@ -109,5 +109,5 @@
       ]
     }
   },
-  "revision": "sha384-vmEBLMVdiBrdmYlRAAg/qDvSqE07wAFQgV1fjvMWmd89q6o88c00N9IYHyX1kXRT"
+  "revision": "sha384-RcbJEjflapPjGQvUjNCaRGeCnNagNazWgHeX6R+mxKJKW+m5ehi9SRnji+FyNlaj"
 }

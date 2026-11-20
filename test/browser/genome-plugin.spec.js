@@ -178,7 +178,7 @@ test("Insert ▸ Genome map… records the figure's own contract", async ({ page
   expect(entry.kind).toBe("html");
   /* The window is clamped by default, because the spec declares a contig to zoom out to. */
   expect(entry.caption).toContain("Xanthobacter versatilis Py2");
-  expect(entry.geometry).toBe("1x0.32");
+  expect(entry.geometry).toBe("1x0.38");
   expect(entry.island).toBe("compute");
   expect(entry.assets).toEqual(["genome-view", "genomespy"]);
   expect(entry.exports).toEqual(["svg"]);

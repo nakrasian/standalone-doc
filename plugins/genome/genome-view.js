@@ -327,6 +327,10 @@ export function upgradeLabels(spec, bounds, {fontSize = LABEL_SIZE, laneStep = L
     scales: {
       y: {name: "labelLanes", type: "index", zoom: false, domainMin: -1, domainTransition: false, padding: 0},
     },
+    /* The panel takes the frame's spare height and hangs the lanes off its bottom edge, so the
+       lowest label is always next to the gene track — and a locus that needs more lanes than the
+       frame has scrolls inside the panel instead of losing the top ones. The empty space is
+       headroom above the labels, which is where a reader expects it. */
     viewportHeight: {grow: 1, anchor: "end"},
   };
 
@@ -429,8 +433,7 @@ export function upgradeLabels(spec, bounds, {fontSize = LABEL_SIZE, laneStep = L
     .filter((param) => !["labelFontSize", "laneStep"].includes(param.name))
     .concat([{name: "labelFontSize", value: fontSize}, {name: "laneStep", value: laneStep}]);
   next.spacing = 0;
-  /* Fill the frame the document gave the figure: the label panel asks to grow (`anchor:
-     "end"`), which only means anything when the root has a height of its own. */
+  /* The label panel's `grow` means nothing without a height to grow into. */
   next.height = "container";
   next.resolve = {scale: {x: "shared", y: "independent"}, axis: {x: "shared"}};
   next.vconcat = [labelPanel, arrowPanel];
