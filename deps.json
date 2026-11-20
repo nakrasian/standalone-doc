@@ -187,6 +187,7 @@
         "strategy",
         "defineBlock",
         "planSplit",
+        "merge",
         "plan"
       ]
     },
@@ -226,6 +227,7 @@
         "refresh",
         "save",
         "markDirty",
+        "rebase",
         "setStoreEstimator"
       ]
     },
@@ -260,7 +262,11 @@
         "blockAt",
         "blockAtCaret",
         "insertBlock",
-        "insertInline"
+        "insertInline",
+        "insertTable",
+        "applyPage",
+        "pageState",
+        "themeWith"
       ]
     },
     {

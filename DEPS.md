@@ -15,9 +15,9 @@ edit by hand; `npm run check` fails if this file is stale.
 | selection | 44 | — | — | `capture`, `restore`, `preserve`, `offsetIn`, `pointAt` | * |
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | edit |
 | layout | 46 | zoom | — | `origin`, `rect`, `measureH`, `viewportY`, `scale`, `pageContentTop`, `pageContentBottom` | * |
-| pagination | 50 | signals, zoom, layout, selection | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh`, `setFragmenting`, `diagnostics`, `strategy`, `defineBlock`, `planSplit`, `plan` | * |
-| status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `setStoreEstimator` | edit |
-| editor | 70 | signals, status, pagination, selection | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock`, `insertInline` | edit |
+| pagination | 50 | signals, zoom, layout, selection | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh`, `setFragmenting`, `diagnostics`, `strategy`, `defineBlock`, `planSplit`, `merge`, `plan` | * |
+| status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `rebase`, `setStoreEstimator` | edit |
+| editor | 70 | signals, status, pagination, selection | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock`, `insertInline`, `insertTable`, `applyPage`, `pageState`, `themeWith` | edit |
 | comments | 76 | signals, pagination, layout, selection | status? | `init`, `mount`, `list`, `add`, `reply`, `resolve`, `remove`, `focus`, `navigate`, `blur`, `render`, `begin`, `counts`, `panel`, `onChange`, `toggleList`, `railActive`, `railShown`, `canWrite`, `authorName`, `setAuthorName`, `merge`, `replace`, `load`, `newCommentId` | * |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `allows`, `usage`, `blockOf`, `settingsFragment`, `PRESETS` | edit |

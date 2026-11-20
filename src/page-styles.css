@@ -1,19 +1,40 @@
 :root {
   --sheet-w: 8.5in;
   --sheet-h: 11in;
-  --pad: 0.9in;
   --sheet-gap: 26px;
 
-  --content-w: calc(var(--sheet-w) - 2 * var(--pad));
-  --content-h: calc(var(--sheet-h) - 2 * var(--pad));
+  /* Page margins. One writer (`setThemeVars()` in src/editor.js, through the Document
+     panel's Page section) writes either `--pad` for a uniform margin or the four sides.
+     The four default to `--pad`, so a document saved before page setup existed lays out
+     exactly as it did, and a hand-authored `--pad` still means something. */
+  --pad: 0.9in;
+  --pad-top: var(--pad);
+  --pad-right: var(--pad);
+  --pad-bottom: var(--pad);
+  --pad-left: var(--pad);
+
+  --content-w: calc(var(--sheet-w) - var(--pad-left) - var(--pad-right));
+  --content-h: calc(var(--sheet-h) - var(--pad-top) - var(--pad-bottom));
   --pitch: calc(var(--sheet-h) + var(--sheet-gap));
   /* distance from one sheet's top to the next */
 
-  --block-gap: 0.55em;
-  /* distance between text blocks */
-  --lead: 0.3em;
+  /* The vertical rhythm, in one place. Spacing *inside the flow* is padding, never margin:
+     the planner sums measured heights and deliberately ignores margins (a page gap is a
+     margin). See docs/EDITING-MODEL.md §6. */
+  --space-block: 0.55em;
+  /* paragraph to paragraph, at any depth */
+  --space-group: 0.55em;
+  /* around a figure, code block, rule */
+  --space-lead: 0.3em;
+  /* above a heading */
+  --space-item: 0.15em;
+  /* between list items */
+  --indent-quote: 1.1em;
+  --indent-step: 1.5em;
+
   --doc-size: 11pt;
-  /* additional padding above headers  */
+  --doc-leading: 1.5;
+  --doc-family: Charter, "Iowan Old Style", Georgia, serif;
 
   --zoom: 1;
   /* document zoom: page geometry scales, the chrome does not */
@@ -45,7 +66,7 @@ body {
   overflow: hidden;
   background: #e0e0e0;
   color: #1b1f24;
-  font: var(--doc-size)/1.5 Charter, "Iowan Old Style", Georgia, serif;
+  font: var(--doc-size)/var(--doc-leading) var(--doc-family, Charter, "Iowan Old Style", Georgia, serif);
 }
 
 #viewport {
@@ -60,7 +81,7 @@ body {
   position: relative;
   width: var(--sheet-w);
   margin-inline: auto;
-  padding-block: var(--pad);
+  padding-block: var(--pad-top) var(--pad-bottom);
   zoom: var(--zoom, 1);
   /* the whole feature: pages + text scale, toolbar and backdrop do not */
 }
@@ -91,21 +112,21 @@ body {
 }
 
 .sheet-margin[data-slot="head"] {
-  top: calc(var(--pad) * .42);
+  top: calc(var(--pad-top) * .42);
 }
 
 .sheet-margin[data-slot="folio"] {
-  bottom: calc(var(--pad) * .42);
+  bottom: calc(var(--pad-bottom) * .42);
 }
 
 .sheet[data-side="recto"] .sheet-margin[data-slot="head"],
 .sheet[data-side="recto"] .sheet-margin[data-slot="folio"] {
-  right: var(--pad);
+  right: var(--pad-right);
 }
 
 .sheet[data-side="verso"] .sheet-margin[data-slot="head"],
 .sheet[data-side="verso"] .sheet-margin[data-slot="folio"] {
-  left: var(--pad);
+  left: var(--pad-left);
 }
 
 .sheet[data-first] .sheet-margin[data-slot="head"] {
@@ -121,14 +142,112 @@ body {
   outline: none;
 }
 
-#content>* {
+/* One flow rule for every block, at every depth. A paragraph in a list item or a quote is
+   the same block as a top-level one; it used to keep the UA's 14.67px margins while a
+   top-level one got 8px of padding, which is the "inconsistent line spacing" the reader
+   sees. The last child of a container drops its trailing space so a list's final item does
+   not add a paragraph gap inside the list. */
+#content>*,
+#content :is(li, blockquote, td, th) > * {
   margin: 0;
-  padding-block-end: var(--block-gap);
+  padding-block-end: var(--space-block);
 }
 
-#content> :is(h1, h2, h3) {
-  padding-block-start: var(--lead);
+#content> :is(h1, h2, h3, h4, h5, h6) {
+  padding-block-start: var(--space-lead);
+  padding-block-end: var(--space-group);
+  line-height: 1.25;
 }
+
+#content> :is(h1, h2, h3, h4, h5, h6):first-child {
+  padding-block-start: 0;
+}
+
+#content> :last-child,
+#content :is(li, blockquote, td, th) > :last-child {
+  padding-block-end: 0;
+}
+
+/* Lists and quotes are structural, not paragraph-shaped. */
+#content ul,
+#content ol {
+  padding-inline-start: 1.6em;
+}
+
+#content li>ul,
+#content li>ol {
+  padding-block: 0;
+}
+
+#content li+li {
+  padding-block-start: var(--space-item);
+}
+
+#content>blockquote,
+#content blockquote {
+  padding-inline-start: var(--indent-quote);
+  border-inline-start: 2px solid #dfe3e9;
+  color: #3b424b;
+}
+
+#content>pre {
+  padding-block-end: var(--space-group);
+  padding-inline: 0.8em;
+  padding-block-start: 0.55em;
+  border-radius: 4px;
+  background: #f6f7f9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ===== Tables =====
+   A table is a block like a paragraph: the full measure, one border model, and the same
+   cell rhythm everywhere. Without this a pasted or inserted table renders as unspaced text
+   with no grid — which is what "the table does not render as anything" was. */
+#content table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  padding-block-end: var(--space-group);
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+#content th,
+#content td {
+  border: 1px solid #ccd3dd;
+  padding: 0.35em 0.5em;
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+#content thead th {
+  background: #f4f6f9;
+  font-weight: 600;
+}
+
+#content caption {
+  caption-side: bottom;
+  padding-block-start: 0.35em;
+  color: #6b7280;
+  font-size: 0.85em;
+  text-align: left;
+}
+
+/* Indentation is an attribute, not an inline style: the model owns the number, so a
+   paste cannot bring one and a change of step re-indents every block at once. */
+#content>[data-indent="1"] { padding-inline-start: calc(var(--indent-step) * 1); }
+#content>[data-indent="2"] { padding-inline-start: calc(var(--indent-step) * 2); }
+#content>[data-indent="3"] { padding-inline-start: calc(var(--indent-step) * 3); }
+#content>[data-indent="4"] { padding-inline-start: calc(var(--indent-step) * 4); }
+#content>[data-indent="5"] { padding-inline-start: calc(var(--indent-step) * 5); }
+#content>[data-indent="6"] { padding-inline-start: calc(var(--indent-step) * 6); }
+#content>[data-indent="7"] { padding-inline-start: calc(var(--indent-step) * 7); }
+#content>[data-indent="8"] { padding-inline-start: calc(var(--indent-step) * 8); }
 
 #content>.page-spacer {
   padding: 0;
@@ -157,7 +276,7 @@ body {
   display: block;
   width: calc(var(--figure-w) * 100%);
   margin: 0;
-  padding: 0 0 var(--block-gap);
+  padding: 0 0 var(--space-group);
   border: 1px solid #d9dde4;
   border-radius: 5px;
   background: #fff;
@@ -413,6 +532,14 @@ figure.figure[data-missing] .figure-frame::after {
 
 #probe-pad {
   height: var(--pad);
+}
+
+#probe-pad-top {
+  height: var(--pad-top);
+}
+
+#probe-pad-bottom {
+  height: var(--pad-bottom);
 }
 
 /* A document whose settings say `toolbar: false` opens without chrome. The markup

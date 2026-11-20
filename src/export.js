@@ -45,18 +45,30 @@ export function createExport(deps = {}) {
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  /** The four margins as one `@page { margin }` value. A page's margins are independent
+      now, so reading only `--pad` would print a document with the wrong box. */
+  function printMargins(cs) {
+    const value = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
+    const pad = value("--pad", "0.9in");
+    return [
+      value("--pad-top", pad),
+      value("--pad-right", pad),
+      value("--pad-bottom", pad),
+      value("--pad-left", pad),
+    ].join(" ");
+  }
+
   function syncPrintPage() {
     const cs = getComputedStyle(document.documentElement);
     const width = cs.getPropertyValue("--sheet-w").trim() || "8.5in";
     const height = cs.getPropertyValue("--sheet-h").trim() || "11in";
-    const margin = cs.getPropertyValue("--pad").trim() || "0.9in";
     let style = document.getElementById("print-page");
     if (!style) {
       style = document.createElement("style");
       style.id = "print-page";
       document.head.append(style);
     }
-    style.textContent = `@page { size: ${width} ${height}; margin: ${margin}; }`;
+    style.textContent = `@page { size: ${width} ${height}; margin: ${printMargins(cs)}; }`;
   }
 
   function waitForImages(doc, timeout = 3000) {
@@ -199,6 +211,16 @@ export function createExport(deps = {}) {
       node.style.marginBlockStart = "";
       if (!node.getAttribute("style")) node.removeAttribute("style");
     });
+    /* A list's item break is a page push on screen. A paginated reader keeps both (it is
+       what puts the item at the top of its page); a writer's copy must not carry the
+       margin, and its break is the print rule on the attribute. */
+    if (!paginate) {
+      clone.querySelectorAll("[data-page-break]").forEach((node) => {
+        node.removeAttribute("data-page-break");
+        node.style.marginBlockStart = "";
+        if (!node.getAttribute("style")) node.removeAttribute("style");
+      });
+    }
     clone.querySelector('body > svg[width="0"]')?.remove();
     clone.querySelector("#content")?.removeAttribute("contenteditable");
     clone.querySelector("#content")?.removeAttribute("spellcheck");
@@ -209,7 +231,7 @@ export function createExport(deps = {}) {
     const cs = getComputedStyle(document.documentElement);
     const sheetW = cs.getPropertyValue("--sheet-w").trim() || "8.5in";
     const sheetH = cs.getPropertyValue("--sheet-h").trim() || "11in";
-    const pad = cs.getPropertyValue("--pad").trim() || "0.9in";
+    const pad = printMargins(cs);
 
     const style = document.createElement("style");
     style.textContent = `
@@ -235,6 +257,7 @@ export function createExport(deps = {}) {
             .page-spacer + * { break-before: page; }
             .page-break { break-before: page; }
             [data-page-start] { margin-block-start: 0 !important; break-before: page; }
+            [data-page-break] { margin-block-start: 0 !important; break-before: page; }
             [data-frag] { margin-block-start: 0 !important; }
             /* An inline break-before is ignored by Chromium's paginator (measured: it
                stays one page). The empty marker is a block box inside the paragraph, so the
@@ -251,6 +274,8 @@ export function createExport(deps = {}) {
             /* A paragraph with a page break inside it is the one block a page break may
                enter. The :has() selector covers both a live fragment and the inline marker. */
             #content > *:has([data-frag], .page-break-inline) { break-inside: auto; }
+            #content > *:has([data-page-break]) { break-inside: auto; }
+            #content li { break-inside: avoid; }
             figure.figure { break-inside: avoid; }
             @page { size: ${sheetW} ${sheetH}; margin: ${pad}; }
             @page:right {
@@ -289,7 +314,7 @@ export function createExport(deps = {}) {
        *paginated reader* keeps its margin — that gap is what puts the block at the top of its
        page. A writer's copy must not carry the margin, because pandoc and a `.docx` reader
        would see it as an indent nobody authored. */
-    if (!paginate && [...doc.querySelectorAll("[data-page-start]")]
+    if (!paginate && [...doc.querySelectorAll("[data-page-start], [data-page-break]")]
       .some((node) => /margin-block-start/i.test(node.getAttribute("style") || ""))) {
       problems.push("a page gap reached the static document");
     }

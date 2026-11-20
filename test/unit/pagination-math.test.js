@@ -11,6 +11,7 @@ import {
   DEFAULT_STRATEGIES,
   checkPass,
   chooseCut,
+  itemForRoom,
   lineForRoom,
   snapOutOfAtomics,
   strategyForTag,
@@ -155,6 +156,9 @@ test("chooseCut recomputes the head height after the word-boundary back-off", ()
     room: 76, // four lines fit; the block has five
     lineTopAt: topAt,
     lineBottomAt: bottomAt,
+    /* This test isolates the head guard. The tail guard is asserted separately below;
+       here a one-line tail is allowed so the five-line fixture stays the measurement. */
+    orphans: 1,
   });
   assert.ok(cut, "a two-line head is a legal split");
   assert.equal(cut.offset, 18, "the tail starts at the long word");
@@ -183,6 +187,7 @@ test("chooseCut can cut a segment that starts mid-block", () => {
     lineTopAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].top),
     lineBottomAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].bottom),
     start,
+    orphans: 1,
   });
   assert.ok(cut, "a two-line segment is a legal cut");
   assert.ok(cut.offset > start, `cut ${cut.offset} must be after the segment start ${start}`);
@@ -492,11 +497,49 @@ test("a blockquote is lines only when its children are inline", () => {
   assert.equal(strategyForTag("blockquote", {blockChildren: true}).kind, "atomic");
 });
 
-test("headings are whole, and keepWithNext is a property, not a policy", () => {
+test("headings are whole and keep with the block below them", () => {
   for (const tag of ["h1", "h2", "h3", "h4", "h5", "h6"]) {
-    assert.equal(strategyForTag(tag).kind, "whole");
-    assert.equal(strategyForTag(tag).keepWithNext, false, `${tag} must not move itself`);
+    assert.equal(strategyForTag(tag).kind, "whole", `${tag} is not cut`);
+    assert.equal(strategyForTag(tag).keepWithNext, true, `${tag} must not end a page`);
   }
+  /* Everything else that is a block keeps its own page, including a list, which breaks
+     between items rather than moving as one. */
+  assert.equal(strategyForTag("p").keepWithNext, false);
+  assert.equal(strategyForTag("ul").kind, "list");
+  assert.equal(strategyForTag("ol").kind, "list");
+  assert.equal(strategyForTag("ul").minItems, 2);
+});
+
+test("chooseCut refuses a tail shorter than the orphan count", () => {
+  /* Four ordinary lines, room for three (55 px: three 18 px lines fit inside the 1 px
+     tolerance): the geometric cut leaves one line alone on the next page. The block moves
+     whole instead. */
+  const text = "aa bb cc dd ee ff gg hh ii jj kk ll";
+  const lineOf = new Array(text.length).fill(0).map((_, i) => Math.floor(i / 9));
+  const lines = [0, 1, 2, 3].map((i) => ({top: i * 18, bottom: (i + 1) * 18}));
+  const cut = chooseCut({
+    text,
+    lines,
+    blockTop: 0,
+    room: 55,
+    lineTopAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].top),
+    lineBottomAt: (offset) => (offset < 1 ? -Infinity : lines[lineOf[offset - 1]].bottom),
+  });
+  assert.equal(cut, null, "a one-line tail is an orphan: move the block");
+});
+
+test("itemForRoom needs two items of head and two of tail", () => {
+  const items = (count, height = 30) => Array.from({length: count}, (_, i) => ({top: i * height, bottom: (i + 1) * height}));
+  /* 10 items of 30 px, 180 px of room: five items fit (the 1 px tolerance is the lesson
+     of the fragment pass — "fits" means "does not overflow"), so the cut is index 4. */
+  assert.equal(itemForRoom(items(10), 0, 180), 4);
+  /* Room for nine of ten leaves a one-item tail: move the list. */
+  assert.equal(itemForRoom(items(10), 0, 271), -1);
+  /* Room for one item is a one-item head: move the list. */
+  assert.equal(itemForRoom(items(10), 0, 30), -1);
+  /* Three items cannot satisfy 2+2 at any cut. */
+  assert.equal(itemForRoom(items(3), 0, 30), -1);
+  assert.equal(itemForRoom([], 0, 300), -1);
 });
 
 

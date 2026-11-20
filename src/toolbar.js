@@ -204,9 +204,12 @@ export function createToolbar(deps = {}) {
        the annotator. */
     if (options.comments === "strip") clone.querySelector("#comment-store")?.remove();
 
+    /* The whole theme block, not just the size: it also carries the page geometry, and
+       replacing it used to drop whatever else was there (which is why page setup could
+       never have persisted). One writer owns the block. */
     const size = document.querySelector("[data-fontsize]")?.value || "11pt";
     const theme = clone.querySelector("#user-theme");
-    if (theme) theme.textContent = `:root{--doc-size:${size}}`;
+    if (theme) theme.textContent = editor.themeWith(size);
 
     const title = (document.querySelector("[data-title]")?.value || "document").trim();
     clone.querySelector("title").textContent = title;
@@ -408,6 +411,9 @@ export function createToolbar(deps = {}) {
       timeoutMs: settings.timeoutMs,
       never: Number(settings.thresholdDeclined) > 0,
       planned: policy.planned({}),
+      /* Geometry is a view of computed CSS, not a stored field: the draft starts from what
+         the page looks like now, and Done writes it back only if it changed. */
+      page: editor.pageState(),
       /* A release this sheet has fetched but not applied: the pin is a document fact,
          so it lands with Done and dies with Cancel, like every other field here. */
       repin: null,
@@ -449,6 +455,7 @@ export function createToolbar(deps = {}) {
     dialog.querySelector("[data-ds='timeout']").value = String(draft.timeoutMs);
     dialog.querySelector("[data-ds='never']").checked = draft.never;
     dialog.querySelector("[data-ds='author']").value = draft.author;
+    paintPage(draft.page);
     dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
       ? "quiet until the file doubles"
       : "the prompt returns when the file doubles";
@@ -604,15 +611,57 @@ export function createToolbar(deps = {}) {
 
   const sameBlock = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+  /** Geometry compares by the numbers it shows, not by float identity. */
+  function samePage(a, b) {
+    if (!a || !b) return false;
+    const sides = ["top", "right", "bottom", "left"];
+    return a.size === b.size
+      && a.orientation === b.orientation
+      && Math.abs(a.leading - b.leading) < 0.005
+      && sides.every((side) => Math.abs(Number(a.margins[side]) - Number(b.margins[side])) < 0.005);
+  }
+
+  /** The Page section is a view of the draft, like every other control in this sheet. */
+  function paintPage(page) {
+    const dialog = settingsDialog();
+    if (!dialog || !page) return;
+    const size = dialog.querySelector("[data-ds-page='size']");
+    const orientation = dialog.querySelector("[data-ds-page='orientation']");
+    const leading = dialog.querySelector("[data-ds-page='leading']");
+    if (size) {
+      /* A page size the preset table does not name is still a page size: show it instead
+         of silently snapping the author's document to Letter. */
+      if (![...size.options].some((option) => option.value === page.size)) {
+        const custom = document.createElement("option");
+        custom.value = page.size;
+        custom.textContent = `${page.width} × ${page.height} in`;
+        size.append(custom);
+      }
+      size.value = page.size;
+    }
+    if (orientation) orientation.value = page.orientation;
+    if (leading) leading.value = String(page.leading);
+    for (const input of dialog.querySelectorAll("[data-ds-margin]")) {
+      const side = input.dataset.dsMargin;
+      if (side in page.margins) input.value = String(page.margins[side]);
+    }
+  }
+
   /** Apply the draft. Opening the sheet and pressing Done is not a change. */
   function commitDocSettings() {
     if (!settingsDraft) return;
+    /* `closeDocSettings()` clears the draft, so the values this function applies are read
+       before it closes — the page geometry used to be read after, from a name that no
+       longer existed. */
+    const draft = settingsDraft;
     const current = readSettingsBlock();
     const next = settingsPatch();
-    const repin = settingsDraft.repin;
+    const repin = draft.repin;
     closeDocSettings();
-    if (sameBlock(current, next) && !repin) return;
+    const pageChanged = !samePage(draft.page, editor.pageState());
+    if (sameBlock(current, next) && !repin && !pageChanged) return;
     if (!sameBlock(current, next)) writeSettingsBlock(next);
+    if (pageChanged) editor.applyPage(draft.page);
     if (repin) {
       /* Only `mode: online` module assets move; a plugin's bytes are its author's and
          an inline asset's hash describes bytes the file already has. */
@@ -720,6 +769,22 @@ export function createToolbar(deps = {}) {
     dialog.querySelector("[data-ds='author']").addEventListener("change", (event) => {
       settingsDraft.author = event.target.value;
       paintDocSettings();
+    });
+    /* Page geometry is applied on Done, with everything else in the draft. The inputs
+       write the draft only; nothing reflows the document behind a modal. */
+    dialog.querySelectorAll("[data-ds-page], [data-ds-margin]").forEach((input) => {
+      input.addEventListener("change", () => {
+        if (!settingsDraft) return;
+        const page = settingsDraft.page;
+        if (input.dataset.dsPage === "size") page.size = input.value;
+        else if (input.dataset.dsPage === "orientation") page.orientation = input.value;
+        else if (input.dataset.dsPage === "leading") page.leading = Number(input.value) || page.leading;
+        else if (input.dataset.dsMargin) {
+          const value = Number(input.value);
+          if (Number.isFinite(value) && value >= 0) page.margins[input.dataset.dsMargin] = value;
+        }
+        paintPage(page);
+      });
     });
     for (const tab of dialog.querySelectorAll("[data-dd-tab]")) {
       tab.addEventListener("click", () => selectTab(tab.dataset.ddTab));
@@ -1622,6 +1687,31 @@ export function createToolbar(deps = {}) {
     document.getElementById("shortcuts-dialog").showModal();
   }
 
+  /** The table dialog is a form: rows, columns, header. Insert is the form's returnValue. */
+  function openTableDialog() {
+    const dialog = document.getElementById("table-dialog");
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+    const rows = dialog.querySelector("[data-table='rows']");
+    rows?.focus();
+    rows?.select();
+  }
+
+  function wireTableDialog() {
+    const dialog = document.getElementById("table-dialog");
+    if (!dialog || dialog.dataset.wired) return;
+    dialog.dataset.wired = "1";
+    dialog.addEventListener("close", () => {
+      if (dialog.returnValue !== "insert") return;
+      const value = (name) => dialog.querySelector(`[data-table='${name}']`);
+      editor.insertTable({
+        rows: Number(value("rows")?.value) || 3,
+        cols: Number(value("cols")?.value) || 3,
+        header: Boolean(value("header")?.checked),
+      });
+    });
+  }
+
   function paintKeyHints() {
     const hints = new Map();
     for (const entry of KEYMAP) {
@@ -1782,6 +1872,7 @@ export function createToolbar(deps = {}) {
     const cmdBtn = e.target.closest("[data-cmd]");
     const blockBtn = e.target.closest("[data-block-set]");
     const linkBtn = e.target.closest("[data-link]");
+    const tableBtn = e.target.closest("[data-table-open]");
     const fontBtn = e.target.closest("[data-font]");
     const figureBtn = e.target.closest("[data-figure-pick]");
     const exportBtn = e.target.closest("[data-export]");
@@ -1801,6 +1892,7 @@ export function createToolbar(deps = {}) {
     if (cmdBtn) {editor.exec(cmdBtn.dataset.cmd); return;}
     if (blockBtn) {editor.setBlock(blockBtn.dataset.blockSet); return;}
     if (linkBtn) {editor.openLink(); return;}
+    if (tableBtn) {openTableDialog(); return;}
     if (fontBtn) {editor.setFontSize(fontBtn.dataset.font); return;}
     if (figureBtn) {figures.pick(figureBtn.dataset.figurePick); return;}
     if (zoomBtn) {zoom.command(zoomBtn.dataset.zoom, e.clientY); return;}
@@ -1922,6 +2014,7 @@ export function createToolbar(deps = {}) {
   zoom.syncUI();
 
   wireDocSettings();
+  wireTableDialog();
   wirePublish();
   wireImport();
   syncChromeButtons(document.body.dataset.ui || "ribbon");

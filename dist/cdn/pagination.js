@@ -46,6 +46,17 @@
 export const ATOMIC_SELECTOR = "[data-atomic]";
 
 /**
+ * The attribute a list item carries when it starts a page. The margin is the page push,
+ * the way a fragment's `marginBlockStart` is — but on an `li`, so the list stays one
+ * element and `<ol>` numbering never restarts (docs/EDITING-MODEL.md §5.3).
+ *
+ * Not `data-page-start`: that attribute belongs to a *block* that opens a page and is
+ * owned (and cleared) by `applyGaps()`. Sharing it would make one pass erase the other's
+ * work.
+ */
+export const LIST_BREAK = "data-page-break";
+
+/**
  * Move `offset` out of any unbreakable range it falls strictly inside, or return null.
  *
  * Strictly inside: `offset === range.start` is a legal cut (the mark starts the tail, all
@@ -93,6 +104,29 @@ export function wordBoundary(text, offset) {
  * space below it; moving the block whole is the lesser evil, and it is what the shipped
  * planner did for every block.
  */
+/**
+ * The last item index whose bottom fits in `room`, or -1 when the list must move whole.
+ *
+ * The list's counterpart to `lineForRoom`, and it carries both guards: the head keeps
+ * `minItems` items and so does the tail. A tail of one item is a page with an orphan — the
+ * same failure a one-line paragraph tail is — and the existing answer applies: move the
+ * list whole.
+ *
+ * `items` are `{top, bottom}` in layout px with the page pushes already subtracted, so a
+ * second pass sees the same geometry the first one planned.
+ */
+export function itemForRoom(items, blockTop, room, minItems = 2) {
+  if (!items || items.length < minItems * 2) return -1;
+  let last = -1;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].bottom - blockTop <= room - 1) last = i;
+  }
+  if (last < minItems - 1) return -1;
+  if (last === items.length - 1) return -1;
+  if (items.length - (last + 1) < minItems) return -1;
+  return last;
+}
+
 export function lineForRoom(lines, blockTop, room, minLines = 2) {
   if (!lines || lines.length < minLines) return -1;
   let last = -1;
@@ -118,9 +152,14 @@ export function lineForRoom(lines, blockTop, room, minLines = 2) {
  * height would under-count the tail and place the following blocks too high. That was a
  * live bug in the lab version, invisible until a page had a word straddling its edge.
  */
-export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt, minLines = 2, start = 0, atomic = []}) {
+export function chooseCut({text, lines, blockTop, room, lineTopAt, lineBottomAt, minLines = 2, orphans = null, start = 0, atomic = []}) {
   const last = lineForRoom(lines, blockTop, room, minLines);
   if (last < 0) return null;
+  /* Orphan control: the tail needs `minLines` lines too (a caller may ask for another
+     number; a test isolating the head guard passes 1). A paragraph that would end with one
+     stranded line moves whole, the same answer a block that cannot be cut already gets. */
+  const minTail = orphans == null ? minLines : orphans;
+  if (lines.length - (last + 1) < minTail) return null;
 
   const cutTop = lines[last + 1].top - 0.5;
   /* A tail starts at `start`; the next cut must be after it. */
@@ -197,6 +236,10 @@ export function checkPass({
   const failures = [];
   const notes = [];
   const frags = [...content.querySelectorAll("[data-frag]")];
+  const breaks = [...content.querySelectorAll(`li[${LIST_BREAK}]`)];
+  /* Two primitives, two lists: a paragraph cut owns a fragment, a list cut owns an item. */
+  const lineCuts = applied.filter((cut) => cut.kind !== "list");
+  const itemCuts = applied.filter((cut) => cut.kind === "list");
 
   /* 1. Fragmenting moves nodes; it never edits them. `textBefore` is captured *before*
      the merge, so a merge that loses a character is caught too. */
@@ -205,10 +248,10 @@ export function checkPass({
   }
 
   /* 2. One fragment per cut, in plan order, carrying the offset the plan chose. */
-  if (frags.length !== applied.length) {
-    failures.push(`${frags.length} fragment(s) for ${applied.length} cut(s)`);
+  if (frags.length !== lineCuts.length) {
+    failures.push(`${frags.length} fragment(s) for ${lineCuts.length} cut(s)`);
   }
-  for (const [i, cut] of applied.entries()) {
+  for (const [i, cut] of lineCuts.entries()) {
     const frag = frags[i];
     if (!frag) continue;
     if (Number(frag.dataset.frag) !== cut.offset) {
@@ -222,8 +265,30 @@ export function checkPass({
     if (!frag.textContent.length) failures.push(`fragment ${i}: is empty`);
   }
 
+  /* 2b. One item break per list cut, on an `li` of the block the plan named, at the index
+     the plan chose. A break on the wrong item pages in the wrong place even when every
+     number in the plan agrees with itself. */
+  if (breaks.length !== itemCuts.length) {
+    failures.push(`${breaks.length} item break(s) for ${itemCuts.length} list cut(s)`);
+  }
+  for (const [i, cut] of itemCuts.entries()) {
+    const li = cut.li;
+    if (!li || !li.isConnected) {
+      failures.push(`list cut ${i}: item is not in the document`);
+      continue;
+    }
+    if (li.localName !== "li" || li.parentElement !== cut.block) {
+      failures.push(`list cut ${i}: item is not a child of the list the plan named`);
+      continue;
+    }
+    const index = [...cut.block.children].filter((el) => el.localName === "li").indexOf(li);
+    if (index !== cut.index) failures.push(`list cut ${i}: item at ${index}, plan said ${cut.index}`);
+    if (li.textContent.trim().length === 0) failures.push(`list cut ${i}: item is empty`);
+    if (!li.style.marginBlockStart) failures.push(`list cut ${i}: item has no page margin`);
+  }
+
   /* 3. Geometry: the tail sits at the page content top the plan named. */
-  for (const [i, cut] of applied.entries()) {
+  for (const [i, cut] of lineCuts.entries()) {
     const frag = frags[i];
     if (!frag) continue;
     const box = rectOf(frag);
@@ -238,6 +303,15 @@ export function checkPass({
     if (pageIndex < 0) failures.push(`fragment ${i}: head ends below every page (${Math.round(headBottom)})`);
     else if (headBottom < pageTops[pageIndex] - tolerance) failures.push(`fragment ${i}: head ends above page ${pageIndex + 1}'s content top`);
     else notes.push(`fragment ${i}: head ${Math.round(headBottom)}→tail ${Math.round(box.top)} of page ${pageIndex + 2}`);
+  }
+  for (const [i, cut] of itemCuts.entries()) {
+    const box = rectOf(cut.li);
+    if (Math.abs(box.top - cut.targetTop) > tolerance) {
+      failures.push(`list cut ${i}: item at ${Math.round(box.top)}, target ${Math.round(cut.targetTop)} (off by ${Math.round(box.top - cut.targetTop)})`);
+    }
+    if (!pageTops.some((top) => Math.abs(top - cut.targetTop) <= tolerance)) {
+      failures.push(`list cut ${i}: target ${Math.round(cut.targetTop)} is not a page content top`);
+    }
   }
 
   /* 4. The plan is internally consistent: a cut block has exactly two items, and they
@@ -290,7 +364,7 @@ export function checkPass({
     });
     for (const [blockIndex, pageIndex] of pageOf) {
       const block = plan.blocks[blockIndex];
-      if (!block || block.querySelector?.("[data-frag]")) continue;
+      if (!block || block.querySelector?.(`[data-frag], li[${LIST_BREAK}]`)) continue;
       if (plan.oversize?.includes(blockIndex)) continue;
       const box = rectOf(block);
       const top = pageTops[pageIndex];
@@ -321,24 +395,30 @@ export const ATOMIC_STRATEGY = Object.freeze({kind: "atomic", keepWithNext: fals
  *                    container, and a `display:block` span holding `<p>`s would be invalid
  *                    HTML
  *
- * `keepWithNext` is recorded, not enforced: the planner does not separate a heading from its
- * next block today. Default false, headings included — a heading may be a page's last block.
+ * `keepWithNext` is enforced for headings: a heading that would be left as the last block on
+ * a page moves to the next page with the block it introduces. `list` is the one non-line
+ * kind: it breaks between its items (docs/EDITING-MODEL.md §5.3).
  */
 export const DEFAULT_STRATEGIES = Object.freeze({
   p: Object.freeze({kind: "lines", minLines: 2, keepWithNext: false}),
   blockquote: Object.freeze({kind: "lines-if-inline", minLines: 2, keepWithNext: false}),
-  h1: Object.freeze({kind: "whole", keepWithNext: false}),
-  h2: Object.freeze({kind: "whole", keepWithNext: false}),
-  h3: Object.freeze({kind: "whole", keepWithNext: false}),
-  h4: Object.freeze({kind: "whole", keepWithNext: false}),
-  h5: Object.freeze({kind: "whole", keepWithNext: false}),
-  h6: Object.freeze({kind: "whole", keepWithNext: false}),
+  /* A heading is a whole block *and* belongs to what follows it: a page that ends with a
+     heading and starts with its paragraph is the most visible defect a page can have. */
+  h1: Object.freeze({kind: "whole", keepWithNext: true}),
+  h2: Object.freeze({kind: "whole", keepWithNext: true}),
+  h3: Object.freeze({kind: "whole", keepWithNext: true}),
+  h4: Object.freeze({kind: "whole", keepWithNext: true}),
+  h5: Object.freeze({kind: "whole", keepWithNext: true}),
+  h6: Object.freeze({kind: "whole", keepWithNext: true}),
   pre: ATOMIC_STRATEGY,
   table: ATOMIC_STRATEGY,
   figure: ATOMIC_STRATEGY,
   hr: ATOMIC_STRATEGY,
-  ul: ATOMIC_STRATEGY,
-  ol: ATOMIC_STRATEGY,
+  /* A list breaks between items, never between elements: see docs/EDITING-MODEL.md §5.3.
+     `li` itself is not a block the planner sees; it stays atomic so a nested structure is
+     never cut by the paragraph machinery. */
+  ul: Object.freeze({kind: "list", minItems: 2, keepWithNext: false}),
+  ol: Object.freeze({kind: "list", minItems: 2, keepWithNext: false}),
   li: ATOMIC_STRATEGY,
   div: ATOMIC_STRATEGY,
   section: ATOMIC_STRATEGY,
@@ -381,7 +461,12 @@ export function createPagination(deps = {}) {
      re-paginate. */
   const prContent = document.getElementById("probe-content-h");
   const prPitch = document.getElementById("probe-pitch");
+  /* `probe-pad` is the uniform margin a document saved before page setup has; the two
+     side probes exist only when a document sets asymmetric margins. Falling back keeps
+     every old file (and every lab probe) working without a migration. */
   const prPad = document.getElementById("probe-pad");
+  const prPadTop = document.getElementById("probe-pad-top") || prPad;
+  const prPadBottom = document.getElementById("probe-pad-bottom") || prPad;
 
   /* One table for what a block is, shared with plugins (see DEFAULT_STRATEGIES). */
   const strategies = new Map(Object.entries(DEFAULT_STRATEGIES));
@@ -426,12 +511,18 @@ export function createPagination(deps = {}) {
 
     const contentH = px(prContent);
     const pitch = px(prPitch);
-    const pad = px(prPad);
+    const padTop = px(prPadTop);
+    const padBottom = px(prPadBottom);
 
     const g = {
       contentH,
       pitch,
-      pad,
+      /* `pad` stays the top margin's name for every caller that only wants "the margin".
+         The plan needs the two sides separately: a page's content starts at `padTop` and
+         its bottom is `padBottom` above the sheet's edge. */
+      pad: padTop,
+      padTop,
+      padBottom,
       chromeGap: pitch - contentH,
     };
     /* The probes are `display: none` in print media (and while the app is hidden), so a
@@ -656,6 +747,13 @@ export function createPagination(deps = {}) {
          next `pointAt()` produce a different cut. */
       parent.normalize();
     }
+    /* A list's item break is the same kind of session wrapper: a structural edit must not
+       inherit a page-sized margin from it. */
+    for (const li of [...content.querySelectorAll(`li[${LIST_BREAK}]`)]) {
+      li.removeAttribute(LIST_BREAK);
+      li.style.marginBlockStart = "";
+      if (!li.getAttribute("style")) li.removeAttribute("style");
+    }
     return frags.length;
   }
 
@@ -665,9 +763,12 @@ export function createPagination(deps = {}) {
    */
   function applyFragments(splits) {
     const applied = [];
-    /* One group per block, in plan order; a block can now need several cuts. */
+    /* One group per block, in plan order; a block can now need several cuts. List item
+       breaks are their own primitive (`applyItemBreaks`), so they are filtered here rather
+       than special-cased inside the span machinery. */
     const groups = [];
     for (const split of splits) {
+      if (split.kind === "list") continue;
       const last = groups[groups.length - 1];
       if (last && last.block === split.block) last.splits.push(split);
       else groups.push({block: split.block, splits: [split]});
@@ -725,6 +826,50 @@ export function createPagination(deps = {}) {
 
   const fragmentCount = () => content.querySelectorAll("[data-frag]").length;
 
+  /**
+   * Realise a plan's list breaks: the item that starts a page is pushed to that page's
+   * content top by its own margin, and the list is not touched otherwise.
+   *
+   * Runs on every pass with the current plan's list splits (possibly none), so an item
+   * whose break is no longer needed loses its margin in the same pre-paint pass. The push
+   * is recomputed from the item's *unpushed* top, the same rule a fragment follows.
+   */
+  function applyItemBreaks(splits) {
+    const wanted = new Map();
+    for (const split of splits) if (split.kind === "list") wanted.set(split.li, split);
+
+    for (const li of [...content.querySelectorAll(`li[${LIST_BREAK}]`)]) {
+      if (wanted.has(li)) continue;
+      li.removeAttribute(LIST_BREAK);
+      li.style.marginBlockStart = "";
+      if (!li.getAttribute("style")) li.removeAttribute("style");
+    }
+
+    const applied = [];
+    for (const [li, split] of wanted) {
+      /* The plan measured this item's parent; an edit that moved it since is repaired by
+         the next pass, not by writing a margin into a different list. */
+      if (!li.isConnected || li.parentElement !== split.block) continue;
+      const current = li.hasAttribute(LIST_BREAK) ? inlineMargin(li) : 0;
+      const semanticTop = layout.rect(li).top - current;
+      const push = Math.max(0, layoutPx(split.targetTop - semanticTop));
+      if (!li.hasAttribute(LIST_BREAK)) li.setAttribute(LIST_BREAK, "");
+      if (Math.abs(current - push) > 0.5) li.style.marginBlockStart = `${push}px`;
+      applied.push({
+        kind: "list",
+        block: split.block,
+        li,
+        index: split.index,
+        offset: split.index,
+        targetTop: split.targetTop,
+        push,
+        reused: current > 0,
+        plan: split.plan ?? null,
+      });
+    }
+    return applied;
+  }
+
   const inlineMargin = (el) => parseFloat(el.style.marginBlockStart || "0") || 0;
 
   /* Layout units are 1/64 px in the engines that snap. Writing a value on that grid keeps
@@ -779,6 +924,36 @@ export function createPagination(deps = {}) {
     return layout.measureH(el) - (state ? state.push : 0);
   }
 
+  /** A list's direct items, with the page push each one already carries subtracted.
+      The plan must see the semantic list: a break margin that is counted becomes the
+      "cut is not at the page boundary" bug with a different primitive. */
+  function listItems(el) {
+    const items = [];
+    for (const li of el.children) {
+      if (li.localName !== "li") continue;
+      const box = layout.rect(li);
+      const push = li.hasAttribute(LIST_BREAK) ? inlineMargin(li) : 0;
+      items.push({li, top: box.top - push, bottom: box.bottom - push, push});
+    }
+    return items;
+  }
+
+  function listBreakTotal(el) {
+    let total = 0;
+    for (const li of el.children) {
+      if (li.localName === "li" && li.hasAttribute(LIST_BREAK)) total += inlineMargin(li);
+    }
+    return total;
+  }
+
+  /** The height the plan accumulates for a block: its box minus whatever a page push
+      already moved below the page it belongs to. One function for both primitives. */
+  function blockH(el, spec) {
+    const state = fragmentState(el);
+    const pushed = spec.kind === "list" ? listBreakTotal(el) : (state ? state.push : 0);
+    return layout.measureH(el) - pushed;
+  }
+
   /* --------------------------------------------------------------- the page plan */
 
   function plan() {
@@ -797,17 +972,28 @@ export function createPagination(deps = {}) {
     for (let i = 0; i < blocks.length; i++) {
       const el = blocks[i];
       const state = fragmentState(el);
-      const h = layout.measureH(el) - (state ? state.push : 0);
+      const spec = strategy(el);
+      const h = blockH(el, spec);
       const tall = h > g.contentH; // Check if larger than page height
       let page = pages[pages.length - 1];
+
+      /* Keep-with-next: a heading belongs to the block below it. If that block fits a page
+         but not the space left on this one, the page break goes *before* the heading rather
+         than after it. A next block that is itself taller than a page fragments anyway, so
+         it is not a reason to move the heading. */
+      const nextEl = spec.keepWithNext ? blocks[i + 1] : null;
+      const nextH = nextEl ? blockH(nextEl, strategy(nextEl)) : 0;
+      const keepBreaks = Boolean(nextEl) && nextH > 0 && nextH <= g.contentH
+        && page.items.length > 0
+        && cursor + h + nextH > page.top + page.avail;
 
       /* A block overflows when it does not fit the space left on the current page. A
          tall *lines* block that starts a fresh page overflows that page too, and must be
          offered to the splitter; an atomic block still gets a page as tall as itself. */
-      const spec = strategy(el);
       const firstTallLines = page.items.length === 0
-        && fragmenting && spec.kind === "lines" && h > page.top + page.avail;
-      if ((page.items.length && cursor + h > page.top + page.avail) || firstTallLines) {
+        && fragmenting && (spec.kind === "lines" || spec.kind === "list")
+        && h > page.top + page.avail;
+      if (keepBreaks || (page.items.length && cursor + h > page.top + page.avail) || firstTallLines) {
         const blockTop = layout.rect(el).top;
 
         if (fragmenting && spec.kind === "lines") {
@@ -852,7 +1038,7 @@ export function createPagination(deps = {}) {
                   block: el,
                   offset: state.offsets[k],
                   headHeight: k === 0 ? state.headHeight : state.heights[k - 1],
-                  targetTop: nextTop + g.pad,
+                  targetTop: nextTop + g.padTop,
                   existing: frag,
                   plan: {reused: true},
                 });
@@ -892,7 +1078,7 @@ export function createPagination(deps = {}) {
               block: el,
               offset: cut.offset,
               headHeight: cut.headHeight,
-              targetTop: nextTop + g.pad,
+              targetTop: nextTop + g.padTop,
               existing: null,
               plan: {
                 room: Math.round(cut.room),
@@ -930,6 +1116,75 @@ export function createPagination(deps = {}) {
               page.items.push({block: i, from, to: null});
               cursor = pageTop + remaining;
             }
+            continue;
+          }
+        }
+
+        /* A list breaks between items, and stays one element: the tail item's own margin
+           is the page push (docs/EDITING-MODEL.md §5.3). The coordinate is the item index,
+           so `from`/`to` on this block's page items are indices, not text offsets. */
+        if (fragmenting && spec.kind === "list") {
+          const items = listItems(el);
+          const minItems = spec.minItems ?? 2;
+          const blockTop = items.length ? items[0].top : 0;
+          let from = 0;
+          let consumed = 0;
+          let cuts = 0;
+          let room = page.top + page.avail - cursor;
+          let pageTop = page.top;
+          let avail = page.avail;
+          while (cuts < 64 && from < items.length) {
+            const segment = items.slice(from);
+            const last = itemForRoom(segment, segment[0].top, room, minItems);
+            if (last < 0) break;
+            const tail = segment[last + 1];
+            const nextTop = pageTop + avail + g.chromeGap;
+            const index = from + last + 1;
+            page.items.push({block: i, from, to: index});
+            const tailPage = {top: nextTop, avail: g.contentH, items: []};
+            pages.push(tailPage);
+            splits.push({
+              kind: "list",
+              block: el,
+              li: tail.li,
+              /* `offset` and `index` are the same number here: the item coordinate. It is
+                 named `offset` so the diagnostics and the plan signature speak one shape. */
+              offset: index,
+              index,
+              targetTop: nextTop + g.padTop,
+              plan: {
+                room: Math.round(room),
+                index,
+                items: items.length,
+                blockTop: Math.round(blockTop),
+                blockHeight: Math.round(h),
+                cursor: Math.round(cursor),
+                nextTop: Math.round(nextTop),
+              },
+            });
+            consumed = segment[last].bottom - blockTop;
+            cuts++;
+            from = index;
+            page = tailPage;
+            pageTop = nextTop;
+            avail = g.contentH;
+            room = g.contentH;
+            if (h - consumed <= g.contentH + 1) break;
+          }
+          if (cuts) {
+            /* The list's remaining items end its last page; the block after it starts
+               from the semantic position, exactly as a fragmented paragraph's does. */
+            page.items.push({block: i, from, to: null});
+            const rest = h - consumed;
+            /* A tail whose first item cannot be cut (one `<li>` taller than a page, or too
+               few items to satisfy both guards) is atomic for layout purposes: its page
+               grows to hold it. Growing the page is the honest answer — the alternative is
+               text painting over the gap, which is the bug the model exists to remove. */
+            if (rest > page.avail + 1) {
+              page.avail = rest;
+              oversize.push(i);
+            }
+            cursor = pageTop + rest;
             continue;
           }
         }
@@ -981,8 +1236,8 @@ export function createPagination(deps = {}) {
     return {
       blocks, pages, spacers, splits, oversize, stale, ...g,
       /* Page content edges in layout px, the coordinate everything else must agree with. */
-      pageTops: pages.map((page) => layout.pageContentTop(page, g.pad)),
-      pageBottoms: pages.map((page) => layout.pageContentBottom(page, g.pad)),
+      pageTops: pages.map((page) => layout.pageContentTop(page, g.padTop)),
+      pageBottoms: pages.map((page) => layout.pageContentBottom(page, g.padBottom)),
     };
   }
 
@@ -1059,7 +1314,7 @@ export function createPagination(deps = {}) {
       const m = model[k];
 
       sheet.style.top = pg.top + "px";
-      sheet.style.height = (pg.avail + 2 * p.pad) + "px"; // Pages height + padding
+      sheet.style.height = (pg.avail + p.padTop + p.padBottom) + "px"; // content + the two margins
 
       sheet.dataset.page = String(k + 1);
       sheet.dataset.side = m.recto ? "recto" : "verso";
@@ -1071,7 +1326,7 @@ export function createPagination(deps = {}) {
     });
 
     const last = p.pages[need - 1];
-    stage.style.minHeight = (last.top + last.avail + 2 * p.pad) + "px";
+    stage.style.minHeight = (last.top + last.avail + p.padTop + p.padBottom) + "px";
   }
 
   // Rendering/reformatting logic:
@@ -1268,7 +1523,11 @@ export function createPagination(deps = {}) {
           if (!fragmenting) break;
         }
         applyGaps(p);
-        if (fragmenting) applied = applyFragments(p.splits);
+        const lineApplied = fragmenting ? applyFragments(p.splits) : [];
+        /* Always run: a list break left by an earlier pass must be cleared in this one,
+           and a document with fragmenting off carries none. */
+        const itemApplied = fragmenting ? applyItemBreaks(p.splits) : applyItemBreaks([]);
+        applied = [...lineApplied, ...itemApplied];
         recordPlanned(p);
         const model = buildModel(p);
         renderSheets(p, model);
@@ -1326,6 +1585,16 @@ export function createPagination(deps = {}) {
     pass(options);
   }
 
+  /**
+   * Undo every session wrapper without running a pass: fragments and list item breaks.
+   * A structural edit (a paste, a block conversion, an indent) calls this first, because
+   * the next pass must re-cut against the new text rather than inherit the old shape.
+   * One history entry is the editor's job; this only restores the semantic document.
+   */
+  function merge() {
+    return mergeFragments();
+  }
+
   /** Session-only: fragment inside paragraphs, or keep blocks whole. Not persisted. */
   function setFragmenting(next) {
     const wanted = next === true;
@@ -1349,6 +1618,7 @@ export function createPagination(deps = {}) {
       pages: pageCount(),
       fragmenting,
       fragments: fragmenting ? fragmentCount() : 0,
+      breaks: fragmenting ? content.querySelectorAll(`li[${LIST_BREAK}]`).length : 0,
       gaps: p ? p.spacers.length : 0,
       mergedLastPass: lastPlan?.merged ?? 0,
       selectionKept: lastPlan?.selectionKept ?? null,
@@ -1359,7 +1629,9 @@ export function createPagination(deps = {}) {
       pageBottoms: p?.pageBottoms ?? [],
       items: p ? p.pages.map((page) => page.items.map((item) => ({block: item.block, from: item.from, to: item.to}))) : [],
       splits: (lastPlan?.applied ?? []).map((applied) => ({
+        kind: applied.kind ?? "lines",
         offset: applied.offset,
+        index: applied.index,
         push: applied.push,
         targetTop: applied.targetTop,
         fragTopBefore: applied.fragTopBefore,
@@ -1392,7 +1664,7 @@ export function createPagination(deps = {}) {
   syncFolio();
   return {
     schedule, pageCount, pageAt, syncFolio, refresh, setFragmenting, diagnostics,
-    strategy, defineBlock, planSplit,
+    strategy, defineBlock, planSplit, merge,
     plan: () => lastPlan?.p ?? null,
   };
 }

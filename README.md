@@ -243,6 +243,7 @@ test/unit/          node:test suites
 test/browser/       playwright suites (chromium, webkit, firefox)
 docs/PLUGINS.md     the plugin contract: host API, contributions, islands, pinning
 docs/MANIFEST.md    the three JSON blocks in a document: every field, authored vs derived
+docs/EDITING-MODEL.md  what a block is, how paste becomes blocks, how pages break
 plugins.json        curated single-module catalog, published as dist/registry.json
 plugins/<id>/       one folder per bundle plugin: plugin.json + its source
 dist/plugins/index.json  plugin versions by tag; what a document's pluginIndex names

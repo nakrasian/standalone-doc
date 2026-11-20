@@ -1328,3 +1328,60 @@ dialog.plugin-trust .pt-foot button.pt-go {
 #import-dialog .import-conflict {
   padding: 10px 2px;
 }
+
+/* Page section: geometry is four numbers and a size, not a second dialog. The margins
+   share one row (a 2×2 grid would push the sheet's Done below a laptop's fold). */
+#doc-settings-dialog .ds-page {
+  margin: 10px 0 2px; padding: 8px 10px 6px;
+  border: 1px solid var(--line); border-radius: 8px;
+}
+#doc-settings-dialog .ds-page legend {
+  padding: 0 5px; color: var(--muted); font-size: 11px; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+#doc-settings-dialog .ds-margins { display: inline-flex; gap: 8px; }
+#doc-settings-dialog .ds-margins label {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--muted); font-size: 11.5px;
+}
+#doc-settings-dialog .ds-margins input {
+  width: 58px; font: inherit; font-size: 12px; height: 26px; padding: 0 5px;
+  border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+#doc-settings-dialog .ds-page input[type="number"] { width: 64px; }
+
+/* ---- table dialog ---- */
+dialog#table-dialog {
+  width: min(320px, 90vw);
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(16, 22, 30, .28);
+  font: 13px/1.4 system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+}
+dialog#table-dialog::backdrop { background: rgba(16, 22, 30, .34); }
+#table-dialog h2 { margin: 0 0 12px; font-size: 15px; }
+#table-dialog .table-fields { display: flex; gap: 12px; }
+#table-dialog .table-fields label {
+  display: flex; align-items: center; gap: 6px; color: var(--muted);
+}
+#table-dialog .table-fields input {
+  width: 62px; height: 28px; padding: 0 7px; border-radius: 6px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  font: inherit; font-variant-numeric: tabular-nums;
+}
+#table-dialog .table-header {
+  display: flex; align-items: center; gap: 7px; margin-top: 12px; color: var(--ink);
+}
+#table-dialog .dialog-actions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;
+}
+#table-dialog .dialog-actions button {
+  height: 30px; padding: 0 14px; border-radius: 7px; border: 1px solid var(--line);
+  background: #fff; color: var(--ink); font: inherit; cursor: pointer;
+}
+#table-dialog .dialog-actions button.primary {
+  border-color: #1f5fd0; background: #2f6fed; color: #fff; font-weight: 600;
+}

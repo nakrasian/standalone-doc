@@ -1,9 +1,14 @@
 # Changelog
 
-## v0.13.0 — 2026-11-19
+## v0.13.0 — 2026-11-20
 
 Two capabilities arrived together because the same figure needed both: an island that may
 compile expressions, and a figure that draws its own export.
+
+The same release turns the editor's assumptions into a model — what a block is, how foreign
+HTML becomes one, how a list crosses a page, and what a page's geometry is. They are not
+unrelated threads: a figure is a block like any other, and the pagination both share is what
+keeps content from painting over the gap between pages.
 
 A genome map is the case. GenomeSpy's grammar builds its filters and encodings with
 `new Function`, so a `sealed` island cannot draw one at all — measured in all three engines,
@@ -113,6 +118,92 @@ the sandboxed ones.
 - `plugins.spec.js` and `plugins-sheet.spec.js` no longer hardcode the runtime's API number:
   they assert against `StandaloneDoc.hostApi` (or a number no release provides), so the next
   bump does not edit tests that are not about bumps.
+
+### Editing
+
+- **`#content` has an invariant, and one pass restores it.** Every child is a block
+  (`p · h1–h6 · blockquote · pre · ul · ol · figure · table · hr`), no text block contains
+  one, no `li` lives outside a list. `normalizeContent()` is idempotent — the second call
+  writes nothing — so it runs at construction without making an opened file dirty. The
+  failure it removes was measured: the same 30 paragraphs authored directly paginate to four
+  pages, and wrapped in one `<div>` (what a rendered page, a markdown preview, and Google
+  Docs all paste) they became **two pages, the second a 1882 px sheet** — a block the planner
+  classified `atomic` and gave a page as tall as itself.
+- **Paste and drop have a pipeline.** HTML is parsed in a detached `<template>`, executable
+  and fetching tags are removed, `b/i/strike/tt` are renamed to `strong/em/s/code`, every
+  `style`/`class`/`id` is dropped (Word's `mso-list` is read *before* that and rebuilt into a
+  real list), links and images are scheme-checked, and the result is inserted at the caret:
+  inline into a sentence, between paragraph halves, or spliced into/splitting a list. A
+  pasted `line-height:1.38` can no longer make one region of a document spaced differently
+  from another.
+- **A list breaks between items and stays one element.** A page break inside a list is a
+  `margin-block-start` on the `<li>` that starts the page (`[data-page-break]`), not a split
+  into two lists. Numbering therefore continues in `<ol>` with no `start` attribute, block
+  indices stay stable under the caret, and a 44-item list paginates to two pages instead of
+  one 1235 px sheet.
+- **Page geometry is a document setting.** `Document → Page` writes `--sheet-w/--sheet-h`,
+  four independent margins and `--doc-leading` into the document's own `#user-theme` block,
+  then re-plans. Presets are Letter/Legal/A4/A5/Tabloid plus portrait/landscape; the file
+  keeps the resolved lengths, so a reader without the preset table still lays it out. The
+  print path and the `@page` rule read the same four margins, and Save now writes the whole
+  theme block instead of replacing it with `--doc-size` (which is why page setup could never
+  have persisted before).
+- **One vertical rhythm at every depth.** Spacing inside the flow is `padding-block` (a
+  margin is a page gap, and the planner ignores margins by construction), applied to nested
+  paragraphs in list items and quotes as well as top-level blocks. Measured before/after:
+  a nested paragraph went from `14.67px` top and bottom against the top-level `8.07px` to
+  the same `0/0 + 8.07px` box. Quotes have their indent back, `pre` is monospace, list items
+  have their own gap, and pasted inline styles no longer override any of it.
+- **Structure-aware commands.** `setBlock` on a list item unwraps the item and renames the
+  block (it used to produce `<p><ul>…</ul></p>`, which the planner then treated as lines);
+  `Tab`/`Shift-Tab` indent and outdent list items with the caret preserved across the move
+  (Chromium resets the selection to the parent when the node holding it moves); a click in
+  the empty area below the last block starts a paragraph instead of appending to the last
+  `<li>`; an end-of-block paste does not leave an empty paragraph behind.
+- **Typing `- ` or `1. ` starts a list.** The conversion happens on the space's
+  `beforeinput`, so the marker is consumed before the document ever holds it — no flash of a
+  paragraph becoming a list, one undo step. `* `/`+ ` work too, `3. ` starts at 3
+  (`<ol start="3">`), and only a top-level text block whose entire text is the marker
+  qualifies: a dash at the end of a sentence is still a dash, and a marker inside an item is
+  still text.
+- **A list item that cannot be cut grows its page.** An `<li>` is the atom: a single item
+  taller than a page (or a tail with fewer than `minItems` items) has no legal cut, so its
+  page takes the item's height instead of letting the item paint over the gap. This is the
+  same rule an atomic block follows, and the page table in the lab shows it as
+  `avail > contentH`. Nested sublists travel with their parent item for the same reason.
+- **Backspace in an empty list item leaves the list.** The line becomes a paragraph and
+  the list splits around it, instead of the engine merging the empty item into the one above
+  and resurrecting its text. An `<ol>` tail now carries `start` when a list is split, so
+  numbering continues (this was also wrong for `setBlock`-style unwrapping).
+- **Tables: a primitive, not a paragraph that looks like one.** `Insert → Table…` (rows,
+  columns, header row) builds a real `<table>` block; `Tab` walks the cells and appends a row
+  from the last one; a paragraph is left after the table so typing can continue below it. The
+  document's sheet now gives tables a grid (collapsed borders, header background, cell
+  padding) — before this a table rendered as unspaced lines. Tables are atomic for
+  pagination, so a taller-than-page table grows its page; row-level breaks are still to come.
+- **`Tab` keeps the caret on the item it nests.** The caret was restored by block offset,
+  which is ambiguous for an empty item or an item at offset 0 (both add no text before the
+  nested list): it landed at the end of the parent item. The move now restores an
+  item-relative coordinate; measured in all three engines.
+- **The list shortcut's host was too narrow.** `- ` / `1. ` only worked in a direct child
+  `p`/heading, so it silently did nothing in a legacy `<div>`, inside a wrapper, or in a
+  quote — the "only works sometimes" report. The host is now the innermost text-like block,
+  the typed space may be a non-breaking one, and a quote keeps being a quote with the list
+  inside it. A list item and a plugin-owned block are deliberately excluded.
+- **Hanging indent, asserted.** `list-style-position: outside` plus the list's
+  `padding-inline-start` means the marker sits in the margin and the first line, every
+  wrapped line, and a line after a `<br>` all share one text column; a nested `<p>` in an
+  item is that continuation line. `test/browser/editing-model.spec.js` measures the line
+  boxes rather than the CSS.
+- **Keep-with-next and orphans.** Headings now keep the block below them on the same page
+  (the flag has been in the strategy table for two releases with nothing reading it), and a
+  paragraph cut that would leave a single stranded line moves the block whole instead. Lists
+  apply the same rule with `minItems`.
+
+The whole model is written up in [`docs/EDITING-MODEL.md`](docs/EDITING-MODEL.md), with the
+before/after of each layer in `lab/018-editing-model/`. Browser coverage is
+`test/browser/editing-model.spec.js`; the pure half (line and item choice, orphan control,
+heading policy) is in `test/unit/pagination-math.test.js`.
 
 ## v0.12.1 — 2026-11-19
 

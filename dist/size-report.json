@@ -1,18 +1,18 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 729796
+    "bytes": 810189
   },
   "assets": [
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 11619
+      "bytes": 16282
     },
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 41464
+      "bytes": 44003
     },
     {
       "id": "boot-ui-styles",
@@ -27,7 +27,7 @@
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 17817
+      "bytes": 17886
     },
     {
       "id": "doc-bar-markup",
@@ -72,7 +72,7 @@
     {
       "id": "session",
       "kind": "js",
-      "bytes": 5611
+      "bytes": 6044
     },
     {
       "id": "signals",
@@ -97,7 +97,7 @@
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 65703
+      "bytes": 79961
     },
     {
       "id": "progress",
@@ -107,12 +107,12 @@
     {
       "id": "status",
       "kind": "js",
-      "bytes": 4606
+      "bytes": 5414
     },
     {
       "id": "editor",
       "kind": "js",
-      "bytes": 33061
+      "bytes": 81881
     },
     {
       "id": "comments",
@@ -132,7 +132,7 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 90509
+      "bytes": 95209
     },
     {
       "id": "plugins",
@@ -142,12 +142,12 @@
     {
       "id": "export",
       "kind": "js",
-      "bytes": 46928
+      "bytes": 48157
     },
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 13255
+      "bytes": 16064
     },
     {
       "id": "bootstrap",
@@ -156,9 +156,9 @@
     }
   ],
   "flavors": {
-    "index.html": 729796,
-    "asset-bodies": 711303,
-    "markup-and-runtime": 18493,
-    "dist/slim.html": 109270
+    "index.html": 810189,
+    "asset-bodies": 791631,
+    "markup-and-runtime": 18558,
+    "dist/slim.html": 109335
   }
 }

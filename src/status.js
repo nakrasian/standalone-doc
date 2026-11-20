@@ -25,6 +25,12 @@ export function createStatus(deps = {}) {
     // Runtime frames are derived; they must not make a saved document look
     // dirty the moment a lazy island mounts.
     clone.querySelectorAll("[data-runtime='ephemeral']").forEach((n) => n.replaceChildren());
+    clone.querySelectorAll("[data-page-start], [data-page-break]").forEach((n) => {
+      n.removeAttribute("data-page-start");
+      n.removeAttribute("data-page-break");
+      n.style.marginBlockStart = "";
+      if (!n.getAttribute("style")) n.removeAttribute("style");
+    });
     clone.querySelectorAll("figure.figure").forEach((n) => {
       n.removeAttribute("data-selected");
       n.removeAttribute("data-mounted");
@@ -87,6 +93,17 @@ export function createStatus(deps = {}) {
     refresh();
   }
 
+  /* The document as it was opened is the baseline. The editor normalizes `#content` once
+     at construction (docs/EDITING-MODEL.md §3), and that repair — unwrapping a pasted
+     `<div>`, lifting a list out of a paragraph — is not an edit the reader made. Without
+     this, every document ever pasted into would open dirty. */
+  function rebase() {
+    baseline = contentHtml();
+    forced = false;
+    lastSavedBytes = null;
+    refresh();
+  }
+
   signals.on("mutation", schedule);
   signals.on("edit", schedule);
   signals.on("compositionend", schedule);
@@ -105,5 +122,5 @@ export function createStatus(deps = {}) {
     registry.provide("status", {refresh, markDirty});
   }
 
-  return {refresh, save, markDirty, setStoreEstimator};
+  return {refresh, save, markDirty, rebase, setStoreEstimator};
 }

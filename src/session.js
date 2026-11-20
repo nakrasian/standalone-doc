@@ -41,6 +41,13 @@ export function createSession(deps = {}) {
       node.style.marginBlockStart = "";
       if (!node.getAttribute("style")) node.removeAttribute("style");
     });
+    /* A list's item break is the same kind of session wrapper: the margin is the page
+       push, and reopening the file plans it again (docs/EDITING-MODEL.md §5.3). */
+    clone.querySelectorAll("[data-page-break]").forEach((node) => {
+      node.removeAttribute("data-page-break");
+      node.style.marginBlockStart = "";
+      if (!node.getAttribute("style")) node.removeAttribute("style");
+    });
 
     clone.querySelectorAll("[data-menu-panel], [data-doc-panel]").forEach((node) => node.setAttribute("hidden", ""));
     clone.querySelectorAll("[data-doc-settings]").forEach((node) => node.setAttribute("aria-expanded", "false"));

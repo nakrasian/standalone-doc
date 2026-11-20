@@ -8,6 +8,21 @@
   </form>
 </dialog>
 
+<dialog id="table-dialog" aria-labelledby="table-title">
+  <form method="dialog">
+    <h2 id="table-title">Insert table</h2>
+    <div class="table-fields">
+      <label>Rows <input type="number" data-table="rows" min="1" max="50" step="1" value="3"></label>
+      <label>Columns <input type="number" data-table="cols" min="1" max="12" step="1" value="3"></label>
+    </div>
+    <label class="table-header"><input type="checkbox" data-table="header" checked> Header row</label>
+    <div class="dialog-actions">
+      <button value="cancel">Cancel</button>
+      <button class="primary" value="insert" autofocus>Insert</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="progress-dialog" aria-labelledby="progress-title">
   <h2 id="progress-title" data-progress-title>Working…</h2>
   <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -81,6 +96,42 @@
         <input type="text" data-ds="author" spellcheck="false" aria-label="Author name">
         <span class="ds-hint">written into comments</span>
       </div>
+
+      <!-- Page geometry is presentation, so it is written to the document's own theme
+           block and applies at the next paint. This panel is the only place that writes
+           it; the values are CSS custom properties, and the export reads the same ones. -->
+      <fieldset class="ds-page">
+        <legend>Page</legend>
+        <div class="ds-row">
+          <span class="grow">Size</span>
+          <select data-ds-page="size" aria-label="Page size">
+            <option value="letter">Letter · 8.5 × 11 in</option>
+            <option value="legal">Legal · 8.5 × 14 in</option>
+            <option value="a4">A4 · 8.27 × 11.69 in</option>
+            <option value="a5">A5 · 5.83 × 8.27 in</option>
+            <option value="tabloid">Tabloid · 11 × 17 in</option>
+          </select>
+          <select data-ds-page="orientation" aria-label="Orientation">
+            <option value="portrait">Portrait</option>
+            <option value="landscape">Landscape</option>
+          </select>
+        </div>
+        <div class="ds-row">
+          <span class="grow">Margins</span>
+          <span class="ds-margins">
+            <label>top <input type="number" data-ds-margin="top" min="0" step="0.05" aria-label="Top margin in inches"></label>
+            <label>right <input type="number" data-ds-margin="right" min="0" step="0.05" aria-label="Right margin in inches"></label>
+            <label>bottom <input type="number" data-ds-margin="bottom" min="0" step="0.05" aria-label="Bottom margin in inches"></label>
+            <label>left <input type="number" data-ds-margin="left" min="0" step="0.05" aria-label="Left margin in inches"></label>
+          </span>
+          <span class="ds-hint">inches · applies when you press Done</span>
+        </div>
+        <div class="ds-row">
+          <span class="grow">Line spacing</span>
+          <input type="number" data-ds-page="leading" min="1" max="3" step="0.05" aria-label="Line spacing">
+          <span class="ds-hint">× the type size</span>
+        </div>
+      </fieldset>
     </section>
 
     <section class="dd-panel" id="dd-storage" data-dd-panel="storage" role="tabpanel" hidden>
