@@ -45,6 +45,51 @@ the sandboxed ones.
   ordering, and the fourth only made the race reliable. The spec was about profiles, not about
   `IntersectionObserver`.
 
+### Fixed
+
+- **A static HTML export is a document again.** `File ▸ Export ▸ Static HTML` dropped the page
+  boxes and kept only the *print* rules for the breaks, so opening the file in a browser gave one
+  endless grey column with the page gaps still in it — pagination existed only for the printer.
+  The reader's copy now carries the page model the session measured (`#sheets`, the
+  `[data-page-start]` margins, the folios), and the print rules still hide the boxes and break on
+  the same attributes. A writer's copy is unchanged: `materialize()` — docx, pdf, markdown —
+  passes `paginate: false`, gets the flow with markers, and `validateStatic` reports a page gap
+  in it. The two contracts are now asserted separately.
+- **A capture waits for a figure that installs its own exporter.** An island declares
+  `exports` and installs `window.__figureExport` when its content is ready — after bytes, an
+  engine compile, a layout. `snapshot()` used to ask on the first frame after mounting, take the
+  "no exporter" answer, and fall back to a raster of a canvas that had not drawn yet: a blank
+  figure in the export, with no error. It now waits (bounded) for the bridge to report the
+  exporter before asking, and the rasterizer remains the fallback.
+
+### Fixed
+
+- **A sealed island can be captured.** The serializer is code, so a capturing copy of a
+  profile that denies eval is mounted with it **inlined as a `<script>`** instead of handed
+  over as a string to eval. The island the reader has is untouched: only sealed profiles are
+  re-mounted, and a figure that was on screen is put back afterwards.
+- **`islands.spec.js` suspended the observer.** Four figure-sized islands on a paginated sheet
+  meant an offscreen figure was unmounted mid-measurement; three of them passed by luck of
+  ordering, and the fourth only made the race reliable. The spec was about profiles, not about
+  `IntersectionObserver`.
+
+### Fixed
+
+- **A static HTML export is a document again.** `File ▸ Export ▸ Static HTML` dropped the page
+  boxes and kept only the *print* rules for the breaks, so opening the file in a browser gave one
+  endless grey column with the page gaps still in it — pagination existed only for the printer.
+  The reader's copy now carries the page model the session measured (`#sheets`, the
+  `[data-page-start]` margins, the folios), and the print rules still hide the boxes and break on
+  the same attributes. A writer's copy is unchanged: `materialize()` — docx, pdf, markdown —
+  passes `paginate: false`, gets the flow with markers, and `validateStatic` reports a page gap
+  in it. The two contracts are now asserted separately.
+- **A capture waits for a figure that installs its own exporter.** An island declares
+  `exports` and installs `window.__figureExport` when its content is ready — after bytes, an
+  engine compile, a layout. `snapshot()` used to ask on the first frame after mounting, take the
+  "no exporter" answer, and fall back to a raster of a canvas that had not drawn yet: a blank
+  figure in the export, with no error. It now waits (bounded) for the bridge to report the
+  exporter before asking, and the rasterizer remains the fallback.
+
 ### Plugins
 
 - **`genome` 0.1.0 — a GenomeSpy map as a figure.** Insert ▸ Genome map… reads a `.spec.json` and
@@ -52,7 +97,11 @@ the sandboxed ones.
   export. The engine (1.4 MB, pinned at `genome-spy-python@0.10.0`, verified offline against
   `sha384-nQjDyto…`) and the 5 KB view are pinned `bin` copies the island asks for by name, so a
   four-locus document is ~100 KB of figures rather than 5.9 MB of self-contained exports, and
-  fixing the view is an upgrade, not a re-insert. `plugins/genome/README.md` has the contract;
+  fixing the view is an upgrade, not a re-insert. Labels are laid out at **render width** with
+  the grammar of GenomeSpy's lambda-phage example — measured, piled into collision-free lanes,
+  centred over each gene, underlined, with leaders down to the gene track — so a document column
+  no longer crowds rows baked for a 1000 px figure; a spec can opt out with
+  `config.genome.labels: "authored"`. `plugins/genome/README.md` has the contract;
   `npm run demo:genome` writes a document to click through.
 
 ### Changed

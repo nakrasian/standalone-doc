@@ -137,7 +137,7 @@ export function createFigures(deps = {}) {
          serializer inlined says so, and one that was not says it can still be handed one
          because its profile allows eval. */
       reply(d.id, {ok:true, pong:true, width:innerWidth, height:innerHeight,
-        serializer: !!window.htmlToImage});
+        serializer: !!window.htmlToImage, exporter: typeof window.__figureExport === "function"});
       return;
     }
     /* A figure that declares an exporter owns its own vector output: it answers with an
@@ -982,6 +982,17 @@ export function createFigures(deps = {}) {
     });
   }
 
+  /** Wait for one field of the bridge's ping — `exporter`, `serializer` — to turn true. */
+  async function waitForBridgePart(win, field, timeout = 15000) {
+    const until = Date.now() + timeout;
+    for (;;) {
+      const res = await requestSnapshot(win, {type: "figure-ping"}, 400);
+      if (res && res.ok && res[field]) return true;
+      if (Date.now() >= until) return false;
+      await sleep(100);
+    }
+  }
+
   async function waitForBridge(win, tries = 60) {
     for (let i = 0; i < tries; i++) {
       const res = await requestSnapshot(win, {type: "figure-ping"}, 400);
@@ -1038,6 +1049,11 @@ export function createFigures(deps = {}) {
     const wanted = Array.isArray(options.formats) ? options.formats : [];
     const format = wanted.find((name) => declared.includes(name));
     if (format) {
+      /* An island that declares an exporter installs it when its content is ready — after
+         bytes are fetched, an engine is compiled, a chart is laid out. Snapshotting on the
+         first frame after mounting would silently take the raster path (and, for a canvas
+         that has not drawn yet, a blank one), so the exporter is waited for, once. */
+      await waitForBridgePart(iframe.contentWindow, "exporter", options.exporterTimeout || 15000);
       const res = await requestSnapshot(iframe.contentWindow, {type: "figure-export", format},
         options.timeout || 30000, options.onProgress);
       if (res && res.ok && res.dataUrl) {

@@ -237,3 +237,61 @@ window.__figureExport = async () => { throw new Error("no vector today"); };
   expect(state.problems).toEqual([]);
   expect(state.file.name).toBe("fig-01.png");
 });
+
+/* ---- a reader's file looks like a document -------------------------------
+ *
+ * The static export used to drop the page boxes and keep only the *print* rules for the
+ * breaks, so opening it in a browser gave one endless grey column with the page gaps still in
+ * it — pagination was something only the printer knew about. A reader's copy now carries the
+ * page model the session measured; a writer's copy (`materialize()`, for docx/pdf/markdown)
+ * still gets the flow with markers, because a `.docx` has no page boxes to put anything in.
+ */
+test("a reader's copy keeps the page model; a writer's copy does not", async ({ page }) => {
+  await page.goto(fileUrl("dist/editor.html"));
+  await page.waitForFunction(() => globalThis.StandaloneDoc?.state === "ready", null, { timeout: 20_000 });
+  const state = await page.evaluate(() => {
+    document.getElementById("content").innerHTML =
+      "<h1>Two pages</h1><p>One.</p><p>Two.</p>";
+    const second = document.querySelectorAll("#content > p")[1];
+    second.setAttribute("data-page-start", "");
+    second.style.marginBlockStart = "120px";
+    const sheets = document.getElementById("sheets");
+    if (!sheets.children.length) {
+      const sheet = document.createElement("div");
+      sheet.className = "sheet";
+      sheets.append(sheet);
+    }
+    const ex = globalThis.StandaloneDoc.modules.export;
+    const reader = ex.buildStatic([], { paginate: true });
+    const writer = ex.buildStatic([], { paginate: false });
+    const parse = (html) => new DOMParser().parseFromString(html, "text/html");
+    const r = parse(reader);
+    const w = parse(writer);
+    const start = (doc) => doc.querySelector("#content > p[data-page-start]");
+    return {
+      readerSheets: r.querySelectorAll("#sheets > .sheet").length,
+      readerMargin: start(r)?.style.marginBlockStart || "",
+      readerMarkers: r.querySelectorAll(".page-break").length,
+      writerSheets: w.querySelectorAll("#sheets > .sheet").length,
+      writerMargin: start(w)?.style.marginBlockStart || "",
+      writerMarkers: w.querySelectorAll(".page-break").length,
+      readerProblems: ex.validateStatic(reader, { paginate: true }),
+      writerProblems: ex.validateStatic(writer, { paginate: false }),
+      /* The same document, validated under the other contract: a gap in a writer's copy is
+         reported, and a reader's copy without page boxes is reported too. */
+      gapInWriter: ex.validateStatic(reader, { paginate: false }),
+      readerWithoutBoxes: ex.validateStatic(writer, { paginate: true }),
+    };
+  });
+
+  expect(state.readerSheets).toBe(1);
+  expect(state.readerMargin).toBe("120px");
+  expect(state.readerMarkers).toBe(0);
+  expect(state.writerSheets).toBe(0);
+  expect(state.writerMargin).toBe("");
+  expect(state.writerMarkers).toBe(1);
+  expect(state.readerProblems).toEqual([]);
+  expect(state.writerProblems).toEqual([]);
+  expect(state.gapInWriter).toContain("a page gap reached the static document");
+  expect(state.readerWithoutBoxes).toContain("a paginated export has no page boxes");
+});

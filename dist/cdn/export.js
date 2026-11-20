@@ -103,7 +103,7 @@ export function createExport(deps = {}) {
       : []);
   }
 
-  function buildStatic(captures, {media = "data-uri"} = {}) {
+  function buildStatic(captures, {media = "data-uri", paginate = false} = {}) {
     const clone = document.documentElement.cloneNode(true);
     const figures = [...clone.querySelectorAll("#content figure.figure")];
     const byId = new Map(captures.map((c) => [c.id, c]));
@@ -156,7 +156,13 @@ export function createExport(deps = {}) {
        `.page-spacer + *` print rule and the Lua filter's spacer branch can go once no
        pre-margin document is in circulation. */
     clone.querySelectorAll("#app-toolbar,#doc-bar,#statusline,#bubble,#blockhandle,#figure-tools,#probe,dialog").forEach((n) => n.remove());
-    clone.querySelectorAll("#sheets > *, [data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
+    clone.querySelectorAll("[data-emoji-menu], [data-menu-panel], [data-plugin-ui], [data-runtime='ephemeral']").forEach((n) => n.remove());
+    /* The page boxes are chrome to a writer and the document itself to a reader. A reader
+       opens the file in a browser, where nothing runs the paginator: without these it is one
+       endless grey column with the page gaps still in it, which is the shape of a bug report.
+       A caller that is going to *write* the document (`materialize()` — docx, pdf, markdown)
+       says so, and gets the flow with markers instead. */
+    if (!paginate) clone.querySelectorAll("#sheets > *").forEach((n) => n.remove());
 
     /* A fragment is a page break, not a paragraph. Unwrap it so pandoc, a printer and a
        reader see the one paragraph the author wrote (lab/016 §9: two `<p>`s change the
@@ -182,6 +188,10 @@ export function createExport(deps = {}) {
        attribute goes away, so print and pandoc cannot both break the same page. The
        marker is invisible: no text, and the print rule carries the break. */
     clone.querySelectorAll("[data-page-start]").forEach((node) => {
+      /* A paginated reader needs the margin and the attribute: they are what puts the block
+         at the top of its page. Print already breaks on `[data-page-start]`. Only the
+         unpaginated (writer) form converts the page start into a marker and drops the gap. */
+      if (paginate) return;
       const marker = clone.ownerDocument.createElement("div");
       marker.className = "page-break";
       node.parentNode.insertBefore(marker, node);
@@ -264,7 +274,7 @@ export function createExport(deps = {}) {
     return "<!doctype html>\n" + clone.outerHTML;
   }
 
-  function validateStatic(html, {media = "data-uri"} = {}) {
+  function validateStatic(html, {media = "data-uri", paginate = false} = {}) {
     const problems = [];
     if (!html.startsWith("<!doctype html>")) problems.push("missing doctype");
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -275,11 +285,18 @@ export function createExport(deps = {}) {
     if ([...doc.querySelectorAll(".page-break-inline")].some((marker) => marker.textContent.length)) {
       problems.push("a page-break marker carried text");
     }
-    /* `[data-page-start]` deliberately survives: the static print rules break there. Its
-       margin does not (and must not), but only the margin on *that* node is pagination's. */
-    if ([...doc.querySelectorAll("[data-page-start]")]
+    /* `[data-page-start]` deliberately survives: the static print rules break there, and a
+       *paginated reader* keeps its margin — that gap is what puts the block at the top of its
+       page. A writer's copy must not carry the margin, because pandoc and a `.docx` reader
+       would see it as an indent nobody authored. */
+    if (!paginate && [...doc.querySelectorAll("[data-page-start]")]
       .some((node) => /margin-block-start/i.test(node.getAttribute("style") || ""))) {
       problems.push("a page gap reached the static document");
+    }
+    /* The other half: a reader's file with no page boxes is the endless grey column this
+       option exists to prevent. */
+    if (paginate && !doc.querySelector("#sheets > .sheet")) {
+      problems.push("a paginated export has no page boxes");
     }
     const figures = [...doc.querySelectorAll("#content figure.figure")];
     figures.forEach((figure, i) => {
@@ -372,11 +389,11 @@ export function createExport(deps = {}) {
     }
   }
 
-  async function captureAndBuild({format = "webp", media = "data-uri"} = {}) {
+  async function captureAndBuild({format = "webp", media = "data-uri", paginate = false} = {}) {
     const {captures, aborted} = await capture({format});
     if (aborted) return null;
-    const html = buildStatic(captures, {media});
-    const problems = validateStatic(html, {media});
+    const html = buildStatic(captures, {media, paginate});
+    const problems = validateStatic(html, {media, paginate});
     if (problems.length) throw new Error(problems.join("; "));
     return {html, captures, files: media === "files" ? figureFiles(captures) : []};
   }
@@ -408,7 +425,8 @@ export function createExport(deps = {}) {
   }
 
   async function exportStatic() {
-    const result = await captureAndBuild();
+    /* A reader's file: pages on screen, pages on paper. */
+    const result = await captureAndBuild({paginate: true});
     if (!result) return;
     const title = (document.querySelector("[data-title]")?.value || "document").trim();
     download(result.html, `${slug(title)}-static-${stamp()}.html`);
@@ -435,7 +453,9 @@ export function createExport(deps = {}) {
         + `</div>`);
     }
     try {
-      const result = await captureAndBuild();
+      /* Paginated on purpose: this html is printed *or*, when the popup is blocked,
+         downloaded — and the download has to be a document too. */
+      const result = await captureAndBuild({paginate: true});
       if (!result) {
         if (win) win.close();
         return;
