@@ -2278,7 +2278,11 @@ async function cmdVerifyCdn({ tag = null } = {}) {
     process.exit(1);
   }
   for (const [id, entry] of Object.entries(bundleIndex?.bundles || {})) {
-    const manifestUrl = `${docBase}/${entry.manifest}`;
+    /* A bundle published at its own plugin tag names an absolute manifest (the index's own
+       rule); the migration bundles still name a path relative to this release. Resolving
+       both against the CDN base is the one expression that is true for each — concatenating
+       turned the absolute case into `…/dist/cdn/https://…`. */
+    const manifestUrl = new URL(entry.manifest, `${docBase}/`).toString();
     bundleTargets += 1;
     const fetched = await fetchOnce(manifestUrl);
     if (fetched.error) {
