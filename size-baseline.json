@@ -1,22 +1,32 @@
 {
   "source": {
-    "bytes": 718819
+    "bytes": 810189
   },
   "assets": [
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 90509
+      "bytes": 95209
+    },
+    {
+      "id": "editor",
+      "kind": "js",
+      "bytes": 81881
     },
     {
       "id": "pagination",
       "kind": "js",
-      "bytes": 65703
+      "bytes": 79961
+    },
+    {
+      "id": "figures",
+      "kind": "js",
+      "bytes": 69872
     },
     {
       "id": "plugins",
       "kind": "js",
-      "bytes": 65681
+      "bytes": 66045
     },
     {
       "id": "comments",
@@ -24,29 +34,19 @@
       "bytes": 65115
     },
     {
-      "id": "figures",
-      "kind": "js",
-      "bytes": 61883
-    },
-    {
       "id": "registry",
       "kind": "js",
-      "bytes": 60420
+      "bytes": 60863
     },
     {
       "id": "export",
       "kind": "js",
-      "bytes": 44747
+      "bytes": 48157
     },
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 41464
-    },
-    {
-      "id": "editor",
-      "kind": "js",
-      "bytes": 33061
+      "bytes": 44003
     },
     {
       "id": "boot-ui",
@@ -61,17 +61,17 @@
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 17817
-    },
-    {
-      "id": "dialogs",
-      "kind": "html",
-      "bytes": 13255
+      "bytes": 17886
     },
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 11619
+      "bytes": 16282
+    },
+    {
+      "id": "dialogs",
+      "kind": "html",
+      "bytes": 16064
     },
     {
       "id": "doc-bar",
@@ -99,24 +99,24 @@
       "bytes": 6726
     },
     {
+      "id": "session",
+      "kind": "js",
+      "bytes": 6044
+    },
+    {
       "id": "sprite",
       "kind": "html",
       "bytes": 5775
     },
     {
-      "id": "session",
+      "id": "status",
       "kind": "js",
-      "bytes": 5611
+      "bytes": 5414
     },
     {
       "id": "zoom",
       "kind": "js",
       "bytes": 5181
-    },
-    {
-      "id": "status",
-      "kind": "js",
-      "bytes": 4606
     },
     {
       "id": "layout",
@@ -155,9 +155,9 @@
     }
   ],
   "flavors": {
-    "index.html": 718819,
-    "asset-bodies": 700326,
-    "markup-and-runtime": 18493,
-    "dist/slim.html": 108827
+    "index.html": 810189,
+    "asset-bodies": 791631,
+    "markup-and-runtime": 18558,
+    "dist/slim.html": 109335
   }
 }

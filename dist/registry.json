@@ -25,7 +25,7 @@
       "entry": "citations",
       "manifest": "plugins/citations.json",
       "bytes": 1107,
-      "sha384": "sha384-FXhYhg/pw3/OWaq16L3zQs0dOCLHM0S7v5Uj7LE/2OK8uWpfmlqN8+nuIE36SWnI",
+      "sha384": "sha384-mQeBdJWF16fywMFSbTEC4QOARPUBqxi10qFSDLKqAxbXVxDa2JUY0At9R9Zkru47",
       "assets": 1,
       "assetBytes": 77404,
       "about": "Inline citations and a bibliography: type @@ to pick a reference, import BibTeX or CSL-JSON, or read a Zotero library. Only cited entries are written into the document, and a document without the plugin still reads correctly."
@@ -51,7 +51,7 @@
       "entry": "pandoc-export",
       "manifest": "plugins/pandoc-export.json",
       "bytes": 4429,
-      "sha384": "sha384-Ux1qeILHaRq2toqVOxK1mbUyIpNo92mYpuuuRlhgM85JpfTyjE/fAOwykdNFEz5/",
+      "sha384": "sha384-P8nWEz0S35gd5yV9NffMwjoKiMaH1vWG6VyCC+289qr6nhK+099x8S+u9gfnB+7o",
       "assets": 8,
       "assetBytes": 87201484,
       "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. The engine itself is fetched on the first export; nothing is uploaded."

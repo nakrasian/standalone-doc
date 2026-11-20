@@ -20,7 +20,7 @@
         "*"
       ],
       "bytes": 12751,
-      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.12.1/dist/cdn/plugins/pandoc-export/sd-export.lua",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.0/dist/cdn/plugins/pandoc-export/sd-export.lua",
       "integrity": "sha384-EOfVTHNJNbxCfxAVGt4xHryV+PG5gqitOeTJXXYLP7UuTuUjtmOeBf2wyp+uevIx"
     },
     {
@@ -35,7 +35,7 @@
         "*"
       ],
       "bytes": 2777,
-      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.12.1/dist/cdn/plugins/pandoc-export/sd-template.typ",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.0/dist/cdn/plugins/pandoc-export/sd-template.typ",
       "integrity": "sha384-3DIWOMD2831qKtUqWICZLwMMtgLQyLikWzn9bUR1jUez5aMVfVCIiQ7+4gkIGqWF"
     },
     {
@@ -50,7 +50,7 @@
         "*"
       ],
       "bytes": 11982,
-      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.12.1/dist/cdn/plugins/pandoc-export/reference.bin",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.0/dist/cdn/plugins/pandoc-export/reference.bin",
       "integrity": "sha384-ksmdiySWaFxq1XXhrR1LHdEYcwkAlzZZd/JIYPYCm0s41iHTbmjwrZ5Lwtiqk+0J"
     },
     {
@@ -65,7 +65,7 @@
         "*"
       ],
       "bytes": 42764,
-      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.12.1/dist/cdn/plugins/pandoc-export/wasi-shim.js",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.0/dist/cdn/plugins/pandoc-export/wasi-shim.js",
       "integrity": "sha384-IlQBrvDozVHlUhSAz+syNLAfeFuusLl7EZIx0reiPn25VdMt3f9asUSZqaSulIPN"
     },
     {
@@ -80,7 +80,7 @@
         "*"
       ],
       "bytes": 13964,
-      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.12.1/dist/cdn/plugins/pandoc-export/pandoc-export.js",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.0/dist/cdn/plugins/pandoc-export/pandoc-export.js",
       "integrity": "sha384-KEqjvfLs4J6RWopFvSlQcTTKiZvWk7yP+roh1V/fn/cnbjwQUquEkuUDx0mWmRmn",
       "factory": "createPandocExport"
     },
