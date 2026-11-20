@@ -38,7 +38,7 @@ const ISLAND_ASSETS = ["genome-view", "genomespy"];
 const STYLE = `
 html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #fff; }
 .gmap { position: relative; height: 100%; font: 11px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
-.gmap-chart { position: absolute; inset: 0; }
+.gmap-chart { position: absolute; inset: 0; height: 100%; }
 .gmap-toggle { position: absolute; z-index: 3; top: 4px; right: 6px; display: none; align-items: center;
   gap: 5px; padding: 2px 7px; border: 1px solid #dde3e9; border-radius: 6px;
   background: rgba(255, 255, 255, .88); color: #5b6770; font-size: 10.5px; cursor: pointer;

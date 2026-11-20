@@ -47,6 +47,16 @@ const ENGINE = `export async function embed(root, spec) {
     domain: x.domain,
     background: spec.background,
     themed: Boolean(spec.config && spec.config.axis && spec.config.axis.labelColor),
+    /* The shape of the spec the view handed the engine: authored (one view, label-N bands)
+       or measured (two panels, an axis title of its own). */
+    panels: (spec.vconcat || []).map((view) => view.name),
+    height: spec.height,
+    axisTitle: spec.axes && spec.axes.x && spec.axes.x.title,
+    /* Layout, not data: the rows keep their label_band field either way. */
+    labelBands: Boolean(spec.layer && JSON.stringify(spec.layer).includes("label-0")),
+    keepsFeatures: Boolean(spec.datasets && spec.datasets.features && spec.datasets.features.length),
+    keepsGenes: Boolean(spec.datasets && spec.datasets.genes && spec.datasets.genes.length),
+    labelCount: (spec.datasets && spec.datasets.features || []).filter((row) => row.label).length,
   };
   root.dataset.stub = JSON.stringify(report);
   parent.postMessage({ stub: report }, "*");
@@ -187,8 +197,10 @@ test("the island draws the spec with the authored window, clamped to the locus",
   const frame = await settledMap(page);
 
   const report = await page.evaluate(() => globalThis.__stub.at(-1));
-  /* The authored domain, unchanged: the plugin never re-derives the view. */
-  expect(report.domain).toEqual([{ chrom: "chromosome", pos: 4244867 }, { chrom: "chromosome", pos: 4253874 }]);
+  /* The authored window, unchanged: the view re-lays the labels, never the data or the
+     window. With measured labels the x channel is numeric (the grammar's `index` scale), so
+     the domain is the same window in base pairs. */
+  expect(report.domain).toEqual([4244867, 4253874]);
   /* Clamped, the zoom extent is the locus itself — you cannot leave it. */
   expect(report.extent).toEqual([4244867, 4253874]);
   /* The view owns the theme, so a figure's paper does not depend on the document's. */
@@ -214,7 +226,7 @@ test("the toggle frees the window to the contig, and back", async ({ page }) => 
   const back = await page.evaluate(() => globalThis.__stub.at(-1));
   expect(back.extent).toEqual([4244867, 4253874]);
   /* Re-centres, rather than leaving the reader wherever the free view ended up. */
-  expect(back.domain).toEqual([{ chrom: "chromosome", pos: 4244867 }, { chrom: "chromosome", pos: 4253874 }]);
+  expect(back.domain).toEqual([4244867, 4253874]);
 });
 
 test("the figure answers the export hook, and the host files it as SVG", async ({ page }) => {
@@ -258,4 +270,47 @@ test("a file that is not a GenomeSpy spec is refused, and no figure appears", as
   }));
   expect(state.figures).toBe(0);
   expect(state.dialog).toContain("scales");
+});
+
+/* ---- label layout -------------------------------------------------------
+ *
+ * The document column is narrower than the width spec.py measured rows for, so baked label
+ * rows crowd. The view adopts GenomeSpy's own gene-map grammar instead: measure at the current
+ * width, sort by left edge, pile into collision-free lanes. Data, palette and tooltips are the
+ * author's; only the layout is recomputed. A spec that wants its authored rows back says so.
+ */
+const withLabels = (value) => {
+  const spec = JSON.parse(fixture);
+  spec.config = Object.assign({}, spec.config, { genome: { labels: value } });
+  return JSON.stringify(spec);
+};
+
+test("a locus spec is re-laid at render width, keeping the data and the palette", async ({ page }) => {
+  await boot(page);
+  await insert(page);
+  await settledMap(page);
+  const report = await page.evaluate(() => globalThis.__stub.at(-1));
+
+  /* Two panels: measured labels above, the gene track below. */
+  expect(report.panels).toEqual(["labelPanel", "arrowPanel"]);
+  expect(report.height).toBe("container");
+  expect(report.axisTitle).toBe("Genome position (bp)");
+  /* The baked rows are gone; the rows themselves are not. */
+  expect(report.labelBands).toBe(false);
+  expect(report.keepsFeatures).toBe(true);
+  expect(report.keepsGenes).toBe(true);
+  expect(report.labelCount).toBe(18);
+});
+
+test("a spec may keep its authored label rows", async ({ page }) => {
+  await boot(page);
+  await insert(page, { text: withLabels("authored") });
+  await settledMap(page);
+  const report = await page.evaluate(() => globalThis.__stub.at(-1));
+
+  /* One view, the bands spec.py wrote, the authored axis. The opt-out is a spec decision,
+     stored with the data, so a document that needs the tuned rows keeps them. */
+  expect(report.panels).toEqual([]);
+  expect(report.labelBands).toBe(true);
+  expect(report.keepsFeatures).toBe(true);
 });

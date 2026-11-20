@@ -72,19 +72,39 @@ locus rather than wherever they drifted.
 ## Where the spec comes from
 
 `locus.py` slices a GenBank file into `*.locus.json`, `spec.py` turns that into a GenomeSpy spec,
-and this plugin draws whatever spec it is handed. Layout stays in Python: the plugin never
-re-derives labels, categories or leader offsets, so a tuned `labels.json` and the figure cannot
-disagree.
+and this plugin draws whatever spec it is handed. **Data stays in Python** — labels, categories,
+colours and tooltips are the spec's, and the figure never re-derives them, so a tuned
+`labels.json` and the figure cannot disagree.
 
 Any spec in GenomeSpy's grammar with a genomic x scale works — not only the locus shape. The
 plugin checks two things (an x scale, a two-position domain) and lets the engine report the rest
 in its own vocabulary.
 
-**Label width is the spec's decision.** `spec.py` measures label rows for the figure width it
-was told to target (~1000 px). A document's text column is narrower, so a spec generated for a
-1000 px figure will crowd its labels in a 640 px column. Generate for the width you will print
-at, or use the lambda-phage example's `measureText` + `pileup` grammar, which lays labels out at
-the current width instead of baking rows.
+### Labels are laid out at render width
+
+Row numbers baked for one figure width crowd at another, and a document column is narrower than
+the ~1000 px `spec.py` measures for. So for the locus shape it recognises (features with
+`label`/`start`/`end`, and the `label-*`/`gene` bands), the view re-lays the labels using
+GenomeSpy's own gene-map grammar — the one in the [lambda phage
+example](https://genomespy.app/docs/examples/genomic-data/lambda-phage-gene-map/):
+
+- `measureText` measures each product at the current font and size;
+- labels are sorted by left edge and `pileup` assigns collision-free lanes, so the panel
+  height is whatever the labels need;
+- each label is centred over its gene's midpoint, clamped to the viewport;
+- leaders run from the midpoint down to the gene track, with a white gap where another label
+  crosses them, and an underline the leader meets;
+- the gene track is two strand rows over the genome line, and hovering a label highlights it.
+
+Data, palette, tooltips and the focus ring are untouched; `label_row`, `label_x`, `leader_dx`
+and `label_px` are ignored while this is on. A spec that needs its authored rows back says so:
+
+```json
+{ "config": { "genome": { "labels": "authored" } } }
+```
+
+The upgrade applies only to that shape. A spec with regulatory strips, coverage tracks or a
+different grammar renders exactly as authored.
 
 ## What does not work here, on purpose
 

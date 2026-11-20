@@ -19,9 +19,9 @@
       "requiredBy": [
         "*"
       ],
-      "bytes": 13090,
+      "bytes": 13104,
       "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/cdn/plugins/genome/genome.js",
-      "integrity": "sha384-CDNY34slKdErQW31rszyOKEJ+pHkIiRheY+Cgv1LDHJde57NGzY+yXD+3Vmb6oKJ",
+      "integrity": "sha384-y/uaa5jD7HFyXTj4dySLiDglewOUF4rv/+MBen+jxvSuPKwOrbutUqNeu/0llmVU",
       "factory": "createGenome"
     },
     {
@@ -35,9 +35,9 @@
       "requiredBy": [
         "*"
       ],
-      "bytes": 5382,
+      "bytes": 18068,
       "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/cdn/plugins/genome/genome-view.js",
-      "integrity": "sha384-gWdqsc4wvn80Tw2OyUczl4kBzI02UmXSgxpK79NhBMi8Q5gPLtGHPYLWjPlzQcpT"
+      "integrity": "sha384-dj4IB9ZFVr/dOh/+fqEfvS3X8DUMb/k+7jsaejqo6HArOWB9BWE0OUIv9/7Kl7zZ"
     },
     {
       "id": "genomespy",

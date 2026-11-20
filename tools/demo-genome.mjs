@@ -102,10 +102,13 @@ ${figure}
   <li><strong>Toggle “clamp to locus”</strong> in the figure's top-right corner. Clamped, the view
   cannot leave the authored window; free, it may zoom out to the contig. That is
   <code>scales.x.zoom.extent</code> in the grammar, not a subscription in the plugin.</li>
-  <li><strong>Export</strong> with File ▸ Export ▸ Static HTML, then open the exported page: the
-  figure is an <code>&lt;img src="data:image/svg+xml"&gt;</code>, vector text and all, because the
-  figure declares <code>exports: ["svg"]</code> and the island answers with
-  <code>imageExport.svg()</code>. A figure that cannot draw itself gets a raster instead.</li>
+  <li><strong>Labels</strong> are measured at the width the figure actually has — hover one and it
+  highlights — so the same spec reads cleanly in a narrow column and in a wide one. The layout is
+  GenomeSpy's own gene-map grammar (the lambda-phage example), not rows baked for a fixed width.</li>
+  <li><strong>Export</strong> with File ▸ Export ▸ Static HTML, then open the exported page: it is
+  paginated like this one, and the figure is an <code>&lt;img src="data:image/svg+xml"&gt;</code>,
+  vector text and all, because the figure declares <code>exports: ["svg"]</code> and the island
+  answers with <code>imageExport.svg()</code>. A figure that cannot draw itself gets a raster.</li>
   <li><strong>Insert another</strong> with Insert ▸ <em>Genome map…</em> and pick
   <code>plugins/genome/fixtures/locus.spec.json</code>. Two figures, one 1.4 MB engine in the
   file — the plugin adds about 25 KB per locus.</li>
@@ -113,9 +116,9 @@ ${figure}
   reflows, and the geometry is stored on the figure.</li>
 </ul>
 <h2>Where the spec came from</h2>
-<p>Labels are laid out by the spec, and this one was measured for a ~1000 px figure: the text
-column is narrower, so the rows crowd here. That is a property of the data, not of the plugin —
-<code>spec.py</code> can be told the width you will print at.</p>
+<p>The spec carries the data — labels, classes, colours, tooltips — and the view re-lays the
+labels at the figure's own width, so the tuned <code>labels.json</code> and this page cannot
+disagree about a product name, and neither has to guess the column width.</p>
 <p><code>locus.py</code> slices a GenBank file into <code>*.locus.json</code>,
 <code>spec.py</code> turns that into a GenomeSpy spec, and this plugin draws whatever spec it is
 handed — a locus from that pipeline, or any spec in GenomeSpy's grammar with a genomic x scale.
