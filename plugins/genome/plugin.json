@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "id": "genome",
+  "label": "Genome map",
+  "version": "0.1.0",
+  "api": 3,
+  "island": "compute",
+  "entry": "genome",
+  "about": "A GenomeSpy map as a figure: pick a .spec.json, hover a gene, clamp the window to the locus, and export the engine's own SVG on print and PDF.",
+  "publishBase": "tag",
+  "orderBase": 700,
+  "pinBase": 800,
+  "copies": [
+    {
+      "id": "genome",
+      "kind": "js",
+      "file": "plugins/genome/genome.js",
+      "as": "genome.js",
+      "factory": "createGenome"
+    },
+    {
+      "id": "genome-view",
+      "kind": "bin",
+      "file": "plugins/genome/genome-view.js",
+      "as": "genome-view.js"
+    }
+  ],
+  "pins": [
+    {
+      "id": "genomespy",
+      "kind": "bin",
+      "bytes": 1424224,
+      "mode": "online",
+      "url": "https://cdn.jsdelivr.net/gh/genome-spy/genome-spy-python@0.10.0/src/genome_spy/static/genome-spy.js",
+      "integrity": "sha384-nQjDyto+9BjFVITcwo+M9R0iq4zB/01ImkdKLj3oAO5AtvCbVWlasDkTzCxwkCeI"
+    }
+  ],
+  "contributes": {
+    "insert": [
+      { "id": "locus", "label": "Genome map…", "island": "compute" }
+    ]
+  }
+}

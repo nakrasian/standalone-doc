@@ -45,6 +45,16 @@ the sandboxed ones.
   ordering, and the fourth only made the race reliable. The spec was about profiles, not about
   `IntersectionObserver`.
 
+### Plugins
+
+- **`genome` 0.1.0 — a GenomeSpy map as a figure.** Insert ▸ Genome map… reads a `.spec.json` and
+  writes a ~25 KB island: hover tooltips, a clamp-to-locus toggle, and the engine's own SVG on
+  export. The engine (1.4 MB, pinned at `genome-spy-python@0.10.0`, verified offline against
+  `sha384-nQjDyto…`) and the 5 KB view are pinned `bin` copies the island asks for by name, so a
+  four-locus document is ~100 KB of figures rather than 5.9 MB of self-contained exports, and
+  fixing the view is an upgrade, not a re-insert. `plugins/genome/README.md` has the contract;
+  `npm run demo:genome` writes a document to click through.
+
 ### Changed
 
 - **Host API 3.** `width`/`height`, `exports`, `compute` and `figure-export` all arrived

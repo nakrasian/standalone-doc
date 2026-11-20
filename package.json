@@ -28,6 +28,7 @@
     "shim": "node tools/shim.mjs",
     "demo": "node tools/demo.mjs",
     "demo:comments": "node tools/demo-comments.mjs",
+    "demo:genome": "node tools/demo-genome.mjs",
     "demo:resilience": "node tools/demo-resilience.mjs"
   },
   "devDependencies": {

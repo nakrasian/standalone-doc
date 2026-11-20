@@ -50,8 +50,18 @@ test("every plugin folder is in the index, with a verifiable manifest", () => {
     assert.ok(bundle, `${config.id} must be discoverable`);
     assert.equal(bundle.version, config.version, "the newest row is the folder's version");
     assert.equal(bundle.api, config.api, "the row carries the host API it needs");
-    assert.equal(bundle.manifest, `${docBase}/plugins/${config.id}.json`,
-      "a plugin still published at the runtime tag names that tag's manifest");
+    /* Two legitimate addresses, and the folder says which: bytes that ride the plugin's own tag
+       are named absolutely (a relative path would resolve to a runtime tag that never carried
+       them), and a plugin still in its migration state rides the runtime tag the file pins. */
+    if ((config.publishBase ?? "tag") === "runtime") {
+      assert.equal(bundle.manifest, `${docBase}/plugins/${config.id}.json`,
+        "a plugin still published at the runtime tag names that tag's manifest");
+    } else {
+      assert.match(bundle.manifest,
+        new RegExp(`^https://cdn\\.jsdelivr\\.net/gh/[^@]+/[^@]+@plugin-${config.id}-v${config.version.replace(/\\./g, "\\.")}/dist/plugins/${config.id}\\.json$`),
+        "a plugin with its own tag names that tag's manifest");
+    }
+    assert.ok(bundle.manifest.endsWith(`/dist/plugins/${config.id}.json`), "the row names a manifest");
     assert.match(bundle.sha384, /^sha384-[A-Za-z0-9+/]{64}$/);
     const bytes = fs.readFileSync(path.join(ROOT, "dist", "plugins", `${config.id}.json`));
     assert.equal(bundle.sha384, sha384(bytes), "the row hashes the manifest it names");

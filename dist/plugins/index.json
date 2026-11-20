@@ -48,6 +48,36 @@
         }
       ]
     },
+    "genome": {
+      "label": "Genome map",
+      "version": "0.1.0",
+      "api": 3,
+      "island": "compute",
+      "entry": "genome",
+      "manifest": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/plugins/genome.json",
+      "bytes": 1879,
+      "sha384": "sha384-9zmGeoriOEBwXwngANVLe7MB0pyhxLY0hwWEHQnIUHXCqCDYhQXBu0ViD/s3zxTT",
+      "assets": 3,
+      "assetBytes": 1442696,
+      "about": "A GenomeSpy map as a figure: pick a .spec.json, hover a gene, clamp the window to the locus, and export the engine's own SVG on print and PDF.",
+      "minRuntime": null,
+      "versions": [
+        {
+          "label": "Genome map",
+          "version": "0.1.0",
+          "api": 3,
+          "island": "compute",
+          "entry": "genome",
+          "manifest": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/plugins/genome.json",
+          "bytes": 1879,
+          "sha384": "sha384-9zmGeoriOEBwXwngANVLe7MB0pyhxLY0hwWEHQnIUHXCqCDYhQXBu0ViD/s3zxTT",
+          "assets": 3,
+          "assetBytes": 1442696,
+          "about": "A GenomeSpy map as a figure: pick a .spec.json, hover a gene, clamp the window to the locus, and export the engine's own SVG on print and PDF.",
+          "minRuntime": null
+        }
+      ]
+    },
     "pandoc-export": {
       "label": "Pandoc export",
       "version": "0.1.2",
@@ -79,5 +109,5 @@
       ]
     }
   },
-  "revision": "sha384-4RAg7gw1wuBcOFepVjgfgbL2ZAkn/uz0JtqjXKhtwislqN0viGuMcNZyCyckdZ+M"
+  "revision": "sha384-69ynE2z5f6wO6BSE3vyjfjmPMudXZ9k7mpp81o0rP7bppA7gbJILuoYPviVTioCO"
 }

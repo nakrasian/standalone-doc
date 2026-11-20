@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "id": "genome",
+  "label": "Genome map",
+  "version": "0.1.0",
+  "api": 3,
+  "island": "compute",
+  "entry": "genome",
+  "about": "A GenomeSpy map as a figure: pick a .spec.json, hover a gene, clamp the window to the locus, and export the engine's own SVG on print and PDF.",
+  "assets": [
+    {
+      "id": "genome",
+      "kind": "js",
+      "role": "module",
+      "order": 700,
+      "mode": "online",
+      "category": "plugin",
+      "plugin": "genome",
+      "requiredBy": [
+        "*"
+      ],
+      "bytes": 13090,
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/cdn/plugins/genome/genome.js",
+      "integrity": "sha384-CDNY34slKdErQW31rszyOKEJ+pHkIiRheY+Cgv1LDHJde57NGzY+yXD+3Vmb6oKJ",
+      "factory": "createGenome"
+    },
+    {
+      "id": "genome-view",
+      "kind": "bin",
+      "role": "module",
+      "order": 701,
+      "mode": "online",
+      "category": "plugin",
+      "plugin": "genome",
+      "requiredBy": [
+        "*"
+      ],
+      "bytes": 5382,
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@plugin-genome-v0.1.0/dist/cdn/plugins/genome/genome-view.js",
+      "integrity": "sha384-gWdqsc4wvn80Tw2OyUczl4kBzI02UmXSgxpK79NhBMi8Q5gPLtGHPYLWjPlzQcpT"
+    },
+    {
+      "id": "genomespy",
+      "kind": "bin",
+      "role": "module",
+      "order": 800,
+      "mode": "online",
+      "category": "plugin",
+      "plugin": "genome",
+      "requiredBy": [
+        "*"
+      ],
+      "bytes": 1424224,
+      "url": "https://cdn.jsdelivr.net/gh/genome-spy/genome-spy-python@0.10.0/src/genome_spy/static/genome-spy.js",
+      "integrity": "sha384-nQjDyto+9BjFVITcwo+M9R0iq4zB/01ImkdKLj3oAO5AtvCbVWlasDkTzCxwkCeI"
+    }
+  ],
+  "contributes": {
+    "insert": [
+      {
+        "id": "locus",
+        "label": "Genome map…",
+        "island": "compute"
+      }
+    ]
+  }
+}

@@ -28,6 +28,30 @@ failure.
 
 ---
 
+## Genome map demo
+
+A real editor, a real GenomeSpy figure, and the plugin's own insert path — `compute` island,
+clamped window, hover tooltips, vector export. Generated, not committed:
+
+```sh
+npm run demo:genome        # writes .test-tmp/genome-demo.html, stages plugins/genome/ beside it
+npm run dev                # in another shell
+```
+
+Open <http://127.0.0.1:8080/.test-tmp/genome-demo.html>. It needs the network once: the 1.4 MB
+engine is pinned at jsDelivr (`genome-spy-python@0.10.0`), verified against the sha384 in the
+manifest, and cached by the browser. The plugin's own two files are served from this working
+tree, so editing `plugins/genome/genome-view.js` and re-running the generator changes what you
+see.
+
+What to look for is also in the page: hover a gene; toggle **clamp to locus** (that is
+`scales.x.zoom.extent`, not a plugin subscription); File ▸ Export ▸ Static HTML and open the
+result — the figure is a `data:image/svg+xml` `<img>`, vector text included, because the figure
+declares `exports: ["svg"]`. Then Insert ▸ *Genome map…* and pick
+`plugins/genome/fixtures/locus.spec.json`: two figures, one engine, ~25 KB per locus.
+
+---
+
 ## Comments demo
 
 A real editor with a real document and three comments, for clicking the review
