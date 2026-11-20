@@ -238,6 +238,13 @@ const SLUG_RE = /^[a-z0-9][a-z0-9._-]*$/;
  * the tag, not after it — which is how v0.8.1 shipped `reference.docx` and silently lost the
  * Word reference styling. */
 const BLOCKED_EXTENSIONS = new Set(["docx"]);
+
+/* The second thing jsDelivr refuses, and the one that cost a release: a file over 50 MB is
+ * answered with `403 File size exceeded the configured limit of 50 MB`. Measured 2026-11-19
+ * on `pandoc.wasm` (58.6 MB), pinned at `pandoc-wasm@1.1.0` since v0.12.0 — every hash in
+ * the manifest was right, and the Word export still could not fetch the engine it runs on.
+ * The manifest already declares `bytes`, so this is a build-time fact, not a network call. */
+const JSDELIVR_MAX_BYTES = 50_000_000;
 const servedByJsDelivr = (url) => {
   try {
     return new URL(String(url)).hostname === "cdn.jsdelivr.net";
@@ -288,6 +295,9 @@ export function bundleProblems(manifest, { cdnBase = authoredCdnBase() } = {}) {
       const ext = path.posix.extname(new URL(String(asset.url)).pathname).slice(1).toLowerCase();
       if (!ext) problems.push(`${where}: jsDelivr serves no extensionless file (404) — give it one`);
       else if (BLOCKED_EXTENSIONS.has(ext)) problems.push(`${where}: jsDelivr refuses .${ext} (403) — publish it as .bin`);
+      if (Number.isInteger(asset.bytes) && asset.bytes > JSDELIVR_MAX_BYTES) {
+        problems.push(`${where}: jsDelivr refuses a file over 50 MB (403, ${asset.bytes} bytes declared) — pin it on a host without that cap`);
+      }
     }
 
     /* Bytes this repository serves are in dist/ at a path derived from cdnBase, so the

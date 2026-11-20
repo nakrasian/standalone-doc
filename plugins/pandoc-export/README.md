@@ -113,9 +113,14 @@ published as `reference.bin`; the plugin still writes them into the wasm FS as
 `reference.docx`, so nothing downstream changed. `bundleProblems()` refuses a jsDelivr pin at a
 blocked extension (`.bin`, `.dat`, `.zip`, `.txt`, `.b64`, `.json` are the measured-good ones).
 
-The three large assets are **not** copied — 58 MB and 27 MB belong on npm, where jsDelivr serves
-them immutably — so the manifest pins them by URL and hash, the same arrangement `plugins.json`
-uses for nanoid.
+The three large assets are **not** copied — 58 MB and 27 MB belong on npm, so the manifest pins
+them by URL and hash, the same arrangement `plugins.json` uses for nanoid. The host is chosen
+per pin: **`pandoc.wasm` is 58.6 MB and jsDelivr refuses any file over 50 MB** (`403 File size
+exceeded the configured limit of 50 MB`), which is why it is pinned at
+`unpkg.com/pandoc-wasm@1.1.0/…` and not at the jsDelivr npm mirror. The sha384 pin is what a
+document verifies, so the host is an address, not a trust decision — `bundleProblems()` refuses
+a jsDelivr pin declared over 50 MB, and `verify-cdn` HEADs every third-party pin so a cap that
+appears later is a red job rather than a failed click.
 
 A document installs from the sheet: **Plugins → Available → Pandoc export → Install**. The
 catalog entry names this manifest and its hash, the runtime fetches it, checks the bytes, and

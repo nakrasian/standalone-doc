@@ -274,6 +274,9 @@ test("a figure with no source is refused, visibly", async ({ page }) => {
   const dialog = page.locator("#plugin-refusal");
   await expect(dialog).toBeVisible({timeout: 180_000});
   await expect(dialog).toContainText("no captured source");
+  /* A plugin's own error carries no url, so the sentence must not grow a dangling separator:
+     the address is appended only when there is one to append. */
+  await expect(dialog.locator("[data-refusal-message]")).not.toContainText(" — ");
 });
 
 test("PDF with figures: .typ through the wasm typesetter", async ({ page }) => {

@@ -2195,6 +2195,37 @@ async function cmdVerifyCdn({ tag = null } = {}) {
     }
   };
 
+  /* Somebody else's bytes cannot be hashed here — one of them is 58 MB — but they can be
+     asked whether they are there. This is the gap that let v0.12.0 go green and still fail:
+     every hash matched, and jsDelivr answered `403 File size exceeded…` to the first export.
+     A HEAD is the cheapest question whose answer is "a reader can fetch this". */
+  const probeOnce = async (url) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      let response = await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow" });
+      /* A host that will not answer HEAD is asked for one byte instead, so a probe can never
+         turn into a 58 MB download. */
+      if (response.status === 405 || response.status === 501) {
+        response = await fetch(url, { headers: { range: "bytes=0-0" }, signal: controller.signal, redirect: "follow" });
+      }
+      if (!response.ok) return { error: `HTTP ${response.status}` };
+      return { ok: true };
+    } catch (error) {
+      return { error: controller.signal.aborted ? "timed out" : (error && error.message) || "fetch failed" };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  /* One url is named by a bundle manifest and again by every plugin version that carries it,
+     so the answers are kept: a probe is idempotent and should cost one request. */
+  const probed = new Map();
+  const probe = async (url) => {
+    if (!probed.has(url)) probed.set(url, await probeOnce(url));
+    return probed.get(url);
+  };
+
   for (const target of targets) {
     let result = await fetchOnce(target.url);
     if (result.error) {
@@ -2234,6 +2265,7 @@ async function cmdVerifyCdn({ tag = null } = {}) {
      manifest.json's table (they are not in index.html), so without this pass `verify-cdn`
      would call a release green while a document's first export 404s. */
   let bundleTargets = 0;
+  let probeTargets = 0;
   let bundleIndex = null;
   try {
     const text = published.released && published.tag
@@ -2267,7 +2299,20 @@ async function cmdVerifyCdn({ tag = null } = {}) {
       continue;
     }
     for (const asset of manifest.assets || []) {
-      if (!String(asset.url || "").startsWith(`${base}/`)) continue;
+      if (!String(asset.url || "").startsWith(`${base}/`)) {
+        /* A third-party pin: this repository does not serve the bytes, so there is nothing to
+           hash — but "is it fachable at all" is exactly what a size cap, an unpublished
+           version or a moved url answers wrong, and it is the answer an export needs. */
+        probeTargets += 1;
+        const seen = await probe(asset.url);
+        if (seen.error) {
+          console.log(`  unreachable  ${id}/${asset.id}  ${seen.error}  (third-party pin)`);
+          failures.push({ id: `${id}/${asset.id}`, url: asset.url, why: seen.error });
+        } else {
+          console.log(`  reachable    ${id}/${asset.id}  third-party, not hashed`);
+        }
+        continue;
+      }
       bundleTargets += 1;
       const result = await fetchOnce(asset.url);
       if (result.error) {
@@ -2344,7 +2389,20 @@ async function cmdVerifyCdn({ tag = null } = {}) {
           continue;
         }
         for (const asset of plugin.assets || []) {
-          if (!ghPrefix || !String(asset.url || "").startsWith(ghPrefix)) continue;
+          if (!ghPrefix || !String(asset.url || "").startsWith(ghPrefix)) {
+            /* Same rule one level down: a version the index lists may name bytes somebody else
+               hosts, and a dead address there is a plugin nobody can install. */
+            if (!asset.url) continue;
+            probeTargets += 1;
+            const third = await probe(asset.url);
+            if (third.error) {
+              console.log(`  unreachable  ${id}@${row.version}/${asset.id}  ${third.error}  (third-party pin)`);
+              failures.push({ id: `${id}@${row.version}/${asset.id}`, url: asset.url, why: third.error });
+            } else {
+              console.log(`  reachable    ${id}@${row.version}/${asset.id}  third-party, not hashed`);
+            }
+            continue;
+          }
           bundleTargets += 1;
           const result = await fetchOnce(asset.url);
           if (result.error) {
@@ -2365,7 +2423,7 @@ async function cmdVerifyCdn({ tag = null } = {}) {
   }
 
   if (failures.length) {
-    console.error(`verify-cdn: FAILED (${failures.length} of ${targets.length + bundleTargets})`);
+    console.error(`verify-cdn: FAILED (${failures.length} of ${targets.length + bundleTargets + probeTargets})`);
     for (const failure of failures) console.error(`  - ${failure.id}: ${failure.why}`);
     if (!tag) {
       console.error("  A branch ref is not a release. If the branch moved, rebuild and re-verify;");
@@ -2373,7 +2431,7 @@ async function cmdVerifyCdn({ tag = null } = {}) {
     }
     process.exit(1);
   }
-  console.log(`verify-cdn: ok — ${targets.length + bundleTargets} files match the recorded hashes`);
+  console.log(`verify-cdn: ok — ${targets.length + bundleTargets} hashed, ${probeTargets} third-party pin(s) reachable`);
 }
 
 function cmdDev() {

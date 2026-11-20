@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "pandoc-export",
   "label": "Pandoc export",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "api": 1,
   "island": "sealed",
   "entry": "pandoc-export",
@@ -29,7 +29,7 @@
       "kind": "bin",
       "bytes": 58580800,
       "mode": "online",
-      "url": "https://cdn.jsdelivr.net/npm/pandoc-wasm@1.1.0/src/pandoc.wasm",
+      "url": "https://unpkg.com/pandoc-wasm@1.1.0/src/pandoc.wasm",
       "integrity": "sha384-ujgShzUfczF0wuIDXDu1wxK9eSWiUiaq32X9Wz3Yt2HQhABCkxsNYBBVjT3u7Iow",
       "local": "node_modules/pandoc-wasm/src/pandoc.wasm"
     },

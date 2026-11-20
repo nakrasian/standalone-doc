@@ -312,6 +312,15 @@ styling. `bundleProblems()` refuses a jsDelivr pin at a blocked extension and at
 extension at all; the measured-good set is `.bin`, `.dat`, `.zip`, `.txt`, `.b64`, `.json`.
 Publish an awkward binary under a boring name and let the plugin rename it in memory.
 
+**Size is part of the address too.** jsDelivr refuses any file over **50 MB** with `403 File size
+exceeded the configured limit of 50 MB` — a *hard* 403 on a url that looks perfectly ordinary,
+and one that no hash in a manifest can reveal. v0.12.0 pinned `pandoc.wasm` (58.6 MB) there, so
+the Word export's first fetch could never succeed; the pin is now on unpkg. `bundleProblems()`
+refuses a jsDelivr pin whose declared `bytes` exceed the cap (offline, before a tag), and
+`verify-cdn` sends a HEAD to every third-party pin so a host that changes its mind is a red job.
+A large binary belongs on a host that will serve it, and the sha384 the document carries is what
+makes that choice reversible.
+
 `bundles` is **generated, never authored**: `tools/publish-plugin.mjs` owns the manifest, `check`
 fails when the index and the tag disagree (including a tag whose name does not match the
 manifest it points at), and `verify-cdn` fetches the index, every manifest it names, and every

@@ -48,3 +48,20 @@ test("the measured-good extensions and npm pins are accepted", () => {
     assert.deepEqual(bundleProblems(manifestWith(url), options), [], url);
   }
 });
+
+/* The cap that broke v0.12.0's Word export: 58.6 MB of pandoc.wasm, pinned on jsDelivr,
+   answered 403 "File size exceeded the configured limit of 50 MB". The manifest declares the
+   size, so the refusal belongs here rather than in somebody's console. */
+test("a jsDelivr pin declared over 50 MB is refused", () => {
+  const manifest = manifestWith("https://cdn.jsdelivr.net/npm/pandoc-wasm@1.1.0/src/pandoc.wasm");
+  manifest.assets[0].bytes = 58_580_800;
+  const problems = bundleProblems(manifest, options);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /refuses a file over 50 MB \(403, 58580800 bytes declared\)/);
+});
+
+test("the same bytes on a host without the cap are accepted", () => {
+  const manifest = manifestWith("https://unpkg.com/pandoc-wasm@1.1.0/src/pandoc.wasm");
+  manifest.assets[0].bytes = 58_580_800;
+  assert.deepEqual(bundleProblems(manifest, options), []);
+});

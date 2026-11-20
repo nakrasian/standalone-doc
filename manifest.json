@@ -686,8 +686,8 @@
       "order": 95,
       "tag": "script",
       "file": "src/plugins.js",
-      "bytes": 60334,
-      "sha384": "sha384-LIGDMr8l99gkU/aCnEnYrUkC4tCibIsV5Y8Vb02qYZ2NEF1ay6qAfsHOl8pR3Ni/",
+      "bytes": 60767,
+      "sha384": "sha384-40xNM85A8YHBFQ8aZ2G1S4nVvEyx0Ct0bFiGWUuu5XjdK8d62jnmrSqoqAeNY015",
       "mode": "inline",
       "requiredBy": [
         "edit"

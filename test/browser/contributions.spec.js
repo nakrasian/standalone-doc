@@ -48,6 +48,12 @@ const PLUGIN_JS = `export function createTile() {
           /* A .docx is a zip: the host has to take bytes, or no binary format exists. */
           binary: async () => ({ name: "tile.bin", mime: "application/octet-stream",
             bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x01, 0xff]) }),
+          /* Fails the way a real one does: the asset it needs is not at the url the document
+             pins. The host has to name the address, not just the status. */
+          missing: async () => {
+            const bytes = await host.bytes("gone");
+            return { name: "gone.bin", mime: "application/octet-stream", bytes };
+          },
         },
         panel: {
           inspector: (body) => {
@@ -83,7 +89,7 @@ function makeDoc({ contributes = {
   export: [{ id: "outline", label: "Outline…" }, { id: "binary", label: "Binary…" }],
   panel: [{ id: "inspector", label: "Tile inspector" }],
   command: [{ id: "stamp", label: "Stamp a paragraph" }],
-} } = {}) {
+}, assets: extraAssets = [] } = {}) {
   fs.mkdirSync(TMP, { recursive: true });
   fs.writeFileSync(path.join(TMP, "tile-plugin.js"), PLUGIN_JS);
   let html = EDITOR;
@@ -102,6 +108,10 @@ function makeDoc({ contributes = {
     url: `${STAGE}/tile-plugin.js`,
     integrity: sha384(PLUGIN_JS),
   });
+  /* Pinned, verified, and not there: the shape of a release whose host refused one file.
+     Only a test that asks for it gets this asset — the save policy fetches what a document
+     pins, so a permanently missing one would break every other test in this file. */
+  manifest.assets.push(...extraAssets);
   manifest.plugins = {
     tile: {
       label: "Tiles",
@@ -109,7 +119,7 @@ function makeDoc({ contributes = {
       island: "sealed",
       enabled: true,
       entry: "tile",
-      assets: ["tile"],
+      assets: ["tile", ...extraAssets.map((asset) => asset.id)],
       contributes,
     },
   };
@@ -364,6 +374,38 @@ test("an export contribution may return bytes", async ({ page }) => {
   for await (const chunk of stream) chunks.push(chunk);
   /* Bytes out, byte for byte — not a string that happened to survive UTF-8. */
   expect([...Buffer.concat(chunks)]).toEqual([0x50, 0x4b, 0x03, 0x04, 0x00, 0x01, 0xff]);
+});
+
+test("a refused export names the address it could not fetch", async ({ page }) => {
+  /* v0.12.0's Word export, in miniature: the plugin asks the host for a pinned asset, the
+     host's fetch fails, and the dialog used to say only `HTTP 404` — no file, no host, no
+     next step. The failure record already carried the url; now the sentence does too. */
+  await load(page, makeDoc({
+    contributes: {
+      insert: [{ id: "tile", label: "Tile", island: "sealed" }],
+      export: [{ id: "missing", label: "Missing…" }],
+    },
+    assets: [{
+      id: "gone",
+      kind: "bin",
+      role: "module",
+      order: 211,
+      mode: "online",
+      category: "plugin",
+      plugin: "tile",
+      requiredBy: ["*"],
+      bytes: 12,
+      url: `${STAGE}/not-published.bin`,
+      integrity: sha384("absent"),
+    }],
+  }));
+  await page.waitForSelector('[data-plugin-export="tile:missing"]', { state: "attached" });
+  await page.evaluate(() => document.querySelector('[data-plugin-export="tile:missing"]').click());
+
+  const dialog = page.locator("#plugin-refusal");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('export "missing" failed: HTTP 404');
+  await expect(dialog).toContainText(`${STAGE}/not-published.bin`);
 });
 
 test("a plugin with no UI contribution is not built at boot", async ({ page }) => {

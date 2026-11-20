@@ -252,7 +252,12 @@ export function createPlugins(deps = {}) {
       }
       download(file);
     } catch (error) {
-      refuse(id, `export "${itemId}" failed: ${(error && error.message) || error}`);
+      /* The useful half of a failed fetch is *which* fetch: a registry failure carries its
+         url, and a plugin's own error does not — so the address is appended when there is
+         one and the sentence stays a sentence when there isn't. "HTTP 403" alone names
+         neither the file nor the host, which is a click with no next step in it. */
+      const where = error && error.url ? ` — ${error.url}` : "";
+      refuse(id, `export "${itemId}" failed: ${(error && error.message) || error}${where}`);
     }
   }
 

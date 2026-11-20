@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.12.1 — 2026-11-19
+
+The Word export was failing for everyone, and the cause was one host's file-size cap.
+
+`pandoc.wasm` is pinned at `pandoc-wasm@1.1.0` and is **58.6 MB**. jsDelivr refuses any file
+over 50 MB with `403 File size exceeded the configured limit of 50 MB`, so the first thing a
+`.docx` export does — `host.bytes('pandoc')` — could not complete, for every document with the
+plugin installed. The dialog said `export docx failed: HTTP 403` and named neither the file nor
+the host. Nothing was wrong with the document, the plugin's bytes, or the browser.
+
+### Fixed
+
+- **The pandoc pin moved to unpkg** (`https://unpkg.com/pandoc-wasm@1.1.0/src/pandoc.wasm`),
+  which serves the same npm artifact without the cap. The sha384 is unchanged, so the host swap
+  changes nothing a document verifies. `pandoc-export` is **0.1.2**; a document updated through
+  the Plugins sheet gets the new url, and one pinned to 0.1.1 keeps the dead one until it
+  updates — that is what a pin is for.
+- **A refused export names the address.** `runExport` formatted `error.message` only, so a
+  registry failure arrived as `HTTP 403` while the failure record already carried its `url`.
+  The dialog shows both now.
+
+### Added
+
+- **`bundleProblems()` refuses a jsDelivr pin declared over 50 MB**, offline and before a tag,
+  from the manifest's own `bytes` — the check that would have stopped this release at
+  `node build.mjs check` instead of at a reader's first click.
+- **`verify-cdn` HEADs every third-party pin.** npm urls are still not downloaded or hashed
+  (one of them is 58 MB), but "can a reader fetch this at all" is now asserted, deduplicated by
+  url, with a one-byte ranged GET for hosts that refuse HEAD. Every hash in v0.12.0 matched
+  while the export could not run; reachability is the fact the hashes could not express.
+
 ## v0.12.0 — 2026-11-19
 
 Plugin versions and runtime versions stop moving together, and a failure now says what would

@@ -278,12 +278,23 @@ test("build --base re-points the documents without touching a hash", () => {
       "the catalog hashes the manifest it just wrote");
 
     const plugin = JSON.parse(bytes.toString("utf8"));
+    /* Two kinds of asset in one manifest, and a dev base treats them differently: the copies
+       this tree publishes are re-addressed to the dev base, and somebody else's pins keep the
+       address their author chose — whatever host that is (pandoc.wasm is on unpkg because
+       jsDelivr refuses files over 50 MB). */
+    const authored = JSON.parse(beforePlugin.toString("utf8"));
     for (const asset of plugin.assets) {
-      if (asset.url.startsWith("https://cdn.jsdelivr.net/npm/")) continue;
-      assert.ok(asset.url.startsWith(`${base}/plugins/pandoc-export/`), `${asset.id}: pinned at the dev base`);
+      const original = authored.assets.find((candidate) => candidate.id === asset.id);
+      assert.ok(original, `${asset.id}: the dev manifest names every authored asset`);
+      if (original.url.startsWith(`${published.cdnBase}/plugins/pandoc-export/`)) {
+        assert.ok(asset.url.startsWith(`${base}/plugins/pandoc-export/`), `${asset.id}: pinned at the dev base`);
+        assert.equal(asset.integrity, original.integrity, `${asset.id}: a base moves the address, never the hash`);
+      } else {
+        assert.equal(asset.url, original.url, `${asset.id}: a third-party pin keeps its address`);
+      }
     }
-    assert.ok(plugin.assets.find((a) => a.id === "typst-compiler").url.startsWith("https://cdn.jsdelivr.net/npm/"),
-      "a pin this repository does not publish keeps its address");
+    assert.ok(plugin.assets.find((a) => a.id === "pandoc").url.startsWith("https://unpkg.com/"),
+      "a pin this repository does not publish keeps its address, and its host is not the runtime's");
 
     /* The release artefacts are not touched: a dev base must never be committed. */
     assert.equal(fs.readFileSync(path.join(ROOT, "dist/slim.html"), "utf8"), before);

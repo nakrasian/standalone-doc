@@ -32,13 +32,13 @@
     },
     "pandoc-export": {
       "label": "Pandoc export",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "api": 1,
       "island": "sealed",
       "entry": "pandoc-export",
       "manifest": "plugins/pandoc-export.json",
-      "bytes": 4440,
-      "sha384": "sha384-xtgsCGFqAUd9/1IRsDPETL0lh5384YmPm1KS3Ax0c89JoeoiwRfz0UIrNPxBm8G+",
+      "bytes": 4429,
+      "sha384": "sha384-b6Op75wEkuAM+yLa8Fw49KnRg4xrMAH5skJAgNzJQhMFJnMIcQmn+VvsE3i8WlVy",
       "assets": 8,
       "assetBytes": 87201484,
       "about": "Word, typeset PDF, Typst and Markdown, converted in the tab by pandoc.wasm. The engine itself is fetched on the first export; nothing is uploaded."
