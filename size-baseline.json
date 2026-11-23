@@ -1,6 +1,6 @@
 {
   "source": {
-    "bytes": 810189
+    "bytes": 814993
   },
   "assets": [
     {
@@ -21,7 +21,7 @@
     {
       "id": "figures",
       "kind": "js",
-      "bytes": 69872
+      "bytes": 70947
     },
     {
       "id": "plugins",
@@ -49,14 +49,14 @@
       "bytes": 44003
     },
     {
+      "id": "policy",
+      "kind": "js",
+      "bytes": 28292
+    },
+    {
       "id": "boot-ui",
       "kind": "js",
       "bytes": 26080
-    },
-    {
-      "id": "policy",
-      "kind": "js",
-      "bytes": 24563
     },
     {
       "id": "toolbar-markup",
@@ -155,8 +155,8 @@
     }
   ],
   "flavors": {
-    "index.html": 810189,
-    "asset-bodies": 791631,
+    "index.html": 814993,
+    "asset-bodies": 796435,
     "markup-and-runtime": 18558,
     "dist/slim.html": 109335
   }
