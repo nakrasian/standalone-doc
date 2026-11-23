@@ -82,6 +82,134 @@ test("a saved document reopens as a working editor", async ({ page }) => {
   expect(reopenedProblems).toEqual([]);
 });
 
+test("a figure survives a save and reopens mounted", async ({ page }) => {
+  const problems = await load(page, fileUrl());
+  expect(problems).toEqual([]);
+
+  /* The frame is `[data-runtime="ephemeral"]`, and the save strips that attribute's nodes;
+     the container is structural, so it must come back — without it mount() has nowhere to
+     put the island and the figure renders blank on the next open (the regression this
+     guards). */
+  const inserted = await page.evaluate(async () => {
+    const figures = StandaloneDoc.modules.figures;
+    const html = "<!doctype html><html><body><p>island</p></body></html>";
+    await figures.insertFiles([new File([html], "island.html", { type: "text/html" })]);
+    const figure = document.querySelector("figure.figure");
+    return {frames: figure.querySelectorAll(".figure-frame").length};
+  });
+  expect(inserted.frames).toBe(1);
+
+  const saved = await saveTo(page, "figure");
+  const reopened = await page.context().newPage();
+  const reopenedProblems = await load(reopened, "file://" + saved);
+  expect(reopenedProblems).toEqual([]);
+
+  const state = await reopened.evaluate(async () => {
+    const figure = document.querySelector("figure.figure");
+    const figures = StandaloneDoc.modules.figures;
+    figures.pause();
+    figures.mount(figure);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    return {
+      frames: figure.querySelectorAll(".figure-frame").length,
+      mounted: figure.hasAttribute("data-mounted"),
+      iframe: figure.querySelectorAll(".figure-frame iframe").length,
+    };
+  });
+  expect(state.frames).toBe(1);
+  expect(state.mounted).toBe(true);
+  expect(state.iframe).toBe(1);
+});
+
+test("a start marker split from its element is healed by the next save", async ({ page }) => {
+  const problems = await load(page, fileUrl());
+  expect(problems).toEqual([]);
+
+  /* The shape a bad re-inline used to leave: the sprite's start marker at the end of
+     <head>, its element at the start of <body>. `blockOf` cannot find it, so an edit save
+     wanted to fetch the bytes of an asset that says it is inline, and a view copy could
+     not remove it. The clone is repaired on the way out. */
+  const moved = await page.evaluate(() => {
+    const walker = document.createTreeWalker(document.documentElement, 128 /* SHOW_COMMENT */);
+    let marker = null;
+    let node;
+    while ((node = walker.nextNode())) {
+      if (/^\s*@asset\b/.test(node.nodeValue || "") && /id="sprite"/.test(node.nodeValue || "")) {
+        marker = node;
+        break;
+      }
+    }
+    document.head.append(marker);
+    return marker.parentNode.nodeName;
+  });
+  expect(moved).toBe("HEAD");
+
+  const out = await page.evaluate(async () => {
+    const toolbar = StandaloneDoc.modules.toolbar;
+    const edit = await toolbar.serialize();
+    const view = await toolbar.serialize({ mode: "view" });
+    return { edit: edit.html, view: view.html, problems: toolbar.validate(edit.html) };
+  });
+  expect(out.problems).toEqual([]);
+
+  const index = out.edit.indexOf('@asset id="sprite"');
+  expect(index).toBeGreaterThan(out.edit.indexOf("</head>"));
+  expect(index).toBeLessThan(out.edit.indexOf('id="viewport"'));
+  /* Marker and element travel together again: that pair is what makes the block
+     removable at all. */
+  expect(out.edit.slice(index, index + 400)).toMatch(/@asset id="sprite"[^>]*-->\s*<svg/);
+  expect(out.view).not.toMatch(/@asset id="sprite"/);
+});
+
+test("a re-inlined fragment goes where its manifest entry says, not where marker order leads", async ({ page }) => {
+  const problems = await load(page, fileUrl());
+  expect(problems).toEqual([]);
+
+  const result = await page.evaluate(async () => {
+    const SD = globalThis.StandaloneDoc;
+    const policy = SD.modules.policy;
+    const clone = document.documentElement.cloneNode(true);
+
+    /* The state a view save leaves behind: the edit-only sprite block is gone. */
+    const el = policy.blockOf(clone, "sprite");
+    let first = el.previousSibling;
+    while (first && first.nodeType === 3 && !first.nodeValue.trim()) first = first.previousSibling;
+    let last = el.nextSibling;
+    while (last && last.nodeType !== 8) last = last.nextSibling;
+    for (let node = first; node; ) {
+      const end = node === last;
+      const next = end ? null : node.nextSibling;
+      node.parentNode.removeChild(node);
+      node = next;
+    }
+
+    const manifest = JSON.parse(clone.querySelector("#asset-manifest").textContent);
+    const planned = policy.plan(manifest, { policy: "inline", mode: "edit", baseBytes: 0 });
+    /* The bytes are the page's own sprite fragment; this test is about placement. */
+    const source = SD.source;
+    SD.source = async (id) => id === "sprite"
+      ? "<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\"><symbol id=\"i-x\"></symbol></svg>"
+      : source(id);
+    let applied;
+    try {
+      applied = await policy.apply(clone, planned);
+    } finally {
+      SD.source = source;
+    }
+
+    const html = clone.outerHTML;
+    return {
+      problems: applied.problems,
+      inBody: html.indexOf('@asset id="sprite"') > html.indexOf("</head>"),
+      beforeViewport: html.indexOf('@asset id="sprite"') < html.indexOf('id="viewport"'),
+    };
+  });
+
+  expect(result.problems).toEqual([]);
+  expect(result.inBody).toBe(true);
+  expect(result.beforeViewport).toBe(true);
+});
+
 test("the slim policy offloads everything except the loader, and leaves the editor running", async ({ page }) => {
   const problems = await load(page, fileUrl());
   expect(problems).toEqual([]);

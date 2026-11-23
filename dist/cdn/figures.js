@@ -613,6 +613,24 @@ export function createFigures(deps = {}) {
     return base || (entry.kind === "image" ? "Image" : "Figure");
   }
 
+  /** The container a figure mounts into, created on demand.
+
+      `session.strip()` removes every `[data-runtime="ephemeral"]` node — the frame is one,
+      because what it holds is the session's — so a saved file has the figure but not the
+      frame. The container is structural, though: mount(), the plugin notice and the static
+      export all need it. One place knows its shape, so a load (or an old file) repairs it
+      instead of rendering a blank figure. */
+  function ensureFrame(figure) {
+    let frame = figure.querySelector(".figure-frame");
+    if (!frame) {
+      frame = document.createElement("div");
+      frame.className = "figure-frame";
+      frame.dataset.runtime = "ephemeral";
+      figure.prepend(frame);
+    }
+    return frame;
+  }
+
   function createFigure(entry) {
     const figure = document.createElement("figure");
     figure.className = "figure";
@@ -641,15 +659,12 @@ export function createFigures(deps = {}) {
       figure.style.setProperty("--figure-aspect", `${source.width || 16} / ${source.height || 9}`);
     }
 
-    const frame = document.createElement("div");
-    frame.className = "figure-frame";
-    frame.dataset.runtime = "ephemeral";
-
+    ensureFrame(figure);
     const caption = document.createElement("figcaption");
     caption.setAttribute("contenteditable", "true");
     caption.textContent = defaultCaption(entry);
 
-    figure.append(frame, caption);
+    figure.append(caption);
     return figure;
   }
 
@@ -824,8 +839,10 @@ export function createFigures(deps = {}) {
     if (!figure || !figure.isConnected) return;
     const stored = store.figures[figure.dataset.figureId];
     const entry = resolveEntry(stored);
-    const frame = figure.querySelector(".figure-frame");
-    if (!entry || !frame) {
+    /* A saved file carries no frame (`session.strip()`), and one saved before the split
+       may carry none at all: give the figure its container before deciding what to draw. */
+    const frame = ensureFrame(figure);
+    if (!entry) {
       figure.dataset.missing = "";
       return;
     }
@@ -1377,6 +1394,9 @@ export function createFigures(deps = {}) {
   function prepareClone(clone) {
     clone.querySelectorAll("[data-runtime='ephemeral']").forEach((el) => el.replaceChildren());
     clone.querySelectorAll("figure.figure").forEach((figure) => {
+      /* `session.strip()` removed the frame with every other ephemeral node. The next load
+         needs the empty container, so the file carries it back. */
+      ensureFrame(figure);
       figure.removeAttribute("data-selected");
       figure.removeAttribute("data-mounted");
       figure.removeAttribute("data-missing");

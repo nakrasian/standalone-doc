@@ -561,8 +561,8 @@
       "order": 80,
       "tag": "script",
       "file": "src/figures.js",
-      "bytes": 64454,
-      "sha384": "sha384-RWc5GKB7tlnU5HDZdG82CadCjUNqEB8IIRLVGfCOtfwnQNoXSxFtqeNONudvueS4",
+      "bytes": 65453,
+      "sha384": "sha384-puhJL/IIuCiy0nVjFAtPuN26YYa3PYt2gtvjOHPvzvkI/um9UN2zy8faQA20mw7E",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -613,8 +613,8 @@
       "order": 85,
       "tag": "script",
       "file": "src/policy.js",
-      "bytes": 22500,
-      "sha384": "sha384-7c60zDvnMu22rzinjzlY4v3GLNuP43b0pGTBsWvAIaJjCFTbC8WsY+YhprVPa6NX",
+      "bytes": 25965,
+      "sha384": "sha384-sTx/KW3Hw3Esorz99Af2vDMnSKlkhPX3dlBaUf6obEsfiqnAf7uUxgjGjzTOpQEz",
       "mode": "inline",
       "requiredBy": [
         "edit"

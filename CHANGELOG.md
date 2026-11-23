@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.13.1 — 2026-11-23
+
+Two save-path bugs, found from one document: its figures were blank on reopen, and then the
+document could no longer be saved or copied at all. Neither fault was in the document.
+
+### Fixed
+
+- **A saved file keeps the container a figure mounts into.** `session.strip()` removes every
+  `[data-runtime="ephemeral"]` node — the comment overlay is one, and `8a12a1d` made the rule
+  general — but `.figure-frame` is tagged the same way, and `figures.prepareClone()` only
+  emptied its children. Every file saved by 0.13.0 therefore lost the frame: on reopen
+  `mount()` had nowhere to put the island and returned at `if (!entry || !frame)`, which shows
+  nothing at all (no map, and not even the "needs the plugin" notice), and the static/print
+  path dropped its captured `<img>` because it writes into that same frame. `ensureFrame()`
+  now owns the container: `mount()` creates it when absent, so a file saved before this
+  release heals when it is opened; `createFigure()` uses it; and `prepareClone()` puts an
+  empty one back for the next load.
+- **A re-inlined fragment goes where its manifest entry says, not where marker order leads.**
+  `policy.insertBlock()` inserted an html fragment before "the next `@asset` marker by order".
+  A view copy removes the body's edit-only blocks (sprite, toolbar markup, figure tools,
+  dialogs), so re-saving such a copy as an editor put the sprite markup before the first
+  remaining marker — a head asset — and the file was written with `<svg>` inside `<head>`. The
+  parser closes the head there: the start marker stays at the end of the head while the element
+  and its end marker begin the body. From then on the block can be neither found nor removed,
+  so an edit save aborted with `sprite: is inline, so its text is the block in this document,
+  not a CDN file` and a copy for someone aborted with `sprite: could not remove its block
+  (markers are not where they should be)`. A fragment now honours the same `insert`
+  instruction boot uses for a fetched copy, and a script, stylesheet or bytes stays in the
+  head. `repairOrphanBlocks()` also heals a block already split this way on the save clone —
+  the start marker moves to the element its own end marker closes — so an affected file saves
+  instead of failing on every attempt.
+
+### Added
+
+- **Both regressions are tested in three engines**: a figure survives a save and reopens
+  mounted, and a start marker split from its element is healed by the next save. No save test
+  had a figure in it before, which is why the first one shipped in 0.13.0.
+
 ## v0.13.0 — 2026-11-20
 
 Two capabilities arrived together because the same figure needed both: an island that may

@@ -215,6 +215,54 @@ export function createPolicy(deps = {}) {
     return null;
   }
 
+  /*
+   * Markers and their element can end up in different parents.
+   *
+   * An html fragment inserted into `<head>` is split by the parser: `<svg>` is not content
+   * the head may hold, so the head closes there and the element lands at the start of
+   * `<body>`, while the marker comments stay behind at the end of the head. From then on
+   * the block can be neither found (`blockOf`) nor removed (`removeBlock`): every edit
+   * save fails "is inline, so its text is the block in this document" and every view copy
+   * "could not remove its block".
+   *
+   * This heals the clone on the way out: a start marker with no element beside it moves to
+   * the element its own end marker closes — the pair is the identity, which is what keeps
+   * an unrelated element (the viewport, a paragraph) from being adopted by accident.
+   */
+  function repairOrphanBlocks(root) {
+    const doc = docOf(root);
+    const comments = [];
+    let node;
+    const walker = doc.createTreeWalker(root, 128 /* SHOW_COMMENT */);
+    while ((node = walker.nextNode())) comments.push(node);
+
+    let moved = 0;
+    for (let i = 0; i < comments.length; i++) {
+      const marker = comments[i];
+      if (!startMarker(marker)) continue;
+      let sibling = marker.nextSibling;
+      while (sibling && sibling.nodeType !== 1) sibling = sibling.nextSibling;
+      if (sibling) continue; /* the block is where it should be */
+
+      /* The block's element is the one before its own end marker; another block's start
+         marker before that end marker means this is not the pair this marker opens. */
+      let end = null;
+      for (let j = i + 1; j < comments.length; j++) {
+        if (startMarker(comments[j])) break;
+        if (endMarker(comments[j])) { end = comments[j]; break; }
+      }
+      if (!end) continue;
+      let el = end.previousSibling;
+      while (el && blank(el)) el = el.previousSibling;
+      if (!el || el.nodeType !== 1 || !el.parentNode) continue;
+      if (el.parentNode === marker.parentNode) continue;
+
+      el.parentNode.insertBefore(marker, el);
+      moved++;
+    }
+    return moved;
+  }
+
   /** The first @asset marker whose order is greater than `order`, for a tidy insert. */
   function markerAfter(root, order) {
     const doc = docOf(root);
@@ -235,7 +283,7 @@ export function createPolicy(deps = {}) {
    * build-produced block has, minus the build-provenance comment line, which exists
    * for `verify` on the repository's own file and means nothing in a saved document.
    */
-  function insertBlock(root, {id, order, kind, factory, open, text}) {
+  function insertBlock(root, {id, order, kind, factory, open, text, insert}) {
     const doc = docOf(root);
     const isCss = kind === "css";
     const isHtml = kind === "html";
@@ -283,9 +331,28 @@ export function createPolicy(deps = {}) {
     }
     fragment.append(doc.createTextNode("\n"), doc.createComment(" /@asset "), doc.createTextNode("\n"));
 
-    const ref = markerAfter(root, order);
+    if (isHtml) {
+      /* A fragment's home is the manifest's own instruction — the same one boot reads for
+         a fetched copy (`before:#viewport`) — never "the next block by order". Marker order
+         is not a location: with the body's edit-only blocks removed by a view save, the
+         next marker by order belonged to a head asset, and a re-inlined sprite was written
+         into `<head>`, where the parser splits it from its element. */
+      const instruction = insert || "before:#viewport";
+      const split = instruction.indexOf(":");
+      const place = split < 0 ? "before" : instruction.slice(0, split);
+      const selector = split < 0 ? instruction : instruction.slice(split + 1);
+      const anchor = root.querySelector(selector);
+      if (place === "append" && anchor) anchor.append(fragment);
+      else if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(fragment, anchor);
+      else (root.querySelector("body") || root).append(fragment);
+      return;
+    }
+
+    /* A module, a stylesheet or bytes lives in the head, in manifest order. */
+    const head = root.querySelector("head") || root;
+    const ref = markerAfter(head, order);
     if (ref && ref.parentNode) ref.parentNode.insertBefore(fragment, ref);
-    else (root.querySelector("body") || root).append(fragment);
+    else head.append(fragment);
   }
 
   function readJSON(root, id) {
@@ -317,6 +384,10 @@ export function createPolicy(deps = {}) {
   async function apply(root, planned) {
     const manifest = readJSON(root, "asset-manifest");
     if (!manifest) return {problems: ["the clone has no asset manifest"], changed: []};
+
+    /* A block the parser split across the head/body boundary is found and removed from
+       here on; heal it first, or the save fails on a file that used to be fine. */
+    repairOrphanBlocks(root);
 
     const registry = env.StandaloneDoc;
     const byIdEntry = new Map((manifest.assets || []).map((entry) => [entry.id, entry]));
@@ -358,6 +429,7 @@ export function createPolicy(deps = {}) {
               kind: entry.kind,
               factory: entry.factory,
               open: entry.open,
+              insert: entry.insert,
               text,
             });
             changed.push(decision.id);
