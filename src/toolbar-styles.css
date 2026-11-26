@@ -913,6 +913,10 @@ dialog#shortcuts-dialog::backdrop {
 }
 
 #doc-settings-dialog .ds-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+/* `[hidden]` loses to any author `display`, and this row is hidden for every document that
+   names no library — so the intent is stated once, with weight, instead of being
+   out-specified by the rule above. */
+#doc-settings-dialog .ds-row[hidden] { display: none; }
 #doc-settings-dialog .ds-row .grow { flex: 1 1 auto; }
 #doc-settings-dialog .ds-row select,
 #doc-settings-dialog .ds-row input[type="number"] {

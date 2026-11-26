@@ -169,6 +169,20 @@
         <button type="button" class="ds-chip" data-ds-update>Check for updates…</button>
       </div>
       <p class="ds-hint ds-note" data-ds-update-note aria-live="polite" hidden></p>
+      <!-- Consent belongs to the document, and this sheet is the only writer: no save path,
+           no policy and no export may set it, because a document that can grant consent is
+           not a consent. Shown only for a document that names a library — a file has
+           nothing that could replace its loader, and an inert control is a promise nobody
+           can keep. -->
+      <div class="ds-row" data-ds-updates-row hidden>
+        <span class="grow">Replace the loader</span>
+        <select data-ds="updates" aria-label="Replace this document's loader when the library updates it">
+          <option value="ask">Ask first</option>
+          <option value="allow">Allow</option>
+          <option value="never">Never</option>
+        </select>
+        <span class="ds-hint">when the library updates this document</span>
+      </div>
       <div class="ds-row">
         <span class="grow">Load timeout</span>
         <input type="number" data-ds="timeout" min="0" step="500" aria-label="Load timeout in milliseconds">

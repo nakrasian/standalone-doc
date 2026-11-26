@@ -410,6 +410,11 @@ export function createToolbar(deps = {}) {
       thresholdMb: toMb(settings.saveThresholdBytes),
       timeoutMs: settings.timeoutMs,
       never: Number(settings.thresholdDeclined) > 0,
+      /* Consent is a draft field like everything else here: it lands on Done and dies with
+         Cancel. Nothing else in this runtime may write it. */
+      updates: settings.updates?.inline ?? "ask",
+      /* Whether the control is worth showing at all: a file has no library to consent to. */
+      cloud: Boolean(settings.cloud),
       planned: policy.planned({}),
       /* Geometry is a view of computed CSS, not a stored field: the draft starts from what
          the page looks like now, and Done writes it back only if it changed. */
@@ -459,6 +464,13 @@ export function createToolbar(deps = {}) {
     dialog.querySelector("[data-ds-never-hint]").textContent = draft.never
       ? "quiet until the file doubles"
       : "the prompt returns when the file doubles";
+    /* The loader-replacement control exists only where the answer can matter: a document
+       with no `cloud` has nothing that could replace its loader, and a file that is copied
+       away from its library must not carry a consent that reads as a promise. */
+    const updatesRow = dialog.querySelector("[data-ds-updates-row]");
+    if (updatesRow) updatesRow.hidden = !draft.cloud;
+    const updatesSelect = dialog.querySelector("[data-ds='updates']");
+    if (updatesSelect) updatesSelect.value = draft.updates || "ask";
     /* A pending re-pin is shown where the pin lives, because that is what changes. */
     dialog.querySelector("[data-ds-pin]").textContent = draft.repin ? `@${draft.repin.tag} (pending)` : `@${pin}`;
     dialog.querySelector("[data-ds-base]").textContent = base.replace(/^https?:\/\//, "");
@@ -605,6 +617,15 @@ export function createToolbar(deps = {}) {
     } else {
       delete next.thresholdDeclined;
     }
+
+    /* Consent, written the way it is read: absent means `ask`, so pressing Done on the
+       default must leave no `updates` key at all — `{inline: "ask"}` would be a change to
+       the file for nothing, and a `never` that was never chosen is worse than silence. */
+    const stored = next.updates && typeof next.updates === "object" ? {...next.updates} : {};
+    if (draft.updates === "allow" || draft.updates === "never") stored.inline = draft.updates;
+    else delete stored.inline;
+    if (Object.keys(stored).length) next.updates = stored;
+    else delete next.updates;
 
     return next;
   }
@@ -768,6 +789,10 @@ export function createToolbar(deps = {}) {
     });
     dialog.querySelector("[data-ds='author']").addEventListener("change", (event) => {
       settingsDraft.author = event.target.value;
+      paintDocSettings();
+    });
+    dialog.querySelector("[data-ds='updates']")?.addEventListener("change", (event) => {
+      settingsDraft.updates = event.target.value;
       paintDocSettings();
     });
     /* Page geometry is applied on Done, with everything else in the draft. The inputs

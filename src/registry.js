@@ -128,6 +128,23 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return {id, api: api.replace(/\/+$/, "")};
   }
 
+  /* What the document permits to be done to it without asking again.
+   *
+   * `updates.inline` is consent to replace the *loader's bytes* in place — the one
+   * operation that changes code this file runs, with no url to verify at boot. That is
+   * why the answer lives in the document and nowhere else. Absent means `ask`, which is
+   * what every file written before the field says and what the library assumes; an
+   * unrecognised value is `ask` for the same reason a mistyped pin is not an upgrade.
+   *
+   * Read here; written by no path in this runtime. A save that could grant consent would
+   * be a document consenting on its own behalf. The settings sheet writes it because a
+   * person pressed Done, and that is the whole distinction.
+   */
+  function updatesOf(value) {
+    const inline = value && typeof value === "object" ? value.inline : null;
+    return {inline: inline === "allow" || inline === "never" ? inline : "ask"};
+  }
+
   /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
      read as a fallback for documents saved before the block existed (one release
      of compatibility, not a permanent second source of truth). */
@@ -173,6 +190,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       /* The library this document belongs to, or null for a file. Read live by the
          toolbar's save, so the settings sheet can write it and the next ⌘S obeys. */
       cloud: cloudOf(authored && authored.cloud),
+      /* `{inline: "ask" | "allow" | "never"}` — normalised on read, so every consumer
+         has one shape to switch on and an absent field is not a third case. */
+      updates: updatesOf(authored && authored.updates),
     };
     return settingsParsed;
   }
@@ -274,28 +294,42 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
    * document *fetches* move: an inline asset's hash describes bytes the file already has,
    * and a pinned plugin's bytes are its author's. `mode` is the save policy's business, so
    * a re-pin never re-inlines or drops anything as a side effect.
+   *
+   * `left` is the other half of the answer, and it is not a failure list: three of its
+   * reasons are facts about the file (infra is always inline; a plugin's bytes are its
+   * author's; an inline hash describes bytes that are here), and one is news (this release
+   * publishes nothing for an asset the document names). A caller that only reported
+   * `moved` would let a person believe the loader came with the pin.
    */
   function repin(entry) {
     const el = document.getElementById("asset-manifest");
     if (!el) throw failure("update", entry.tag, "this document has no asset manifest to rewrite");
     const before = el.textContent;
     const doc = JSON.parse(before);
-    const byId = new Map(doc.assets.map((asset) => [asset.id, asset]));
+    const remote = new Map((entry.assets || []).map((asset) => [asset.id, asset]));
     const moved = [];
-    for (const remote of entry.assets) {
-      const mine = byId.get(remote.id);
-      if (!mine || mine.role === "infra" || mine.plugin || mine.mode !== "online") continue;
-      mine.url = remote.url;
-      mine.integrity = remote.sha384;
-      if (typeof remote.bytes === "number") mine.bytes = remote.bytes;
-      moved.push(remote.id);
+    const left = [];
+    for (const mine of doc.assets) {
+      /* The same four rules the library plans a batch with, in the file's own order. */
+      if (mine.role === "infra") { left.push({id: mine.id, why: "infra"}); continue; }
+      if (mine.plugin || mine.category === "plugin") { left.push({id: mine.id, why: "plugin"}); continue; }
+      if (mine.mode !== "online") { left.push({id: mine.id, why: "inline"}); continue; }
+      const source = remote.get(mine.id);
+      if (!source) { left.push({id: mine.id, why: "unpublished"}); continue; }
+      mine.url = source.url;
+      mine.integrity = source.sha384;
+      if (typeof source.bytes === "number") mine.bytes = source.bytes;
+      moved.push(mine.id);
     }
     doc.cdnBase = entry.base;
     el.textContent = JSON.stringify(doc);
     reloadManifest();
     return {
       moved,
+      left,
       tag: entry.tag,
+      /* What the file permits, so a caller can say "the loader stays" and mean it. */
+      updates: settings().updates,
       restore() {
         el.textContent = before;
         reloadManifest();

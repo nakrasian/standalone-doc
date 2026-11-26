@@ -511,6 +511,11 @@ function docSettings(manifest, { mode, toolbar, capabilities } = {}) {
      `capabilities` map in every file would be bytes spent saying nothing, and an empty
      capability is not the same fact as an undeclared one (invariant 28). */
   if (typeof authored.author === "string" && authored.author.trim()) doc.author = authored.author.trim();
+  /* Consent and behaviour that only a person authors. Passed through verbatim, because a
+     build cannot derive either — and because `check` compares this block with the file,
+     so a field the repository's own document carries must survive `combine` exactly. */
+  if (authored.updates && typeof authored.updates === "object") doc.updates = {...authored.updates};
+  if (authored.autosave && typeof authored.autosave === "object") doc.autosave = {...authored.autosave};
   /* A flavour names its own capabilities: a viewer copy is authored with `read`/`off`
      even when the editor it was built from declares `write`. */
   const declared = capabilities ?? authored.capabilities;
@@ -1091,6 +1096,7 @@ async function cmdCheck({ exit = true } = {}) {
     for (const [name, body] of files) {
       for (const problem of commentsProblems(body, name)) all.push(problem);
       for (const problem of blockIdProblems(body, name)) all.push(problem);
+      for (const problem of settingsProblems(body, name)) all.push(problem);
     }
   } catch (err) {
     all.push(`manifest: ${err.message}`);
@@ -1150,6 +1156,59 @@ function commentsProblems(html, name) {
     for (const reply of comment.replies || []) {
       if (!reply || typeof reply.id !== "string" || typeof reply.body !== "string" || !reply.author?.name) {
         problems.push(`${name}: comment "${comment.id}" has a reply without an id, author or body`);
+      }
+    }
+  }
+  return problems;
+}
+
+/* ----------------------------------------------------------------- settings */
+
+/**
+ * `#doc-settings` fields whose *value* is a claim, not a preference.
+ *
+ * Behaviour nobody validates drifts into a value no code path handles, and then a document
+ * says `never` while the library reads `ask` — the one disagreement a consent field cannot
+ * survive. Both tables are also the runtime's read view (`registry.settings()`); keeping the
+ * vocabulary here is what lets `check` refuse a typo before it ships.
+ */
+const UPDATES_CONSENT = ["ask", "allow", "never"];
+const AUTOSAVE_MODES = ["off", "idle", "interval"];
+
+function settingsProblems(html, name) {
+  const problems = [];
+  const found = /<script id="doc-settings" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
+  if (!found) return problems; /* a missing block is the manifest check's business */
+  let settings;
+  try {
+    settings = JSON.parse(found[1]);
+  } catch (error) {
+    return [`${name}: #doc-settings is not JSON — ${error.message}`];
+  }
+  if (!settings || typeof settings !== "object") return [`${name}: #doc-settings is not an object`];
+
+  if (settings.updates != null) {
+    const updates = settings.updates;
+    if (typeof updates !== "object" || Array.isArray(updates)) {
+      problems.push(`${name}: #doc-settings.updates must be an object`);
+    } else if (updates.inline != null && !UPDATES_CONSENT.includes(updates.inline)) {
+      problems.push(`${name}: #doc-settings.updates.inline is ${JSON.stringify(updates.inline)}, expected ${UPDATES_CONSENT.join(" / ")}`);
+    }
+  }
+
+  if (settings.autosave != null) {
+    const autosave = settings.autosave;
+    if (typeof autosave !== "object" || Array.isArray(autosave)) {
+      problems.push(`${name}: #doc-settings.autosave must be an object`);
+    } else {
+      if (autosave.mode != null && !AUTOSAVE_MODES.includes(autosave.mode)) {
+        problems.push(`${name}: #doc-settings.autosave.mode is ${JSON.stringify(autosave.mode)}, expected ${AUTOSAVE_MODES.join(" / ")}`);
+      }
+      for (const key of ["idleMs", "intervalMs"]) {
+        if (autosave[key] == null) continue;
+        if (!Number.isInteger(autosave[key]) || autosave[key] <= 0) {
+          problems.push(`${name}: #doc-settings.autosave.${key} must be a positive integer (milliseconds)`);
+        }
       }
     }
   }

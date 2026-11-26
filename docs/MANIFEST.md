@@ -75,7 +75,7 @@ cannot be a thing that might fail to arrive. In the *release catalog*
 (`dist/runtime/<tag>.json`), the same asset has a `url` and a `sha384` and `role: "infra"`,
 and no `mode` — it has none — because a fix to the loader can reach a stored document by
 only one route: the library swapping the bytes inside the block, having fetched them from
-an immutable tag. That is `updates.inline` (§2, `consent`) and the library's
+an immutable tag. That is `updates.inline` (§2) and the library's
 `POST /api/docs/<id>/repin`.
 
 A release that predates this publishes no infra bytes, and its catalog entry says so by
@@ -104,14 +104,15 @@ cannot claim to be editable when this block says otherwise.
 | `thresholdDeclined` | absent | The size at which the author said "don't ask again". The prompt re-arms at twice this. |
 | `author` | absent | The document's own author, as it signs a comment (`author.kind === "author"`). Absent means nobody has authored a comment; an empty string is a change for nothing. A reviewer's name never lives here: it is `localStorage`, per document. |
 | `capabilities` | absent | `{comments: "off" \| "read" \| "write", edit: "copy" \| "off"}`. **A capability the file does not declare is `absent`** (invariant 28): the loader skips the asset and `policy.target()` marks it absent, so a document that never uses comments does not carry the comments bundle. `"off"` is a declared *no* and behaves like absent; only an export (or the module that wrote the first comment) writes this field. |
+| `updates` | absent | `{inline: "ask" \| "allow" \| "never"}` — consent for the library to replace this document's **loader bytes** in place. Absent means `ask`, and an unrecognised value is `ask`: a mistyped `allow` must not become a permission. This is the only setting whose writer is a person — the settings sheet writes it on Done, and **no save path, policy or export may**, because a document that can grant consent is not a consent. Read by the library (`inlineConsent`) and by `registry.repin()`, which reports what it left alone. |
 | `timeoutMs` | `8000` | Per-asset load timeout. Behaviour, so it lives here and not in the manifest. |
 | `policy` | absent | The save preset the author chose: `inline`, `smart`, `slim`. Absent means `inline`. |
 | `assets` | absent | An explicit `{id: "inline" \| "online" \| "absent"}` map. **Wins over `policy`** and replaces it on write: a preset is a shorthand for a map, and writing both would be two answers to one question. `absent` means the author removed the asset; an asset that is merely outside the current `mode` leaves the file but keeps its declaration, so the other mode can still be produced (an export, a viewer). |
 | `cloud` | absent | `{id, api?}` — the library this document belongs to. `id` is the object key (3–64 of `[a-z0-9-]`); `api` defaults to `/api/docs` and must be **relative**, so a document copied to another host does not drag its old origin with it. Absent, malformed, **or opened from `file://`** means a file: the endpoint is relative, so a copy re-opened from disk cannot address it, and a document that cannot reach its library downloads instead of failing. |
 
-`policy` and `assets` are what the save sheet edits, along with `editable` and `toolbar`.
-`mode` also travels here, but only a build flavour or an export writes it: the settings sheet
-reads it and preserves it, and offers no control for it.
+`policy` and `assets` are what the save sheet edits, along with `editable`, `toolbar` and
+`updates.inline`. `mode` also travels here, but only a build flavour or an export writes it:
+the settings sheet reads it and preserves it, and offers no control for it.
 
 `cloud` changes what Save *is*, without changing the button: a document that names a library
 is written back to it (and its assets stay `online`, so every document in the library shares

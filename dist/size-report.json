@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 814993
+    "bytes": 820135
   },
   "assets": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 44003
+      "bytes": 44290
     },
     {
       "id": "boot-ui-styles",
@@ -57,7 +57,7 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 60863
+      "bytes": 63121
     },
     {
       "id": "boot-ui",
@@ -132,7 +132,7 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 95209
+      "bytes": 96925
     },
     {
       "id": "plugins",
@@ -147,7 +147,7 @@
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 16064
+      "bytes": 16945
     },
     {
       "id": "bootstrap",
@@ -156,9 +156,9 @@
     }
   ],
   "flavors": {
-    "index.html": 814993,
-    "asset-bodies": 796435,
+    "index.html": 820135,
+    "asset-bodies": 801577,
     "markup-and-runtime": 18558,
-    "dist/slim.html": 109335
+    "dist/slim.html": 111593
   }
 }
