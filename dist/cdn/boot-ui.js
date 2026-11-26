@@ -365,6 +365,10 @@
 
   function updateFailed(el, message) {
     offersAllowed = false;
+    /* The card is modal, so a toast underneath it is invisible — but the card can be
+       dismissed with Continue, and a repair that failed is not something to learn from a
+       console line. One answer, two surfaces; whichever is on screen wins. */
+    registry.toast?.(message, "error");
     if (!el) return;
     el.update.hidden = false;
     el.updateText.textContent = message;
@@ -414,6 +418,8 @@
     const done = updating;
     updating = null;
     if (!el || !done) return;
+    /* Said once, where the person pressed the button. */
+    registry.toast?.(`Updated to ${done.tag}`);
     const canSave = !!document.querySelector("[data-save]");
     el.dialog.dataset.phase = "ready";
     el.title.textContent = `Updated to ${done.tag}`;

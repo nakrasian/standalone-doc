@@ -1101,6 +1101,10 @@ export function createToolbar(deps = {}) {
     return settings.cloud || null;
   };
 
+  /* The shared toast, reached through the one module every mode builds. Local alias, so a
+     call site reads as an intention rather than as a global lookup. */
+  const toast = (text, tone) => globalThis.StandaloneDoc?.toast?.(text, tone);
+
   /**
    * The JSON door, with the trap named.
    *
@@ -1121,14 +1125,19 @@ export function createToolbar(deps = {}) {
          follows), a mistyped endpoint, or something in front of the host. All three mean
          the same thing to the person saving, so the message names the one they can act
          on — and the status, because a 200 here is the whole trap. */
-      throw new Error(
+      const message =
         response.redirected || type.includes("text/html")
           ? "signed out — reopen this document to sign in (the library answered with a page, not data)"
-          : `unexpected response (${response.status})`,
-      );
+          : `unexpected response (${response.status})`;
+      toast(message, "error");
+      throw new Error(message);
     }
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+    if (!response.ok) {
+      const message = body.error || `HTTP ${response.status}`;
+      toast(message, "error");
+      throw new Error(message);
+    }
     return body;
   }
 
@@ -1579,8 +1588,13 @@ export function createToolbar(deps = {}) {
       try {
         return await serialize(opts);
       } catch (error) {
-        console.error("Save aborted:", error && error.message ? error.message : error);
+        /* A serialise or policy failure is "this save could not write": there is no file to
+           blame and no server to ask, and the person is looking at a document that now has
+           to be saved again. It speaks. */
+        const message = error && error.message ? error.message : String(error);
+        console.error("Save aborted:", message);
         status.markDirty();
+        toast(`Could not save — ${message}`, "error");
         return null;
       }
     };
@@ -1616,6 +1630,7 @@ export function createToolbar(deps = {}) {
     if (problems.length) {
       console.error("Save aborted:", problems);
       status.markDirty();
+      toast(`Could not save — ${problems[0]}`, "error");
       return;
     }
 
@@ -1623,9 +1638,13 @@ export function createToolbar(deps = {}) {
       try {
         await call(`${target.api}/${target.id}`, {method: "PUT", headers: {"x-doc-title": title}, body: html});
         status.save(html.length);
+        /* The person asked, so they get an answer — and it says where. `call()` has
+           already spoken if the write failed. */
+        toast("Saved to the library");
       } catch (error) {
         /* A failed copy must not look saved: the dot stays on and the reason is one
-           console line — the same shape as a failed serialise, on purpose. */
+           console line — the same shape as a failed serialise, on purpose. The message
+           itself is the toast `call()` raised. */
         console.error("Save to library failed:", error && error.message ? error.message : error);
         status.markDirty();
       }
@@ -1638,6 +1657,7 @@ export function createToolbar(deps = {}) {
     a.download = `${title.replace(/[\\/:*?"<>|]+/g, "-")}.html`;
     a.click();
     status.save(html.length);
+    toast("Saved");
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 

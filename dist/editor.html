@@ -555,6 +555,70 @@
        stays (it is the cheapest thing to keep in sync); this hides it before first
        paint, because the loader sets the attribute before any module is built. */
     html[data-toolbar="off"] #app-toolbar { display: none; }
+
+    /* ---- the toast ----
+       One surface for "what you asked for finished", and the reason it lives here rather than
+       in the toolbar's sheet: a failed boot has no toolbar, and a viewer never loads
+       `toolbar-styles.css` (it is `requiredBy: ["edit"]`, 30 KB of chrome a reader does not pay
+       for). The tokens are therefore repeated here rather than inherited — the same trade
+       `doc-bar-styles.css` makes, for the same reason.
+
+       Placement is fixed, so it is the same element in the ribbon, the minimal bar and a
+       viewer's bar, and no bar has to reserve space for a message that is usually absent. */
+    [data-toast] {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: min(60ch, calc(100vw - 32px));
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #dfe1e6;
+      background: #fff;
+      color: #1b1f24;
+      box-shadow: 0 6px 24px rgba(15, 23, 42, .14);
+      font: 500 12.5px/1.35 system-ui, -apple-system, sans-serif;
+      user-select: none;
+    }
+
+    /* `[hidden]` loses to any author `display`, and this element is `hidden` in every saved
+       file — say it once, with weight. */
+    [data-toast][hidden] {
+      display: none;
+    }
+
+    [data-toast][data-tone="error"] {
+      border-color: #f0b4a8;
+      background: #fff6f4;
+      color: #8a2c14;
+    }
+
+    .toast-close {
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .toast-close:hover {
+      background: rgba(15, 23, 42, .08);
+    }
+
+    .toast-close[hidden] {
+      display: none;
+    }
   </style>
 <!-- /@asset -->
 <!-- @asset id="toolbar-styles" kind="css" order="20" -->
@@ -728,6 +792,35 @@
 
     .favicon:hover {
       background: var(--hover);
+    }
+
+    /* The way back, in the slot the mark would have used: the same height and roughly the same
+       width, so a library document's ribbon is no wider than a file's. The guillemet is the
+       affordance — it is the one character that reads as "outward" at 12px. It is the first tab
+       stop in the chrome on purpose (the thing a person looks for), and it cannot swallow ⌘S:
+       that chord is bound on the document, not on the element. */
+    .library-link {
+      display: inline-flex;
+      align-items: center;
+      height: 26px;
+      padding: 0 8px 0 5px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .library-link:hover {
+      color: var(--ink);
+      background: var(--hover);
+    }
+
+    /* `[hidden]` loses to any author `display`, and one of the pair is always hidden. */
+    .favicon[hidden],
+    .library-link[hidden] {
+      display: none;
     }
 
     .title-input {
@@ -2237,7 +2330,11 @@
 
       <!-- Row 1: title, file menu, save, toggle -->
       <div class="ribbon-top">
+        <!-- Identity, or the way back. The mark is something the person already knows; on a
+             document that names a library the corner is worth more as a link to it.
+             `apply-settings` picks — not CSS — because `cloud` is a fact the loader owns. -->
         <button class="favicon" data-favicon title="Change favicon">🧬</button>
+        <a class="library-link" data-library-link href="/" draggable="false" hidden>‹ Library</a>
         <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false"
           aria-label="Document title">
         <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
@@ -2473,6 +2570,9 @@
 
     <!-- ===== MINIMAL: thin bar ===== -->
     <header id="ui-minimal" class="bar" data-ui-panel="minimal">
+      <!-- Same link, same corner: a minimal document is still a document in a library, and
+           "survive minimal" is the whole requirement. -->
+      <a class="library-link" data-library-link href="/" draggable="false" hidden>‹ Library</a>
       <span class="folio" data-folio>p. 1</span>
       <span class="stats" data-stats>—</span>
       <span class="grow"></span>
@@ -2944,6 +3044,21 @@
        never as DOM. A saved file can be re-mounted without any HTML parsing. -->
   <script id="figure-store" type="application/json">{"version":1,"figures":{}}</script>
 
+  <!-- The toast: one element, in the document rather than in a bar.
+
+       It has to exist in the ribbon, in the minimal bar, in a viewer's bar and under a
+       failed boot, so it is shared chrome and belongs to no single one of them — the
+       ribbon's markup is `requiredBy: ["edit"]`, and a viewer never loads it.
+
+       Session text, never content: `session.strip()` empties it on save, the way it resets
+       the dirty dot, so a saved file carries the element and no message. It is `role="status"`
+       until `toast()` gives it a tone; an error becomes `role="alert"` and stays until
+       dismissed, because a message about lost work that removes itself is one nobody read. -->
+  <div class="toast" data-toast role="status" aria-live="polite" hidden>
+    <span data-toast-text></span>
+    <button type="button" class="toast-close" data-toast-close aria-label="Dismiss" hidden>&#215;</button>
+  </div>
+
 
   <!-- Shared content signals -->
   <!-- The boot shell's markup. Inert until it is opened; defined before the
@@ -2984,7 +3099,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"write"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":14371,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/page-styles.css","integrity":"sha384-VADNrwlL9nnIBxKEwQzUV97IJD9v/+TVoMIxGTk1eQ5qAXiBGUmlfEWnC3aNS2yw"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":39399,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-styles.css","integrity":"sha384-Vp2dqPvvz64ie6a9eR8Q2pVL7f37a+dcC6uyaA+uKjqZJHf2Hx1zlBLRLsPkq4cq"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":16595,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-markup.html","integrity":"sha384-hCuXEl3OALl4yJj1G0HiDxbWbBAlTvrYGtwftw3qZ7ZqzHC26eAr1aGlvKW7QnTr"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":10494,"fragments":["doc-bar-markup","doc-bar-styles"],"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar.js","integrity":"sha384-fwRJXVOclUH4Psu4CU/D5d5rFh0LLyFogMzTSJGoxJaT3Q+j9LYm0cpy9+9qPiH6"},{"id":"comment-styles","kind":"css","role":"module","order":26,"mode":"inline","requiredBy":["*"],"bytes":6176,"capability":"comments","label":"Comment styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comment-styles.css","integrity":"sha384-UFUmh4u1D9Gh08Vtq7TdtMZYzTG/Yb6zbKviVx3oDDHo9aI4Yn/CZLOpruMc/xMt"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":58166,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":23949,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3182,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/apply-settings.js","integrity":"sha384-Hi+kAKV8JiHcX58QX4DwoRkOBkUpLn/n8cyXgPNgPs66Cifuk8B0heP6kUCAAtU7"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":5542,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/session.js","integrity":"sha384-SM0ACxy86wwfo0G1fhyv1pA2zoXylIrRUCGW3b6y7paIONY7dnP+dXGEgbAfoM9z"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":73654,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/pagination.js","integrity":"sha384-nWflWFs5MgaXBQcq+KQH6hEH8jPMvcI6mEbl8HRY8YkGVbOMi35GL0APjGEHHMui"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4819,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/status.js","integrity":"sha384-deJoI+oozruxkdfuweFtpGSeaAHIEk4Z5NpqmFHwCoU/t8BuPSOaxQpkZj2v2/sW"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":74602,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/editor.js","integrity":"sha384-Of08MuaQ1M6lwkaA5PWJGpBA/D8cVxy23pdNhmnIkQta1Cm+tZhGRYHrUCKXxiKj"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":59350,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comments.js","integrity":"sha384-aetSyOwsa8A2yodHWg9BQ+IQpwokMpvKZCRZ76qSNnbOV3irF3oc1GPV0uMDF9+o"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":65453,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figures.js","integrity":"sha384-puhJL/IIuCiy0nVjFAtPuN26YYa3PYt2gtvjOHPvzvkI/um9UN2zy8faQA20mw7E"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":25965,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/policy.js","integrity":"sha384-sTx/KW3Hw3Esorz99Af2vDMnSKlkhPX3dlBaUf6obEsfiqnAf7uUxgjGjzTOpQEz"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":89247,"fragments":["toolbar-markup","sprite","figure-tools","dialogs"],"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar.js","integrity":"sha384-+YVlwF0Mq+rFiuhOTMueDkN/5QWfkNYvGfI/km31xHewDARbEnTDr0GQlQCz84eu"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":61111,"critical":false,"fragments":["dialogs"],"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/plugins.js","integrity":"sha384-x/pJgWLEGe7HfLNEsIVk44NdHOlfO52Yx0/dzQRfMUQf8/WcxVeSNRROXucOahxN"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":46210,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/export.js","integrity":"sha384-DmrHzC/BJW7KYW4ShJPKqLYHsM3PmkNOVogxmSekRGnbJjfu/yY/LC5nh7hy/Hwq"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":16348,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/dialogs.html","integrity":"sha384-b3ZbTjIyaSViXKgXB32oDqLtBR4Qb3LYyt+Hqn6HDYVjuZpmkKEvW1o/AdNEEKcW"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json","pluginIndex":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/plugins/index.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":16041,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/page-styles.css","integrity":"sha384-RxN5Vw5NpHhJQDjFB0p1lJJll8C1i18NYoCucVcjXyT85XpOOyZpuZOHoZQJoTz0"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":40293,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-styles.css","integrity":"sha384-4CyxLa1hkWV3jsL8aIpFl4EUqrfFY50JaahvfPB9nnQA/wywY7I6U7IO6E5W2lka"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":17193,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-markup.html","integrity":"sha384-RBXHiORQ8JUoajqD54J2k9Ef4IsDce9MEaZKMEzfNpxY/YeVODnjtlRvdsiEhkjp"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":10494,"fragments":["doc-bar-markup","doc-bar-styles"],"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar.js","integrity":"sha384-fwRJXVOclUH4Psu4CU/D5d5rFh0LLyFogMzTSJGoxJaT3Q+j9LYm0cpy9+9qPiH6"},{"id":"comment-styles","kind":"css","role":"module","order":26,"mode":"inline","requiredBy":["*"],"bytes":6176,"capability":"comments","label":"Comment styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comment-styles.css","integrity":"sha384-UFUmh4u1D9Gh08Vtq7TdtMZYzTG/Yb6zbKviVx3oDDHo9aI4Yn/CZLOpruMc/xMt"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":61002,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":24352,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3841,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/apply-settings.js","integrity":"sha384-HFxaNO0ZzZBt2+5gwVjUiNCpX4IZSZ1rF9n+iazxe0W/g/JGsov4AXAQflA3N9w4"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":6371,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/session.js","integrity":"sha384-TcpsJEfDMRPQ2sMgHTWfCHgOL7Ppx7pUHvxa+DyonEf9ajo3okIiVmJOqoYbyQdT"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":73654,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/pagination.js","integrity":"sha384-nWflWFs5MgaXBQcq+KQH6hEH8jPMvcI6mEbl8HRY8YkGVbOMi35GL0APjGEHHMui"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4819,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/status.js","integrity":"sha384-deJoI+oozruxkdfuweFtpGSeaAHIEk4Z5NpqmFHwCoU/t8BuPSOaxQpkZj2v2/sW"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":74602,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/editor.js","integrity":"sha384-Of08MuaQ1M6lwkaA5PWJGpBA/D8cVxy23pdNhmnIkQta1Cm+tZhGRYHrUCKXxiKj"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":59350,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comments.js","integrity":"sha384-aetSyOwsa8A2yodHWg9BQ+IQpwokMpvKZCRZ76qSNnbOV3irF3oc1GPV0uMDF9+o"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":65453,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figures.js","integrity":"sha384-puhJL/IIuCiy0nVjFAtPuN26YYa3PYt2gtvjOHPvzvkI/um9UN2zy8faQA20mw7E"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":25965,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/policy.js","integrity":"sha384-sTx/KW3Hw3Esorz99Af2vDMnSKlkhPX3dlBaUf6obEsfiqnAf7uUxgjGjzTOpQEz"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":90261,"fragments":["toolbar-markup","sprite","figure-tools","dialogs"],"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar.js","integrity":"sha384-9hjq7OdM2ZOVV8a7cxLI5GowzsWbrri1Gz6Hs8XiIcHmihe2LUVzvTfpp+vOXOte"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":61111,"critical":false,"fragments":["dialogs"],"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/plugins.js","integrity":"sha384-x/pJgWLEGe7HfLNEsIVk44NdHOlfO52Yx0/dzQRfMUQf8/WcxVeSNRROXucOahxN"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":46210,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/export.js","integrity":"sha384-DmrHzC/BJW7KYW4ShJPKqLYHsM3PmkNOVogxmSekRGnbJjfu/yY/LC5nh7hy/Hwq"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":16348,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/dialogs.html","integrity":"sha384-b3ZbTjIyaSViXKgXB32oDqLtBR4Qb3LYyt+Hqn6HDYVjuZpmkKEvW1o/AdNEEKcW"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json","pluginIndex":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/plugins/index.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -3419,6 +3534,60 @@
           case "none": return remedy.why ? `nothing this file can do — ${remedy.why}` : "nothing this file can do";
           default: return remedy.action;
         }
+      }
+
+      /* ------------------------------------------------------------ the toast
+       *
+       * One answer, on one surface, for "what you asked for finished". It lives here rather
+       * than in the toolbar because a failed boot has no toolbar — the card's own remedies are
+       * exactly the moment a person needs an answer — and because a viewer never builds
+       * `toolbar-styles.css` or `status.js`. The element is shared chrome in the body, so the
+       * ribbon, the minimal bar and a viewer's bar all reach the same one.
+       *
+       * The tiers are a decision, not a detail:
+       *   - a **manual** save says it finished (the person asked, so they get an answer);
+       *   - a **successful autosave says nothing** — the ribbon carries `Saved 12:04` instead,
+       *     because a toast every thirty seconds trains people to ignore toasts;
+       *   - **any** failure speaks, and an error stays until dismissed;
+       *   - a conflict is a bar, not a toast: it is a decision, not a report.
+       */
+      let toastTimer = null;
+      const TOAST_OK_MS = 6000;
+
+      function hideToast() {
+        clearTimeout(toastTimer);
+        const el = document.querySelector("[data-toast]");
+        if (!el) return;
+        el.hidden = true;
+        el.removeAttribute("data-tone");
+        el.setAttribute("role", "status");
+        const text = el.querySelector("[data-toast-text]");
+        if (text) text.textContent = "";
+      }
+
+      /**
+       * Say something in the document's own chrome. Returns `{hide}`, or null when this file
+       * carries no toast element (a hand-stripped copy, a lab fixture).
+       *
+       * `role` follows the tone: a status is announced politely, an error assertively. Getting
+       * that backwards makes a failure sound like a size readout.
+       */
+      function toast(text, tone = "ok") {
+        const el = document.querySelector("[data-toast]");
+        if (!el) return null;
+        const message = String(text == null ? "" : text);
+        const target = el.querySelector("[data-toast-text]");
+        if (target) target.textContent = message;
+        else el.textContent = message;
+        const close = el.querySelector("[data-toast-close]");
+        if (close) close.hidden = tone !== "error";
+        el.dataset.tone = tone === "error" ? "error" : "ok";
+        el.setAttribute("role", tone === "error" ? "alert" : "status");
+        el.hidden = false;
+        clearTimeout(toastTimer);
+        /* An error that removes itself is a message about lost work that nobody read. */
+        if (tone !== "error") toastTimer = setTimeout(hideToast, TOAST_OK_MS);
+        return {hide: hideToast};
       }
 
       function failure(kind, id, message, extra) {
@@ -4270,6 +4439,10 @@
         return boot();
       }
 
+      /* One listener, once. A dismissed error stays dismissed: the toast is shared chrome, and
+         a stale message left on screen is worse than none. */
+      document.querySelector("[data-toast-close]")?.addEventListener("click", hideToast);
+
       return {
         register,
         on,
@@ -4302,6 +4475,9 @@
         order,
         planned,
         diagnostics,
+        /* Shared chrome: the toast every mode can reach (`toolbar`, `doc-bar`, the boot card). */
+        toast,
+        hideToast,
         manifest,
         catalogUrl,
         catalog,
@@ -4689,6 +4865,10 @@
 
       function updateFailed(el, message) {
         offersAllowed = false;
+        /* The card is modal, so a toast underneath it is invisible — but the card can be
+           dismissed with Continue, and a repair that failed is not something to learn from a
+           console line. One answer, two surfaces; whichever is on screen wins. */
+        registry.toast?.(message, "error");
         if (!el) return;
         el.update.hidden = false;
         el.updateText.textContent = message;
@@ -4738,6 +4918,8 @@
         const done = updating;
         updating = null;
         if (!el || !done) return;
+        /* Said once, where the person pressed the button. */
+        registry.toast?.(`Updated to ${done.tag}`);
         const canSave = !!document.querySelector("[data-save]");
         el.dialog.dataset.phase = "ready";
         el.title.textContent = `Updated to ${done.tag}`;
@@ -4947,6 +5129,13 @@
         if (!content) return;
         if (current.editable) content.setAttribute("contenteditable", "true");
         else content.setAttribute("contenteditable", "false");
+        /* The way back, and the end of the mark: a document that names a library already knows
+           its own identity, so the top-left corner is worth more as "‹ Library" than as a
+           favicon picker. `href` is origin-relative (`/`), so a copy opened on another host
+           points at *that* host's shelf — and a copy with `cloud` stripped (an export, a
+           published share) shows the mark and no link at all, because it has nowhere to go. */
+        for (const mark of document.querySelectorAll("[data-favicon]")) mark.hidden = Boolean(current.cloud);
+        for (const link of document.querySelectorAll("[data-library-link]")) link.hidden = !current.cloud;
       }
 
       /* Construction-time, like editor and figures: the lock is in place before any
@@ -5036,6 +5225,21 @@
           node.removeAttribute("title");
         });
         clone.querySelectorAll("[data-dirty]").forEach((node) => {node.hidden = true;});
+        /* A toast is a message about *this* session — "saved", "signed out". The element
+           travels (it is shared chrome), the message does not; an error's dismiss button goes
+           back to hidden with it. */
+        clone.querySelectorAll("[data-toast]").forEach((node) => {
+          node.hidden = true;
+          node.removeAttribute("data-tone");
+          node.setAttribute("role", "status");
+          const text = node.querySelector("[data-toast-text]");
+          if (text) text.textContent = "";
+          node.querySelector("[data-toast-close]")?.setAttribute("hidden", "");
+        });
+        clone.querySelectorAll("[data-saved]").forEach((node) => {
+          node.textContent = "";
+          node.setAttribute("hidden", "");
+        });
 
         return clone;
       }
@@ -5056,6 +5260,7 @@
         if (doc.querySelector("dialog[open]")) found.push("a dialog was saved open");
         if (doc.querySelector("[data-menu-panel]:not([hidden])")) found.push("a menu panel was saved open");
         if ([...doc.querySelectorAll("[data-dirty]")].some((node) => !node.hidden)) found.push("the dirty dot was saved visible");
+        if ([...doc.querySelectorAll("[data-toast]")].some((node) => !node.hidden)) found.push("a toast was saved visible");
         return found;
       }
 
@@ -14258,6 +14463,10 @@
         return settings.cloud || null;
       };
 
+      /* The shared toast, reached through the one module every mode builds. Local alias, so a
+         call site reads as an intention rather than as a global lookup. */
+      const toast = (text, tone) => globalThis.StandaloneDoc?.toast?.(text, tone);
+
       /**
        * The JSON door, with the trap named.
        *
@@ -14278,14 +14487,19 @@
              follows), a mistyped endpoint, or something in front of the host. All three mean
              the same thing to the person saving, so the message names the one they can act
              on — and the status, because a 200 here is the whole trap. */
-          throw new Error(
+          const message =
             response.redirected || type.includes("text/html")
               ? "signed out — reopen this document to sign in (the library answered with a page, not data)"
-              : `unexpected response (${response.status})`,
-          );
+              : `unexpected response (${response.status})`;
+          toast(message, "error");
+          throw new Error(message);
         }
         const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+        if (!response.ok) {
+          const message = body.error || `HTTP ${response.status}`;
+          toast(message, "error");
+          throw new Error(message);
+        }
         return body;
       }
 
@@ -14736,8 +14950,13 @@
           try {
             return await serialize(opts);
           } catch (error) {
-            console.error("Save aborted:", error && error.message ? error.message : error);
+            /* A serialise or policy failure is "this save could not write": there is no file to
+               blame and no server to ask, and the person is looking at a document that now has
+               to be saved again. It speaks. */
+            const message = error && error.message ? error.message : String(error);
+            console.error("Save aborted:", message);
             status.markDirty();
+            toast(`Could not save — ${message}`, "error");
             return null;
           }
         };
@@ -14773,6 +14992,7 @@
         if (problems.length) {
           console.error("Save aborted:", problems);
           status.markDirty();
+          toast(`Could not save — ${problems[0]}`, "error");
           return;
         }
 
@@ -14780,9 +15000,13 @@
           try {
             await call(`${target.api}/${target.id}`, {method: "PUT", headers: {"x-doc-title": title}, body: html});
             status.save(html.length);
+            /* The person asked, so they get an answer — and it says where. `call()` has
+               already spoken if the write failed. */
+            toast("Saved to the library");
           } catch (error) {
             /* A failed copy must not look saved: the dot stays on and the reason is one
-               console line — the same shape as a failed serialise, on purpose. */
+               console line — the same shape as a failed serialise, on purpose. The message
+               itself is the toast `call()` raised. */
             console.error("Save to library failed:", error && error.message ? error.message : error);
             status.markDirty();
           }
@@ -14795,6 +15019,7 @@
         a.download = `${title.replace(/[\\/:*?"<>|]+/g, "-")}.html`;
         a.click();
         status.save(html.length);
+        toast("Saved");
         setTimeout(() => URL.revokeObjectURL(url), 0);
       }
 

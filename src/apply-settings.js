@@ -45,6 +45,13 @@ export function createApplySettings(deps = {}) {
     if (!content) return;
     if (current.editable) content.setAttribute("contenteditable", "true");
     else content.setAttribute("contenteditable", "false");
+    /* The way back, and the end of the mark: a document that names a library already knows
+       its own identity, so the top-left corner is worth more as "‹ Library" than as a
+       favicon picker. `href` is origin-relative (`/`), so a copy opened on another host
+       points at *that* host's shelf — and a copy with `cloud` stripped (an export, a
+       published share) shows the mark and no link at all, because it has nowhere to go. */
+    for (const mark of document.querySelectorAll("[data-favicon]")) mark.hidden = Boolean(current.cloud);
+    for (const link of document.querySelectorAll("[data-library-link]")) link.hidden = !current.cloud;
   }
 
   /* Construction-time, like editor and figures: the lock is in place before any

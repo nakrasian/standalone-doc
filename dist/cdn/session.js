@@ -72,6 +72,21 @@ export function createSession(deps = {}) {
       node.removeAttribute("title");
     });
     clone.querySelectorAll("[data-dirty]").forEach((node) => {node.hidden = true;});
+    /* A toast is a message about *this* session — "saved", "signed out". The element
+       travels (it is shared chrome), the message does not; an error's dismiss button goes
+       back to hidden with it. */
+    clone.querySelectorAll("[data-toast]").forEach((node) => {
+      node.hidden = true;
+      node.removeAttribute("data-tone");
+      node.setAttribute("role", "status");
+      const text = node.querySelector("[data-toast-text]");
+      if (text) text.textContent = "";
+      node.querySelector("[data-toast-close]")?.setAttribute("hidden", "");
+    });
+    clone.querySelectorAll("[data-saved]").forEach((node) => {
+      node.textContent = "";
+      node.setAttribute("hidden", "");
+    });
 
     return clone;
   }
@@ -92,6 +107,7 @@ export function createSession(deps = {}) {
     if (doc.querySelector("dialog[open]")) found.push("a dialog was saved open");
     if (doc.querySelector("[data-menu-panel]:not([hidden])")) found.push("a menu panel was saved open");
     if ([...doc.querySelectorAll("[data-dirty]")].some((node) => !node.hidden)) found.push("the dirty dot was saved visible");
+    if ([...doc.querySelectorAll("[data-toast]")].some((node) => !node.hidden)) found.push("a toast was saved visible");
     return found;
   }
 

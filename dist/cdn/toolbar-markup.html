@@ -4,7 +4,11 @@
 
   <!-- Row 1: title, file menu, save, toggle -->
   <div class="ribbon-top">
+    <!-- Identity, or the way back. The mark is something the person already knows; on a
+         document that names a library the corner is worth more as a link to it.
+         `apply-settings` picks — not CSS — because `cloud` is a fact the loader owns. -->
     <button class="favicon" data-favicon title="Change favicon">🧬</button>
+    <a class="library-link" data-library-link href="/" draggable="false" hidden>‹ Library</a>
     <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false"
       aria-label="Document title">
     <span class="dirty-dot" data-dirty hidden title="Unsaved changes"></span>
@@ -240,6 +244,9 @@
 
 <!-- ===== MINIMAL: thin bar ===== -->
 <header id="ui-minimal" class="bar" data-ui-panel="minimal">
+  <!-- Same link, same corner: a minimal document is still a document in a library, and
+       "survive minimal" is the whole requirement. -->
+  <a class="library-link" data-library-link href="/" draggable="false" hidden>‹ Library</a>
   <span class="folio" data-folio>p. 1</span>
   <span class="stats" data-stats>—</span>
   <span class="grow"></span>

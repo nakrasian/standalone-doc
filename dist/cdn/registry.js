@@ -432,6 +432,60 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     }
   }
 
+  /* ------------------------------------------------------------ the toast
+   *
+   * One answer, on one surface, for "what you asked for finished". It lives here rather
+   * than in the toolbar because a failed boot has no toolbar — the card's own remedies are
+   * exactly the moment a person needs an answer — and because a viewer never builds
+   * `toolbar-styles.css` or `status.js`. The element is shared chrome in the body, so the
+   * ribbon, the minimal bar and a viewer's bar all reach the same one.
+   *
+   * The tiers are a decision, not a detail:
+   *   - a **manual** save says it finished (the person asked, so they get an answer);
+   *   - a **successful autosave says nothing** — the ribbon carries `Saved 12:04` instead,
+   *     because a toast every thirty seconds trains people to ignore toasts;
+   *   - **any** failure speaks, and an error stays until dismissed;
+   *   - a conflict is a bar, not a toast: it is a decision, not a report.
+   */
+  let toastTimer = null;
+  const TOAST_OK_MS = 6000;
+
+  function hideToast() {
+    clearTimeout(toastTimer);
+    const el = document.querySelector("[data-toast]");
+    if (!el) return;
+    el.hidden = true;
+    el.removeAttribute("data-tone");
+    el.setAttribute("role", "status");
+    const text = el.querySelector("[data-toast-text]");
+    if (text) text.textContent = "";
+  }
+
+  /**
+   * Say something in the document's own chrome. Returns `{hide}`, or null when this file
+   * carries no toast element (a hand-stripped copy, a lab fixture).
+   *
+   * `role` follows the tone: a status is announced politely, an error assertively. Getting
+   * that backwards makes a failure sound like a size readout.
+   */
+  function toast(text, tone = "ok") {
+    const el = document.querySelector("[data-toast]");
+    if (!el) return null;
+    const message = String(text == null ? "" : text);
+    const target = el.querySelector("[data-toast-text]");
+    if (target) target.textContent = message;
+    else el.textContent = message;
+    const close = el.querySelector("[data-toast-close]");
+    if (close) close.hidden = tone !== "error";
+    el.dataset.tone = tone === "error" ? "error" : "ok";
+    el.setAttribute("role", tone === "error" ? "alert" : "status");
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    /* An error that removes itself is a message about lost work that nobody read. */
+    if (tone !== "error") toastTimer = setTimeout(hideToast, TOAST_OK_MS);
+    return {hide: hideToast};
+  }
+
   function failure(kind, id, message, extra) {
     const issue = Object.assign({ kind, id, message }, extra || {});
     if (!issue.remedy) issue.remedy = remedyFor(issue);
@@ -1281,6 +1335,10 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return boot();
   }
 
+  /* One listener, once. A dismissed error stays dismissed: the toast is shared chrome, and
+     a stale message left on screen is worse than none. */
+  document.querySelector("[data-toast-close]")?.addEventListener("click", hideToast);
+
   return {
     register,
     on,
@@ -1313,6 +1371,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     order,
     planned,
     diagnostics,
+    /* Shared chrome: the toast every mode can reach (`toolbar`, `doc-bar`, the boot card). */
+    toast,
+    hideToast,
     manifest,
     catalogUrl,
     catalog,

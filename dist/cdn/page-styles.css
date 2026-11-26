@@ -546,3 +546,67 @@ figure.figure[data-missing] .figure-frame::after {
    stays (it is the cheapest thing to keep in sync); this hides it before first
    paint, because the loader sets the attribute before any module is built. */
 html[data-toolbar="off"] #app-toolbar { display: none; }
+
+/* ---- the toast ----
+   One surface for "what you asked for finished", and the reason it lives here rather than
+   in the toolbar's sheet: a failed boot has no toolbar, and a viewer never loads
+   `toolbar-styles.css` (it is `requiredBy: ["edit"]`, 30 KB of chrome a reader does not pay
+   for). The tokens are therefore repeated here rather than inherited — the same trade
+   `doc-bar-styles.css` makes, for the same reason.
+
+   Placement is fixed, so it is the same element in the ribbon, the minimal bar and a
+   viewer's bar, and no bar has to reserve space for a message that is usually absent. */
+[data-toast] {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(60ch, calc(100vw - 32px));
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #dfe1e6;
+  background: #fff;
+  color: #1b1f24;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, .14);
+  font: 500 12.5px/1.35 system-ui, -apple-system, sans-serif;
+  user-select: none;
+}
+
+/* `[hidden]` loses to any author `display`, and this element is `hidden` in every saved
+   file — say it once, with weight. */
+[data-toast][hidden] {
+  display: none;
+}
+
+[data-toast][data-tone="error"] {
+  border-color: #f0b4a8;
+  background: #fff6f4;
+  color: #8a2c14;
+}
+
+.toast-close {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  background: rgba(15, 23, 42, .08);
+}
+
+.toast-close[hidden] {
+  display: none;
+}

@@ -1,18 +1,18 @@
 {
   "schema": 1,
   "source": {
-    "bytes": 820135
+    "bytes": 830740
   },
   "assets": [
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 16282
+      "bytes": 18180
     },
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 44290
+      "bytes": 45288
     },
     {
       "id": "boot-ui-styles",
@@ -27,7 +27,7 @@
     {
       "id": "toolbar-markup",
       "kind": "html",
-      "bytes": 17886
+      "bytes": 18512
     },
     {
       "id": "doc-bar-markup",
@@ -57,22 +57,22 @@
     {
       "id": "registry",
       "kind": "js",
-      "bytes": 63121
+      "bytes": 66185
     },
     {
       "id": "boot-ui",
       "kind": "js",
-      "bytes": 26080
+      "bytes": 26507
     },
     {
       "id": "apply-settings",
       "kind": "js",
-      "bytes": 3544
+      "bytes": 4231
     },
     {
       "id": "session",
       "kind": "js",
-      "bytes": 6044
+      "bytes": 6937
     },
     {
       "id": "signals",
@@ -132,7 +132,7 @@
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 96925
+      "bytes": 98015
     },
     {
       "id": "plugins",
@@ -156,9 +156,9 @@
     }
   ],
   "flavors": {
-    "index.html": 820135,
-    "asset-bodies": 801577,
-    "markup-and-runtime": 18558,
-    "dist/slim.html": 111593
+    "index.html": 830740,
+    "asset-bodies": 811260,
+    "markup-and-runtime": 19480,
+    "dist/slim.html": 116006
   }
 }

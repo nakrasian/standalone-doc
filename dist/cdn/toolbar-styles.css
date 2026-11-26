@@ -169,6 +169,35 @@ input:focus-visible {
   background: var(--hover);
 }
 
+/* The way back, in the slot the mark would have used: the same height and roughly the same
+   width, so a library document's ribbon is no wider than a file's. The guillemet is the
+   affordance — it is the one character that reads as "outward" at 12px. It is the first tab
+   stop in the chrome on purpose (the thing a person looks for), and it cannot swallow ⌘S:
+   that chord is bound on the document, not on the element. */
+.library-link {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px 0 5px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.library-link:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+/* `[hidden]` loses to any author `display`, and one of the pair is always hidden. */
+.favicon[hidden],
+.library-link[hidden] {
+  display: none;
+}
+
 .title-input {
   height: 28px;
   padding: 0 6px;
