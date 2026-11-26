@@ -20,7 +20,7 @@
         "*"
       ],
       "bytes": 77404,
-      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/plugins/citations/citations.js",
+      "url": "https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.14.0/dist/cdn/plugins/citations/citations.js",
       "integrity": "sha384-kmWfGw7EP4yyvha0t5Ng9JQ0tDZRmhL6AfOpJDS0Cb4v28Y4dn10MRM2uU2mIacf",
       "factory": "createCitations"
     }

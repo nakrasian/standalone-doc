@@ -1,12 +1,12 @@
 {
   "source": {
-    "bytes": 814993
+    "bytes": 867341
   },
   "assets": [
     {
       "id": "toolbar",
       "kind": "js",
-      "bytes": 95209
+      "bytes": 101326
     },
     {
       "id": "editor",
@@ -24,6 +24,11 @@
       "bytes": 70947
     },
     {
+      "id": "registry",
+      "kind": "js",
+      "bytes": 67594
+    },
+    {
       "id": "plugins",
       "kind": "js",
       "bytes": 66045
@@ -34,11 +39,6 @@
       "bytes": 65115
     },
     {
-      "id": "registry",
-      "kind": "js",
-      "bytes": 60863
-    },
-    {
       "id": "export",
       "kind": "js",
       "bytes": 48157
@@ -46,7 +46,7 @@
     {
       "id": "toolbar-styles",
       "kind": "css",
-      "bytes": 44003
+      "bytes": 45644
     },
     {
       "id": "policy",
@@ -56,27 +56,32 @@
     {
       "id": "boot-ui",
       "kind": "js",
-      "bytes": 26080
+      "bytes": 26507
     },
     {
-      "id": "toolbar-markup",
-      "kind": "html",
-      "bytes": 17886
+      "id": "autosave",
+      "kind": "js",
+      "bytes": 23950
     },
     {
       "id": "page-styles",
       "kind": "css",
-      "bytes": 16282
+      "bytes": 19965
+    },
+    {
+      "id": "toolbar-markup",
+      "kind": "html",
+      "bytes": 18808
     },
     {
       "id": "dialogs",
       "kind": "html",
-      "bytes": 16064
+      "bytes": 17603
     },
     {
       "id": "doc-bar",
       "kind": "js",
-      "bytes": 11595
+      "bytes": 13191
     },
     {
       "id": "doc-bar-styles",
@@ -89,6 +94,11 @@
       "bytes": 7904
     },
     {
+      "id": "session",
+      "kind": "js",
+      "bytes": 7709
+    },
+    {
       "id": "comment-styles",
       "kind": "css",
       "bytes": 7187
@@ -99,19 +109,14 @@
       "bytes": 6726
     },
     {
-      "id": "session",
+      "id": "status",
       "kind": "js",
-      "bytes": 6044
+      "bytes": 6568
     },
     {
       "id": "sprite",
       "kind": "html",
       "bytes": 5775
-    },
-    {
-      "id": "status",
-      "kind": "js",
-      "bytes": 5414
     },
     {
       "id": "zoom",
@@ -126,7 +131,7 @@
     {
       "id": "apply-settings",
       "kind": "js",
-      "bytes": 3544
+      "bytes": 4231
     },
     {
       "id": "doc-bar-markup",
@@ -155,9 +160,9 @@
     }
   ],
   "flavors": {
-    "index.html": 814993,
-    "asset-bodies": 796435,
-    "markup-and-runtime": 18558,
-    "dist/slim.html": 109335
+    "index.html": 867341,
+    "asset-bodies": 846547,
+    "markup-and-runtime": 20794,
+    "dist/slim.html": 118609
   }
 }
