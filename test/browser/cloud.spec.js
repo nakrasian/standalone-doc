@@ -311,6 +311,9 @@ test("a login page with status 200 is a failed save, not a successful one", asyn
 
   await page.locator("[data-save]:visible").first().click();
   await expect.poll(() => errors.join("\n")).toContain("signed out");
+  /* And the person is told, in the document's own chrome: the sentence written for a human
+     used to live only in the console, which is not where a person looks. */
+  await expect.poll(() => page.evaluate(() => document.querySelector("[data-toast-text]").textContent)).toContain("signed out");
   /* Unsaved stays unsaved: the dot is the document's only claim about the disk, and it
      exists twice (ribbon and minimal chrome), so :visible is the one under test. */
   await expect(page.locator("[data-dirty]:visible")).toBeVisible();

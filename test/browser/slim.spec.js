@@ -71,7 +71,7 @@ test("boots entirely from the CDN", async ({ page }) => {
 
   expect(problems).toEqual([]);
   expect(info.state).toBe("ready");
-  expect(info.built).toHaveLength(16);
+  expect(info.built).toHaveLength(17);
   expect(info.signals).toBe("object");
   expect(info.figures).toBe("object");
   expect(info.inlineBlocks).toBe(0);

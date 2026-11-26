@@ -116,7 +116,7 @@ test("construction follows the manifest order, not document order", async ({ pag
   /* Manifest order, even though the blocks were reversed in the file. */
   expect(state.built).toEqual([
     "apply-settings", "session", "signals", "zoom", "selection", "progress", "layout", "pagination",
-    "status", "editor", "comments", "figures", "policy", "toolbar", "plugins", "export",
+    "status", "editor", "comments", "figures", "policy", "autosave", "toolbar", "plugins", "export",
   ]);
   expect(state.signals).toBe("object");
   expect(state.figures).toBe("object");
@@ -287,7 +287,7 @@ test.describe("boot dialog", () => {
     expect(seen.open).toBe(false);
     expect(seen.phase).toBe("ready");
     /* One row per non-infra asset in the plan: the comments bundle and its sheet. */
-    expect(seen.rows).toBe(23);
+    expect(seen.rows).toBe(24);
     expect(seen.barNow).toBe("100");
   });
 

@@ -619,6 +619,75 @@
     .toast-close[hidden] {
       display: none;
     }
+
+    /* ---- the notice bar ----
+       A decision, in the same layer and for the same reason as the toast: a conflict has to be
+       visible in the editor, in the minimal bar and in a review copy, and it has to be visible
+       while a toast is not (the toast goes away; a decision does not). Above the toast, because
+       when both are up the decision is the thing to read. */
+    [data-notice] {
+      position: fixed;
+      left: 50%;
+      bottom: 62px;
+      transform: translateX(-50%);
+      z-index: 91;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: min(72ch, calc(100vw - 32px));
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #dfe1e6;
+      background: #fff;
+      color: #1b1f24;
+      box-shadow: 0 8px 28px rgba(15, 23, 42, .18);
+      font: 500 12.5px/1.35 system-ui, -apple-system, sans-serif;
+      user-select: none;
+    }
+
+    /* `[hidden]` loses to any author `display`; the bar is hidden in every saved file. */
+    [data-notice][hidden] {
+      display: none;
+    }
+
+    [data-notice][data-tone="conflict"] {
+      border-color: #f3c98b;
+      background: #fffaf1;
+    }
+
+    [data-notice][data-tone="warn"] {
+      border-color: #f0b4a8;
+      background: #fff6f4;
+      color: #8a2c14;
+    }
+
+    .notice-text {
+      flex: 1 1 auto;
+    }
+
+    .notice-btn {
+      flex: 0 0 auto;
+      font: inherit;
+      font-size: 12px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: 99px;
+      border: 1px solid #dfe1e6;
+      background: #fff;
+      color: #1b1f24;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .notice-btn.primary {
+      background: #2f6fed;
+      border-color: #2f6fed;
+      color: #fff;
+    }
+
+    .notice-btn[hidden] {
+      display: none;
+    }
   </style>
 <!-- /@asset -->
 <!-- @asset id="toolbar-styles" kind="css" order="20" -->
@@ -868,6 +937,19 @@
       color: #8a929e;
       font-weight: 400;
       font-variant-numeric: tabular-nums;
+    }
+
+    /* `Saved 12:04` — the answer an autosave is allowed to give instead of a toast. Muted and
+       tabular, so a clock that ticks does not move the toolbar around. */
+    .saved {
+      color: #8a929e;
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .saved[hidden] {
+      display: none;
     }
 
     .dirty-dot {
@@ -2446,6 +2528,9 @@
         <span class="grow"></span>
 
         <span class="stats" data-stats>—</span>
+        <!-- The quiet half of "it saved". Autosave never toasts a success, so the fact lives
+             here, in place — `Saved 12:04`. Session state, emptied by `session.strip()`. -->
+        <span class="saved" data-saved hidden></span>
         <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
             <use href="#i-paneltop" />
           </svg></button>
@@ -2574,6 +2659,7 @@
            "survive minimal" is the whole requirement. -->
       <a class="library-link" data-library-link href="/" draggable="false" hidden>‹ Library</a>
       <span class="folio" data-folio>p. 1</span>
+      <span class="saved" data-saved hidden></span>
       <span class="stats" data-stats>—</span>
       <span class="grow"></span>
       <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false" aria-label="Document title">
@@ -3095,6 +3181,9 @@
       const restoreButton = bar.querySelector("[data-doc-restore]");
 
       const caps = settings.capabilities || {};
+      /* The boot snapshot is the fallback: `cloud` is read live because the settings sheet can
+         write it, and where this copy saves must not be a fact from page load. */
+      const live = () => registry.settings?.() || settings;
       /* Writing is a capability of the *file*; the mode decides whether the text is yours to
          change, and a review copy's text is not. */
       const canComment = () => caps.comments === "write" && settings.mode !== "view";
@@ -3170,23 +3259,50 @@
       }
 
       /**
-       * A copy's save is a download: a read-only document cannot write the file it came from.
+       * The bytes this copy would save. One builder, two sinks: `cloud` decides which, because
+       * that is the same rule the editor follows — a document that names a library writes back
+       * to it, and a document that names none downloads.
+       *
        * Same act as the editor's Save, minus the policy — the manifest already says what
        * travels. Both paths strip the same list (`session.js`), which is what keeps a file
        * identical whichever flavour saved it.
        */
-      function save() {
+      function bytes() {
         const clone = document.documentElement.cloneNode(true);
         session.strip(clone);
         figures?.prepareClone(clone);
+        return "<!doctype html>\n" + clone.outerHTML;
+      }
+
+      /** Autosave asks the chrome for bytes and gets the same builder Save uses — one answer to
+       *  "what would this document be", or the two drift the way they did before `session.js`. */
+      async function serialize() {
+        return {title: document.title, html: bytes()};
+      }
+
+      async function save() {
+        const html = bytes();
+        /* A review copy in a library writes back like any other document. The button says
+           "Save a copy", which was true when a copy could only download — and this is the
+           manifest's rule, not a new one: `cloud` changes what Save *is* without changing the
+           button. */
+        const writer = registry.can?.("sink") ? registry.use("sink") : null;
+        if (live().cloud && writer) {
+          /* The person pressed a button, so the wait is theirs to see. An autosave never says
+             this. */
+          registry.toast?.("Saving…");
+          const result = await writer.save(html, {title: document.title, checkpoint: true, manual: true});
+          return result?.ok ? null : result?.skipped || "failed";
+        }
 
         const name = (document.title || "document").trim().toLowerCase().replace(/[^\w.-]+/g, "-") || "document";
-        const href = URL.createObjectURL(new Blob(["<!doctype html>\n" + clone.outerHTML], {type: "text/html"}));
+        const href = URL.createObjectURL(new Blob([html], {type: "text/html"}));
         const link = document.createElement("a");
         link.href = href;
         link.download = `${name}.html`;
         link.click();
         setTimeout(() => URL.revokeObjectURL(href), 2000);
+        registry.toast?.("Saved");
         return link.download;
       }
 
@@ -3329,7 +3445,7 @@
       signals.on("layout", sync);
       sync();
 
-      return {save, sync, openPanel, openComments, setHidden, isHidden};
+      return {save, serialize, sync, openPanel, openComments, setHidden, isHidden};
     }
     StandaloneDoc.register("doc-bar", createDocBar);
   </script>
@@ -3688,6 +3804,19 @@
     <button type="button" class="toast-close" data-toast-close aria-label="Dismiss" hidden>&#215;</button>
   </div>
 
+  <!-- The notice bar: a decision, not a report. A conflict stays here until one of its two
+       buttons is pressed (autosave stops meanwhile), and a failed autosave turns it into
+       "Could not save · retrying in 30 s", which is information a toast cannot carry
+       because it would have to keep saying it.
+
+       Same layer as the toast, for the same reason: it has to exist in the ribbon, in the
+       minimal bar and in a viewer's bar, and `session.strip()` empties it on save. -->
+  <div class="notice" data-notice role="alert" hidden>
+    <span class="notice-text" data-notice-text></span>
+    <button type="button" class="notice-btn" data-notice-secondary hidden></button>
+    <button type="button" class="notice-btn primary" data-notice-primary hidden></button>
+  </div>
+
 
   <!-- Shared content signals -->
   <!-- The boot shell's markup. Inert until it is opened; defined before the
@@ -3728,7 +3857,7 @@
   </dialog>
 
 <script id="doc-settings" type="application/json">{"schema":1,"mode":"edit","ui":"ribbon","editable":true,"toolbar":true,"saveThresholdBytes":2097152,"timeoutMs":8000,"capabilities":{"comments":"write"}}</script>
-<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":16041,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/page-styles.css","integrity":"sha384-RxN5Vw5NpHhJQDjFB0p1lJJll8C1i18NYoCucVcjXyT85XpOOyZpuZOHoZQJoTz0"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":40293,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-styles.css","integrity":"sha384-4CyxLa1hkWV3jsL8aIpFl4EUqrfFY50JaahvfPB9nnQA/wywY7I6U7IO6E5W2lka"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":17193,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-markup.html","integrity":"sha384-RBXHiORQ8JUoajqD54J2k9Ef4IsDce9MEaZKMEzfNpxY/YeVODnjtlRvdsiEhkjp"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":10494,"fragments":["doc-bar-markup","doc-bar-styles"],"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar.js","integrity":"sha384-fwRJXVOclUH4Psu4CU/D5d5rFh0LLyFogMzTSJGoxJaT3Q+j9LYm0cpy9+9qPiH6"},{"id":"comment-styles","kind":"css","role":"module","order":26,"mode":"inline","requiredBy":["*"],"bytes":6176,"capability":"comments","label":"Comment styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comment-styles.css","integrity":"sha384-UFUmh4u1D9Gh08Vtq7TdtMZYzTG/Yb6zbKviVx3oDDHo9aI4Yn/CZLOpruMc/xMt"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":61002,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":24352,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3841,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/apply-settings.js","integrity":"sha384-HFxaNO0ZzZBt2+5gwVjUiNCpX4IZSZ1rF9n+iazxe0W/g/JGsov4AXAQflA3N9w4"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":6371,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/session.js","integrity":"sha384-TcpsJEfDMRPQ2sMgHTWfCHgOL7Ppx7pUHvxa+DyonEf9ajo3okIiVmJOqoYbyQdT"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":73654,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/pagination.js","integrity":"sha384-nWflWFs5MgaXBQcq+KQH6hEH8jPMvcI6mEbl8HRY8YkGVbOMi35GL0APjGEHHMui"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":4819,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/status.js","integrity":"sha384-deJoI+oozruxkdfuweFtpGSeaAHIEk4Z5NpqmFHwCoU/t8BuPSOaxQpkZj2v2/sW"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":74602,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/editor.js","integrity":"sha384-Of08MuaQ1M6lwkaA5PWJGpBA/D8cVxy23pdNhmnIkQta1Cm+tZhGRYHrUCKXxiKj"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":59350,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comments.js","integrity":"sha384-aetSyOwsa8A2yodHWg9BQ+IQpwokMpvKZCRZ76qSNnbOV3irF3oc1GPV0uMDF9+o"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":65453,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figures.js","integrity":"sha384-puhJL/IIuCiy0nVjFAtPuN26YYa3PYt2gtvjOHPvzvkI/um9UN2zy8faQA20mw7E"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":25965,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/policy.js","integrity":"sha384-sTx/KW3Hw3Esorz99Af2vDMnSKlkhPX3dlBaUf6obEsfiqnAf7uUxgjGjzTOpQEz"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":90261,"fragments":["toolbar-markup","sprite","figure-tools","dialogs"],"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar.js","integrity":"sha384-9hjq7OdM2ZOVV8a7cxLI5GowzsWbrri1Gz6Hs8XiIcHmihe2LUVzvTfpp+vOXOte"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":61111,"critical":false,"fragments":["dialogs"],"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/plugins.js","integrity":"sha384-x/pJgWLEGe7HfLNEsIVk44NdHOlfO52Yx0/dzQRfMUQf8/WcxVeSNRROXucOahxN"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":46210,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/export.js","integrity":"sha384-DmrHzC/BJW7KYW4ShJPKqLYHsM3PmkNOVogxmSekRGnbJjfu/yY/LC5nh7hy/Hwq"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":16348,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/dialogs.html","integrity":"sha384-b3ZbTjIyaSViXKgXB32oDqLtBR4Qb3LYyt+Hqn6HDYVjuZpmkKEvW1o/AdNEEKcW"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json","pluginIndex":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/plugins/index.json"}</script>
+<script id="asset-manifest" type="application/json">{"schema":1,"cdnBase":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn","assets":[{"id":"page-styles","kind":"css","role":"module","order":10,"mode":"inline","requiredBy":["*"],"bytes":17582,"label":"Page styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/page-styles.css","integrity":"sha384-xELoTdsJEnRc94khzXFvrRTOaWJUirXEN3UZSDVX+/RdNNctXkYQjBLv1P2YOpFA"},{"id":"toolbar-styles","kind":"css","role":"module","order":20,"mode":"inline","requiredBy":["edit"],"bytes":40605,"label":"Toolbar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-styles.css","integrity":"sha384-pWbfcpPABjqocJaJdC9kuu+bme6Gi1yfpf4Y3irjTl5O41YGJmu0d3UhkY0XeQ57"},{"id":"boot-ui-styles","kind":"css","role":"infra","order":25,"mode":"inline","requiredBy":["*"],"bytes":6279,"label":"Boot styles"},{"id":"sprite","kind":"html","role":"module","order":11,"mode":"inline","requiredBy":["edit"],"bytes":5260,"label":"Icons","open":"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/sprite.html","integrity":"sha384-XCmIsZNTBnW63n4hiF3zpLGxLYV2BVUvGur1OoWu9spkf9JYEwkNB9fywCkAHVM5"},{"id":"toolbar-markup","kind":"html","role":"module","order":12,"mode":"inline","requiredBy":["edit"],"bytes":17473,"label":"Toolbar","open":"<header id=\"app-toolbar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar-markup.html","integrity":"sha384-hOkQsLj6OiI7sAjUT66/bGNLAT+9kKwS6EMWP6e4S8YfoJ+OSxdSb7PovSwZuUcg"},{"id":"doc-bar-markup","kind":"html","role":"module","order":15,"mode":"online","requiredBy":["view","comment"],"bytes":2225,"label":"Document bar","open":"<header id=\"doc-bar\" data-chrome contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-markup.html","integrity":"sha384-Th478i3L16/uh0zxZxu7qn9SFB2F6p1kQLaL8TIG+IgiKDNK/ohAyWDwMQpZJAJe"},{"id":"doc-bar-styles","kind":"css","role":"module","order":21,"mode":"online","requiredBy":["view","comment"],"bytes":7495,"label":"Document bar styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar-styles.css","integrity":"sha384-ShaZCwYf3Dgsy9BF4Z/+CpGz2vnm6+k9f0RjsBjc7V+bZ0hy8LEVDM6l8ydkR4Rj"},{"id":"doc-bar","kind":"js","role":"module","order":92,"mode":"online","requiredBy":["view","comment"],"bytes":11978,"fragments":["doc-bar-markup","doc-bar-styles"],"label":"Document bar binding","deps":["pagination","zoom","figures","signals","session"],"optional":["comments"],"factory":"createDocBar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/doc-bar.js","integrity":"sha384-OJww1PdK+aDZk93WXcIos+jzm/FhFX63FzouXrahXUb3IxnPQeE+M25HLeNot5pr"},{"id":"comment-styles","kind":"css","role":"module","order":26,"mode":"inline","requiredBy":["*"],"bytes":6176,"capability":"comments","label":"Comment styles","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comment-styles.css","integrity":"sha384-UFUmh4u1D9Gh08Vtq7TdtMZYzTG/Yb6zbKviVx3oDDHo9aI4Yn/CZLOpruMc/xMt"},{"id":"figure-tools","kind":"html","role":"module","order":13,"mode":"inline","requiredBy":["edit"],"bytes":780,"label":"Figure tools","open":"<div id=\"figure-tools\" data-chrome hidden contenteditable=\"false\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figure-tools.html","integrity":"sha384-xXH43LRhsiCM68qNAOv+bvJnHC0+CCvZwJ58SG+edmAqCCP77AFRN3vuphIuaHs7"},{"id":"registry","kind":"js","role":"infra","order":5,"mode":"inline","requiredBy":["*"],"bytes":62315,"label":"Loader"},{"id":"boot-ui","kind":"js","role":"infra","order":6,"mode":"inline","requiredBy":["*"],"bytes":24352,"label":"Boot dialog"},{"id":"apply-settings","kind":"js","role":"module","order":7,"mode":"inline","requiredBy":["*"],"bytes":3841,"label":"Settings","factory":"createApplySettings","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/apply-settings.js","integrity":"sha384-HFxaNO0ZzZBt2+5gwVjUiNCpX4IZSZ1rF9n+iazxe0W/g/JGsov4AXAQflA3N9w4"},{"id":"session","kind":"js","role":"module","order":8,"mode":"inline","requiredBy":["*"],"bytes":7095,"label":"Session state","factory":"createSession","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/session.js","integrity":"sha384-5ejiMB/iD1PYLfPHfNJcXDb2Avai6peNIVyPeSCmF1d9pkAwznZ7x8GUDy141JDG"},{"id":"signals","kind":"js","role":"module","order":30,"mode":"inline","requiredBy":["*"],"bytes":1435,"label":"Signals","factory":"createSignals","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/signals.js","integrity":"sha384-JJ/AM5Sltbc1jUnpK2lZ2jS3VbnfJJKeql/FfLYhn239Lr6jO7cpxBeSAR/3cLdA"},{"id":"zoom","kind":"js","role":"module","order":40,"mode":"inline","requiredBy":["*"],"bytes":4584,"label":"Zoom","factory":"createZoom","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/zoom.js","integrity":"sha384-Xji33x9qTPR4PMg4fp+iNoHh+tFF9ZIZg6RPG4PpkSEXKlUiEto/J4jGee4NSUy4"},{"id":"selection","kind":"js","role":"module","order":44,"mode":"inline","requiredBy":["*"],"bytes":7156,"label":"Selection","factory":"createSelection","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/selection.js","integrity":"sha384-3j1klMzR5FwiEDhlPnG/uiaX0SxEVNkSyZNjKZea4lDKgQj6qa3kVH6fc00XZfww"},{"id":"layout","kind":"js","role":"module","order":46,"mode":"inline","requiredBy":["*"],"bytes":3906,"label":"Layout geometry","deps":["zoom"],"factory":"createLayout","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/layout.js","integrity":"sha384-587h53rKX3c10za2GUrShsX9T81qdlbQKefm4ccHQcEGLj0oaFFXXLSA48sTgXjL"},{"id":"pagination","kind":"js","role":"module","order":50,"mode":"inline","requiredBy":["*"],"bytes":73654,"label":"Pagination","deps":["signals","zoom","layout","selection"],"factory":"createPagination","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/pagination.js","integrity":"sha384-nWflWFs5MgaXBQcq+KQH6hEH8jPMvcI6mEbl8HRY8YkGVbOMi35GL0APjGEHHMui"},{"id":"progress","kind":"js","role":"module","order":45,"mode":"inline","requiredBy":["edit"],"bytes":1660,"label":"Progress dialog","factory":"createProgress","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/progress.js","integrity":"sha384-wygdbMeT8kQwdc1v2VFko9lq73VK2wIjnXHntnJjbftcGfBJOg97ATijHP6fxgOI"},{"id":"status","kind":"js","role":"module","order":60,"mode":"inline","requiredBy":["edit"],"bytes":5865,"label":"Status line","deps":["signals","pagination"],"factory":"createStatus","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/status.js","integrity":"sha384-mpBMyxzkqNmIgtNGE1hqq1mtyo4ReAOPmuCBXKZt/Z8vMjvtiU3E/2PnD3N4wEc1"},{"id":"editor","kind":"js","role":"module","order":70,"mode":"inline","requiredBy":["edit"],"bytes":74602,"label":"Editor","deps":["signals","status","pagination","selection"],"late":["figures"],"factory":"createEditor","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/editor.js","integrity":"sha384-Of08MuaQ1M6lwkaA5PWJGpBA/D8cVxy23pdNhmnIkQta1Cm+tZhGRYHrUCKXxiKj"},{"id":"comments","kind":"js","role":"module","order":76,"mode":"inline","requiredBy":["*"],"bytes":59350,"capability":"comments","label":"Comments","deps":["signals","pagination","layout","selection"],"optional":["status"],"factory":"createComments","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/comments.js","integrity":"sha384-aetSyOwsa8A2yodHWg9BQ+IQpwokMpvKZCRZ76qSNnbOV3irF3oc1GPV0uMDF9+o"},{"id":"figures","kind":"js","role":"module","order":80,"mode":"inline","requiredBy":["*"],"bytes":65453,"label":"Figures","deps":["signals","pagination"],"optional":["status","editor"],"factory":"createFigures","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/figures.js","integrity":"sha384-puhJL/IIuCiy0nVjFAtPuN26YYa3PYt2gtvjOHPvzvkI/um9UN2zy8faQA20mw7E"},{"id":"policy","kind":"js","role":"module","order":85,"mode":"inline","requiredBy":["edit"],"bytes":25965,"label":"Save policy","deps":["figures"],"factory":"createPolicy","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/policy.js","integrity":"sha384-sTx/KW3Hw3Esorz99Af2vDMnSKlkhPX3dlBaUf6obEsfiqnAf7uUxgjGjzTOpQEz"},{"id":"autosave","kind":"js","role":"module","order":88,"mode":"inline","requiredBy":["edit","comment"],"bytes":21797,"label":"Autosave","deps":["signals"],"optional":["status","toolbar","doc-bar"],"factory":"createAutosave","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/autosave.js","integrity":"sha384-Ozc7Nsfh0rzKEFySOrkJAQJnPKqIcBZ+JPBfBqrnMEQ79EHZU5PQEl/jlcw30rsV"},{"id":"toolbar","kind":"js","role":"module","order":90,"mode":"inline","requiredBy":["edit"],"bytes":93376,"fragments":["toolbar-markup","sprite","figure-tools","dialogs"],"label":"Toolbar binding","deps":["zoom","editor","figures","status","policy","session"],"late":["export"],"optional":["comments","plugins"],"factory":"createToolbar","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/toolbar.js","integrity":"sha384-YsREFzOEgdM1yFjjf3HrfVFYAbCiu8PiaK6iyS+uT9yyenKXD0uIOvpn+m9Y/uQz"},{"id":"plugins","kind":"js","role":"module","order":95,"mode":"inline","requiredBy":["edit"],"bytes":61111,"critical":false,"fragments":["dialogs"],"label":"Plugins","deps":["signals","figures","status"],"factory":"createPlugins","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/plugins.js","integrity":"sha384-x/pJgWLEGe7HfLNEsIVk44NdHOlfO52Yx0/dzQRfMUQf8/WcxVeSNRROXucOahxN"},{"id":"export","kind":"js","role":"module","order":100,"mode":"inline","requiredBy":["edit"],"bytes":46210,"label":"Export","deps":["figures","toolbar","progress"],"factory":"createExport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/export.js","integrity":"sha384-DmrHzC/BJW7KYW4ShJPKqLYHsM3PmkNOVogxmSekRGnbJjfu/yY/LC5nh7hy/Hwq"},{"id":"dialogs","kind":"html","role":"module","order":14,"mode":"inline","requiredBy":["edit"],"bytes":16984,"label":"Dialogs","open":"<div id=\"dialogs\">","insert":"before:#viewport","url":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@v0.13.1/dist/cdn/dialogs.html","integrity":"sha384-ASJe8KVVO7ahqHMEq2XWQFsGjFFKbt6x5ei+h08vNWEXAQwxZfiTFlCfgbykC7t7"},{"id":"bootstrap","kind":"js","role":"infra","order":120,"mode":"inline","requiredBy":["*"],"bytes":283,"label":"Bootstrap"}],"catalog":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/runtime.json","pluginIndex":"https://cdn.jsdelivr.net/gh/nakrasian/standalone-doc@main/dist/plugins/index.json"}</script>
 <!-- @asset id="registry" kind="js" order="5" -->
   <script id="registry">
     /* The container: the only global. Assets register their factory (inline) or are
@@ -3878,6 +4007,28 @@
         return {inline: inline === "allow" || inline === "never" ? inline : "ask"};
       }
 
+      /* How a document saves itself without being asked.
+       *
+       * `off` is the default and the answer for every file written before the field existed —
+       * a document that downloads saves when it is told to. The two modes differ in what they
+       * answer: `idle` is what people mean by autosave (two seconds after typing stops), and
+       * `interval` is for a document somebody is reading and commenting on rather than writing.
+       *
+       * Normalised here for the same reason `updates` is: one shape for every consumer, and an
+       * unrecognised mode is `off` — a typo must not start writing to somebody's library.
+       */
+      const AUTOSAVE_MODES = ["off", "idle", "interval"];
+      function autosaveOf(value) {
+        const authored = value && typeof value === "object" ? value : {};
+        const mode = AUTOSAVE_MODES.includes(authored.mode) ? authored.mode : "off";
+        const ms = (candidate, fallback) => (Number(candidate) > 0 ? Number(candidate) : fallback);
+        return {
+          mode,
+          idleMs: ms(authored.idleMs, 2000),
+          intervalMs: ms(authored.intervalMs, 60000),
+        };
+      }
+
       /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
          read as a fallback for documents saved before the block existed (one release
          of compatibility, not a permanent second source of truth). */
@@ -3926,6 +4077,9 @@
           /* `{inline: "ask" | "allow" | "never"}` — normalised on read, so every consumer
              has one shape to switch on and an absent field is not a third case. */
           updates: updatesOf(authored && authored.updates),
+          /* `{mode, idleMs, intervalMs}` — normalised, with `off` as the default for every
+             document that never authored it. Cloud-only is enforced where it is used. */
+          autosave: autosaveOf(authored && authored.autosave),
         };
         return settingsParsed;
       }
@@ -5869,6 +6023,17 @@
           node.textContent = "";
           node.setAttribute("hidden", "");
         });
+        /* The notice bar is a decision *this session* is in the middle of — a conflict, a retry
+           countdown. The element travels with the document; the state does not. */
+        clone.querySelectorAll("[data-notice]").forEach((node) => {
+          node.hidden = true;
+          node.removeAttribute("data-tone");
+          node.querySelectorAll("[data-notice-text]").forEach((text) => {text.textContent = "";});
+          node.querySelectorAll("[data-notice-primary], [data-notice-secondary]").forEach((button) => {
+            button.setAttribute("hidden", "");
+            button.textContent = "";
+          });
+        });
 
         return clone;
       }
@@ -5890,6 +6055,7 @@
         if (doc.querySelector("[data-menu-panel]:not([hidden])")) found.push("a menu panel was saved open");
         if ([...doc.querySelectorAll("[data-dirty]")].some((node) => !node.hidden)) found.push("the dirty dot was saved visible");
         if ([...doc.querySelectorAll("[data-toast]")].some((node) => !node.hidden)) found.push("a toast was saved visible");
+        if ([...doc.querySelectorAll("[data-notice]")].some((node) => !node.hidden)) found.push("the notice bar was saved visible");
         return found;
       }
 
@@ -8138,6 +8304,7 @@
       let baseline = contentHtml();
       let forced = false;
       let lastSavedBytes = null;
+      let savedAt = null;
       let timer = null;
 
       function contentHtml() {
@@ -8194,6 +8361,13 @@
         document.querySelectorAll("[data-dirty]").forEach((el) => {
           el.hidden = !dirty;
         });
+        /* The quiet half of "it saved". An autosave must say nothing out loud — a toast every
+           thirty seconds trains people to ignore toasts — so the ribbon carries the fact
+           instead, and it updates in place. */
+        document.querySelectorAll("[data-saved]").forEach((el) => {
+          el.hidden = !savedAt;
+          el.textContent = savedAt ? `Saved ${savedAt}` : "";
+        });
       }
 
       function schedule() {
@@ -8201,11 +8375,31 @@
         timer = setTimeout(refresh, 120);
       }
 
+      /** `12:04`, in the reader's own locale. The date is not the interesting part of "saved". */
+      function clock() {
+        try {
+          return new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+        } catch {
+          return "";
+        }
+      }
+
       function save(bytes = null) {
         baseline = contentHtml();
         forced = false;
         lastSavedBytes = Number.isFinite(bytes) ? bytes : null;
+        savedAt = clock();
         refresh();
+      }
+
+      /**
+       * Has anything changed since the last save?
+       *
+       * The same comparison the dot makes, exposed so a caller that writes without being asked
+       * can ask the question the person would. Autosave uses it to avoid a save per timer tick.
+       */
+      function dirty() {
+        return forced || contentHtml() !== baseline;
       }
 
       function markDirty() {
@@ -8222,6 +8416,7 @@
         baseline = contentHtml();
         forced = false;
         lastSavedBytes = null;
+        savedAt = null;
         refresh();
       }
 
@@ -8240,10 +8435,10 @@
          size readout keep telling the truth. */
       const registry = env && env.StandaloneDoc;
       if (registry && typeof registry.provide === "function") {
-        registry.provide("status", {refresh, markDirty});
+        registry.provide("status", {refresh, markDirty, save, dirty});
       }
 
-      return {refresh, save, markDirty, rebase, setStoreEstimator};
+      return {refresh, save, markDirty, rebase, setStoreEstimator, dirty};
     }
     StandaloneDoc.register("status", createStatus);
   </script>
@@ -13986,6 +14181,555 @@
   </script>
 <!-- /@asset -->
 
+<!-- @asset id="autosave" kind="js" order="88" -->
+  <script type="module" id="autosave">
+    /*@compiled-from src/autosave.js — envelope is build-owned; edit the body or src/*/
+    /**
+     * Autosave, and the two bars that are decisions rather than reports.
+     *
+     * The library is a sink, and a sink that only writes when somebody presses a key is a
+     * document that loses the last paragraph of every session. This module is the only thing
+     * that writes without being asked, so everything about it is a rule about *when not to*:
+     *
+     *   - **cloud only** — no `cloud` record means no sink, whatever the field says;
+     *   - **never** while a manual save is in flight, while `navigator.onLine` is false, after a
+     *     failed boot, or while the conflict bar is up. A 409 must stop the timer: a retry loop
+     *     against a conflict is a way to lose the other tab's work one keystroke at a time;
+     *   - **silent when nothing changed** — `primed` is the last bytes the library confirmed,
+     *     so an idle tick that fires after another tab saved is not a save at all.
+     *
+     * Two surfaces, and the difference is the whole of `docs/AUTOSAVE.md` §1b:
+     *
+     *   - a **successful autosave says nothing out loud**. The ribbon carries `Saved 12:04`
+     *     instead, because a toast every thirty seconds trains people to ignore toasts;
+     *   - **any failure speaks once**, then a bar says `Could not save · retrying in 30 s` and
+     *     backs off. A toast per attempt is how a working document gets closed by accident;
+     *   - a **conflict is a bar**, not a toast: it is a decision, and it stays up until it is made.
+     *
+     * Snapshots (`docs/AUTOSAVE.md` §3): a manual save always checkpoints, an autosave never
+     * (`?checkpoint=0`), leaving does, and every fifteen minutes of continuous autosaving does.
+     * The library keeps ten, so the ten kept versions should be milestones — not keystrokes.
+     */
+
+    export function createAutosave(deps = {}) {
+      const {signals, env} = deps;
+      const {document} = env;
+      const registry = () => env.StandaloneDoc;
+      const status = () => deps.optional("status")();
+      /* The chrome, not a dependency: this module is built *before* the bar it asks for bytes,
+         and a document re-pinned across releases may carry only one of the two. A getter that
+         returns undefined is the honest shape for both facts. */
+      const getToolbar = deps.optional("toolbar");
+      const getDocBar = deps.optional("doc-bar");
+
+      const DEFAULT_IDLE_MS = 2000;
+      const DEFAULT_INTERVAL_MS = 60_000;
+      /* Every fifteen minutes of continuous autosaving is the floor under a long session. */
+      const CHECKPOINT_EVERY_MS = 15 * 60 * 1000;
+      /* 30 s → 1 min → 2 min, capped. Long enough that a flaky network is not a metronome. */
+      const RETRY_STEPS_MS = [30_000, 60_000, 120_000];
+      /* A tab hidden for longer than this counts as leaving, and gets a checkpoint on return. */
+      const HIDDEN_CHECKPOINT_MS = 5 * 60 * 1000;
+
+      /** How this document wants to be saved. Read live: the sheet writes it. */
+      function config() {
+        const authored = registry()?.settings?.()?.autosave || {};
+        const mode = ["off", "idle", "interval"].includes(authored.mode) ? authored.mode : "off";
+        return {
+          mode,
+          idleMs: Number(authored.idleMs) > 0 ? Number(authored.idleMs) : DEFAULT_IDLE_MS,
+          intervalMs: Number(authored.intervalMs) > 0 ? Number(authored.intervalMs) : DEFAULT_INTERVAL_MS,
+        };
+      }
+
+      const cloud = () => registry()?.settings?.()?.cloud || null;
+      const noticeEl = () => document.querySelector("[data-notice]");
+
+      /**
+       * The chrome that builds this document's bytes.
+       *
+       * Resolved per call, not once: `adopt()` can change the mode under a running document, and
+       * the answer is different either side of that line. The editor applies a save policy; a
+       * review copy strips the same session list and keeps the manifest it already has. One
+       * sink, two builders — which is the whole reason this module does not own `serialize`.
+       */
+      function producer() {
+        const mode = registry()?.settings?.()?.mode || "edit";
+        const api = mode === "edit" ? getToolbar() : getDocBar();
+        return api && typeof api.serialize === "function" ? api : null;
+      }
+
+      /** `{title, html}`, or null when nothing can build it (a viewer, a hand-stripped copy). */
+      async function bytes(options = {}) {
+        const api = producer();
+        if (!api) return null;
+        try {
+          return await api.serialize(options);
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      }
+      /* The last bytes the library confirmed. `null` until we have read the stored version and
+         built once, which is what makes "nothing changed → no save" a comparison rather than a
+         guess. */
+      let primed = null;
+      /* The document's `updatedAt`, from `GET /api/docs/<id>` or the `ETag` of the last write.
+         Null means "unknown", and unknown means autosave stays off: an `If-Match` we cannot name
+         is not a check. A manual save still works — the library treats an absent header as an
+         older client, which is exactly the behaviour every document had before this release. */
+      let version = null;
+      let idleTimer = null;
+      let intervalTimer = null;
+      let retryTimer = null;
+      let retryStep = 0;
+      let inFlight = false;
+      let manualInFlight = false;
+      let conflict = null;
+      let failure = null;
+      let lastCheckpointAt = 0;
+      let hiddenAt = 0;
+      let leaving = null;
+      let started = false;
+
+      function clearTimers() {
+        clearTimeout(idleTimer);
+        clearTimeout(retryTimer);
+        clearInterval(intervalTimer);
+        idleTimer = null;
+        retryTimer = null;
+        intervalTimer = null;
+      }
+
+      /**
+       * May autosave write right now?
+       *
+       * Every clause is a way this loses work if it is missing: no sink, a boot that did not
+       * finish (the document is not the document yet), offline (the write will fail and the
+       * retry bar would be a lie), a conflict (a decision is pending, and more writes cannot
+       * make it), an unknown version (no `If-Match`, so no conflict detection).
+       */
+      function allowed() {
+        if (!producer()) return false;
+        if (config().mode === "off") return false;
+        if (!cloud()) return false;
+        if (registry()?.state !== "ready") return false;
+        if (conflict) return false;
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+        return true;
+      }
+
+      /* --------------------------------------------------------------- the sink */
+
+      /** The JSON door, with the same trap named: a login page is not an answer. */
+      async function readJSON(response) {
+        const type = response.headers.get("content-type") || "";
+        if (!type.includes("application/json")) {
+          throw new Error(
+            response.redirected || type.includes("text/html")
+              ? "signed out — reopen this document to sign in (the library answered with a page, not data)"
+              : `unexpected response (${response.status})`,
+          );
+        }
+        return response.json().catch(() => ({}));
+      }
+
+      const stripQuotes = (tag) => String(tag || "").replace(/^W\//, "").replace(/^"|"$/g, "");
+
+      /** The version this document last saw, so a save can quote it in `If-Match`. */
+      async function readVersion() {
+        const target = cloud();
+        if (!target) return null;
+        try {
+          const response = await fetch(`${target.api}/${target.id}`, {
+            credentials: "same-origin",
+            headers: {accept: "application/json"},
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const body = await readJSON(response);
+          version = stripQuotes(response.headers.get("etag")) || body.updatedAt || null;
+        } catch {
+          /* Not a document failure: the document opens, saves manually, and simply does not
+             autosave. Saying so at open would be noise about a feature nobody asked for. */
+          version = null;
+        }
+        return version;
+      }
+
+      /**
+       * Write the bytes. Returns the library's answer; throws with `.conflict` on a 409.
+       *
+       * `checkpoint` is the caller's: a person's ⌘S and the end of a session are milestones, a
+       * keystroke is not. `ifMatch: false` is "keep mine" and only the conflict bar may use it —
+       * the library accepts it and snapshots the other version first, so the decision is
+       * recoverable from History rather than merely decisive.
+       */
+      async function put(html, {title, checkpoint = true, ifMatch = true, keepalive = false} = {}) {
+        const target = cloud();
+        if (!target) throw new Error("this document names no library");
+        const url = `${target.api}/${target.id}${checkpoint ? "" : "?checkpoint=0"}`;
+        const headers = {"content-type": "text/html; charset=utf-8", "x-doc-title": title || document.title};
+        if (ifMatch && version) headers["if-match"] = version;
+        const response = await fetch(url, {
+          method: "PUT",
+          credentials: "same-origin",
+          headers,
+          body: html,
+          keepalive,
+        });
+        const body = await readJSON(response);
+        if (response.status === 409 && body.code === "conflict") {
+          const error = new Error(body.error || "this document changed elsewhere since you opened it");
+          error.conflict = body.current || {};
+          throw error;
+        }
+        if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+        /* The write moved the version, so the next save quotes this one. Reading it from the
+           header (rather than from the clock) is what keeps a save made from another tab from
+           looking like a conflict. */
+        version = stripQuotes(response.headers.get("etag")) || body.savedAt || version;
+        primed = html;
+        return body;
+      }
+
+      /* ------------------------------------------------------------ the surfaces */
+
+      /** One bar, two kinds of decision: a conflict, or a failure that is retrying. */
+      function paintNotice({tone, text, primary, secondary}) {
+        const el = noticeEl();
+        if (!el) return;
+        el.dataset.tone = tone;
+        el.querySelector("[data-notice-text]").textContent = text;
+        for (const [tag, button] of [["[data-notice-primary]", primary], ["[data-notice-secondary]", secondary]]) {
+          const node = el.querySelector(tag);
+          if (!node) continue;
+          node.hidden = !button;
+          node.textContent = button ? button.label : "";
+          node.onclick = button ? button.run : null;
+        }
+        el.hidden = false;
+      }
+
+      function hideNotice() {
+        const el = noticeEl();
+        if (!el) return;
+        el.hidden = true;
+        el.removeAttribute("data-tone");
+        for (const tag of ["[data-notice-primary]", "[data-notice-secondary]"]) {
+          const node = el.querySelector(tag);
+          if (!node) continue;
+          node.hidden = true;
+          node.onclick = null;
+        }
+      }
+
+      const clockOf = (iso) => {
+        const when = iso ? new Date(iso) : new Date();
+        if (Number.isNaN(when.getTime())) return "";
+        try {
+          return when.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+        } catch {
+          return "";
+        }
+      };
+
+      function showConflict(current) {
+        conflict = {current: current || {}};
+        clearTimers();
+        const at = clockOf(conflict.current.savedAt || conflict.current.updatedAt);
+        paintNotice({
+          tone: "conflict",
+          text: `This document was saved elsewhere${at ? ` — ${at}` : ""}. Your unsaved changes are still here.`,
+          secondary: {label: "Reload theirs", run: reloadTheirs},
+          primary: {label: "Keep mine", run: keepMine},
+        });
+      }
+
+      /** The retry bar. The countdown is the point: silence with a spinner is not information. */
+      function showRetry() {
+        if (conflict) return;
+        const seconds = Math.round(RETRY_STEPS_MS[Math.min(retryStep, RETRY_STEPS_MS.length - 1)] / 1000);
+        paintNotice({
+          tone: "warn",
+          text: `Could not save · retrying in ${seconds} s`,
+          primary: {label: "Retry now", run: retryNow},
+        });
+      }
+
+      function scheduleRetry() {
+        clearTimeout(retryTimer);
+        const wait = RETRY_STEPS_MS[Math.min(retryStep, RETRY_STEPS_MS.length - 1)];
+        retryStep += 1;
+        showRetry();
+        retryTimer = setTimeout(() => tick({checkpoint: false}), wait);
+      }
+
+      function retryNow() {
+        retryStep = 0;
+        clearTimeout(retryTimer);
+        tick({checkpoint: false});
+      }
+
+      /* --------------------------------------------------------------- the rules */
+
+      function failed(error) {
+        const first = failure === null;
+        failure = (error && error.message) || String(error);
+        /* Once. A failed autosave is the one case where silence costs work, and a toast per
+           attempt is how a working document gets closed by accident. */
+        if (first) registry()?.toast?.(`Could not save — ${failure}`, "error");
+        scheduleRetry();
+      }
+
+      /**
+       * One autosave attempt: build the bytes, compare them with what the library confirmed,
+       * write only if they differ.
+       */
+      async function tick({checkpoint = false} = {}) {
+        if (!allowed() || inFlight || manualInFlight) return;
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+        let built;
+        try {
+          built = await bytes({});
+        } catch (error) {
+          failed(error);
+          return;
+        }
+        if (!built || built.html === primed) return;
+        const due = checkpoint || Date.now() - lastCheckpointAt >= CHECKPOINT_EVERY_MS;
+        await save(built.html, {title: built.title, checkpoint: due, manual: false});
+      }
+
+      /**
+       * The one write path, manual or automatic. Returns what happened, so a caller with a
+       * button can say something and a timer can say nothing.
+       */
+      async function save(html, {title, checkpoint = true, manual = false, ifMatch = true} = {}) {
+        const target = cloud();
+        if (!target) return {ok: false, skipped: "no-library"};
+        if (inFlight) return {ok: false, skipped: "busy"};
+        inFlight = true;
+        if (manual) manualInFlight = true;
+        clearTimers();
+        try {
+          const body = await put(html, {title, checkpoint, ifMatch});
+          if (checkpoint) lastCheckpointAt = Date.now();
+          retryStep = 0;
+          failure = null;
+          conflict = null;
+          /* A save that works clears its own retry bar. A conflict is never cleared by a save:
+             only the person decides that, and the bar is where they do it. */
+          hideNotice();
+          /* The quiet half: `Saved 12:04`, in place. A successful autosave says nothing else. */
+          status()?.save?.(html.length);
+          if (manual) registry()?.toast?.("Saved to the library");
+          return {ok: true, body};
+        } catch (error) {
+          if (error.conflict) {
+            /* Stop the timer, keep the bar. Nothing moves until the person presses one of them. */
+            showConflict(error.conflict);
+            return {ok: false, conflict: error.conflict};
+          }
+          if (manual) registry()?.toast?.(error.message, "error");
+          else failed(error);
+          return {ok: false, error};
+        } finally {
+          inFlight = false;
+          manualInFlight = false;
+          if (!conflict) schedule();
+        }
+      }
+
+      /* -------------------------------------------------------- the two decisions */
+
+      /**
+       * "Reload theirs" — discard what is in memory and load the current version.
+       *
+       * The only destructive button, so it is the secondary one and it asks once. A native
+       * `confirm()` is the right weight here: it is a modal question about lost work, it has no
+       * styling to get wrong, and it cannot be dismissed by clicking the page behind it.
+       */
+      function reloadTheirs() {
+        if (typeof env.confirm === "function" && !env.confirm("Discard your unsaved changes?")) return;
+        env.location.reload();
+      }
+
+      /**
+       * "Keep mine" — a `PUT` **without** `If-Match`.
+       *
+       * The library accepts that and snapshots the version it replaces, so their work becomes a
+       * History entry rather than a casualty. The version is re-read first: it may have moved
+       * again while the bar was up, and overwriting something three saves newer is not the
+       * decision the person made.
+       */
+      async function keepMine() {
+        const quoted = conflict?.current?.updatedAt || null;
+        await readVersion();
+        if (quoted && version && version !== quoted) {
+          showConflict({updatedAt: version, savedAt: ""});
+          return;
+        }
+        conflict = null;
+        hideNotice();
+        let built;
+        try {
+          built = await bytes({});
+        } catch (error) {
+          failed(error);
+          return;
+        }
+        if (!built) return;
+        await save(built.html, {title: built.title, checkpoint: true, manual: true, ifMatch: false});
+      }
+
+      /* ------------------------------------------------------------- the session */
+
+      /**
+       * Leaving the document. `keepalive` is best-effort by design: the budget is tens of
+       * kilobytes and a document is hundreds, so this is the one save allowed to fail without
+       * saying anything. Saving *correctness* never depends on it.
+       */
+      async function leave({keepalive = false} = {}) {
+        if (!allowed() || inFlight || leaving) return;
+        leaving = (async () => {
+          try {
+            const built = await bytes({});
+            /* Nothing changed → no snapshot. Without this, a tab hidden for five minutes would
+               fill History with identical versions. */
+            if (!built || built.html === primed) return;
+            await put(built.html, {title: built.title, checkpoint: true, keepalive});
+            lastCheckpointAt = Date.now();
+            status()?.save?.(built.html.length);
+          } catch {
+            /* Best-effort, and never a message: the tab is going away. */
+          } finally {
+            leaving = null;
+          }
+        })();
+        return leaving;
+      }
+
+      /** Arm or disarm the clock. Idle mode is armed by an edit, not by this. */
+      function schedule() {
+        clearInterval(intervalTimer);
+        intervalTimer = null;
+        if (!allowed() || failure) return;
+        if (config().mode !== "interval") return;
+        intervalTimer = setInterval(() => tick({checkpoint: false}), config().intervalMs);
+      }
+
+      /**
+       * Something may have changed: arm the clock this document asked for.
+       *
+       * This is also how a mode chosen *after* boot takes effect — the sheet writes the field,
+       * the next edit reaches here, and the right timer starts. No forward call from the settings
+       * sheet, and nothing to keep in sync.
+       */
+      function nudge() {
+        if (!started || !allowed() || manualInFlight) return;
+        const {mode, idleMs} = config();
+        if (mode === "idle") {
+          clearTimeout(idleTimer);
+          idleTimer = setTimeout(() => tick({checkpoint: false}), idleMs);
+          return;
+        }
+        /* `interval` is armed by the clock, not by a keystroke — but a document someone just
+           switched into interval mode has no clock running yet. */
+        if (mode === "interval" && !intervalTimer) schedule();
+      }
+
+      signals.on("edit", nudge);
+      /* Comments and figures change the document without an `input` event, and a reviewer
+         writing a note is exactly the person `interval` mode exists for. Same debounce, same
+         comparison — a mutation that changes nothing costs one serialize and no request. */
+      signals.on("mutation", nudge);
+
+      if (typeof env.addEventListener === "function") {
+        env.addEventListener("pagehide", () => { leave({keepalive: true}); });
+        env.addEventListener("online", () => {
+          /* The wait was the whole point: nothing was attempted while offline, so nothing has
+             to be undone — the pending change just goes now. */
+          if (failure) retryNow();
+          else schedule();
+        });
+        env.addEventListener("offline", () => { clearTimers(); });
+      }
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          hiddenAt = Date.now();
+          /* A tab that is being closed fires `pagehide`; one that is merely hidden does not, and
+             we cannot know for how long. So the "hidden for more than five minutes" checkpoint
+             happens on return — the session boundary is the fact, and it is still true then. */
+          return;
+        }
+        if (!hiddenAt) return;
+        const away = Date.now() - hiddenAt;
+        hiddenAt = 0;
+        if (away >= HIDDEN_CHECKPOINT_MS) tick({checkpoint: true});
+      });
+
+      /**
+       * The chrome hands over the two things only it knows: how to build this document's bytes,
+       * and whether the person has changed anything. Called once, at construction.
+       */
+      async function start() {
+        started = true;
+        if (!allowed()) return;
+        /* One serialize at boot, and only for a document that will autosave: it is the price of
+           "nothing changed → no save" being a fact rather than a guess. */
+        if (version === null && cloud()) await readVersion();
+        try {
+          primed = (await bytes({}))?.html ?? null;
+        } catch {
+          primed = null;
+        }
+        lastCheckpointAt = Date.now();
+        schedule();
+      }
+
+      /**
+       * Re-read the settings. Called when the sheet has written them, so a mode chosen on a
+       * running document starts (or stops) now rather than at the next keystroke.
+       */
+      function refresh() {
+        started = true;
+        if (!allowed()) {
+          clearTimers();
+          return;
+        }
+        if (primed === null) start();
+        else schedule();
+      }
+
+      /** For the settings sheet and the tests: what this document would do, and why it does not. */
+      function state() {
+        return {
+          mode: config().mode,
+          cloud: Boolean(cloud()),
+          version,
+          conflict: conflict ? {...conflict} : null,
+          failure,
+          priming: primed !== null,
+        };
+      }
+
+      /* The one writer, offered as a capability rather than as a module dependency: the editor's
+         `⌘S` and a review copy's button both have to go through the same version and the same
+         conflict bar, or two writers would each hold a different idea of what "changed
+         elsewhere" means. `registry.can("sink")` is false in a document whose manifest predates
+         this module, and those keep saving the way they always did. */
+      registry()?.provide?.("sink", {save, leave, refresh, state});
+
+      /* `adopt()` can make a document ready, or its chrome available, after this module is
+         constructed — and for a document that was already ready, no `ready` event is coming. */
+      if (registry()?.state === "ready") start();
+      else registry()?.on?.("ready", () => { start(); });
+
+      return {save, leave, refresh, state, tick};
+    }
+    StandaloneDoc.register("autosave", createAutosave);
+  </script>
+<!-- /@asset -->
+
 <!-- @asset id="toolbar" kind="js" order="90" -->
   <script type="module" id="toolbar">
     /*@compiled-from src/toolbar.js — envelope is build-owned; edit the body or src/*/
@@ -14404,7 +15148,10 @@
           /* Consent is a draft field like everything else here: it lands on Done and dies with
              Cancel. Nothing else in this runtime may write it. */
           updates: settings.updates?.inline ?? "ask",
-          /* Whether the control is worth showing at all: a file has no library to consent to. */
+          /* Autosave is a save behaviour, so it lives in Storage beside the threshold — and it
+             is offered only for a document that names a library, because a file has no sink. */
+          autosave: settings.autosave?.mode ?? "off",
+          /* Whether either control is worth showing at all: a file has no library to write to. */
           cloud: Boolean(settings.cloud),
           planned: policy.planned({}),
           /* Geometry is a view of computed CSS, not a stored field: the draft starts from what
@@ -14462,6 +15209,10 @@
         if (updatesRow) updatesRow.hidden = !draft.cloud;
         const updatesSelect = dialog.querySelector("[data-ds='updates']");
         if (updatesSelect) updatesSelect.value = draft.updates || "ask";
+        const autosaveRow = dialog.querySelector("[data-ds-autosave-row]");
+        if (autosaveRow) autosaveRow.hidden = !draft.cloud;
+        const autosaveSelect = dialog.querySelector("[data-ds='autosave']");
+        if (autosaveSelect) autosaveSelect.value = draft.autosave || "off";
         /* A pending re-pin is shown where the pin lives, because that is what changes. */
         dialog.querySelector("[data-ds-pin]").textContent = draft.repin ? `@${draft.repin.tag} (pending)` : `@${pin}`;
         dialog.querySelector("[data-ds-base]").textContent = base.replace(/^https?:\/\//, "");
@@ -14618,6 +15369,15 @@
         if (Object.keys(stored).length) next.updates = stored;
         else delete next.updates;
 
+        /* Autosave, the same way: `off` is the default, so choosing it must leave no key. The
+           timings are the file's if it already had them — the sheet offers the mode, not the
+           milliseconds, because "every minute" is the decision and 60000 is its spelling. */
+        const storedAutosave = next.autosave && typeof next.autosave === "object" ? {...next.autosave} : {};
+        if (draft.autosave && draft.autosave !== "off") storedAutosave.mode = draft.autosave;
+        else delete storedAutosave.mode;
+        if (Object.keys(storedAutosave).length) next.autosave = storedAutosave;
+        else delete next.autosave;
+
         return next;
       }
 
@@ -14679,6 +15439,9 @@
              an inline asset's hash describes bytes the file already has. */
           registry().repin(repin);
         }
+        /* The sheet just changed how this document saves, so the timers are re-read now rather
+           than at the next open — and a mode chosen *after* boot has never been primed. */
+        sink()?.refresh?.();
         status.markDirty();
       }
 
@@ -14784,6 +15547,10 @@
         });
         dialog.querySelector("[data-ds='updates']")?.addEventListener("change", (event) => {
           settingsDraft.updates = event.target.value;
+          paintDocSettings();
+        });
+        dialog.querySelector("[data-ds='autosave']")?.addEventListener("change", (event) => {
+          settingsDraft.autosave = event.target.value;
           paintDocSettings();
         });
         /* Page geometry is applied on Done, with everything else in the draft. The inputs
@@ -15095,6 +15862,17 @@
       /* The shared toast, reached through the one module every mode builds. Local alias, so a
          call site reads as an intention rather than as a global lookup. */
       const toast = (text, tone) => globalThis.StandaloneDoc?.toast?.(text, tone);
+
+      /**
+       * The document's writer, when this document has one.
+       *
+       * `autosave` provides it as a capability rather than as a module this one depends on: it
+       * holds the version (`If-Match`), the conflict bar and the retry policy, and a manual save
+       * that tracked a *different* version would see a conflict that is not there — and miss one
+       * that is. `can("sink")` is false in a document whose manifest predates that module (a
+       * copy re-pinned across releases), and those keep saving exactly as they always did.
+       */
+      const sink = () => (globalThis.StandaloneDoc?.can?.("sink") ? globalThis.StandaloneDoc.use("sink") : null);
 
       /**
        * The JSON door, with the trap named.
@@ -15626,16 +16404,33 @@
         }
 
         if (target) {
+          /* One writer for the whole document. The sink owns the version (`If-Match`), the
+             conflict bar and the retry policy, because a manual save and an autosave that
+             tracked different versions would see a conflict that is not there — and miss one
+             that is. "Saving…" is said here rather than in the sink: the person pressed a
+             button, so the wait is theirs to see; an autosave never announces itself. */
+          const writer = sink();
+          if (writer) {
+            toast("Saving…");
+            const result = await writer.save(html, {title, checkpoint: true, manual: true});
+            /* A failed copy must not look saved. The reason is the toast the sink raised, or the
+               bar it painted when the answer was a conflict — this keeps the dot on, and the
+               console line, which is what a person pastes when they ask for help. */
+            if (result?.ok) status.save(html.length);
+            else {
+              status.markDirty();
+              if (result?.error) console.error("Save to library failed:", result.error.message || result.error);
+            }
+            return;
+          }
+          /* No sink: a document whose manifest predates autosave. The write it has always done,
+             without `If-Match` — which is what the library expects from a client that cannot
+             quote a version. */
           try {
             await call(`${target.api}/${target.id}`, {method: "PUT", headers: {"x-doc-title": title}, body: html});
             status.save(html.length);
-            /* The person asked, so they get an answer — and it says where. `call()` has
-               already spoken if the write failed. */
             toast("Saved to the library");
           } catch (error) {
-            /* A failed copy must not look saved: the dot stays on and the reason is one
-               console line — the same shape as a failed serialise, on purpose. The message
-               itself is the toast `call()` raised. */
             console.error("Save to library failed:", error && error.message ? error.message : error);
             status.markDirty();
           }
@@ -18117,6 +18912,17 @@
         <div class="ds-row">
           <label class="grow"><input type="checkbox" data-ds="never"> Don't ask again</label>
           <span class="ds-hint" data-ds-never-hint></span>
+        </div>
+        <!-- Autosave is a save behaviour, and it needs a sink: a document that downloads saves
+             when it is told to. Shown only where there is a library to write back to. -->
+        <div class="ds-row" data-ds-autosave-row hidden>
+          <span class="grow">Save automatically</span>
+          <select data-ds="autosave" aria-label="Save this document automatically">
+            <option value="off">Off</option>
+            <option value="idle">After typing stops</option>
+            <option value="interval">Every minute</option>
+          </select>
+          <span class="ds-hint">checkpoints on ⌘S, and on leaving</span>
         </div>
         <div class="ds-row">
           <span class="grow">Preset</span>

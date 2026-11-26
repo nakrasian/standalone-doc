@@ -122,6 +122,9 @@ const REGIONS = [
   { id: "figures", kind: "js", order: 80, label: "Figures", requiredBy: ["*"]  },
   { id: "comments", kind: "js", order: 76, label: "Comments", requiredBy: ["*"], capability: "comments"  },
   { id: "policy", kind: "js", order: 85, label: "Save policy", requiredBy: ["edit"]  },
+  /* `["edit", "comment"]`: the two modes that write. A viewer has no sink and no
+     `serialize`, so autosave is not built there at all. */
+  { id: "autosave", kind: "js", order: 88, label: "Autosave", requiredBy: ["edit", "comment"] },
   /* The one soft asset: a document without its Plugins sheet is still a complete editor.
      `fragments` are the non-JS assets a module needs in the DOM; declaring them is what
      lets boot skip a consumer instead of constructing it against a hole. */

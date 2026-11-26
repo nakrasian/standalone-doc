@@ -23,6 +23,9 @@ export function createDocBar(deps = {}) {
   const restoreButton = bar.querySelector("[data-doc-restore]");
 
   const caps = settings.capabilities || {};
+  /* The boot snapshot is the fallback: `cloud` is read live because the settings sheet can
+     write it, and where this copy saves must not be a fact from page load. */
+  const live = () => registry.settings?.() || settings;
   /* Writing is a capability of the *file*; the mode decides whether the text is yours to
      change, and a review copy's text is not. */
   const canComment = () => caps.comments === "write" && settings.mode !== "view";
@@ -98,23 +101,50 @@ export function createDocBar(deps = {}) {
   }
 
   /**
-   * A copy's save is a download: a read-only document cannot write the file it came from.
+   * The bytes this copy would save. One builder, two sinks: `cloud` decides which, because
+   * that is the same rule the editor follows — a document that names a library writes back
+   * to it, and a document that names none downloads.
+   *
    * Same act as the editor's Save, minus the policy — the manifest already says what
    * travels. Both paths strip the same list (`session.js`), which is what keeps a file
    * identical whichever flavour saved it.
    */
-  function save() {
+  function bytes() {
     const clone = document.documentElement.cloneNode(true);
     session.strip(clone);
     figures?.prepareClone(clone);
+    return "<!doctype html>\n" + clone.outerHTML;
+  }
+
+  /** Autosave asks the chrome for bytes and gets the same builder Save uses — one answer to
+   *  "what would this document be", or the two drift the way they did before `session.js`. */
+  async function serialize() {
+    return {title: document.title, html: bytes()};
+  }
+
+  async function save() {
+    const html = bytes();
+    /* A review copy in a library writes back like any other document. The button says
+       "Save a copy", which was true when a copy could only download — and this is the
+       manifest's rule, not a new one: `cloud` changes what Save *is* without changing the
+       button. */
+    const writer = registry.can?.("sink") ? registry.use("sink") : null;
+    if (live().cloud && writer) {
+      /* The person pressed a button, so the wait is theirs to see. An autosave never says
+         this. */
+      registry.toast?.("Saving…");
+      const result = await writer.save(html, {title: document.title, checkpoint: true, manual: true});
+      return result?.ok ? null : result?.skipped || "failed";
+    }
 
     const name = (document.title || "document").trim().toLowerCase().replace(/[^\w.-]+/g, "-") || "document";
-    const href = URL.createObjectURL(new Blob(["<!doctype html>\n" + clone.outerHTML], {type: "text/html"}));
+    const href = URL.createObjectURL(new Blob([html], {type: "text/html"}));
     const link = document.createElement("a");
     link.href = href;
     link.download = `${name}.html`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(href), 2000);
+    registry.toast?.("Saved");
     return link.download;
   }
 
@@ -257,5 +287,5 @@ export function createDocBar(deps = {}) {
   signals.on("layout", sync);
   sync();
 
-  return {save, sync, openPanel, openComments, setHidden, isHidden};
+  return {save, serialize, sync, openPanel, openComments, setHidden, isHidden};
 }

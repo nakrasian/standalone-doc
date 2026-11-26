@@ -245,6 +245,19 @@ input:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* `Saved 12:04` — the answer an autosave is allowed to give instead of a toast. Muted and
+   tabular, so a clock that ticks does not move the toolbar around. */
+.saved {
+  color: #8a929e;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.saved[hidden] {
+  display: none;
+}
+
 .dirty-dot {
   width: 6px;
   height: 6px;

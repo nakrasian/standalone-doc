@@ -145,6 +145,28 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
     return {inline: inline === "allow" || inline === "never" ? inline : "ask"};
   }
 
+  /* How a document saves itself without being asked.
+   *
+   * `off` is the default and the answer for every file written before the field existed —
+   * a document that downloads saves when it is told to. The two modes differ in what they
+   * answer: `idle` is what people mean by autosave (two seconds after typing stops), and
+   * `interval` is for a document somebody is reading and commenting on rather than writing.
+   *
+   * Normalised here for the same reason `updates` is: one shape for every consumer, and an
+   * unrecognised mode is `off` — a typo must not start writing to somebody's library.
+   */
+  const AUTOSAVE_MODES = ["off", "idle", "interval"];
+  function autosaveOf(value) {
+    const authored = value && typeof value === "object" ? value : {};
+    const mode = AUTOSAVE_MODES.includes(authored.mode) ? authored.mode : "off";
+    const ms = (candidate, fallback) => (Number(candidate) > 0 ? Number(candidate) : fallback);
+    return {
+      mode,
+      idleMs: ms(authored.idleMs, 2000),
+      intervalMs: ms(authored.intervalMs, 60000),
+    };
+  }
+
   /* How this document behaves. Derived from #doc-settings; `manifest().mode` is
      read as a fallback for documents saved before the block existed (one release
      of compatibility, not a permanent second source of truth). */
@@ -193,6 +215,9 @@ globalThis.StandaloneDoc = globalThis.StandaloneDoc || (function () {
       /* `{inline: "ask" | "allow" | "never"}` — normalised on read, so every consumer
          has one shape to switch on and an absent field is not a third case. */
       updates: updatesOf(authored && authored.updates),
+      /* `{mode, idleMs, intervalMs}` — normalised, with `off` as the default for every
+         document that never authored it. Cloud-only is enforced where it is used. */
+      autosave: autosaveOf(authored && authored.autosave),
     };
     return settingsParsed;
   }

@@ -16,13 +16,14 @@ edit by hand; `npm run check` fails if this file is stale.
 | progress | 45 | — | — | `open`, `update`, `setText`, `setCancel`, `close`, `isOpen` | edit |
 | layout | 46 | zoom | — | `origin`, `rect`, `measureH`, `viewportY`, `scale`, `pageContentTop`, `pageContentBottom` | * |
 | pagination | 50 | signals, zoom, layout, selection | — | `schedule`, `pageCount`, `pageAt`, `syncFolio`, `refresh`, `setFragmenting`, `diagnostics`, `strategy`, `defineBlock`, `planSplit`, `merge`, `plan` | * |
-| status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `rebase`, `setStoreEstimator` | edit |
+| status | 60 | signals, pagination | — | `refresh`, `save`, `markDirty`, `rebase`, `setStoreEstimator`, `dirty` | edit |
 | editor | 70 | signals, status, pagination, selection | figures | `init`, `exec`, `setBlock`, `setList`, `syncToolbar`, `setFontSize`, `openLink`, `remember`, `restore`, `history`, `blockAt`, `blockAtCaret`, `insertBlock`, `insertInline`, `insertTable`, `applyPage`, `pageState`, `themeWith` | edit |
 | comments | 76 | signals, pagination, layout, selection | status? | `init`, `mount`, `list`, `add`, `reply`, `resolve`, `remove`, `focus`, `navigate`, `blur`, `render`, `begin`, `counts`, `panel`, `onChange`, `toggleList`, `railActive`, `railShown`, `canWrite`, `authorName`, `setAuthorName`, `merge`, `replace`, `load`, `newCommentId` | * |
 | figures | 80 | signals, pagination | status?, editor? | `init`, `pick`, `insertFiles`, `scan`, `mount`, `unmount`, `unmountAll`, `pause`, `resume`, `suspendObserver`, `resumeObserver`, `snapshot`, `captureAll`, `pluginUsage`, `insertHTML`, `setScale`, `setDimension`, `resetSize`, `remove`, `select`, `prepareClone`, `storeJSON`, `storeBytes`, `savedStoreBytes`, `store`, `selected` | * |
 | policy | 85 | figures | — | `plan`, `apply`, `persist`, `presetFor`, `resolve`, `planned`, `target`, `allows`, `usage`, `blockOf`, `settingsFragment`, `PRESETS` | edit |
+| autosave | 88 | signals | status?, toolbar?, doc-bar? | `save`, `leave`, `refresh`, `state`, `tick` | edit, comment |
 | toolbar | 90 | zoom, editor, figures, status, policy, session | export, comments?, plugins? | `save`, `serialize`, `validate`, `copy`, `viewer`, `exportCommentsOnly`, `settings` | edit |
-| doc-bar | 92 | pagination, zoom, figures, signals, session | comments? | `save`, `sync`, `openPanel`, `openComments`, `setHidden`, `isHidden` | view, comment |
+| doc-bar | 92 | pagination, zoom, figures, signals, session | comments? | `save`, `serialize`, `sync`, `openPanel`, `openComments`, `setHidden`, `isHidden` | view, comment |
 | plugins | 95 | signals, figures, status | — | `activateUi`, `wire`, `unwire`, `openPanel`, `renderPanel`, `updateCount`, `install` | edit |
 | export | 100 | figures, toolbar, progress | — | `begin`, `capture`, `captureAndBuild`, `materialize`, `buildStatic`, `validateStatic`, `figureFiles`, `download`, `syncPrintPage`, `printLive`, `printCaptured` | edit |
 | bootstrap | 120 | — | — | _infrastructure_ | * |
@@ -52,6 +53,10 @@ graph LR
   status -.->|optional| figures
   editor -.->|optional| figures
   figures --> policy
+  signals --> autosave
+  status -.->|optional| autosave
+  toolbar -.->|optional| autosave
+  doc-bar -.->|optional| autosave
   zoom --> toolbar
   editor --> toolbar
   figures --> toolbar

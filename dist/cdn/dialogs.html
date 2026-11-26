@@ -145,6 +145,17 @@
         <label class="grow"><input type="checkbox" data-ds="never"> Don't ask again</label>
         <span class="ds-hint" data-ds-never-hint></span>
       </div>
+      <!-- Autosave is a save behaviour, and it needs a sink: a document that downloads saves
+           when it is told to. Shown only where there is a library to write back to. -->
+      <div class="ds-row" data-ds-autosave-row hidden>
+        <span class="grow">Save automatically</span>
+        <select data-ds="autosave" aria-label="Save this document automatically">
+          <option value="off">Off</option>
+          <option value="idle">After typing stops</option>
+          <option value="interval">Every minute</option>
+        </select>
+        <span class="ds-hint">checkpoints on ⌘S, and on leaving</span>
+      </div>
       <div class="ds-row">
         <span class="grow">Preset</span>
         <span class="ds-chips" data-ds-presets>

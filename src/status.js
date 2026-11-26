@@ -17,6 +17,7 @@ export function createStatus(deps = {}) {
   let baseline = contentHtml();
   let forced = false;
   let lastSavedBytes = null;
+  let savedAt = null;
   let timer = null;
 
   function contentHtml() {
@@ -73,6 +74,13 @@ export function createStatus(deps = {}) {
     document.querySelectorAll("[data-dirty]").forEach((el) => {
       el.hidden = !dirty;
     });
+    /* The quiet half of "it saved". An autosave must say nothing out loud — a toast every
+       thirty seconds trains people to ignore toasts — so the ribbon carries the fact
+       instead, and it updates in place. */
+    document.querySelectorAll("[data-saved]").forEach((el) => {
+      el.hidden = !savedAt;
+      el.textContent = savedAt ? `Saved ${savedAt}` : "";
+    });
   }
 
   function schedule() {
@@ -80,11 +88,31 @@ export function createStatus(deps = {}) {
     timer = setTimeout(refresh, 120);
   }
 
+  /** `12:04`, in the reader's own locale. The date is not the interesting part of "saved". */
+  function clock() {
+    try {
+      return new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+    } catch {
+      return "";
+    }
+  }
+
   function save(bytes = null) {
     baseline = contentHtml();
     forced = false;
     lastSavedBytes = Number.isFinite(bytes) ? bytes : null;
+    savedAt = clock();
     refresh();
+  }
+
+  /**
+   * Has anything changed since the last save?
+   *
+   * The same comparison the dot makes, exposed so a caller that writes without being asked
+   * can ask the question the person would. Autosave uses it to avoid a save per timer tick.
+   */
+  function dirty() {
+    return forced || contentHtml() !== baseline;
   }
 
   function markDirty() {
@@ -101,6 +129,7 @@ export function createStatus(deps = {}) {
     baseline = contentHtml();
     forced = false;
     lastSavedBytes = null;
+    savedAt = null;
     refresh();
   }
 
@@ -119,8 +148,8 @@ export function createStatus(deps = {}) {
      size readout keep telling the truth. */
   const registry = env && env.StandaloneDoc;
   if (registry && typeof registry.provide === "function") {
-    registry.provide("status", {refresh, markDirty});
+    registry.provide("status", {refresh, markDirty, save, dirty});
   }
 
-  return {refresh, save, markDirty, rebase, setStoreEstimator};
+  return {refresh, save, markDirty, rebase, setStoreEstimator, dirty};
 }

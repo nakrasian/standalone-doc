@@ -120,6 +120,9 @@
     <span class="grow"></span>
 
     <span class="stats" data-stats>—</span>
+    <!-- The quiet half of "it saved". Autosave never toasts a success, so the fact lives
+         here, in place — `Saved 12:04`. Session state, emptied by `session.strip()`. -->
+    <span class="saved" data-saved hidden></span>
     <button data-chrome-toggle aria-label="Compact chrome" title="Compact chrome"><svg class="i">
         <use href="#i-paneltop" />
       </svg></button>
@@ -248,6 +251,7 @@
        "survive minimal" is the whole requirement. -->
   <a class="library-link" data-library-link href="/" draggable="false" hidden>‹ Library</a>
   <span class="folio" data-folio>p. 1</span>
+  <span class="saved" data-saved hidden></span>
   <span class="stats" data-stats>—</span>
   <span class="grow"></span>
   <input class="title-input" data-title value="Standalone HTML Doc" spellcheck="false" aria-label="Document title">

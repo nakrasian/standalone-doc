@@ -22,6 +22,7 @@
       ],
       "provides": [
         "save",
+        "serialize",
         "sync",
         "openPanel",
         "openComments",
@@ -228,7 +229,8 @@
         "save",
         "markDirty",
         "rebase",
-        "setStoreEstimator"
+        "setStoreEstimator",
+        "dirty"
       ]
     },
     {
@@ -384,6 +386,31 @@
         "blockOf",
         "settingsFragment",
         "PRESETS"
+      ]
+    },
+    {
+      "id": "autosave",
+      "order": 88,
+      "mode": "inline",
+      "requiredBy": [
+        "edit",
+        "comment"
+      ],
+      "deps": [
+        "signals"
+      ],
+      "late": [],
+      "optional": [
+        "status",
+        "toolbar",
+        "doc-bar"
+      ],
+      "provides": [
+        "save",
+        "leave",
+        "refresh",
+        "state",
+        "tick"
       ]
     },
     {

@@ -87,6 +87,17 @@ export function createSession(deps = {}) {
       node.textContent = "";
       node.setAttribute("hidden", "");
     });
+    /* The notice bar is a decision *this session* is in the middle of — a conflict, a retry
+       countdown. The element travels with the document; the state does not. */
+    clone.querySelectorAll("[data-notice]").forEach((node) => {
+      node.hidden = true;
+      node.removeAttribute("data-tone");
+      node.querySelectorAll("[data-notice-text]").forEach((text) => {text.textContent = "";});
+      node.querySelectorAll("[data-notice-primary], [data-notice-secondary]").forEach((button) => {
+        button.setAttribute("hidden", "");
+        button.textContent = "";
+      });
+    });
 
     return clone;
   }
@@ -108,6 +119,7 @@ export function createSession(deps = {}) {
     if (doc.querySelector("[data-menu-panel]:not([hidden])")) found.push("a menu panel was saved open");
     if ([...doc.querySelectorAll("[data-dirty]")].some((node) => !node.hidden)) found.push("the dirty dot was saved visible");
     if ([...doc.querySelectorAll("[data-toast]")].some((node) => !node.hidden)) found.push("a toast was saved visible");
+    if ([...doc.querySelectorAll("[data-notice]")].some((node) => !node.hidden)) found.push("the notice bar was saved visible");
     return found;
   }
 

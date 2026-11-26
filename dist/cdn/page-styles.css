@@ -610,3 +610,72 @@ html[data-toolbar="off"] #app-toolbar { display: none; }
 .toast-close[hidden] {
   display: none;
 }
+
+/* ---- the notice bar ----
+   A decision, in the same layer and for the same reason as the toast: a conflict has to be
+   visible in the editor, in the minimal bar and in a review copy, and it has to be visible
+   while a toast is not (the toast goes away; a decision does not). Above the toast, because
+   when both are up the decision is the thing to read. */
+[data-notice] {
+  position: fixed;
+  left: 50%;
+  bottom: 62px;
+  transform: translateX(-50%);
+  z-index: 91;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(72ch, calc(100vw - 32px));
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid #dfe1e6;
+  background: #fff;
+  color: #1b1f24;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, .18);
+  font: 500 12.5px/1.35 system-ui, -apple-system, sans-serif;
+  user-select: none;
+}
+
+/* `[hidden]` loses to any author `display`; the bar is hidden in every saved file. */
+[data-notice][hidden] {
+  display: none;
+}
+
+[data-notice][data-tone="conflict"] {
+  border-color: #f3c98b;
+  background: #fffaf1;
+}
+
+[data-notice][data-tone="warn"] {
+  border-color: #f0b4a8;
+  background: #fff6f4;
+  color: #8a2c14;
+}
+
+.notice-text {
+  flex: 1 1 auto;
+}
+
+.notice-btn {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 99px;
+  border: 1px solid #dfe1e6;
+  background: #fff;
+  color: #1b1f24;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.notice-btn.primary {
+  background: #2f6fed;
+  border-color: #2f6fed;
+  color: #fff;
+}
+
+.notice-btn[hidden] {
+  display: none;
+}

@@ -21,8 +21,8 @@
       "order": 10,
       "tag": "style",
       "file": "src/page-styles.css",
-      "bytes": 16041,
-      "sha384": "sha384-RxN5Vw5NpHhJQDjFB0p1lJJll8C1i18NYoCucVcjXyT85XpOOyZpuZOHoZQJoTz0",
+      "bytes": 17582,
+      "sha384": "sha384-xELoTdsJEnRc94khzXFvrRTOaWJUirXEN3UZSDVX+/RdNNctXkYQjBLv1P2YOpFA",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -36,8 +36,8 @@
       "order": 20,
       "tag": "style",
       "file": "src/toolbar-styles.css",
-      "bytes": 40293,
-      "sha384": "sha384-4CyxLa1hkWV3jsL8aIpFl4EUqrfFY50JaahvfPB9nnQA/wywY7I6U7IO6E5W2lka",
+      "bytes": 40605,
+      "sha384": "sha384-pWbfcpPABjqocJaJdC9kuu+bme6Gi1yfpf4Y3irjTl5O41YGJmu0d3UhkY0XeQ57",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -82,8 +82,8 @@
       "order": 12,
       "tag": "header",
       "file": "src/toolbar-markup.html",
-      "bytes": 17193,
-      "sha384": "sha384-RBXHiORQ8JUoajqD54J2k9Ef4IsDce9MEaZKMEzfNpxY/YeVODnjtlRvdsiEhkjp",
+      "bytes": 17473,
+      "sha384": "sha384-hOkQsLj6OiI7sAjUT66/bGNLAT+9kKwS6EMWP6e4S8YfoJ+OSxdSb7PovSwZuUcg",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -131,8 +131,8 @@
       "order": 92,
       "tag": "script",
       "file": "src/doc-bar.js",
-      "bytes": 10494,
-      "sha384": "sha384-fwRJXVOclUH4Psu4CU/D5d5rFh0LLyFogMzTSJGoxJaT3Q+j9LYm0cpy9+9qPiH6",
+      "bytes": 11978,
+      "sha384": "sha384-OJww1PdK+aDZk93WXcIos+jzm/FhFX63FzouXrahXUb3IxnPQeE+M25HLeNot5pr",
       "mode": "online",
       "requiredBy": [
         "view",
@@ -156,6 +156,7 @@
       ],
       "provides": [
         "save",
+        "serialize",
         "sync",
         "openPanel",
         "openComments",
@@ -203,8 +204,8 @@
       "order": 5,
       "tag": "script",
       "file": "src/registry.js",
-      "bytes": 61002,
-      "sha384": "sha384-LYgG8ekDK5LdKDDSpCUMLXjUqFPzXLYX/wU7m64kG4C+mtr+vv4en7BhvQlXygxV",
+      "bytes": 62315,
+      "sha384": "sha384-tNLzHsyST2Y3dHsaODv7Z5bjQmr5qTpAZGxa7TimNcE0Ztq3XSERuRwVuRSMTgzY",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -254,8 +255,8 @@
       "order": 8,
       "tag": "script",
       "file": "src/session.js",
-      "bytes": 6371,
-      "sha384": "sha384-TcpsJEfDMRPQ2sMgHTWfCHgOL7Ppx7pUHvxa+DyonEf9ajo3okIiVmJOqoYbyQdT",
+      "bytes": 7095,
+      "sha384": "sha384-5ejiMB/iD1PYLfPHfNJcXDb2Avai6peNIVyPeSCmF1d9pkAwznZ7x8GUDy141JDG",
       "mode": "inline",
       "requiredBy": [
         "*"
@@ -435,8 +436,8 @@
       "order": 60,
       "tag": "script",
       "file": "src/status.js",
-      "bytes": 4819,
-      "sha384": "sha384-deJoI+oozruxkdfuweFtpGSeaAHIEk4Z5NpqmFHwCoU/t8BuPSOaxQpkZj2v2/sW",
+      "bytes": 5865,
+      "sha384": "sha384-mpBMyxzkqNmIgtNGE1hqq1mtyo4ReAOPmuCBXKZt/Z8vMjvtiU3E/2PnD3N4wEc1",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -452,7 +453,8 @@
         "save",
         "markDirty",
         "rebase",
-        "setStoreEstimator"
+        "setStoreEstimator",
+        "dirty"
       ],
       "env": true
     },
@@ -642,13 +644,45 @@
       "settings": true
     },
     {
+      "id": "autosave",
+      "kind": "js",
+      "order": 88,
+      "tag": "script",
+      "file": "src/autosave.js",
+      "bytes": 21797,
+      "sha384": "sha384-Ozc7Nsfh0rzKEFySOrkJAQJnPKqIcBZ+JPBfBqrnMEQ79EHZU5PQEl/jlcw30rsV",
+      "mode": "inline",
+      "requiredBy": [
+        "edit",
+        "comment"
+      ],
+      "role": "module",
+      "label": "Autosave",
+      "deps": [
+        "signals"
+      ],
+      "optional": [
+        "status",
+        "toolbar",
+        "doc-bar"
+      ],
+      "provides": [
+        "save",
+        "leave",
+        "refresh",
+        "state",
+        "tick"
+      ],
+      "env": true
+    },
+    {
       "id": "toolbar",
       "kind": "js",
       "order": 90,
       "tag": "script",
       "file": "src/toolbar.js",
-      "bytes": 90261,
-      "sha384": "sha384-9hjq7OdM2ZOVV8a7cxLI5GowzsWbrri1Gz6Hs8XiIcHmihe2LUVzvTfpp+vOXOte",
+      "bytes": 93376,
+      "sha384": "sha384-YsREFzOEgdM1yFjjf3HrfVFYAbCiu8PiaK6iyS+uT9yyenKXD0uIOvpn+m9Y/uQz",
       "mode": "inline",
       "requiredBy": [
         "edit"
@@ -759,8 +793,8 @@
       "order": 14,
       "tag": "div",
       "file": "src/dialogs.html",
-      "bytes": 16348,
-      "sha384": "sha384-b3ZbTjIyaSViXKgXB32oDqLtBR4Qb3LYyt+Hqn6HDYVjuZpmkKEvW1o/AdNEEKcW",
+      "bytes": 16984,
+      "sha384": "sha384-ASJe8KVVO7ahqHMEq2XWQFsGjFFKbt6x5ei+h08vNWEXAQwxZfiTFlCfgbykC7t7",
       "mode": "inline",
       "requiredBy": [
         "edit"

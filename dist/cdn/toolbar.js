@@ -413,7 +413,10 @@ export function createToolbar(deps = {}) {
       /* Consent is a draft field like everything else here: it lands on Done and dies with
          Cancel. Nothing else in this runtime may write it. */
       updates: settings.updates?.inline ?? "ask",
-      /* Whether the control is worth showing at all: a file has no library to consent to. */
+      /* Autosave is a save behaviour, so it lives in Storage beside the threshold — and it
+         is offered only for a document that names a library, because a file has no sink. */
+      autosave: settings.autosave?.mode ?? "off",
+      /* Whether either control is worth showing at all: a file has no library to write to. */
       cloud: Boolean(settings.cloud),
       planned: policy.planned({}),
       /* Geometry is a view of computed CSS, not a stored field: the draft starts from what
@@ -471,6 +474,10 @@ export function createToolbar(deps = {}) {
     if (updatesRow) updatesRow.hidden = !draft.cloud;
     const updatesSelect = dialog.querySelector("[data-ds='updates']");
     if (updatesSelect) updatesSelect.value = draft.updates || "ask";
+    const autosaveRow = dialog.querySelector("[data-ds-autosave-row]");
+    if (autosaveRow) autosaveRow.hidden = !draft.cloud;
+    const autosaveSelect = dialog.querySelector("[data-ds='autosave']");
+    if (autosaveSelect) autosaveSelect.value = draft.autosave || "off";
     /* A pending re-pin is shown where the pin lives, because that is what changes. */
     dialog.querySelector("[data-ds-pin]").textContent = draft.repin ? `@${draft.repin.tag} (pending)` : `@${pin}`;
     dialog.querySelector("[data-ds-base]").textContent = base.replace(/^https?:\/\//, "");
@@ -627,6 +634,15 @@ export function createToolbar(deps = {}) {
     if (Object.keys(stored).length) next.updates = stored;
     else delete next.updates;
 
+    /* Autosave, the same way: `off` is the default, so choosing it must leave no key. The
+       timings are the file's if it already had them — the sheet offers the mode, not the
+       milliseconds, because "every minute" is the decision and 60000 is its spelling. */
+    const storedAutosave = next.autosave && typeof next.autosave === "object" ? {...next.autosave} : {};
+    if (draft.autosave && draft.autosave !== "off") storedAutosave.mode = draft.autosave;
+    else delete storedAutosave.mode;
+    if (Object.keys(storedAutosave).length) next.autosave = storedAutosave;
+    else delete next.autosave;
+
     return next;
   }
 
@@ -688,6 +704,9 @@ export function createToolbar(deps = {}) {
          an inline asset's hash describes bytes the file already has. */
       registry().repin(repin);
     }
+    /* The sheet just changed how this document saves, so the timers are re-read now rather
+       than at the next open — and a mode chosen *after* boot has never been primed. */
+    sink()?.refresh?.();
     status.markDirty();
   }
 
@@ -793,6 +812,10 @@ export function createToolbar(deps = {}) {
     });
     dialog.querySelector("[data-ds='updates']")?.addEventListener("change", (event) => {
       settingsDraft.updates = event.target.value;
+      paintDocSettings();
+    });
+    dialog.querySelector("[data-ds='autosave']")?.addEventListener("change", (event) => {
+      settingsDraft.autosave = event.target.value;
       paintDocSettings();
     });
     /* Page geometry is applied on Done, with everything else in the draft. The inputs
@@ -1104,6 +1127,17 @@ export function createToolbar(deps = {}) {
   /* The shared toast, reached through the one module every mode builds. Local alias, so a
      call site reads as an intention rather than as a global lookup. */
   const toast = (text, tone) => globalThis.StandaloneDoc?.toast?.(text, tone);
+
+  /**
+   * The document's writer, when this document has one.
+   *
+   * `autosave` provides it as a capability rather than as a module this one depends on: it
+   * holds the version (`If-Match`), the conflict bar and the retry policy, and a manual save
+   * that tracked a *different* version would see a conflict that is not there — and miss one
+   * that is. `can("sink")` is false in a document whose manifest predates that module (a
+   * copy re-pinned across releases), and those keep saving exactly as they always did.
+   */
+  const sink = () => (globalThis.StandaloneDoc?.can?.("sink") ? globalThis.StandaloneDoc.use("sink") : null);
 
   /**
    * The JSON door, with the trap named.
@@ -1635,16 +1669,33 @@ export function createToolbar(deps = {}) {
     }
 
     if (target) {
+      /* One writer for the whole document. The sink owns the version (`If-Match`), the
+         conflict bar and the retry policy, because a manual save and an autosave that
+         tracked different versions would see a conflict that is not there — and miss one
+         that is. "Saving…" is said here rather than in the sink: the person pressed a
+         button, so the wait is theirs to see; an autosave never announces itself. */
+      const writer = sink();
+      if (writer) {
+        toast("Saving…");
+        const result = await writer.save(html, {title, checkpoint: true, manual: true});
+        /* A failed copy must not look saved. The reason is the toast the sink raised, or the
+           bar it painted when the answer was a conflict — this keeps the dot on, and the
+           console line, which is what a person pastes when they ask for help. */
+        if (result?.ok) status.save(html.length);
+        else {
+          status.markDirty();
+          if (result?.error) console.error("Save to library failed:", result.error.message || result.error);
+        }
+        return;
+      }
+      /* No sink: a document whose manifest predates autosave. The write it has always done,
+         without `If-Match` — which is what the library expects from a client that cannot
+         quote a version. */
       try {
         await call(`${target.api}/${target.id}`, {method: "PUT", headers: {"x-doc-title": title}, body: html});
         status.save(html.length);
-        /* The person asked, so they get an answer — and it says where. `call()` has
-           already spoken if the write failed. */
         toast("Saved to the library");
       } catch (error) {
-        /* A failed copy must not look saved: the dot stays on and the reason is one
-           console line — the same shape as a failed serialise, on purpose. The message
-           itself is the toast `call()` raised. */
         console.error("Save to library failed:", error && error.message ? error.message : error);
         status.markDirty();
       }

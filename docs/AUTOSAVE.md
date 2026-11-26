@@ -1,8 +1,10 @@
 # Autosave, the conflict bar, and what a snapshot is for
 
-**Status: draft, not implemented.** Written 2026-11-24 against the library at
-`docs.nhlu.dev` and runtime `v0.13.1`. It is the design for the next runtime release,
+**Status: implemented in runtime `v0.14.0`** (`src/autosave.js`, and the `sink` capability it
+provides). Written 2026-11-24 against the library at `docs.nhlu.dev` and runtime `v0.13.1`,
 together with A1 (publish the loader bytes at the tag) and A2 (`#doc-settings.updates.inline`).
+The implementation notes at the end record where the code took a different shape from the
+draft, and why.
 
 The library side is already in place and deployed: `If-Match` on save (`409` with both
 versions named), `?checkpoint=0`, and a per-library snapshot cap.
@@ -172,3 +174,44 @@ stay optimistic.
    cloud record has no label, so the honest answer today is just "Saved".
 4. When a document is opened with autosave already on, should the first save be immediate or
    deferred? Deferred: opening is not editing.
+
+---
+
+## 6. What the implementation decided
+
+Written after the code, because three things turned out differently and one of them changed
+the shape of the runtime.
+
+**The sink is a capability, not a dependency.** `autosave` is an asset (`order 88`), and the
+editor's toolbar (`90`) and a review copy's bar (`92`) are built *after* it. Making the toolbar
+depend on autosave would have been a forward edge — and worse, a real one: a library document
+saved by an older release and then re-pinned fetches the new `toolbar.js` while its own manifest
+still lists the *old* asset set. A hard dependency would have stopped that document booting;
+an `optional` one would have left it unable to save at all. So autosave offers
+`StandaloneDoc.provide("sink", {save, leave, refresh, state})`, and the chrome asks
+`can("sink")` before using it. A document whose manifest predates the module keeps the older
+PUT path (`call()` with no `If-Match`), which is exactly what the library does with a client
+that cannot quote a version.
+
+**One version, therefore one writer.** A manual ⌘S and an autosave that each tracked their own
+`ETag` would raise a conflict that is not there and miss one that is. Both go through `save()`
+in this module; that is also why a review copy in a library now *writes back* instead of always
+downloading — `cloud` decides what Save is, which `MANIFEST.md` §2 already claimed and the bar
+did not honour.
+
+**`idle` needs no dirty check; `interval` does.** The idle timer is armed by an edit signal, so
+by construction something changed. The clock is not, so it compares the bytes it would write
+against the last bytes the library confirmed (`primed`, set once at boot for a document that
+autosaves, and after every successful write). That is also what makes an idle tick after
+another tab saved a no-op instead of a conflict nobody caused.
+
+**"Hidden for five minutes" is detected on return.** A hidden tab cannot save at the moment it
+becomes hidden, and the runtime cannot know how long it will be. So the checkpoint happens when
+the tab comes back, which is still a real session boundary. `pagehide` is attempted separately
+with `keepalive` — best-effort by design, because that budget is tens of kilobytes and a
+document is hundreds.
+
+**`Reload theirs` asks with a native `confirm()`.** The only destructive button in the chrome;
+a modal question about lost work has no styling to get wrong and cannot be dismissed by
+clicking the page behind it. It is the secondary button, and the bar stays up until one of the
+two is pressed.
