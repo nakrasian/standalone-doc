@@ -1229,7 +1229,10 @@ function blockIdProblems(html, name) {
     const published = publishedState();
     if (published.released) {
       const drifted = published.manifest.assets
-        .filter((asset) => asset.role !== "infra")
+        /* Infrastructure is compared only when that tag actually published it: a release
+           before v0.14.0 has no `dist/cdn/registry.js`, and calling that drift would make
+           every older tag unverifiable. */
+        .filter((asset) => asset.role !== "infra" || publishesAt(published.tag, asset, false))
         .filter((asset) => {
           const file = `${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`;
           const shipped = fileAt(published.tag, file);
@@ -1392,12 +1395,16 @@ function blockIdProblems(html, name) {
       }
     }
     for (const asset of m.assets) {
-      if (asset.role === "infra") continue;
-      const docEntry = docManifest(m).assets.find((candidate) => candidate.id === asset.id);
-      /* Bytes published by someone else are not in dist/cdn, and this repository is
-         not their publisher. A pinned plugin is still hash-checked — by the catalog
-         job, against the url its own manifest names. */
-      if (!String(docEntry?.url || "").startsWith(`${String(m.cdnBase || "").replace(/\/$/, "")}/`)) continue;
+      /* Infrastructure included: its bytes are published for the same reason every other
+         asset's are, and a `dist/cdn/registry.js` that has drifted from `src/` is a
+         document that would stop booting the moment a library spliced it in. */
+      if (asset.role !== "infra") {
+        const docEntry = docManifest(m).assets.find((candidate) => candidate.id === asset.id);
+        /* Bytes published by someone else are not in dist/cdn, and this repository is
+           not their publisher. A pinned plugin is still hash-checked — by the catalog
+           job, against the url its own manifest names. */
+        if (!String(docEntry?.url || "").startsWith(`${String(m.cdnBase || "").replace(/\/$/, "")}/`)) continue;
+      }
       const published = `${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`;
       /* Bytes, not text: the published copy of a bin asset is binary. */
       if (!exists(published)) all.push(`${published} is missing — run: node build.mjs build`);
@@ -1635,29 +1642,55 @@ function releaseTags() {
  * asset — so a document can re-pin without downloading and parsing an `editor.html`
  * to find the same table.
  */
+/** Where a published copy of one asset's bytes lives under `dist/`. */
+const cdnPathFor = (asset) => `${DIST}/cdn/${asset.id}.${extensionFor(asset.kind)}`;
+
+/**
+ * Did *this release* publish bytes for an asset?
+ *
+ * The gate on infrastructure rows, and the reason they are not simply listed: a release
+ * entry is a claim about the past. Tags before v0.14.0 shipped `dist/` without the loader
+ * in `dist/cdn/`, so listing one there would advertise a url that 404s and make the
+ * library offer a replacement it cannot perform. A prepared release asks the tree it is
+ * about to tag; a released one asks the tag.
+ */
+function publishesAt(tag, asset, pending) {
+  return pending ? exists(cdnPathFor(asset)) : Boolean(fileAt(tag, cdnPathFor(asset)));
+}
+
 function runtimeEntry(tag, manifest, { pending = false } = {}) {
   const base = String(manifest.cdnBase || "").replace(/\/$/, "");
+  const assets = [];
+  for (const asset of manifest.assets || []) {
+    const url = asset.url || `${base}/${asset.id}.${extensionFor(asset.kind)}`;
+    if (asset.role === "infra") {
+      /* Always inline in a document, and published all the same: this row is what lets a
+         library replace the loader in place (`POST /api/docs/<id>/repin`). No `mode` —
+         infrastructure has none — and no `requiredBy`, because it is neither optional nor
+         mode-gated. */
+      if (!publishesAt(tag, asset, pending)) continue;
+      assets.push({ id: asset.id, kind: asset.kind, bytes: asset.bytes, sha384: asset.sha384, url, role: "infra" });
+      continue;
+    }
+    const entry = {
+      id: asset.id,
+      kind: asset.kind,
+      bytes: asset.bytes,
+      sha384: asset.sha384,
+      /* A pinned plugin's bytes live wherever its author publishes them. */
+      url,
+      requiredBy: asset.requiredBy || ["*"],
+    };
+    if (asset.plugin) entry.plugin = asset.plugin;
+    assets.push(entry);
+  }
   return {
     schema: 1,
     tag,
     base,
     /* What a plugin can ask of this release without being refused before activate(). */
     hostApi: pending ? hostApiNow() : hostApiAt(tag),
-    assets: (manifest.assets || [])
-      .filter((asset) => asset.role !== "infra")
-      .map((asset) => {
-        const entry = {
-          id: asset.id,
-          kind: asset.kind,
-          bytes: asset.bytes,
-          sha384: asset.sha384,
-          /* A pinned plugin's bytes live wherever its author publishes them. */
-          url: asset.url || `${base}/${asset.id}.${extensionFor(asset.kind)}`,
-          requiredBy: asset.requiredBy || ["*"],
-        };
-        if (asset.plugin) entry.plugin = asset.plugin;
-        return entry;
-      }),
+    assets,
   };
 }
 
@@ -2001,8 +2034,12 @@ function cmdCatalog() {
  * cdnBase is a local url still has to find its bytes at that url.
  */
 function writeCdn(dir, manifest) {
+  /* Infrastructure included, and it is the reason this function exists twice over: an
+     infra asset is always inline, so the only way a loader fix can ever reach a stored
+     document is as *published bytes* that a library can splice into the block. Nothing
+     private is published here — these are byte copies of src/, which are already inside
+     every HTML this repository has ever shipped. */
   for (const asset of manifest.assets) {
-    if (asset.role === "infra") continue;
     const file = `${dir}/${asset.id}.${extensionFor(asset.kind)}`;
     if (asset.kind === "bin") writeBytes(file, readBytes(asset.file));
     else write(file, read(asset.file));
@@ -2132,7 +2169,10 @@ async function cmdVerifyCdn({ tag = null } = {}) {
 
   const targets = [];
   for (const asset of manifest.assets) {
-    if (asset.role === "infra") continue;
+    /* Infrastructure is verified only where that tag published it — see publishesAt().
+       The gate also keeps `dist/runtime/<tag>.json` honest, so the two checks agree
+       about which releases carry a fetchable loader. */
+    if (asset.role === "infra" && !publishesAt(published.tag, asset, !published.released)) continue;
     targets.push({
       id: `${asset.id}.${extensionFor(asset.kind)}`,
       url: `${base}/${asset.id}.${extensionFor(asset.kind)}`,
@@ -2488,7 +2528,7 @@ function publishedPaths(manifest) {
     /* The catalog is fetched from the document's own tag (`<cdnBase>/../registry.json`), so
        its path is new at every tag — and it is the file that makes a bundle discoverable. */
     "dist/registry.json",
-    ...manifest.assets.filter((asset) => asset.role !== "infra")
+    ...manifest.assets
       .map((asset) => `dist/cdn/${asset.id}.${extensionFor(asset.kind)}`),
     /* A plugin is published under `dist/` too, so its paths are new at this tag — including
        the manifest a document installs from. */

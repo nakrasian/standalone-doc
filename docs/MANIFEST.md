@@ -47,7 +47,7 @@ block). The loader reads it before anything else and will not boot without it.
 |---|---|---|
 | `id` | yes | Unique; also the DOM id of the block that carries it (`<script id="editor">`). |
 | `kind` | yes | `js` · `css` · `html`. Decides the wrapper element and the file extension on the CDN. |
-| `role` | yes | `module` (a capability) · `infra` (the loader and its failure UI). Infra is always inline and has **no** `url`: the thing that verifies hashes cannot be a thing that might fail to arrive. |
+| `role` | yes | `module` (a capability) · `infra` (the loader and its failure UI). Infra is always inline and has **no** `url`: the thing that verifies hashes cannot be a thing that might fail to arrive. A release *does* publish its bytes (see below), which is how a library replaces one in place. |
 | `order` | yes | Construction order. `boot()` builds in this order, whatever the document order of the blocks is. |
 | `mode` | yes | `inline` (the bytes are in the file) or `online` (fetch `url`, verify, then run). |
 | `requiredBy` | yes (defaults to `["*"]`) | `["*"]` for every mode, `["edit"]` for authoring only, `["view"]` for a viewer's chrome. A mode not listed means the asset is not built there — and in a restricted document, not carried either. |
@@ -66,6 +66,22 @@ block). The loader reads it before anything else and will not boot without it.
 An asset entry with an unknown `kind`, a `url` that is not absolute `https://` (for an
 online asset), or an `id` that no block provides is a **check** failure, not a boot failure:
 the file would still open, and that is exactly the class of error the gate exists to catch.
+
+### Infrastructure is published, and never fetched
+
+The two facts look contradictory and are not. In a *document*, an infra asset is the root of
+trust: its bytes are in the file and it has no `url`, because the thing that verifies hashes
+cannot be a thing that might fail to arrive. In the *release catalog*
+(`dist/runtime/<tag>.json`), the same asset has a `url` and a `sha384` and `role: "infra"`,
+and no `mode` — it has none — because a fix to the loader can reach a stored document by
+only one route: the library swapping the bytes inside the block, having fetched them from
+an immutable tag. That is `updates.inline` (§2, `consent`) and the library's
+`POST /api/docs/<id>/repin`.
+
+A release that predates this publishes no infra bytes, and its catalog entry says so by
+omission. `check` and `catalog` ask the tag's own tree (`git show <tag>:dist/cdn/…`) before
+listing one, because an entry is a claim about the past: advertising a `url` that tag never
+shipped would make a library offer a replacement it cannot perform.
 
 ## 2. `#doc-settings` — required
 
