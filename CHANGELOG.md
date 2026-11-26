@@ -1,5 +1,69 @@
 # Changelog
 
+## v0.14.0 — 2026-11-26
+
+Five changes that only make sense together: the library can now replace a document's **loader**,
+the document can say whether it may, the chrome finally says what happened, and a document in a
+library writes itself back.
+
+### Added
+
+- **The release publishes the loader's own bytes.** `dist/cdn/` now carries byte copies of the
+  four infra bodies (`registry`, `boot-ui`, `bootstrap`, `boot-ui-styles`) and a release entry
+  lists them with `role: "infra"`, a `url` and a `sha384` — and no `mode`, because
+  infrastructure has none. Infra is still always inline *inside a document*: the thing that
+  verifies hashes cannot be a thing that might fail to arrive. But that made a loader fix
+  unreachable — there was nothing to fetch, so a re-pin could never carry it. The rows are
+  gated on the tag actually shipping the file, so a release before this one keeps an entry with
+  no infra rows: an entry is a claim about the past.
+- **`#doc-settings.updates.inline`** — `ask` | `allow` | `never`, absent meaning `ask`. Consent
+  for the library to replace this document's loader in place. The library already read exactly
+  this path. Written by the settings sheet on Done and by **nothing else**: no save path, no
+  policy, no export — a document that can grant consent is not a consent. `repin()` now reports
+  both halves (`moved` and `left`, with the reason), because a caller that only saw `moved`
+  would let a person believe the loader came with the pin.
+- **One toast, shared.** It has to exist in the ribbon, in the minimal bar, in a viewer's bar
+  and under a failed boot — so it is one element in the body, not furniture in a bar that three
+  of those four never load. A manual save answers; a *successful autosave says nothing* (the
+  ribbon carries `Saved 12:04` instead); any failure speaks, and an error is `role="alert"` and
+  stays until dismissed. A conflict is a bar, not a toast: it is a decision.
+- **`‹ Library`, top left, where the mark was.** A document with a `cloud` record already knows
+  where it belongs, and the way back is the one thing a person looks for. Origin-relative
+  `href="/"`, so a copy on another host goes to that host's shelf; with no `cloud` the link is
+  not there at all rather than pointing at nothing. Both bars carry it, so `ui: "minimal"` is a
+  presentation choice and not a different place in the library.
+- **Autosave, and the conflict bar.** `#doc-settings.autosave = {mode, idleMs, intervalMs}` —
+  `off` by default and for every document that predates the field, cloud-only in practice. Idle
+  saves after typing stops; interval is for a document being read and annotated; both send
+  `?checkpoint=0`, because a keystroke is not a milestone. ⌘S, leaving and every fifteen minutes
+  of continuous autosaving still checkpoint, so the ten versions a library keeps are milestones.
+  A `409` stops the clock and becomes a bar: **Reload theirs** (asks once, then reloads) or
+  **Keep mine** (a `PUT` *without* `If-Match`, which the library snapshots first, so the
+  decision is recoverable from History). The version is re-checked on click.
+
+### Changed
+
+- **One writer for a document's bytes.** Autosave provides a `sink` capability; the toolbar and
+  a review copy's bar ask `can("sink")` before using it. A manual save and an autosave that each
+  tracked their own `ETag` would raise a conflict that is not there and miss one that is. A
+  document whose manifest predates the module — one re-pinned across releases — keeps the older
+  PUT path, with no `If-Match`, exactly as before.
+- **A review copy in a library writes back** instead of always downloading. `cloud` decides
+  what Save *is*, which `docs/MANIFEST.md` §2 already said and the bar did not honour. The
+  button still reads "Save a copy"; a copy with no `cloud` still downloads.
+- **`check` refuses a consent or autosave value no code path handles**, on the source and on
+  every flavour. An unrecognised value is read as `ask` / `off`, which is the safe direction —
+  but a file that says one thing and means another is worth a gate.
+
+### Notes
+
+- `docs/AUTOSAVE.md` §6 records where the implementation took a different shape from the draft
+  (the sink as a capability, the leaving checkpoint happening on return, `confirm()` for the one
+  destructive button) and why.
+- Autosave is the one change here where a subtle bug loses work, so it is tested by what it
+  *does not* do: no write for a document that never asked, none while a conflict is up, one
+  toast per failure and not one per attempt.
+
 ## v0.13.1 — 2026-11-23
 
 Two save-path bugs, found from one document: its figures were blank on reopen, and then the
